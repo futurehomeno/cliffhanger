@@ -41,7 +41,7 @@ func (b *AppConfig) Hide() {
 }
 
 func (b *AppConfig) Show() {
-	b.Hidden = true
+	b.Hidden = false
 }
 
 type MultilingualLabel map[string]string
@@ -88,7 +88,7 @@ func (b *UIButton) Hide() {
 }
 
 func (b *UIButton) Show() {
-	b.Hidden = true
+	b.Hidden = false
 }
 
 type ButtonActionResponse struct {
@@ -114,13 +114,13 @@ func (b *AppUBLock) Hide() {
 }
 
 func (b *AppUBLock) Show() {
-	b.Hidden = true
+	b.Hidden = false
 }
 
 func (m *Manifest) GetUIBlock(id string) *AppUBLock {
-	for i := range m.UIBlocks {
-		if m.UIBlocks[i].ID == id {
-			return &m.UIBlocks[i]
+	for _, b := range m.UIBlocks {
+		if b.ID == id {
+			return &b
 		}
 	}
 
@@ -128,9 +128,9 @@ func (m *Manifest) GetUIBlock(id string) *AppUBLock {
 }
 
 func (m *Manifest) GetButton(id string) *UIButton {
-	for i := range m.UIButtons {
-		if m.UIButtons[i].ID == id {
-			return &m.UIButtons[i]
+	for _, b := range m.UIButtons {
+		if b.ID == id {
+			return &b
 		}
 	}
 
@@ -138,9 +138,9 @@ func (m *Manifest) GetButton(id string) *UIButton {
 }
 
 func (m *Manifest) GetAppConfig(id string) *AppConfig {
-	for i := range m.Configs {
-		if m.Configs[i].ID == id {
-			return &m.Configs[i]
+	for _, c := range m.Configs {
+		if c.ID == id {
+			return &c
 		}
 	}
 
