@@ -2,14 +2,28 @@ package handler_test
 
 import (
 	"errors"
-	"github.com/futurehomeno/cliffhanger/handler"
+	"testing"
+
 	"github.com/futurehomeno/fimpgo"
 	log "github.com/sirupsen/logrus"
 	"github.com/stretchr/testify/assert"
-	"testing"
+
+	"github.com/futurehomeno/cliffhanger/handler"
 )
 
 func TestNewCmdLogSetLevel(t *testing.T) {
+	t.Parallel()
+
+	makeCommand := func(valueType string, value interface{}) *fimpgo.Message {
+		return &fimpgo.Message{
+			Payload: &fimpgo.FimpMessage{
+				ValueType: valueType,
+				Value:     value,
+			},
+			Addr: &fimpgo.Address{},
+		}
+	}
+
 	tests := []struct {
 		name       string
 		logSetter  func(string) error
@@ -21,53 +35,44 @@ func TestNewCmdLogSetLevel(t *testing.T) {
 		{
 			name:       "happy path",
 			logSetter:  func(s string) error { return nil },
-			msg:        logLevelFIMPMessage("string", "error"),
+			msg:        makeCommand("string", "error"),
 			wantLogLvl: log.ErrorLevel,
 		},
 		{
 			name:      "error when checking payload value",
 			logSetter: func(s string) error { return nil },
-			msg:       logLevelFIMPMessage("bool", true),
+			msg:       makeCommand("bool", true),
 			wantErr:   true,
 		},
 		{
 			name:      "error when parsing log level",
 			logSetter: func(s string) error { return nil },
-			msg:       logLevelFIMPMessage("string", "dummy"),
+			msg:       makeCommand("string", "dummy"),
 			wantErr:   true,
 		},
 		{
 			name:      "error when saving log level",
 			logSetter: func(s string) error { return errors.New("test error") },
-			msg:       logLevelFIMPMessage("string", "error"),
+			msg:       makeCommand("string", "error"),
 			wantErr:   true,
 		},
 	}
 
 	for _, tt := range tests {
+		tt := tt
 		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
+
 			f := handler.CmdLogSetLevel(tt.logSetter)
 
-			got, err := f(tt.msg)
+			got := f.Handle(tt.msg)
 
 			if tt.wantErr {
-				assert.Error(t, err)
+				assert.NotNil(t, got)
+			} else {
 				assert.Nil(t, got)
-				return
+				assert.Equal(t, tt.wantLogLvl, log.GetLevel())
 			}
-
-			assert.NoError(t, err)
-			assert.Equal(t, tt.want, got)
-			assert.Equal(t, tt.wantLogLvl, log.GetLevel())
 		})
-	}
-}
-
-func logLevelFIMPMessage(valueType string, value interface{}) *fimpgo.Message {
-	return &fimpgo.Message{
-		Payload: &fimpgo.FimpMessage{
-			ValueType: valueType,
-			Value:     value,
-		},
 	}
 }
