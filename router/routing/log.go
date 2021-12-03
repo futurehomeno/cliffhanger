@@ -1,4 +1,4 @@
-package handler
+package routing
 
 import (
 	"github.com/futurehomeno/fimpgo"
@@ -7,8 +7,21 @@ import (
 	"github.com/futurehomeno/cliffhanger/router"
 )
 
-// CmdLogSetLevel is a handler responsible for manipulating a log level of the application.
-func CmdLogSetLevel(logSetter func(string) error) router.MessageHandler {
+const (
+	CmdLogSetLevel = "cmd.log.set_level"
+)
+
+// RouteCmdLogSetLevel returns a routing responsible for handling the command.
+func RouteCmdLogSetLevel(serviceName string, logSetter func(string) error) *router.Routing {
+	return router.NewRouting(
+		HandleCmdLogSetLevel(logSetter),
+		router.ForService(serviceName),
+		router.ForType(CmdLogSetLevel),
+	)
+}
+
+// HandleCmdLogSetLevel returns a handler responsible for handling the command.
+func HandleCmdLogSetLevel(logSetter func(string) error) router.MessageHandler {
 	return router.NewMessageHandler(
 		func(message *fimpgo.Message) (*fimpgo.FimpMessage, error) {
 			level, err := message.Payload.GetStringValue()
