@@ -23,7 +23,7 @@ func RouteCmdLogSetLevel(serviceName string, logSetter func(string) error) *rout
 // HandleCmdLogSetLevel returns a handler responsible for handling the command.
 func HandleCmdLogSetLevel(logSetter func(string) error) router.MessageHandler {
 	return router.NewMessageHandler(
-		func(message *fimpgo.Message) (*fimpgo.FimpMessage, error) {
+		router.MessageProcessorFn(func(message *fimpgo.Message) (reply *fimpgo.FimpMessage, err error) {
 			level, err := message.Payload.GetStringValue()
 			if err != nil {
 				return nil, err
@@ -43,6 +43,5 @@ func HandleCmdLogSetLevel(logSetter func(string) error) router.MessageHandler {
 			log.Infof("Log level updated to %s", logLevel)
 
 			return nil, nil
-		},
-	)
+		}))
 }
