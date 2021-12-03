@@ -22,8 +22,19 @@ func (f MessageHandlerFn) Handle(message *fimpgo.Message) (reply *fimpgo.Message
 	return f(message)
 }
 
-// MessageProcessor is a type of a function responsible for processing incoming message and returning response payload and optionally an error.
-type MessageProcessor func(message *fimpgo.Message) (reply *fimpgo.FimpMessage, err error)
+// MessageProcessor is an interface representing a message processor service.
+type MessageProcessor interface {
+	// Process is responsible for processing incoming message and returning response payload and optionally an error.
+	Process(message *fimpgo.Message) (reply *fimpgo.FimpMessage, err error)
+}
+
+// MessageProcessorFn is an adapter allowing usage of anonymous function as a service meeting message processor interface.
+type MessageProcessorFn func(message *fimpgo.Message) (reply *fimpgo.FimpMessage, err error)
+
+// Process is responsible for processing incoming message and returning response payload and optionally an error.
+func (f MessageProcessorFn) Process(message *fimpgo.Message) (reply *fimpgo.FimpMessage, err error) {
+	return f(message)
+}
 
 // NewMessageHandler creates new instance of a message handler with a set of useful default behaviors.
 // - handler will infer a default response address from request message, unless this behavior is overridden by WithDefaultAddress option.
@@ -50,7 +61,7 @@ type messageHandler struct {
 
 // Handle handles the incoming message and optionally returns a response.
 func (m *messageHandler) Handle(message *fimpgo.Message) *fimpgo.Message {
-	reply, err := m.processor(message)
+	reply, err := m.processor.Process(message)
 	if err != nil {
 		return m.handleError(message, err)
 	}

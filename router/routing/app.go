@@ -29,7 +29,7 @@ func RouteCmdAppGetState(serviceName string, appLifecycle lifecycle.Lifecycle) *
 // HandleCmdAppGetState returns a handler responsible for handling the command.
 func HandleCmdAppGetState(serviceName string, appLifecycle lifecycle.Lifecycle) router.MessageHandler {
 	return router.NewMessageHandler(
-		func(message *fimpgo.Message) (*fimpgo.FimpMessage, error) {
+		router.MessageProcessorFn(func(message *fimpgo.Message) (reply *fimpgo.FimpMessage, err error) {
 			msg := fimpgo.NewMessage(
 				EvtAppStateReport,
 				serviceName,
@@ -41,8 +41,7 @@ func HandleCmdAppGetState(serviceName string, appLifecycle lifecycle.Lifecycle) 
 			)
 
 			return msg, nil
-		},
-	)
+		}))
 }
 
 // RouteCmdConfigGetExtendedReport returns a routing responsible for handling the command.
@@ -57,7 +56,7 @@ func RouteCmdConfigGetExtendedReport(serviceName string, storage storage.Storage
 // HandleCmdConfigGetExtendedReport returns a handler responsible for handling the command.
 func HandleCmdConfigGetExtendedReport(serviceName string, storage storage.Storage) router.MessageHandler {
 	return router.NewMessageHandler(
-		func(message *fimpgo.Message) (*fimpgo.FimpMessage, error) {
+		router.MessageProcessorFn(func(message *fimpgo.Message) (reply *fimpgo.FimpMessage, err error) {
 			msg := fimpgo.NewMessage(
 				EvtConfigExtendedReport,
 				serviceName,
@@ -69,6 +68,5 @@ func HandleCmdConfigGetExtendedReport(serviceName string, storage storage.Storag
 			)
 
 			return msg, nil
-		},
-	)
+		}))
 }
