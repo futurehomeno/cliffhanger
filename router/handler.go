@@ -25,11 +25,12 @@ func (f MessageHandlerFn) Handle(message *fimpgo.Message) (reply *fimpgo.Message
 // MessageProcessor is a type of a function responsible for processing incoming message and returning response payload and optionally an error.
 type MessageProcessor func(message *fimpgo.Message) (reply *fimpgo.FimpMessage, err error)
 
-// NewMessageHandler creates new instance of a message handler.
+// NewMessageHandler creates new instance of a message handler with a set of useful default behaviors.
+// - handler will infer a default response address from request message, unless this behavior is overridden by WithDefaultAddress option.
+// - on error handler will respond with error message, unless this behavior is overridden by WithSilentErrors option.
 func NewMessageHandler(processor MessageProcessor, options ...MessageHandlerOption) MessageHandler {
 	h := &messageHandler{
-		processor:    processor,
-		silentErrors: false,
+		processor: processor,
 	}
 
 	for _, o := range options {
@@ -41,12 +42,13 @@ func NewMessageHandler(processor MessageProcessor, options ...MessageHandlerOpti
 
 // messageHandler is a private implementation of a message handler interface.
 type messageHandler struct {
-	processor      MessageProcessor
+	processor MessageProcessor
+
 	defaultAddress *fimpgo.Address
 	silentErrors   bool
 }
 
-// Handle handles the incoming message and optionally returns a response. If no response is expected a nil message should be returned.
+// Handle handles the incoming message and optionally returns a response.
 func (m *messageHandler) Handle(message *fimpgo.Message) *fimpgo.Message {
 	reply, err := m.processor(message)
 	if err != nil {
@@ -113,7 +115,7 @@ func (m *messageHandler) getResponseAddress(requestAddress *fimpgo.Address) *fim
 	}
 }
 
-// getErrorMessageType returns error message type.
+// getErrorMessageType returns error message type based on request message type.
 func (m *messageHandler) getErrorMessageType(messageType string) string {
 	s := strings.Split(messageType, ".")
 	if len(s) < 3 {
@@ -129,7 +131,7 @@ type MessageHandlerOption interface {
 	apply(h *messageHandler)
 }
 
-// messageHandlerOptionFn is an adapter allowing usage of anonymous function meeting message handler option interface.
+// messageHandlerOptionFn is an adapter allowing usage of anonymous function as a service meeting message handler option interface.
 type messageHandlerOptionFn func(h *messageHandler)
 
 // apply applies option to the message handler.
@@ -137,12 +139,14 @@ func (f messageHandlerOptionFn) apply(h *messageHandler) {
 	f(h)
 }
 
+// WithSilentErrors makes handler only log errors and not respond with error messages.
 func WithSilentErrors() MessageHandlerOption {
 	return messageHandlerOptionFn(func(h *messageHandler) {
 		h.silentErrors = true
 	})
 }
 
+// WithDefaultAddress makes handler use a provided address, instead of inferring a response address out of request message address.
 func WithDefaultAddress(defaultAddress *fimpgo.Address) MessageHandlerOption {
 	return messageHandlerOptionFn(func(h *messageHandler) {
 		h.defaultAddress = defaultAddress

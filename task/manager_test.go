@@ -9,7 +9,6 @@ import (
 	"github.com/futurehomeno/cliffhanger/task"
 )
 
-//nolint:funlen
 func TestManager_Start(t *testing.T) {
 	t.Parallel()
 
