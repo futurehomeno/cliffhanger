@@ -36,9 +36,9 @@ func NewRouting(handler MessageHandler, voters ...MessageVoter) *Routing {
 }
 
 // vote checks if all set conditions are met by executing all registered voters.
-func (r *Routing) vote(msg *fimpgo.Message) bool {
+func (r *Routing) vote(message *fimpgo.Message) bool {
 	for _, v := range r.voters {
-		if !v.Vote(msg) {
+		if !v.Vote(message) {
 			return false
 		}
 	}
