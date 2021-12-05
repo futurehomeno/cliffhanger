@@ -118,9 +118,9 @@ func (b *AppUBLock) Show() {
 }
 
 func (m *Manifest) GetUIBlock(id string) *AppUBLock {
-	for _, b := range m.UIBlocks {
+	for i, b := range m.UIBlocks {
 		if b.ID == id {
-			return &b
+			return &m.UIBlocks[i]
 		}
 	}
 
@@ -128,9 +128,9 @@ func (m *Manifest) GetUIBlock(id string) *AppUBLock {
 }
 
 func (m *Manifest) GetButton(id string) *UIButton {
-	for _, b := range m.UIButtons {
+	for i, b := range m.UIButtons {
 		if b.ID == id {
-			return &b
+			return &m.UIButtons[i]
 		}
 	}
 
@@ -138,9 +138,9 @@ func (m *Manifest) GetButton(id string) *UIButton {
 }
 
 func (m *Manifest) GetAppConfig(id string) *AppConfig {
-	for _, c := range m.Configs {
+	for i, c := range m.Configs {
 		if c.ID == id {
-			return &c
+			return &m.Configs[i]
 		}
 	}
 
