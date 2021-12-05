@@ -12,13 +12,13 @@ const (
 	CmdAppGetManifest          = "cmd.app.get_manifest"
 	EvtAppManifestReport       = "evt.app.manifest_report"
 	CmdAppGetState             = "cmd.app.get_state"
-	EvtAppStateReport          = "evt.config.extended_report"
+	EvtAppStateReport          = "evt.app.state_report"
 	CmdConfigGetExtendedReport = "cmd.config.get_extended_report"
 	EvtConfigExtendedReport    = "evt.config.extended_report"
 )
 
 // RouteCmdAppGetState returns a routing responsible for handling the command.
-func RouteCmdAppGetState(serviceName string, appLifecycle lifecycle.Lifecycle) *router.Routing {
+func RouteCmdAppGetState(serviceName string, appLifecycle *lifecycle.Lifecycle) *router.Routing {
 	return router.NewRouting(
 		HandleCmdAppGetState(serviceName, appLifecycle),
 		router.ForService(serviceName),
@@ -27,7 +27,7 @@ func RouteCmdAppGetState(serviceName string, appLifecycle lifecycle.Lifecycle) *
 }
 
 // HandleCmdAppGetState returns a handler responsible for handling the command.
-func HandleCmdAppGetState(serviceName string, appLifecycle lifecycle.Lifecycle) router.MessageHandler {
+func HandleCmdAppGetState(serviceName string, appLifecycle *lifecycle.Lifecycle) router.MessageHandler {
 	return router.NewMessageHandler(
 		router.MessageProcessorFn(func(message *fimpgo.Message) (reply *fimpgo.FimpMessage, err error) {
 			msg := fimpgo.NewMessage(
