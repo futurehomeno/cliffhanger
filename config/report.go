@@ -13,5 +13,6 @@ const (
 // Report is an object holding information of configuration operation status.
 type Report struct {
 	OpStatus string              `json:"op_status"`
+	OpError  string              `json:"op_error"`
 	AppState lifecycle.AppStates `json:"app_state"`
 }

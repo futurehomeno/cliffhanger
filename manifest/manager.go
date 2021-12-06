@@ -6,4 +6,6 @@ type Manager interface {
 	Get() (*Manifest, error)
 	// Configure performs update of the application state based on the provided configuration.
 	Configure(config interface{}) error
+	// Uninstall performs all required clean ups before uninstalling the applications.
+	Uninstall() error
 }

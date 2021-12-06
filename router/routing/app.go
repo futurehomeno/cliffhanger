@@ -24,6 +24,7 @@ const (
 	CmdConfigExtendedSet       = "cmd.config.extended_set"
 	EvtAppConfigReport         = "evt.app.config_report"
 	CmdAppUninstall            = "cmd.app.uninstall"
+	EvtAppUninstallReport      = "evt.app.uninstall_report"
 )
 
 // RouteCmdAppGetState returns a routing responsible for handling the command.
@@ -126,25 +127,29 @@ func HandleCmdAppGetManifest(
 }
 
 // RouteCmdConfigExtendedSet returns a routing responsible for handling the command.
+// Provided locker is optional.
 func RouteCmdConfigExtendedSet(
 	serviceName string,
 	appLifecycle *lifecycle.Lifecycle,
 	configFactory func() interface{},
 	manifestManager manifest.Manager,
+	locker router.MessageHandlerLocker,
 ) *router.Routing {
 	return router.NewRouting(
-		HandleCmdConfigExtendedSet(serviceName, appLifecycle, configFactory, manifestManager),
+		HandleCmdConfigExtendedSet(serviceName, appLifecycle, configFactory, manifestManager, locker),
 		router.ForService(serviceName),
 		router.ForType(CmdConfigExtendedSet),
 	)
 }
 
 // HandleCmdConfigExtendedSet returns a handler responsible for handling the command.
+// Provided locker is optional.
 func HandleCmdConfigExtendedSet(
 	serviceName string,
 	appLifecycle *lifecycle.Lifecycle,
 	configFactory func() interface{},
 	manifestManager manifest.Manager,
+	locker router.MessageHandlerLocker,
 ) router.MessageHandler {
 	return router.NewMessageHandler(
 		router.MessageProcessorFn(func(message *fimpgo.Message) (*fimpgo.FimpMessage, error) {
@@ -152,25 +157,88 @@ func HandleCmdConfigExtendedSet(
 
 			err := message.Payload.GetObjectValue(cfg)
 			if err != nil {
-				return nil, fmt.Errorf("failed to parse the configuration object: %w", err)
+				return makeConfigurationReply(serviceName, EvtAppConfigReport, message, appLifecycle, err), nil
 			}
-
-			configReport := &config.Report{}
 
 			err = manifestManager.Configure(cfg)
 			if err != nil {
-				log.WithError(err).Error("failed to configure the application")
-				configReport.OpStatus = config.OperationStatusError
-				configReport.AppState = *appLifecycle.GetAllStates()
-				configReport.AppState.LastErrorText = fmt.Sprintf("failed to configure the application: %s", err)
-			} else {
-				configReport.OpStatus = config.OperationStatusOK
-				configReport.AppState = *appLifecycle.GetAllStates()
+				return makeConfigurationReply(serviceName, EvtAppConfigReport, message, appLifecycle, err), nil
 			}
 
-			reply := fimpgo.NewMessage(EvtAppConfigReport, serviceName, fimpgo.VTypeObject, configReport, nil, nil, message.Payload)
-
-			return reply, nil
+			return makeConfigurationReply(serviceName, EvtAppConfigReport, message, appLifecycle, nil), nil
 		}),
+		router.WithExternalLock(locker),
+	)
+}
+
+// RouteCmdAppUninstall returns a routing responsible for handling the command.
+// Provided locker is optional.
+func RouteCmdAppUninstall(
+	serviceName string,
+	appLifecycle *lifecycle.Lifecycle,
+	manifestManager manifest.Manager,
+	locker router.MessageHandlerLocker,
+) *router.Routing {
+	return router.NewRouting(
+		HandleCmdAppUninstall(serviceName, appLifecycle, manifestManager, locker),
+		router.ForService(serviceName),
+		router.ForType(CmdAppUninstall),
+	)
+}
+
+// HandleCmdAppUninstall returns a handler responsible for handling the command.
+// Provided locker is optional.
+func HandleCmdAppUninstall(
+	serviceName string,
+	appLifecycle *lifecycle.Lifecycle,
+	manifestManager manifest.Manager,
+	locker router.MessageHandlerLocker,
+) router.MessageHandler {
+	return router.NewMessageHandler(
+		router.MessageProcessorFn(func(message *fimpgo.Message) (*fimpgo.FimpMessage, error) {
+			err := manifestManager.Uninstall()
+			if err != nil {
+				return makeConfigurationReply(serviceName, EvtAppUninstallReport, message, appLifecycle, err), nil
+			}
+
+			return makeConfigurationReply(serviceName, EvtAppUninstallReport, message, appLifecycle, nil), nil
+		}),
+		router.WithExternalLock(locker),
+	)
+}
+
+// makeConfigurationReply creates configuration reply for an edge application.
+func makeConfigurationReply(
+	serviceName string,
+	messageType string,
+	message *fimpgo.Message,
+	appLifecycle *lifecycle.Lifecycle,
+	err error,
+) *fimpgo.FimpMessage {
+	configReport := &config.Report{
+		OpStatus: config.OperationStatusOK,
+	}
+
+	if err != nil {
+		log.WithError(err).
+			WithField("topic", message.Topic).
+			WithField("service", message.Payload.Service).
+			WithField("type", message.Payload.Type).
+			Error("failed to configure the application")
+
+		configReport.OpStatus = config.OperationStatusError
+		configReport.OpError = fmt.Sprintf("failed to configure the application: %s", err)
+	}
+
+	configReport.AppState = *appLifecycle.GetAllStates()
+
+	return fimpgo.NewMessage(
+		messageType,
+		serviceName,
+		fimpgo.VTypeObject,
+		configReport,
+		nil,
+		nil,
+		message.Payload,
 	)
 }
