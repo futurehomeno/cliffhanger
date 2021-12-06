@@ -23,6 +23,7 @@ const (
 	EvtConfigExtendedReport    = "evt.config.extended_report"
 	CmdConfigExtendedSet       = "cmd.config.extended_set"
 	EvtAppConfigReport         = "evt.app.config_report"
+	CmdAppUninstall            = "cmd.app.uninstall"
 )
 
 // RouteCmdAppGetState returns a routing responsible for handling the command.
