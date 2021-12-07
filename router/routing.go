@@ -21,6 +21,9 @@ func TopicPatternApplication(serviceName string) string {
 	return fmt.Sprintf("pt:j1/+/rt:app/rn:%s/ad:1", serviceName)
 }
 
+// EvtErrorReport is a type of a message for error responses.
+const EvtErrorReport = "evt.error.report"
+
 // Routing is an object representing a particular routing. It contains a message handler and a set of message voters.
 type Routing struct {
 	handler MessageHandler
@@ -36,9 +39,9 @@ func NewRouting(handler MessageHandler, voters ...MessageVoter) *Routing {
 }
 
 // vote checks if all set conditions are met by executing all registered voters.
-func (r *Routing) vote(msg *fimpgo.Message) bool {
+func (r *Routing) vote(message *fimpgo.Message) bool {
 	for _, v := range r.voters {
-		if !v.Vote(msg) {
+		if !v.Vote(message) {
 			return false
 		}
 	}

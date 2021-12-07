@@ -50,10 +50,10 @@ func (r *router) Start() error {
 	}
 
 	r.stopCh = make(chan struct{})
-	msgCh := make(fimpgo.MessageCh, 5)
-	r.mqtt.RegisterChannel(r.channelID, msgCh)
+	messageCh := make(fimpgo.MessageCh, 5)
+	r.mqtt.RegisterChannel(r.channelID, messageCh)
 
-	go r.routeMessages(msgCh)
+	go r.routeMessages(messageCh)
 
 	return nil
 }
@@ -76,11 +76,11 @@ func (r *router) Stop() error {
 }
 
 // routeMessages routes incoming message.
-func (r *router) routeMessages(msgChan fimpgo.MessageCh) {
+func (r *router) routeMessages(messageCh fimpgo.MessageCh) {
 	for {
 		select {
-		case msg := <-msgChan:
-			r.processMessage(msg)
+		case message := <-messageCh:
+			r.processMessage(message)
 		case <-r.stopCh:
 			return
 		}
@@ -88,22 +88,22 @@ func (r *router) routeMessages(msgChan fimpgo.MessageCh) {
 }
 
 // processMessage executes handlers responsible for processing the incoming message and send response if applicable.
-func (r *router) processMessage(msg *fimpgo.Message) {
+func (r *router) processMessage(message *fimpgo.Message) {
 	for _, routing := range r.routing {
-		if !routing.vote(msg) {
+		if !routing.vote(message) {
 			continue
 		}
 
-		response := routing.handler.Handle(msg)
+		response := routing.handler.Handle(message)
 		if response == nil {
 			continue
 		}
 
-		if msg.Payload.ResponseToTopic != "" {
-			err := r.mqtt.RespondToRequest(msg.Payload, response.Payload)
+		if message.Payload.ResponseToTopic != "" {
+			err := r.mqtt.RespondToRequest(message.Payload, response.Payload)
 			if err != nil {
 				log.WithError(err).
-					WithField("topic", msg.Payload.ResponseToTopic).
+					WithField("topic", message.Payload.ResponseToTopic).
 					WithField("message", response.Payload).
 					Error("failed to publish response")
 			}

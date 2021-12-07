@@ -2,7 +2,7 @@ package router
 
 import (
 	"fmt"
-	"strings"
+	"sync"
 
 	"github.com/futurehomeno/fimpgo"
 	log "github.com/sirupsen/logrus"
@@ -36,6 +36,49 @@ func (f MessageProcessorFn) Process(message *fimpgo.Message) (reply *fimpgo.Fimp
 	return f(message)
 }
 
+// MessageHandlerLocker is an interface representing a locker used to prevent concurrent message processing.
+type MessageHandlerLocker interface {
+	// Lock tries to lock message processing. Returns true if lock was successful and false if it was locked previously.
+	Lock() bool
+	// Unlock unlocks the message processing.
+	Unlock()
+}
+
+// NewMessageHandlerLocker creates a new instance of a message handler locker service.
+func NewMessageHandlerLocker() MessageHandlerLocker {
+	return &messageProcessorLocker{
+		lock: &sync.Mutex{},
+	}
+}
+
+// messageProcessorLocker is a private implementation of a message handler locker interface.
+type messageProcessorLocker struct {
+	lock     *sync.Mutex
+	isLocked bool
+}
+
+// Lock tries to lock message processing. Returns true if lock was successful and false if it was locked previously.
+func (m *messageProcessorLocker) Lock() bool {
+	m.lock.Lock()
+	defer m.lock.Unlock()
+
+	if m.isLocked {
+		return false
+	}
+
+	m.isLocked = true
+
+	return true
+}
+
+// Unlock unlocks the message processing.
+func (m *messageProcessorLocker) Unlock() {
+	m.lock.Lock()
+	defer m.lock.Unlock()
+
+	m.isLocked = false
+}
+
 // NewMessageHandler creates new instance of a message handler with a set of useful default behaviors.
 // - handler will infer a default response address from request message, unless this behavior is overridden by WithDefaultAddress option.
 // - on error handler will respond with error message, unless this behavior is overridden by WithSilentErrors option.
@@ -57,10 +100,18 @@ type messageHandler struct {
 
 	defaultAddress *fimpgo.Address
 	silentErrors   bool
+	locker         MessageHandlerLocker
 }
 
 // Handle handles the incoming message and optionally returns a response.
 func (m *messageHandler) Handle(message *fimpgo.Message) *fimpgo.Message {
+	if m.locker != nil && !m.locker.Lock() {
+		return m.handleError(
+			message,
+			fmt.Errorf("another operation is already running, skipping message"))
+	}
+	defer m.locker.Unlock()
+
 	reply, err := m.processor.Process(message)
 	if err != nil {
 		return m.handleError(message, err)
@@ -94,13 +145,20 @@ func (m *messageHandler) handleError(requestMessage *fimpgo.Message, err error) 
 		return nil
 	}
 
+	errMessage := fmt.Sprintf("failed to process message sent to topic %s service %s and type %s: %s",
+		requestMessage.Topic,
+		requestMessage.Payload.Service,
+		requestMessage.Payload.Type,
+		err.Error(),
+	)
+
 	return &fimpgo.Message{
 		Addr: m.getResponseAddress(requestMessage.Addr),
 		Payload: fimpgo.NewMessage(
-			m.getErrorMessageType(requestMessage.Payload.Type),
+			EvtErrorReport,
 			requestMessage.Payload.Service,
 			fimpgo.VTypeString,
-			err.Error(),
+			errMessage,
 			nil,
 			nil,
 			requestMessage.Payload,
@@ -124,16 +182,6 @@ func (m *messageHandler) getResponseAddress(requestAddress *fimpgo.Address) *fim
 		ServiceName:     a.ServiceName,
 		ServiceAddress:  a.ServiceAddress,
 	}
-}
-
-// getErrorMessageType returns error message type based on request message type.
-func (m *messageHandler) getErrorMessageType(messageType string) string {
-	s := strings.Split(messageType, ".")
-	if len(s) < 3 {
-		return "evt.error"
-	}
-
-	return fmt.Sprintf("evt.%s.error", s[1])
 }
 
 // MessageHandlerOption is an interface representing a message handler configuration option.
@@ -161,5 +209,19 @@ func WithSilentErrors() MessageHandlerOption {
 func WithDefaultAddress(defaultAddress *fimpgo.Address) MessageHandlerOption {
 	return messageHandlerOptionFn(func(h *messageHandler) {
 		h.defaultAddress = defaultAddress
+	})
+}
+
+// WithLock makes sure handler will process only one message at a time, ignoring other ones.
+func WithLock() MessageHandlerOption {
+	return messageHandlerOptionFn(func(h *messageHandler) {
+		h.locker = NewMessageHandlerLocker()
+	})
+}
+
+// WithExternalLock makes sure handler will process message only if a external lock allows for it.
+func WithExternalLock(locker MessageHandlerLocker) MessageHandlerOption {
+	return messageHandlerOptionFn(func(h *messageHandler) {
+		h.locker = locker
 	})
 }
