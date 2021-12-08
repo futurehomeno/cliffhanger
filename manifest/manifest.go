@@ -72,6 +72,11 @@ type AppConfigUI struct {
 	Select interface{} `json:"select"`
 }
 
+type SelectOption struct {
+	Val   interface{}       `json:"val"`
+	Label map[string]string `json:"label"`
+}
+
 type UIButton struct {
 	ID    string            `json:"id"`
 	Label MultilingualLabel `json:"label"`
