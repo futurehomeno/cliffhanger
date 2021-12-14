@@ -231,7 +231,7 @@ func (l *Lifecycle) Unsubscribe(subID string) {
 	l.chLock.Lock()
 	defer l.chLock.Unlock()
 
-	if _, ok := l.systemEventBus[subID]; ok {
+	if _, ok := l.systemEventBus[subID]; !ok {
 		return
 	}
 
