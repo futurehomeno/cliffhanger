@@ -10,9 +10,13 @@ import (
 	"gopkg.in/natefinch/lumberjack.v2"
 )
 
+var workDir string
+
 // GetWorkingDirectory returns a working directory passed through the -c option.
 func GetWorkingDirectory() string {
-	var workDir string
+	if workDir != "" {
+		return workDir
+	}
 
 	flag.StringVar(&workDir, "c", "", "Working directory.")
 	flag.Parse()
