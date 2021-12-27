@@ -31,7 +31,6 @@ type manager struct {
 	mqtt        *fimpgo.MqttTransport
 	siteID      string
 	serviceName string
-	sourceName  string
 }
 
 // Notification sends a notification.
@@ -57,7 +56,7 @@ func (m *manager) Notification(notificationType string, notificationContent stri
 // 	m.Timeline("My Service", "en", "Timeline in English", "no", "Tidslinje på norsk")
 func (m *manager) Timeline(sender string, languageAndMessage ...string) error {
 	if len(languageAndMessage)%2 > 0 {
-		return fmt.Errorf("odd number of langauges and messages")
+		return fmt.Errorf("odd number of languages and messages")
 	}
 
 	e := map[string]string{

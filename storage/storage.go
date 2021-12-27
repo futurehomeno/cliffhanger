@@ -8,6 +8,8 @@ import (
 	"path"
 	"path/filepath"
 	"sync"
+
+	log "github.com/sirupsen/logrus"
 )
 
 // Constants defining data and defaults locations.
@@ -64,22 +66,33 @@ func (s *storage) Load() error {
 		return err
 	}
 
+	return s.load(defaultsExists, dataExists)
+}
+
+// load loads the configuration files in the right order and performs fallback if allowed.
+func (s *storage) load(defaultsExists, dataExists bool) error {
 	if !dataExists && !defaultsExists {
 		return fmt.Errorf("storage: no configuration files were found at paths: %s, %s", s.getDataPath(), s.getDefaultPath())
 	}
 
 	if defaultsExists {
-		err = s.loadFile(s.getDefaultPath())
+		err := s.loadFile(s.getDefaultPath())
 		if err != nil {
 			return err
 		}
 	}
 
-	if dataExists {
-		err = s.loadFile(s.getDataPath())
-		if err != nil {
-			return err
-		}
+	if !dataExists {
+		return nil
+	}
+
+	err := s.loadFile(s.getDataPath())
+	if err != nil && !defaultsExists {
+		return err
+	}
+
+	if err != nil {
+		log.WithError(err).Errorf("storage: failed to read the configuration file at path %s, falling back to defaults", s.getDataPath())
 	}
 
 	return nil
@@ -140,7 +153,7 @@ func (s *storage) loadFile(path string) error {
 
 	err = json.Unmarshal(body, s.config)
 	if err != nil {
-		return fmt.Errorf("storage: cannot unmarshal a configuration file from path %s: %w", path, err)
+		return fmt.Errorf("storage: cannot unmarshal a configuration file from path %s with contents '%s': %w", path, body, err)
 	}
 
 	return nil

@@ -70,3 +70,25 @@ func TestStorage_Load(t *testing.T) {
 
 	assert.Equal(t, expectedCfg, cfg)
 }
+
+func TestStorage_Load_Fallback(t *testing.T) {
+	t.Parallel()
+
+	p := "../testdata/storage/load/"
+
+	cfg := &testConfig{}
+
+	srv := storage.New(cfg, p, "config_fallback.json")
+
+	err := srv.Load()
+	assert.NoError(t, err)
+
+	expectedCfg := &testConfig{
+		SettingA: "X",
+		SettingB: "X",
+		SettingC: "X",
+	}
+
+	assert.Equal(t, expectedCfg, cfg)
+}
+
