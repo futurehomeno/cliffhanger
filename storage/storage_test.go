@@ -91,4 +91,3 @@ func TestStorage_Load_Fallback(t *testing.T) {
 
 	assert.Equal(t, expectedCfg, cfg)
 }
-

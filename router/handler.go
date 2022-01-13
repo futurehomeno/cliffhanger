@@ -147,6 +147,8 @@ func (m *messageHandler) handleError(requestMessage *fimpgo.Message, err error) 
 		return nil
 	}
 
+	requestMessage.Addr.Serialize()
+
 	errMessage := fmt.Sprintf("failed to process message sent to topic %s service %s and type %s: %s",
 		requestMessage.Topic,
 		requestMessage.Payload.Service,
