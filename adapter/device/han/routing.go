@@ -20,9 +20,10 @@ const (
 	MeterElec = "meter_elec"
 )
 
-func RouteHAN(adapter adapter.Adapter) []*router.Routing {
+func Route(adapter adapter.Adapter) []*router.Routing {
 	return []*router.Routing{
 		RouteCmdMeterGetReport(adapter),
+		RouteCmdMeterExtGetReport(adapter),
 	}
 }
 
@@ -39,29 +40,29 @@ func RouteCmdMeterGetReport(adapter adapter.Adapter) *router.Routing {
 func HandleCmdMeterGetReport(adapter adapter.Adapter) router.MessageHandler {
 	return router.NewMessageHandler(
 		router.MessageProcessorFn(func(message *fimpgo.Message) (reply *fimpgo.FimpMessage, err error) {
-			thing := adapter.GetByTopic(message.Topic)
+			thing := adapter.ThingByTopic(message.Topic)
 			if thing == nil {
 				return nil, fmt.Errorf("adapter: thing not found under the provided address: %s", message.Addr.ServiceAddress)
 			}
 
 			meter, ok := thing.(HAN)
 			if !ok {
-				return nil, fmt.Errorf("adapter: meter not found under the provided address: %s", message.Addr.ServiceAddress)
+				return nil, fmt.Errorf("adapter: HAN not found under the provided address: %s", message.Addr.ServiceAddress)
 			}
 
 			unit, err := message.Payload.GetStringValue()
 			if err != nil {
-				return nil, fmt.Errorf("meter: provided unit has an incorrect format: %w", err)
+				return nil, fmt.Errorf("adapter: provided unit has an incorrect format: %w", err)
 			}
 
-			normalizedUnit, ok := supportedUnit(unit, meter.GetSupportedUnits())
+			normalizedUnit, ok := supportedUnit(unit, meter.SupportedUnits())
 			if !ok {
-				return nil, fmt.Errorf("meter: unsupported unit: %s", unit)
+				return nil, fmt.Errorf("adapter: unit is unsupported by HAN: %s", unit)
 			}
 
-			value, err := meter.GetReport(normalizedUnit)
+			value, err := meter.Report(normalizedUnit)
 			if err != nil {
-				return nil, fmt.Errorf("meter: failed to retrieve readingr: %w", err)
+				return nil, fmt.Errorf("adapter: failed to retrieve report from HAN: %w", err)
 			}
 
 			msg := fimpgo.NewFloatMessage(
@@ -76,7 +77,54 @@ func HandleCmdMeterGetReport(adapter adapter.Adapter) router.MessageHandler {
 			)
 
 			return msg, nil
-		}))
+		}),
+	)
+}
+
+// RouteCmdMeterExtGetReport returns a routing responsible for handling the command.
+func RouteCmdMeterExtGetReport(adapter adapter.Adapter) *router.Routing {
+	return router.NewRouting(
+		HandleCmdMeterExtGetReport(adapter),
+		router.ForService(MeterElec),
+		router.ForType(CmdMeterExtGetReport),
+	)
+}
+
+// HandleCmdMeterExtGetReport returns a handler responsible for handling the command.
+func HandleCmdMeterExtGetReport(adapter adapter.Adapter) router.MessageHandler {
+	return router.NewMessageHandler(
+		router.MessageProcessorFn(func(message *fimpgo.Message) (reply *fimpgo.FimpMessage, err error) {
+			thing := adapter.ThingByTopic(message.Topic)
+			if thing == nil {
+				return nil, fmt.Errorf("adapter: thing not found under the provided address: %s", message.Addr.ServiceAddress)
+			}
+
+			meter, ok := thing.(HAN)
+			if !ok {
+				return nil, fmt.Errorf("adapter: HAN not found under the provided address: %s", message.Addr.ServiceAddress)
+			}
+
+			if !meter.SupportsExtendedReport() {
+				return nil, fmt.Errorf("adapter: HAN does not support extended reports")
+			}
+
+			report, err := meter.ExtendedReport()
+			if err != nil {
+				return nil, fmt.Errorf("adapter: failed to retrieve extended report from HAN: %w", err)
+			}
+
+			msg := fimpgo.NewFloatMapMessage(
+				EvtMeterExtReport,
+				MeterElec,
+				report,
+				nil,
+				nil,
+				message.Payload,
+			)
+
+			return msg, nil
+		}),
+	)
 }
 
 func supportedUnit(unit string, units []string) (string, bool) {

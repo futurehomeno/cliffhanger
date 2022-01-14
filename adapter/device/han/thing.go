@@ -8,14 +8,14 @@ import (
 type HAN interface {
 	adapter.Thing
 
-	// GetReport returns simplified meter report based on input unit.
-	GetReport(unit string) (float64, error)
-	// GetExtendedReport returns extended meter report. Should return nil if extended report is not supported.
-	GetExtendedReport() (map[string]float64, error)
-	// GetSupportedUnits returns units that are supported by the simplified meter report.
-	GetSupportedUnits() []string
-	// GetSupportedExtendedValues returns extended values that are supported by the extended meter report.
-	GetSupportedExtendedValues() []string
+	// Report returns simplified HAN meter report based on input unit.
+	Report(unit string) (float64, error)
+	// ExtendedReport returns extended HAN meter report. Should return nil if extended report is not supported.
+	ExtendedReport() (map[string]float64, error)
+	// SupportedUnits returns units that are supported by the simplified meter report.
+	SupportedUnits() []string
+	// SupportedExtendedValues returns extended values that are supported by the extended meter report.
+	SupportedExtendedValues() []string
 	// SupportsExtendedReport returns true if meter supports the extended report.
 	SupportsExtendedReport() bool
 }

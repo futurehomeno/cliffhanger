@@ -16,24 +16,26 @@ type Thing interface {
 }
 
 type Adapter interface {
-	GetName() string
-	GetByAddress(address string) Thing
-	GetByTopic(topic string) Thing
-	Register(thing Thing)
-	Unregister(address string)
-	Add(thing Thing) error
-	Remove(address string) error
-	RemoveAll() error
+	Name() string
+	Address() string
+	Things() []Thing
+	ThingByAddress(address string) Thing
+	ThingByTopic(topic string) Thing
+	RegisterThing(thing Thing)
+	UnregisterThing(address string)
+	AddThing(thing Thing) error
+	RemoveThing(address string) error
+	RemoveAllThings() error
 	SendInclusionReport(thing Thing) error
 	SendExclusionReport(thing Thing) error
 }
 
-func NewAdapter(mqtt *fimpgo.MqttTransport, serviceName, instanceID string) Adapter {
+func NewAdapter(mqtt *fimpgo.MqttTransport, resourceName, resourceAddress string) Adapter {
 	return &adapter{
 		lock:         &sync.RWMutex{},
 		mqtt:         mqtt,
-		name:         serviceName,
-		instanceID:   instanceID,
+		name:         resourceName,
+		address:      resourceAddress,
 		addressIndex: nil,
 		topicIndex:   nil,
 	}
@@ -43,25 +45,39 @@ type adapter struct {
 	lock *sync.RWMutex
 	mqtt *fimpgo.MqttTransport
 
-	name       string
-	instanceID string
+	name    string
+	address string
 
 	addressIndex map[string]Thing
 	topicIndex   map[string]Thing
 }
 
-func (a *adapter) GetName() string {
+func (a *adapter) Name() string {
 	return a.name
 }
 
-func (a *adapter) GetByAddress(address string) Thing {
+func (a *adapter) Address() string {
+	return a.name
+}
+
+func (a *adapter) Things() []Thing {
+	var things []Thing
+
+	for _, thing := range a.addressIndex {
+		things = append(things, thing)
+	}
+
+	return things
+}
+
+func (a *adapter) ThingByAddress(address string) Thing {
 	a.lock.RLock()
 	defer a.lock.RUnlock()
 
 	return a.addressIndex[address]
 }
 
-func (a *adapter) GetByTopic(topic string) Thing {
+func (a *adapter) ThingByTopic(topic string) Thing {
 	a.lock.RLock()
 	defer a.lock.RUnlock()
 
@@ -74,18 +90,18 @@ func (a *adapter) GetByTopic(topic string) Thing {
 	return nil
 }
 
-func (a *adapter) Register(thing Thing) {
+func (a *adapter) RegisterThing(thing Thing) {
 	a.lock.Lock()
 	defer a.lock.Unlock()
 
 	a.register(thing)
 }
 
-func (a *adapter) Unregister(address string) {
+func (a *adapter) UnregisterThing(address string) {
 	a.lock.Lock()
 	defer a.lock.Unlock()
 
-	thing := a.GetByAddress(address)
+	thing := a.ThingByAddress(address)
 	if thing == nil {
 		return
 	}
@@ -93,7 +109,7 @@ func (a *adapter) Unregister(address string) {
 	a.unregister(thing)
 }
 
-func (a *adapter) Add(thing Thing) error {
+func (a *adapter) AddThing(thing Thing) error {
 	a.lock.Lock()
 	defer a.lock.Unlock()
 
@@ -102,11 +118,11 @@ func (a *adapter) Add(thing Thing) error {
 	return a.SendInclusionReport(thing)
 }
 
-func (a *adapter) Remove(address string) error {
+func (a *adapter) RemoveThing(address string) error {
 	a.lock.Lock()
 	defer a.lock.Unlock()
 
-	thing := a.GetByAddress(address)
+	thing := a.ThingByAddress(address)
 	if thing == nil {
 		return nil
 	}
@@ -116,7 +132,7 @@ func (a *adapter) Remove(address string) error {
 	return a.SendExclusionReport(thing)
 }
 
-func (a *adapter) RemoveAll() error {
+func (a *adapter) RemoveAllThings() error {
 	a.lock.Lock()
 	defer a.lock.Unlock()
 
@@ -138,8 +154,8 @@ func (a *adapter) SendInclusionReport(thing Thing) error {
 	addr := &fimpgo.Address{
 		MsgType:         fimpgo.MsgTypeEvt,
 		ResourceType:    fimpgo.ResourceTypeAdapter,
-		ResourceName:    a.name,
-		ResourceAddress: a.instanceID,
+		ResourceName:    a.Name(),
+		ResourceAddress: a.Address(),
 	}
 
 	msg := fimpgo.NewObjectMessage(
@@ -167,8 +183,8 @@ func (a *adapter) SendExclusionReport(thing Thing) error {
 	addr := &fimpgo.Address{
 		MsgType:         fimpgo.MsgTypeEvt,
 		ResourceType:    fimpgo.ResourceTypeAdapter,
-		ResourceName:    a.name,
-		ResourceAddress: a.instanceID,
+		ResourceName:    a.Name(),
+		ResourceAddress: a.Address(),
 	}
 
 	msg := fimpgo.NewObjectMessage(

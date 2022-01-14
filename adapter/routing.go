@@ -27,7 +27,7 @@ func RouteAdapter(adapter Adapter, deleteCallback func(thing Thing)) []*router.R
 func RouteCmdThingGetInclusionReport(adapter Adapter) *router.Routing {
 	return router.NewRouting(
 		HandleCmdThingGetInclusionReport(adapter),
-		router.ForService(adapter.GetName()),
+		router.ForService(adapter.Name()),
 		router.ForType(CmdThingGetInclusionReport),
 	)
 }
@@ -41,7 +41,7 @@ func HandleCmdThingGetInclusionReport(adapter Adapter) router.MessageHandler {
 				return nil, fmt.Errorf("adapter: provided address has an incorrect format: %w", err)
 			}
 
-			thing := adapter.GetByAddress(address)
+			thing := adapter.ThingByAddress(address)
 			if thing == nil {
 				return nil, fmt.Errorf("adapter: thing not found under the provided address: %s", address)
 			}
@@ -52,14 +52,15 @@ func HandleCmdThingGetInclusionReport(adapter Adapter) router.MessageHandler {
 			}
 
 			return nil, nil
-		}))
+		}),
+	)
 }
 
 // RouteCmdThingDelete returns a routing responsible for handling the command.
 func RouteCmdThingDelete(adapter Adapter, deleteCallback func(thing Thing)) *router.Routing {
 	return router.NewRouting(
 		HandleCmdThingDelete(adapter, deleteCallback),
-		router.ForService(adapter.GetName()),
+		router.ForService(adapter.Name()),
 		router.ForType(CmdThingDelete),
 	)
 }
@@ -75,12 +76,12 @@ func HandleCmdThingDelete(adapter Adapter, deleteCallback func(thing Thing)) rou
 
 			address := value["address"]
 
-			thing := adapter.GetByAddress(address)
+			thing := adapter.ThingByAddress(address)
 			if thing == nil {
 				return nil, fmt.Errorf("adapter: thing not found under the provided address: %s", address)
 			}
 
-			err = adapter.Remove(address)
+			err = adapter.RemoveThing(address)
 			if err != nil {
 				return nil, fmt.Errorf("adapter: failed to send the exclusion report: %w", err)
 			}
@@ -90,5 +91,6 @@ func HandleCmdThingDelete(adapter Adapter, deleteCallback func(thing Thing)) rou
 			}
 
 			return nil, nil
-		}))
+		}),
+	)
 }
