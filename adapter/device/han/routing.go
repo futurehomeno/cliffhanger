@@ -6,6 +6,7 @@ import (
 
 	"github.com/futurehomeno/fimpgo"
 
+	"github.com/futurehomeno/cliffhanger/adapter"
 	"github.com/futurehomeno/cliffhanger/router"
 )
 
@@ -19,37 +20,48 @@ const (
 	MeterElec = "meter_elec"
 )
 
+func RouteHAN(adapter adapter.Adapter) []*router.Routing {
+	return []*router.Routing{
+		RouteCmdMeterGetReport(adapter),
+	}
+}
+
 // RouteCmdMeterGetReport returns a routing responsible for handling the command.
-func RouteCmdMeterGetReport(provider Provider) *router.Routing {
+func RouteCmdMeterGetReport(adapter adapter.Adapter) *router.Routing {
 	return router.NewRouting(
-		HandleCmdMeterGetReport(provider),
+		HandleCmdMeterGetReport(adapter),
 		router.ForService(MeterElec),
 		router.ForType(CmdMeterGetReport),
 	)
 }
 
 // HandleCmdMeterGetReport returns a handler responsible for handling the command.
-func HandleCmdMeterGetReport(provider Provider) router.MessageHandler {
+func HandleCmdMeterGetReport(adapter adapter.Adapter) router.MessageHandler {
 	return router.NewMessageHandler(
 		router.MessageProcessorFn(func(message *fimpgo.Message) (reply *fimpgo.FimpMessage, err error) {
-			meter := provider.Get(message.Addr.ServiceAddress)
-			if meter == nil {
-				return nil, fmt.Errorf("no device has been found under address: %s", message.Addr.ServiceAddress)
+			thing := adapter.GetByTopic(message.Topic)
+			if thing == nil {
+				return nil, fmt.Errorf("adapter: thing not found under the provided address: %s", message.Addr.ServiceAddress)
+			}
+
+			meter, ok := thing.(HAN)
+			if !ok {
+				return nil, fmt.Errorf("adapter: meter not found under the provided address: %s", message.Addr.ServiceAddress)
 			}
 
 			unit, err := message.Payload.GetStringValue()
 			if err != nil {
-				return nil, fmt.Errorf("provided unit has an incorrect format: %w", err)
+				return nil, fmt.Errorf("meter: provided unit has an incorrect format: %w", err)
 			}
 
 			normalizedUnit, ok := supportedUnit(unit, meter.GetSupportedUnits())
 			if !ok {
-				return nil, fmt.Errorf("unsupported unit: %s", unit)
+				return nil, fmt.Errorf("meter: unsupported unit: %s", unit)
 			}
 
 			value, err := meter.GetReport(normalizedUnit)
 			if err != nil {
-				return nil, fmt.Errorf("failed to retrieve reading from the meter: %w", err)
+				return nil, fmt.Errorf("meter: failed to retrieve readingr: %w", err)
 			}
 
 			msg := fimpgo.NewFloatMessage(
