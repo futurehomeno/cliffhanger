@@ -1,4 +1,4 @@
-package routing
+package app
 
 import (
 	"fmt"
@@ -8,7 +8,6 @@ import (
 
 	"github.com/futurehomeno/cliffhanger/config"
 	"github.com/futurehomeno/cliffhanger/lifecycle"
-	"github.com/futurehomeno/cliffhanger/manifest"
 	"github.com/futurehomeno/cliffhanger/router"
 	"github.com/futurehomeno/cliffhanger/storage"
 )
@@ -26,6 +25,23 @@ const (
 	CmdAppUninstall            = "cmd.app.uninstall"
 	EvtAppUninstallReport      = "evt.app.uninstall_report"
 )
+
+func RouteApp(
+	serviceName string,
+	appLifecycle *lifecycle.Lifecycle,
+	configStorage storage.Storage,
+	configFactory func() interface{},
+	locker router.MessageHandlerLocker,
+	app App,
+) []*router.Routing {
+	return []*router.Routing{
+		RouteCmdAppGetState(serviceName, appLifecycle),
+		RouteCmdConfigGetExtendedReport(serviceName, configStorage),
+		RouteCmdAppGetManifest(serviceName, appLifecycle, configStorage, app),
+		RouteCmdConfigExtendedSet(serviceName, appLifecycle, configFactory, app, locker),
+		RouteCmdAppUninstall(serviceName, appLifecycle, app, locker),
+	}
+}
 
 // RouteCmdAppGetState returns a routing responsible for handling the command.
 func RouteCmdAppGetState(serviceName string, appLifecycle *lifecycle.Lifecycle) *router.Routing {
@@ -86,10 +102,10 @@ func RouteCmdAppGetManifest(
 	serviceName string,
 	appLifecycle *lifecycle.Lifecycle,
 	configStorage storage.Storage,
-	manifestManager manifest.Manager,
+	app App,
 ) *router.Routing {
 	return router.NewRouting(
-		HandleCmdAppGetManifest(serviceName, appLifecycle, configStorage, manifestManager),
+		HandleCmdAppGetManifest(serviceName, appLifecycle, configStorage, app),
 		router.ForService(serviceName),
 		router.ForType(CmdAppGetManifest),
 	)
@@ -100,7 +116,7 @@ func HandleCmdAppGetManifest(
 	serviceName string,
 	appLifecycle *lifecycle.Lifecycle,
 	configStorage storage.Storage,
-	manifestManager manifest.Manager,
+	app App,
 ) router.MessageHandler {
 	return router.NewMessageHandler(
 		router.MessageProcessorFn(func(message *fimpgo.Message) (*fimpgo.FimpMessage, error) {
@@ -109,7 +125,7 @@ func HandleCmdAppGetManifest(
 				return nil, fmt.Errorf("provided value has an incorrect format: %w", err)
 			}
 
-			m, err := manifestManager.Get()
+			m, err := app.GetManifest()
 			if err != nil {
 				return nil, fmt.Errorf("failed to retrieve the manifest: %w", err)
 			}
@@ -132,11 +148,11 @@ func RouteCmdConfigExtendedSet(
 	serviceName string,
 	appLifecycle *lifecycle.Lifecycle,
 	configFactory func() interface{},
-	manifestManager manifest.Manager,
+	app App,
 	locker router.MessageHandlerLocker,
 ) *router.Routing {
 	return router.NewRouting(
-		HandleCmdConfigExtendedSet(serviceName, appLifecycle, configFactory, manifestManager, locker),
+		HandleCmdConfigExtendedSet(serviceName, appLifecycle, configFactory, app, locker),
 		router.ForService(serviceName),
 		router.ForType(CmdConfigExtendedSet),
 	)
@@ -148,7 +164,7 @@ func HandleCmdConfigExtendedSet(
 	serviceName string,
 	appLifecycle *lifecycle.Lifecycle,
 	configFactory func() interface{},
-	manifestManager manifest.Manager,
+	app App,
 	locker router.MessageHandlerLocker,
 ) router.MessageHandler {
 	return router.NewMessageHandler(
@@ -160,7 +176,7 @@ func HandleCmdConfigExtendedSet(
 				return makeConfigurationReply(serviceName, EvtAppConfigReport, message, appLifecycle, err), nil
 			}
 
-			err = manifestManager.Configure(cfg)
+			err = app.Configure(cfg)
 			if err != nil {
 				return makeConfigurationReply(serviceName, EvtAppConfigReport, message, appLifecycle, err), nil
 			}
@@ -176,11 +192,11 @@ func HandleCmdConfigExtendedSet(
 func RouteCmdAppUninstall(
 	serviceName string,
 	appLifecycle *lifecycle.Lifecycle,
-	manifestManager manifest.Manager,
+	app App,
 	locker router.MessageHandlerLocker,
 ) *router.Routing {
 	return router.NewRouting(
-		HandleCmdAppUninstall(serviceName, appLifecycle, manifestManager, locker),
+		HandleCmdAppUninstall(serviceName, appLifecycle, app, locker),
 		router.ForService(serviceName),
 		router.ForType(CmdAppUninstall),
 	)
@@ -191,12 +207,12 @@ func RouteCmdAppUninstall(
 func HandleCmdAppUninstall(
 	serviceName string,
 	appLifecycle *lifecycle.Lifecycle,
-	manifestManager manifest.Manager,
+	app App,
 	locker router.MessageHandlerLocker,
 ) router.MessageHandler {
 	return router.NewMessageHandler(
 		router.MessageProcessorFn(func(message *fimpgo.Message) (*fimpgo.FimpMessage, error) {
-			err := manifestManager.Uninstall()
+			err := app.Uninstall()
 			if err != nil {
 				return makeConfigurationReply(serviceName, EvtAppUninstallReport, message, appLifecycle, err), nil
 			}

@@ -1,4 +1,4 @@
-package routing_test
+package config_test
 
 import (
 	"errors"
@@ -8,14 +8,14 @@ import (
 	log "github.com/sirupsen/logrus"
 	"github.com/stretchr/testify/assert"
 
-	"github.com/futurehomeno/cliffhanger/router/routing"
+	"github.com/futurehomeno/cliffhanger/config"
 )
 
 func TestNewCmdLogSetLevel(t *testing.T) { //nolint:paralleltest
 	makeCommand := func(valueType string, value interface{}) *fimpgo.Message {
 		return &fimpgo.Message{
 			Payload: &fimpgo.FimpMessage{
-				Type:      routing.CmdLogSetLevel,
+				Type:      config.CmdLogSetLevel,
 				ValueType: valueType,
 				Value:     value,
 			},
@@ -60,7 +60,7 @@ func TestNewCmdLogSetLevel(t *testing.T) { //nolint:paralleltest
 	for _, tt := range tests { //nolint:paralleltest
 		tt := tt
 		t.Run(tt.name, func(t *testing.T) {
-			f := routing.HandleCmdLogSetLevel(tt.logSetter)
+			f := config.HandleCmdLogSetLevel(tt.logSetter)
 
 			got := f.Handle(tt.msg)
 
