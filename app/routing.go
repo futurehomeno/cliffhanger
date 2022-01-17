@@ -40,6 +40,7 @@ func RouteApp(
 		RouteCmdAppGetManifest(serviceName, appLifecycle, configStorage, app),
 		RouteCmdConfigExtendedSet(serviceName, appLifecycle, configFactory, app, locker),
 		RouteCmdAppUninstall(serviceName, appLifecycle, app, locker),
+		// TODO: Implement reset and factory reset commands support.
 	}
 }
 
