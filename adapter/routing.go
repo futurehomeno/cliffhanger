@@ -41,12 +41,12 @@ func HandleCmdThingGetInclusionReport(adapter Adapter) router.MessageHandler {
 				return nil, fmt.Errorf("adapter: provided address has an incorrect format: %w", err)
 			}
 
-			thing := adapter.ThingByAddress(address)
-			if thing == nil {
+			t := adapter.ThingByAddress(address)
+			if t == nil {
 				return nil, fmt.Errorf("adapter: thing not found under the provided address: %s", address)
 			}
 
-			err = adapter.SendInclusionReport(thing)
+			err = adapter.SendInclusionReport(t)
 			if err != nil {
 				return nil, fmt.Errorf("adapter: failed to send the inclusion report: %w", err)
 			}
@@ -76,8 +76,8 @@ func HandleCmdThingDelete(adapter Adapter, deleteCallback func(thing Thing)) rou
 
 			address := value["address"]
 
-			thing := adapter.ThingByAddress(address)
-			if thing == nil {
+			t := adapter.ThingByAddress(address)
+			if t == nil {
 				return nil, fmt.Errorf("adapter: thing not found under the provided address: %s", address)
 			}
 
@@ -87,7 +87,7 @@ func HandleCmdThingDelete(adapter Adapter, deleteCallback func(thing Thing)) rou
 			}
 
 			if deleteCallback != nil {
-				deleteCallback(thing)
+				deleteCallback(t)
 			}
 
 			return nil, nil

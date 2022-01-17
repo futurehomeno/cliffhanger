@@ -1,8 +1,7 @@
-package han
+package meterelec
 
 import (
 	"fmt"
-	"strings"
 
 	"github.com/futurehomeno/fimpgo"
 
@@ -13,14 +12,14 @@ import (
 // Constants defining routing commands and events.
 const (
 	CmdMeterGetReport    = "cmd.meter.get_report"
-	EvtMeterReport       = "evt.meter.report"
+	EvtMeterReport       = "evt.meter.reporter"
 	CmdMeterExtGetReport = "cmd.meter_ext.get_report"
-	EvtMeterExtReport    = "evt.meter_ext.report"
+	EvtMeterExtReport    = "evt.meter_ext.reporter"
 
 	MeterElec = "meter_elec"
 )
 
-func Route(adapter adapter.Adapter) []*router.Routing {
+func RouteService(adapter adapter.Adapter) []*router.Routing {
 	return []*router.Routing{
 		RouteCmdMeterGetReport(adapter),
 		RouteCmdMeterExtGetReport(adapter),
@@ -40,14 +39,14 @@ func RouteCmdMeterGetReport(adapter adapter.Adapter) *router.Routing {
 func HandleCmdMeterGetReport(adapter adapter.Adapter) router.MessageHandler {
 	return router.NewMessageHandler(
 		router.MessageProcessorFn(func(message *fimpgo.Message) (reply *fimpgo.FimpMessage, err error) {
-			thing := adapter.ThingByTopic(message.Topic)
-			if thing == nil {
-				return nil, fmt.Errorf("adapter: thing not found under the provided address: %s", message.Addr.ServiceAddress)
+			s := adapter.ServiceByTopic(message.Topic)
+			if s == nil {
+				return nil, fmt.Errorf("adapter: service not found under the provided address: %s", message.Addr.ServiceAddress)
 			}
 
-			meter, ok := thing.(HAN)
+			meterElec, ok := s.(Service)
 			if !ok {
-				return nil, fmt.Errorf("adapter: HAN not found under the provided address: %s", message.Addr.ServiceAddress)
+				return nil, fmt.Errorf("adapter: incorrect service found under the provided address: %s", message.Addr.ServiceAddress)
 			}
 
 			unit, err := message.Payload.GetStringValue()
@@ -55,14 +54,9 @@ func HandleCmdMeterGetReport(adapter adapter.Adapter) router.MessageHandler {
 				return nil, fmt.Errorf("adapter: provided unit has an incorrect format: %w", err)
 			}
 
-			normalizedUnit, ok := supportedUnit(unit, meter.SupportedUnits())
-			if !ok {
-				return nil, fmt.Errorf("adapter: unit is unsupported by HAN: %s", unit)
-			}
-
-			value, err := meter.Report(normalizedUnit)
+			value, normalizedUnit, err := meterElec.Report(unit)
 			if err != nil {
-				return nil, fmt.Errorf("adapter: failed to retrieve report from HAN: %w", err)
+				return nil, fmt.Errorf("adapter: failed to retrieve reporte: %w", err)
 			}
 
 			msg := fimpgo.NewFloatMessage(
@@ -94,23 +88,19 @@ func RouteCmdMeterExtGetReport(adapter adapter.Adapter) *router.Routing {
 func HandleCmdMeterExtGetReport(adapter adapter.Adapter) router.MessageHandler {
 	return router.NewMessageHandler(
 		router.MessageProcessorFn(func(message *fimpgo.Message) (reply *fimpgo.FimpMessage, err error) {
-			thing := adapter.ThingByTopic(message.Topic)
-			if thing == nil {
-				return nil, fmt.Errorf("adapter: thing not found under the provided address: %s", message.Addr.ServiceAddress)
+			s := adapter.ServiceByTopic(message.Topic)
+			if s == nil {
+				return nil, fmt.Errorf("adapter: service not found under the provided address: %s", message.Addr.ServiceAddress)
 			}
 
-			meter, ok := thing.(HAN)
+			meterElec, ok := s.(Service)
 			if !ok {
-				return nil, fmt.Errorf("adapter: HAN not found under the provided address: %s", message.Addr.ServiceAddress)
+				return nil, fmt.Errorf("adapter: incorrect service found under the provided address: %s", message.Addr.ServiceAddress)
 			}
 
-			if !meter.SupportsExtendedReport() {
-				return nil, fmt.Errorf("adapter: HAN does not support extended reports")
-			}
-
-			report, err := meter.ExtendedReport()
+			report, err := meterElec.ExtendedReport()
 			if err != nil {
-				return nil, fmt.Errorf("adapter: failed to retrieve extended report from HAN: %w", err)
+				return nil, fmt.Errorf("adapter: failed to retrieve extended report: %w", err)
 			}
 
 			msg := fimpgo.NewFloatMapMessage(
@@ -125,14 +115,4 @@ func HandleCmdMeterExtGetReport(adapter adapter.Adapter) router.MessageHandler {
 			return msg, nil
 		}),
 	)
-}
-
-func supportedUnit(unit string, units []string) (string, bool) {
-	for _, u := range units {
-		if strings.EqualFold(unit, u) {
-			return u, true
-		}
-	}
-
-	return "", false
 }

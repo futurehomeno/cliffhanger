@@ -9,15 +9,11 @@ import (
 	"github.com/futurehomeno/fimpgo/fimptype"
 )
 
-type Thing interface {
-	GetInclusionReport() *fimptype.ThingInclusionReport
-	GetAddress() string
-	GetServiceTopics() []string
-}
-
 type Adapter interface {
 	Name() string
 	Address() string
+	Services(name string) []Service
+	ServiceByTopic(topic string) Service
 	Things() []Thing
 	ThingByAddress(address string) Thing
 	ThingByTopic(topic string) Thing
@@ -36,8 +32,8 @@ func NewAdapter(mqtt *fimpgo.MqttTransport, resourceName, resourceAddress string
 		mqtt:         mqtt,
 		name:         resourceName,
 		address:      resourceAddress,
-		addressIndex: nil,
-		topicIndex:   nil,
+		addressIndex: make(map[string]Thing),
+		topicIndex:   make(map[string]Thing),
 	}
 }
 
@@ -63,11 +59,30 @@ func (a *adapter) Address() string {
 func (a *adapter) Things() []Thing {
 	var things []Thing
 
-	for _, thing := range a.addressIndex {
-		things = append(things, thing)
+	for _, t := range a.addressIndex {
+		things = append(things, t)
 	}
 
 	return things
+}
+
+func (a *adapter) Services(name string) []Service {
+	var services []Service
+
+	for _, t := range a.addressIndex {
+		services = append(services, t.Services(name)...)
+	}
+
+	return services
+}
+
+func (a *adapter) ServiceByTopic(topic string) Service {
+	t := a.ThingByTopic(topic)
+	if t == nil {
+		return nil
+	}
+
+	return t.ServiceByTopic(topic)
 }
 
 func (a *adapter) ThingByAddress(address string) Thing {
@@ -81,9 +96,9 @@ func (a *adapter) ThingByTopic(topic string) Thing {
 	a.lock.RLock()
 	defer a.lock.RUnlock()
 
-	for serviceTopic, thing := range a.topicIndex {
+	for serviceTopic, t := range a.topicIndex {
 		if strings.HasSuffix(topic, serviceTopic) {
-			return thing
+			return t
 		}
 	}
 
@@ -122,24 +137,24 @@ func (a *adapter) RemoveThing(address string) error {
 	a.lock.Lock()
 	defer a.lock.Unlock()
 
-	thing := a.ThingByAddress(address)
-	if thing == nil {
+	t := a.ThingByAddress(address)
+	if t == nil {
 		return nil
 	}
 
-	a.unregister(thing)
+	a.unregister(t)
 
-	return a.SendExclusionReport(thing)
+	return a.SendExclusionReport(t)
 }
 
 func (a *adapter) RemoveAllThings() error {
 	a.lock.Lock()
 	defer a.lock.Unlock()
 
-	for _, thing := range a.addressIndex {
-		a.unregister(thing)
+	for _, t := range a.addressIndex {
+		a.unregister(t)
 
-		err := a.SendExclusionReport(thing)
+		err := a.SendExclusionReport(t)
 		if err != nil {
 			return err
 		}
@@ -149,7 +164,7 @@ func (a *adapter) RemoveAllThings() error {
 }
 
 func (a *adapter) SendInclusionReport(thing Thing) error {
-	report := thing.GetInclusionReport()
+	report := thing.InclusionReport()
 
 	addr := &fimpgo.Address{
 		MsgType:         fimpgo.MsgTypeEvt,
@@ -177,7 +192,7 @@ func (a *adapter) SendInclusionReport(thing Thing) error {
 
 func (a *adapter) SendExclusionReport(thing Thing) error {
 	report := fimptype.ThingExclusionReport{
-		Address: thing.GetAddress(),
+		Address: thing.Address(),
 	}
 
 	addr := &fimpgo.Address{
@@ -205,17 +220,17 @@ func (a *adapter) SendExclusionReport(thing Thing) error {
 }
 
 func (a *adapter) register(thing Thing) {
-	a.addressIndex[thing.GetAddress()] = thing
+	a.addressIndex[thing.Address()] = thing
 
-	for _, topic := range thing.GetServiceTopics() {
+	for _, topic := range thing.ServiceTopics() {
 		a.topicIndex[topic] = thing
 	}
 }
 
 func (a *adapter) unregister(thing Thing) {
-	delete(a.addressIndex, thing.GetAddress())
+	delete(a.addressIndex, thing.Address())
 
-	for _, topic := range thing.GetServiceTopics() {
+	for _, topic := range thing.ServiceTopics() {
 		delete(a.topicIndex, topic)
 	}
 }
