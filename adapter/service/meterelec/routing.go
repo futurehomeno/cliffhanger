@@ -19,6 +19,7 @@ const (
 	MeterElec = "meter_elec"
 )
 
+// RouteService returns routing for service specific commands.
 func RouteService(adapter adapter.Adapter) []*router.Routing {
 	return []*router.Routing{
 		RouteCmdMeterGetReport(adapter),

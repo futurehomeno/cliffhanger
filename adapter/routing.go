@@ -15,7 +15,7 @@ const (
 	CmdThingDelete             = "cmd.thing.delete"
 )
 
-// RouteAdapter adds routing for adapter specific commands.
+// RouteAdapter returns routing for adapter specific commands.
 func RouteAdapter(adapter Adapter, deleteCallback func(thing Thing)) []*router.Routing {
 	return []*router.Routing{
 		RouteCmdThingGetInclusionReport(adapter),
