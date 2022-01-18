@@ -12,6 +12,4 @@ type App interface {
 	Configure(config interface{}) error
 	// Uninstall performs all required clean ups before uninstalling the applications.
 	Uninstall() error
-	// Reset resets state of the application, returning default values of configuration.
-	Reset() error
 }
