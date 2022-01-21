@@ -55,23 +55,12 @@ func HandleCmdMeterGetReport(adapter adapter.Adapter) router.MessageHandler {
 				return nil, fmt.Errorf("adapter: provided unit has an incorrect format: %w", err)
 			}
 
-			value, normalizedUnit, err := meterElec.Report(unit)
+			_, err = meterElec.SendReport(unit, true)
 			if err != nil {
-				return nil, fmt.Errorf("adapter: failed to retrieve reporte: %w", err)
+				return nil, fmt.Errorf("adapter: failed to send report: %w", err)
 			}
 
-			msg := fimpgo.NewFloatMessage(
-				EvtMeterReport,
-				MeterElec,
-				value,
-				map[string]string{
-					"unit": normalizedUnit,
-				},
-				nil,
-				message.Payload,
-			)
-
-			return msg, nil
+			return nil, nil
 		}),
 	)
 }
@@ -99,21 +88,12 @@ func HandleCmdMeterExtGetReport(adapter adapter.Adapter) router.MessageHandler {
 				return nil, fmt.Errorf("adapter: incorrect service found under the provided address: %s", message.Addr.ServiceAddress)
 			}
 
-			report, err := meterElec.ExtendedReport()
+			_, err = meterElec.SendExtendedReport(true)
 			if err != nil {
-				return nil, fmt.Errorf("adapter: failed to retrieve extended report: %w", err)
+				return nil, fmt.Errorf("adapter: failed to send  report: %w", err)
 			}
 
-			msg := fimpgo.NewFloatMapMessage(
-				EvtMeterExtReport,
-				MeterElec,
-				report,
-				nil,
-				nil,
-				message.Payload,
-			)
-
-			return msg, nil
+			return nil, nil
 		}),
 	)
 }

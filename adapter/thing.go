@@ -14,49 +14,47 @@ type Thing interface {
 	Address() string
 	// Services returns all services from the thing that match the provided name. If empty all services are returned.
 	Services(name string) []Service
-	// ServiceTopics returns all service topics.
-	ServiceTopics() []string
 	// ServiceByTopic returns a service based on the topic on which is is supposed to be listening for commands.
 	ServiceByTopic(topic string) Service
 }
 
 // NewThing creates new instance of a FIMP thing.
 func NewThing(thingInclusionReport *fimptype.ThingInclusionReport, services ...Service) Thing {
-	topicIndex := make(map[string]Service)
+	servicesIndex := make(map[string]Service)
 	thingInclusionReport.Services = nil
 
 	for _, s := range services {
-		topicIndex[s.Topic()] = s
+		servicesIndex[s.Topic()] = s
 		thingInclusionReport.Services = append(thingInclusionReport.Services, *s.Specification())
 	}
 
 	return &thing{
-		thingInclusionReport: thingInclusionReport,
-		topicIndex:           topicIndex,
+		inclusionReport: thingInclusionReport,
+		services:        servicesIndex,
 	}
 }
 
 // thing is a private implementation of a FIMP thing.
 type thing struct {
-	thingInclusionReport *fimptype.ThingInclusionReport
-	topicIndex           map[string]Service
+	inclusionReport *fimptype.ThingInclusionReport
+	services        map[string]Service
 }
 
 // InclusionReport returns an inclusion report of the thing.
 func (t *thing) InclusionReport() *fimptype.ThingInclusionReport {
-	return t.thingInclusionReport
+	return t.inclusionReport
 }
 
 // Address returns address of the thing.
 func (t *thing) Address() string {
-	return t.thingInclusionReport.Address
+	return t.inclusionReport.Address
 }
 
 // Services returns all services from the thing that match the provided name. If empty all services are returned.
 func (t *thing) Services(name string) []Service {
 	var services []Service
 
-	for _, s := range t.topicIndex {
+	for _, s := range t.services {
 		if name != "" && s.Name() != name {
 			continue
 		}
@@ -67,20 +65,9 @@ func (t *thing) Services(name string) []Service {
 	return services
 }
 
-// ServiceTopics returns all service topics.
-func (t *thing) ServiceTopics() []string {
-	var topics []string
-
-	for topic := range t.topicIndex {
-		topics = append(topics, topic)
-	}
-
-	return topics
-}
-
 // ServiceByTopic returns a service based on the topic on which is is supposed to be listening for commands.
 func (t *thing) ServiceByTopic(topic string) Service {
-	for serviceTopic, s := range t.topicIndex {
+	for serviceTopic, s := range t.services {
 		if strings.HasSuffix(topic, serviceTopic) {
 			return s
 		}

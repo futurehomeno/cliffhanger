@@ -2,7 +2,6 @@ package adapter
 
 import (
 	"fmt"
-	"strings"
 	"sync"
 
 	"github.com/futurehomeno/fimpgo"
@@ -29,6 +28,8 @@ type Adapter interface {
 	RegisterThing(thing Thing)
 	// UnregisterThing unregisters thing from the adapter without sending an exclusion report.
 	UnregisterThing(address string)
+	// UnregisterAllThings unregisters all things from the adapter without sending an exclusion report.
+	UnregisterAllThings()
 	// AddThing registers thing and sends an inclusion report. Useful when configuring adapter for the first time.
 	AddThing(thing Thing) error
 	// RemoveThing unregisters thing and sends exclusion report.
@@ -44,12 +45,11 @@ type Adapter interface {
 // NewAdapter creates an instance of a device adapter.
 func NewAdapter(mqtt *fimpgo.MqttTransport, resourceName, resourceAddress string) Adapter {
 	return &adapter{
-		lock:         &sync.RWMutex{},
-		mqtt:         mqtt,
-		name:         resourceName,
-		address:      resourceAddress,
-		addressIndex: make(map[string]Thing),
-		topicIndex:   make(map[string]Thing),
+		lock:    &sync.RWMutex{},
+		mqtt:    mqtt,
+		name:    resourceName,
+		address: resourceAddress,
+		things:  make(map[string]Thing),
 	}
 }
 
@@ -61,8 +61,7 @@ type adapter struct {
 	name    string
 	address string
 
-	addressIndex map[string]Thing
-	topicIndex   map[string]Thing
+	things map[string]Thing
 }
 
 // Name returns name of the adapter.
@@ -79,7 +78,7 @@ func (a *adapter) Address() string {
 func (a *adapter) Services(name string) []Service {
 	var services []Service
 
-	for _, t := range a.addressIndex {
+	for _, t := range a.things {
 		services = append(services, t.Services(name)...)
 	}
 
@@ -88,19 +87,21 @@ func (a *adapter) Services(name string) []Service {
 
 // ServiceByTopic returns a service based on its topic. Returns nil if service was not found.
 func (a *adapter) ServiceByTopic(topic string) Service {
-	t := a.ThingByTopic(topic)
-	if t == nil {
-		return nil
+	for _, t := range a.things {
+		s := t.ServiceByTopic(topic)
+		if s != nil {
+			return s
+		}
 	}
 
-	return t.ServiceByTopic(topic)
+	return nil
 }
 
 // Things returns all things.
 func (a *adapter) Things() []Thing {
 	var things []Thing
 
-	for _, t := range a.addressIndex {
+	for _, t := range a.things {
 		things = append(things, t)
 	}
 
@@ -112,7 +113,7 @@ func (a *adapter) ThingByAddress(address string) Thing {
 	a.lock.RLock()
 	defer a.lock.RUnlock()
 
-	return a.addressIndex[address]
+	return a.things[address]
 }
 
 // ThingByTopic returns a thing based on topic of one of its services. Returns nil if thing was not found.
@@ -120,8 +121,9 @@ func (a *adapter) ThingByTopic(topic string) Thing {
 	a.lock.RLock()
 	defer a.lock.RUnlock()
 
-	for serviceTopic, t := range a.topicIndex {
-		if strings.HasSuffix(topic, serviceTopic) {
+	for _, t := range a.things {
+		s := t.ServiceByTopic(topic)
+		if s != nil {
 			return t
 		}
 	}
@@ -134,7 +136,7 @@ func (a *adapter) RegisterThing(thing Thing) {
 	a.lock.Lock()
 	defer a.lock.Unlock()
 
-	a.register(thing)
+	a.things[thing.Address()] = thing
 }
 
 // UnregisterThing unregisters thing from the adapter without sending an exclusion report.
@@ -147,7 +149,15 @@ func (a *adapter) UnregisterThing(address string) {
 		return
 	}
 
-	a.unregister(t)
+	delete(a.things, t.Address())
+}
+
+// UnregisterAllThings unregisters all things from the adapter without sending an exclusion report.
+func (a *adapter) UnregisterAllThings() {
+	a.lock.Lock()
+	defer a.lock.Unlock()
+
+	a.things = make(map[string]Thing)
 }
 
 // AddThing registers thing and sends an inclusion report. Useful when configuring adapter for the first time.
@@ -155,7 +165,7 @@ func (a *adapter) AddThing(thing Thing) error {
 	a.lock.Lock()
 	defer a.lock.Unlock()
 
-	a.register(thing)
+	a.things[thing.Address()] = thing
 
 	return a.SendInclusionReport(thing)
 }
@@ -170,7 +180,7 @@ func (a *adapter) RemoveThing(address string) error {
 		return nil
 	}
 
-	a.unregister(t)
+	delete(a.things, t.Address())
 
 	return a.SendExclusionReport(t)
 }
@@ -180,8 +190,8 @@ func (a *adapter) RemoveAllThings() error {
 	a.lock.Lock()
 	defer a.lock.Unlock()
 
-	for _, t := range a.addressIndex {
-		a.unregister(t)
+	for _, t := range a.things {
+		delete(a.things, t.Address())
 
 		err := a.SendExclusionReport(t)
 		if err != nil {
@@ -248,22 +258,4 @@ func (a *adapter) SendExclusionReport(thing Thing) error {
 	}
 
 	return nil
-}
-
-// register performs registration of the thing.
-func (a *adapter) register(thing Thing) {
-	a.addressIndex[thing.Address()] = thing
-
-	for _, topic := range thing.ServiceTopics() {
-		a.topicIndex[topic] = thing
-	}
-}
-
-// unregister performs unregistration of the thing.
-func (a *adapter) unregister(thing Thing) {
-	delete(a.addressIndex, thing.Address())
-
-	for _, topic := range thing.ServiceTopics() {
-		delete(a.topicIndex, topic)
-	}
 }

@@ -14,11 +14,12 @@ import (
 
 // NewMainElec creates a thing that satisfies expectations for main electricity meter.
 func NewMainElec(
+	mqtt *fimpgo.MqttTransport,
 	inclusionReport *fimptype.ThingInclusionReport,
 	meterElecSpecification *fimptype.Service,
 	meterElecReporter meterelec.Reporter,
 ) adapter.Thing {
-	meterElec := meterelec.NewService(meterElecSpecification, meterElecReporter)
+	meterElec := meterelec.NewService(mqtt, meterElecSpecification, meterElecReporter)
 
 	return adapter.NewThing(inclusionReport, meterElec)
 }
@@ -31,11 +32,10 @@ func RouteMainElec(adapter adapter.Adapter) []*router.Routing {
 // TaskMainElec creates background tasks specific to main electricity meter.
 func TaskMainElec(
 	adapter adapter.Adapter,
-	mqtt *fimpgo.MqttTransport,
 	reportingInterval time.Duration,
 	reportingVoters ...task.Voter,
 ) []*task.Task {
 	return []*task.Task{
-		meterelec.TaskReporting(adapter, mqtt, reportingInterval, reportingVoters...),
+		meterelec.TaskReporting(adapter, reportingInterval, reportingVoters...),
 	}
 }
