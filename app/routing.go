@@ -8,6 +8,7 @@ import (
 
 	"github.com/futurehomeno/cliffhanger/config"
 	"github.com/futurehomeno/cliffhanger/lifecycle"
+	"github.com/futurehomeno/cliffhanger/manifest"
 	"github.com/futurehomeno/cliffhanger/router"
 	"github.com/futurehomeno/cliffhanger/storage"
 )
@@ -24,6 +25,7 @@ const (
 	EvtAppConfigReport         = "evt.app.config_report"
 	CmdAppUninstall            = "cmd.app.uninstall"
 	EvtAppUninstallReport      = "evt.app.uninstall_report"
+	EvtAppConfigActionReport   = "evt.app.config_action_report"
 )
 
 func RouteApp(
@@ -218,6 +220,46 @@ func HandleCmdAppUninstall(
 			}
 
 			return makeConfigurationReply(serviceName, EvtAppUninstallReport, message, appLifecycle, nil), nil
+		}),
+		router.WithExternalLock(locker),
+	)
+}
+
+// RouteConfigActionCommand returns a routing responsible for handling the command.
+// Provided locker is optional.
+func RouteConfigActionCommand(
+	serviceName, commandName string,
+	action func(parameter string) *manifest.ButtonActionResponse,
+	locker router.MessageHandlerLocker,
+) *router.Routing {
+	return router.NewRouting(
+		HandleConfigActionCommand(serviceName, action, locker),
+		router.ForService(serviceName),
+		router.ForType(commandName),
+	)
+}
+
+// HandleConfigActionCommand returns a handler responsible for handling the command.
+// Provided locker is optional.
+func HandleConfigActionCommand(
+	serviceName string,
+	action func(parameter string) *manifest.ButtonActionResponse,
+	locker router.MessageHandlerLocker,
+) router.MessageHandler {
+	return router.NewMessageHandler(
+		router.MessageProcessorFn(func(message *fimpgo.Message) (*fimpgo.FimpMessage, error) {
+			parameter, _ := message.Payload.GetStringValue()
+			response := action(parameter)
+
+			return fimpgo.NewMessage(
+				EvtAppConfigActionReport,
+				serviceName,
+				fimpgo.VTypeObject,
+				response,
+				nil,
+				nil,
+				message.Payload,
+			), nil
 		}),
 		router.WithExternalLock(locker),
 	)

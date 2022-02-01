@@ -48,3 +48,14 @@ func (r *Routing) vote(message *fimpgo.Message) bool {
 
 	return true
 }
+
+// Combine is a helper to easily combine multiple slices of routing into one.
+func Combine(parts ...[]*Routing) []*Routing {
+	var combined []*Routing
+
+	for _, p := range parts {
+		combined = append(combined, p...)
+	}
+
+	return combined
+}
