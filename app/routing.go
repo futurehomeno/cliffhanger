@@ -261,7 +261,7 @@ func RouteCmdAppReset(
 			return &manifest.ButtonActionResponse{
 				Operation:       CmdAppReset,
 				OperationStatus: "error",
-				Next:            "config",
+				Next:            "ok",
 				ErrorCode:       "",
 				ErrorText:       "failed to reset the application",
 			}
@@ -270,7 +270,7 @@ func RouteCmdAppReset(
 		return &manifest.ButtonActionResponse{
 			Operation:       CmdAppReset,
 			OperationStatus: "ok",
-			Next:            "next",
+			Next:            "reload",
 		}
 	}
 
