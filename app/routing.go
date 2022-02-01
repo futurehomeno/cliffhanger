@@ -25,9 +25,11 @@ const (
 	EvtAppConfigReport         = "evt.app.config_report"
 	CmdAppUninstall            = "cmd.app.uninstall"
 	EvtAppUninstallReport      = "evt.app.uninstall_report"
+	CmdAppReset                = "cmd.app.reset"
 	EvtAppConfigActionReport   = "evt.app.config_action_report"
 )
 
+// RouteApp creates routing for an application.
 func RouteApp(
 	serviceName string,
 	appLifecycle *lifecycle.Lifecycle,
@@ -43,6 +45,23 @@ func RouteApp(
 		RouteCmdConfigExtendedSet(serviceName, appLifecycle, configFactory, app, locker),
 		RouteCmdAppUninstall(serviceName, appLifecycle, app, locker),
 	}
+}
+
+// RouteExtendedApp creates routing for an extended application.
+func RouteExtendedApp(
+	serviceName string,
+	appLifecycle *lifecycle.Lifecycle,
+	configStorage storage.Storage,
+	configFactory func() interface{},
+	locker router.MessageHandlerLocker,
+	app ExtendedApp,
+) []*router.Routing {
+	return router.Combine(
+		RouteApp(serviceName, appLifecycle, configStorage, configFactory, locker, app),
+		[]*router.Routing{
+			RouteCmdAppReset(serviceName, locker, app),
+		},
+	)
 }
 
 // RouteCmdAppGetState returns a routing responsible for handling the command.
@@ -225,6 +244,43 @@ func HandleCmdAppUninstall(
 	)
 }
 
+// RouteCmdAppReset returns a routing responsible for handling the command.
+// Provided locker is optional.
+func RouteCmdAppReset(
+	serviceName string,
+	locker router.MessageHandlerLocker,
+	app ExtendedApp,
+) *router.Routing {
+
+	action := func(_ string) *manifest.ButtonActionResponse {
+		err := app.Reset()
+		if err != nil {
+			log.WithError(err).
+				Error("failed to reset the application")
+
+			return &manifest.ButtonActionResponse{
+				Operation:       CmdAppReset,
+				OperationStatus: "error",
+				Next:            "config",
+				ErrorCode:       "",
+				ErrorText:       "failed to reset the application",
+			}
+		}
+
+		return &manifest.ButtonActionResponse{
+			Operation:       CmdAppReset,
+			OperationStatus: "ok",
+			Next:            "next",
+		}
+	}
+
+	return router.NewRouting(
+		HandleConfigActionCommand(serviceName, action, locker),
+		router.ForService(serviceName),
+		router.ForType(CmdAppReset),
+	)
+}
+
 // RouteConfigActionCommand returns a routing responsible for handling the command.
 // Provided locker is optional.
 func RouteConfigActionCommand(
@@ -249,6 +305,7 @@ func HandleConfigActionCommand(
 	return router.NewMessageHandler(
 		router.MessageProcessorFn(func(message *fimpgo.Message) (*fimpgo.FimpMessage, error) {
 			parameter, _ := message.Payload.GetStringValue()
+
 			response := action(parameter)
 
 			return fimpgo.NewMessage(
