@@ -1,4 +1,4 @@
-package mainelec
+package thing
 
 import (
 	"time"
