@@ -1,6 +1,7 @@
 package sensornumeric
 
 import (
+	"strings"
 	"time"
 
 	log "github.com/sirupsen/logrus"
@@ -18,6 +19,10 @@ func TaskReporting(adapter adapter.Adapter, frequency time.Duration, voters ...t
 func HandleReporting(adapter adapter.Adapter) func() {
 	return func() {
 		for _, s := range adapter.Services("") {
+			if !strings.HasPrefix(s.Name(), prefix) {
+				continue
+			}
+
 			sensor, ok := s.(Service)
 			if !ok {
 				continue
