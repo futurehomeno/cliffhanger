@@ -15,7 +15,14 @@ import (
 type Reporter interface {
 	// ElectricityMeterReport returns simplified electricity meter report based on requested unit.
 	ElectricityMeterReport(unit string) (float64, error)
-	// ElectricityMeterExtendedReport returns extended electricity meter report. Should return nil if extended reporting is not supported.
+}
+
+// ExtendedReporter is an interface representing an actual device reporting electricity meter values supporting extended reports.
+// In a polling scenario reporter implementation might require some safeguards against excessive polling.
+type ExtendedReporter interface {
+	Reporter
+
+	// ElectricityMeterExtendedReport returns extended electricity meter report.
 	ElectricityMeterExtendedReport() (map[string]float64, error)
 }
 
@@ -66,12 +73,12 @@ type service struct {
 func (s *service) SendReport(unit string, _ bool) (bool, error) {
 	normalizedUnit, ok := s.normalizeUnit(unit)
 	if !ok {
-		return false, fmt.Errorf("meter_elec: unit is unsupported: %s", unit)
+		return false, fmt.Errorf("%s: unit is unsupported: %s", s.Name(), unit)
 	}
 
 	value, err := s.reporter.ElectricityMeterReport(unit)
 	if err != nil {
-		return false, fmt.Errorf("meter_elec: failed to retrieve report: %w", err)
+		return false, fmt.Errorf("%s: failed to retrieve report: %w", s.Name(), err)
 	}
 
 	message := fimpgo.NewFloatMessage(
@@ -87,7 +94,7 @@ func (s *service) SendReport(unit string, _ bool) (bool, error) {
 
 	err = s.SendMessage(message)
 	if err != nil {
-		return false, fmt.Errorf("meter_elect: failed to send report for unit %s: %w", normalizedUnit, err)
+		return false, fmt.Errorf("%s: failed to send report for unit %s: %w", s.Name(), normalizedUnit, err)
 	}
 
 	return true, nil
@@ -98,12 +105,17 @@ func (s *service) SendReport(unit string, _ bool) (bool, error) {
 // To make sure report is being sent regardless of circumstances set the force argument to true.
 func (s *service) SendExtendedReport(force bool) (bool, error) {
 	if !s.SupportsExtendedReport() {
-		return false, fmt.Errorf("meter_elec: extended report is unsupported")
+		return false, fmt.Errorf("%s: extended report is unsupported", s.Name())
 	}
 
-	values, err := s.reporter.ElectricityMeterExtendedReport()
+	extendedReporter, ok := s.reporter.(ExtendedReporter)
+	if !ok {
+		return false, fmt.Errorf("%s: extended report is unsupported", s.Name())
+	}
+
+	values, err := extendedReporter.ElectricityMeterExtendedReport()
 	if err != nil {
-		return false, fmt.Errorf("meter_elec: failed to retrieve extended report: %w", err)
+		return false, fmt.Errorf("%s: failed to retrieve extended report: %w", s.Name(), err)
 	}
 
 	message := fimpgo.NewFloatMapMessage(
@@ -125,17 +137,26 @@ func (s *service) SendExtendedReport(force bool) (bool, error) {
 
 // SupportedUnits returns units that are supported by the simplified meter report.
 func (s *service) SupportedUnits() []string {
-	return s.propertyStrings("sup_units")
+	return s.Specification().PropertyStrings("sup_units")
 }
 
 // SupportedExtendedValues returns extended values that are supported by the extended meter report.
 func (s *service) SupportedExtendedValues() []string {
-	return s.propertyStrings("sup_extended_vals")
+	return s.Specification().PropertyStrings("sup_extended_vals")
 }
 
 // SupportsExtendedReport returns true if meter supports the extended report.
 func (s *service) SupportsExtendedReport() bool {
-	return len(s.SupportedExtendedValues()) > 0
+	_, ok := s.reporter.(ExtendedReporter)
+	if !ok {
+		return false
+	}
+
+	if len(s.SupportedExtendedValues()) == 0 {
+		return false
+	}
+
+	return true
 }
 
 // normalizeUnit checks if unit is supported and returns its normalized form.
@@ -147,19 +168,4 @@ func (s *service) normalizeUnit(unit string) (string, bool) {
 	}
 
 	return "", false
-}
-
-// propertyStrings extracts property settings out of the specification.
-func (s *service) propertyStrings(name string) []string {
-	value, ok := s.Service.Specification().Props[name]
-	if !ok {
-		return nil
-	}
-
-	values, ok := value.([]string)
-	if !ok {
-		return nil
-	}
-
-	return values
 }

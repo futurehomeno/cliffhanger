@@ -251,7 +251,6 @@ func RouteCmdAppReset(
 	locker router.MessageHandlerLocker,
 	app ExtendedApp,
 ) *router.Routing {
-
 	action := func(_ string) *manifest.ButtonActionResponse {
 		err := app.Reset()
 		if err != nil {

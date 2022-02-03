@@ -9,12 +9,12 @@ import (
 	"github.com/futurehomeno/cliffhanger/router"
 )
 
-// Constants defining routing commands and events.
+// Constants defining routing service, commands and events.
 const (
 	CmdMeterGetReport    = "cmd.meter.get_report"
-	EvtMeterReport       = "evt.meter.reporter"
+	EvtMeterReport       = "evt.meter.report"
 	CmdMeterExtGetReport = "cmd.meter_ext.get_report"
-	EvtMeterExtReport    = "evt.meter_ext.reporter"
+	EvtMeterExtReport    = "evt.meter_ext.report"
 
 	MeterElec = "meter_elec"
 )
@@ -50,14 +50,31 @@ func HandleCmdMeterGetReport(adapter adapter.Adapter) router.MessageHandler {
 				return nil, fmt.Errorf("adapter: incorrect service found under the provided address: %s", message.Addr.ServiceAddress)
 			}
 
-			unit, err := message.Payload.GetStringValue()
-			if err != nil {
-				return nil, fmt.Errorf("adapter: provided unit has an incorrect format: %w", err)
+			if message.Payload.ValueType != fimpgo.VTypeString && message.Payload.ValueType != fimpgo.VTypeNull {
+				return nil, fmt.Errorf(
+					"adapter: provided message value has an invalid type, received %s instead of %s or %s",
+					message.Payload.ValueType, fimpgo.VTypeString, fimpgo.VTypeNull,
+				)
 			}
 
-			_, err = meterElec.SendReport(unit, true)
-			if err != nil {
-				return nil, fmt.Errorf("adapter: failed to send report: %w", err)
+			var units []string
+			if message.Payload.ValueType == fimpgo.VTypeString {
+				var unit string
+				unit, err = message.Payload.GetStringValue()
+				if err != nil {
+					return nil, fmt.Errorf("adapter: provided unit has an incorrect format: %w", err)
+				}
+
+				units = append(units, unit)
+			} else {
+				units = meterElec.SupportedUnits()
+			}
+
+			for _, unit := range units {
+				_, err = meterElec.SendReport(unit, true)
+				if err != nil {
+					return nil, fmt.Errorf("adapter: failed to send report: %w", err)
+				}
 			}
 
 			return nil, nil
