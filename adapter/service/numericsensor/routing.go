@@ -1,4 +1,4 @@
-package sensornumeric
+package numericsensor
 
 import (
 	"fmt"
@@ -81,12 +81,12 @@ func HandleCmdSensorGetReport(adapter adapter.Adapter) router.MessageHandler {
 				return nil, fmt.Errorf("adapter: service not found under the provided address: %s", message.Addr.ServiceAddress)
 			}
 
-			sensor, ok := s.(Service)
+			numericSensor, ok := s.(Service)
 			if !ok {
 				return nil, fmt.Errorf("adapter: incorrect service found under the provided address: %s", message.Addr.ServiceAddress)
 			}
 
-			if sensor.Name() != message.Payload.Service {
+			if numericSensor.Name() != message.Payload.Service {
 				return nil, fmt.Errorf("adapter: incorrect service found under the provided address: %s", message.Addr.ServiceAddress)
 			}
 
@@ -107,13 +107,13 @@ func HandleCmdSensorGetReport(adapter adapter.Adapter) router.MessageHandler {
 
 				units = append(units, unit)
 			} else {
-				units = sensor.SupportedUnits()
+				units = numericSensor.SupportedUnits()
 			}
 
 			for _, unit := range units {
-				_, err = sensor.SendReport(unit, true)
+				_, err = numericSensor.SendSensorReport(unit, true)
 				if err != nil {
-					return nil, fmt.Errorf("adapter: failed to send report: %w", err)
+					return nil, fmt.Errorf("adapter: failed to send sensor report: %w", err)
 				}
 			}
 

@@ -1,4 +1,4 @@
-package sensornumeric
+package numericsensor
 
 import (
 	"fmt"
@@ -10,9 +10,9 @@ import (
 	"github.com/futurehomeno/cliffhanger/adapter"
 )
 
-// Reporter is an interface representing an actual device reporting numeric sensor values.
-// In a polling scenario reporter implementation might require some safeguards against excessive polling.
-type Reporter interface {
+// NumericSensor is an interface representing an actual device reporting numeric sensor values.
+// In a polling scenario implementation might require some safeguards against excessive polling.
+type NumericSensor interface {
 	// NumericSensorReport returns numeric sensor report based on the requested unit.
 	NumericSensorReport(unit string) (float64, error)
 }
@@ -21,10 +21,10 @@ type Reporter interface {
 type Service interface {
 	adapter.Service
 
-	// SendReport sends a numeric sensor report based on requested unit. Returns true if a report was sent.
+	// SendSensorReport sends a numeric sensor report based on requested unit. Returns true if a report was sent.
 	// Depending on a caching and reporting configuration the service might decide to skip a report.
 	// To make sure report is being sent regardless of circumstances set the force argument to true.
-	SendReport(unit string, force bool) (bool, error)
+	SendSensorReport(unit string, force bool) (bool, error)
 	// SupportedUnits returns units that are supported by the numeric sensor report.
 	SupportedUnits() []string
 }
@@ -33,7 +33,7 @@ type Service interface {
 func NewService(
 	mqtt *fimpgo.MqttTransport,
 	specification *fimptype.Service,
-	reporter Reporter,
+	reporter NumericSensor,
 ) Service {
 	return &service{
 		Service:  adapter.NewService(mqtt, specification),
@@ -45,13 +45,13 @@ func NewService(
 type service struct {
 	adapter.Service
 
-	reporter Reporter
+	reporter NumericSensor
 }
 
-// SendReport sends a numeric sensor report based on requested unit. Returns true if a report was sent.
+// SendSensorReport sends a numeric sensor report based on requested unit. Returns true if a report was sent.
 // Depending on a caching and reporting configuration the service might decide to skip a report.
 // To make sure report is being sent regardless of circumstances set the force argument to true.
-func (s *service) SendReport(unit string, _ bool) (bool, error) {
+func (s *service) SendSensorReport(unit string, _ bool) (bool, error) {
 	normalizedUnit, ok := s.normalizeUnit(unit)
 	if !ok {
 		return false, fmt.Errorf("%s: unit is unsupported: %s", s.Name(), unit)
@@ -59,7 +59,7 @@ func (s *service) SendReport(unit string, _ bool) (bool, error) {
 
 	value, err := s.reporter.NumericSensorReport(unit)
 	if err != nil {
-		return false, fmt.Errorf("%s: failed to retrieve report: %w", s.Name(), err)
+		return false, fmt.Errorf("%s: failed to retrieve sensor report: %w", s.Name(), err)
 	}
 
 	message := fimpgo.NewFloatMessage(
@@ -75,7 +75,7 @@ func (s *service) SendReport(unit string, _ bool) (bool, error) {
 
 	err = s.SendMessage(message)
 	if err != nil {
-		return false, fmt.Errorf("%s: failed to send report for unit %s: %w", s.Name(), normalizedUnit, err)
+		return false, fmt.Errorf("%s: failed to send sensor report for unit %s: %w", s.Name(), normalizedUnit, err)
 	}
 
 	return true, nil

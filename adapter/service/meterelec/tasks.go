@@ -24,7 +24,7 @@ func HandleReporting(adapter adapter.Adapter) func() {
 			}
 
 			if meterElec.SupportsExtendedReport() {
-				_, err := meterElec.SendExtendedReport(false)
+				_, err := meterElec.SendMeterExtendedReport(false)
 				if err != nil {
 					log.WithError(err).Errorf("adapter: failed to send meter extended report")
 				}
@@ -33,7 +33,7 @@ func HandleReporting(adapter adapter.Adapter) func() {
 			}
 
 			for _, unit := range meterElec.SupportedUnits() {
-				_, err := meterElec.SendReport(unit, false)
+				_, err := meterElec.SendMeterReport(unit, false)
 				if err != nil {
 					log.WithError(err).Errorf("adapter: failed to send meter report for unit: %s", unit)
 				}

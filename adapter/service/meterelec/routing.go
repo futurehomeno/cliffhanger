@@ -45,7 +45,7 @@ func HandleCmdMeterGetReport(adapter adapter.Adapter) router.MessageHandler {
 				return nil, fmt.Errorf("adapter: service not found under the provided address: %s", message.Addr.ServiceAddress)
 			}
 
-			meterElec, ok := s.(Service)
+			electricityMeter, ok := s.(Service)
 			if !ok {
 				return nil, fmt.Errorf("adapter: incorrect service found under the provided address: %s", message.Addr.ServiceAddress)
 			}
@@ -67,13 +67,13 @@ func HandleCmdMeterGetReport(adapter adapter.Adapter) router.MessageHandler {
 
 				units = append(units, unit)
 			} else {
-				units = meterElec.SupportedUnits()
+				units = electricityMeter.SupportedUnits()
 			}
 
 			for _, unit := range units {
-				_, err = meterElec.SendReport(unit, true)
+				_, err = electricityMeter.SendMeterReport(unit, true)
 				if err != nil {
-					return nil, fmt.Errorf("adapter: failed to send report: %w", err)
+					return nil, fmt.Errorf("adapter: failed to send meter report: %w", err)
 				}
 			}
 
@@ -100,14 +100,14 @@ func HandleCmdMeterExtGetReport(adapter adapter.Adapter) router.MessageHandler {
 				return nil, fmt.Errorf("adapter: service not found under the provided address: %s", message.Addr.ServiceAddress)
 			}
 
-			meterElec, ok := s.(Service)
+			electricityMeter, ok := s.(Service)
 			if !ok {
 				return nil, fmt.Errorf("adapter: incorrect service found under the provided address: %s", message.Addr.ServiceAddress)
 			}
 
-			_, err = meterElec.SendExtendedReport(true)
+			_, err = electricityMeter.SendMeterExtendedReport(true)
 			if err != nil {
-				return nil, fmt.Errorf("adapter: failed to send  report: %w", err)
+				return nil, fmt.Errorf("adapter: failed to send meter extended report: %w", err)
 			}
 
 			return nil, nil

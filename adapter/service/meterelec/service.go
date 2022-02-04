@@ -10,17 +10,17 @@ import (
 	"github.com/futurehomeno/cliffhanger/adapter"
 )
 
-// Reporter is an interface representing an actual device reporting electricity meter values.
-// In a polling scenario reporter implementation might require some safeguards against excessive polling.
-type Reporter interface {
+// ElectricityMeter is an interface representing an actual device reporting electricity meter values.
+// In a polling scenario implementation might require some safeguards against excessive polling.
+type ElectricityMeter interface {
 	// ElectricityMeterReport returns simplified electricity meter report based on requested unit.
 	ElectricityMeterReport(unit string) (float64, error)
 }
 
-// ExtendedReporter is an interface representing an actual device reporting electricity meter values supporting extended reports.
-// In a polling scenario reporter implementation might require some safeguards against excessive polling.
-type ExtendedReporter interface {
-	Reporter
+// ExtendedElectricityMeter is an interface representing an actual device reporting electricity meter values supporting extended reports.
+// In a polling scenario implementation might require some safeguards against excessive polling.
+type ExtendedElectricityMeter interface {
+	ElectricityMeter
 
 	// ElectricityMeterExtendedReport returns extended electricity meter report.
 	ElectricityMeterExtendedReport() (map[string]float64, error)
@@ -30,14 +30,14 @@ type ExtendedReporter interface {
 type Service interface {
 	adapter.Service
 
-	// SendReport sends a simplified electricity meter report based on requested unit. Returns true if a report was sent.
+	// SendMeterReport sends a simplified electricity meter report based on requested unit. Returns true if a report was sent.
 	// Depending on a caching and reporting configuration the service might decide to skip a report.
 	// To make sure report is being sent regardless of circumstances set the force argument to true.
-	SendReport(unit string, force bool) (bool, error)
-	// SendExtendedReport sends an extended electricity meter report. Returns true if a report was sent.
+	SendMeterReport(unit string, force bool) (bool, error)
+	// SendMeterExtendedReport sends an extended electricity meter report. Returns true if a report was sent.
 	// Depending on a caching and reporting configuration the service might decide to skip a report.
 	// To make sure report is being sent regardless of circumstances set the force argument to true.
-	SendExtendedReport(force bool) (bool, error)
+	SendMeterExtendedReport(force bool) (bool, error)
 	// SupportedUnits returns units that are supported by the simplified meter report.
 	SupportedUnits() []string
 	// SupportedExtendedValues returns extended values that are supported by the extended meter report.
@@ -50,7 +50,7 @@ type Service interface {
 func NewService(
 	mqtt *fimpgo.MqttTransport,
 	specification *fimptype.Service,
-	reporter Reporter,
+	reporter ElectricityMeter,
 ) Service {
 	specification.Name = MeterElec
 
@@ -64,13 +64,13 @@ func NewService(
 type service struct {
 	adapter.Service
 
-	reporter Reporter
+	reporter ElectricityMeter
 }
 
-// SendReport sends a simplified electricity meter report based on requested unit. Returns true if a report was sent.
+// SendMeterReport sends a simplified electricity meter report based on requested unit. Returns true if a report was sent.
 // Depending on a caching and reporting configuration the service might decide to skip a report.
 // To make sure report is being sent regardless of circumstances set the force argument to true.
-func (s *service) SendReport(unit string, _ bool) (bool, error) {
+func (s *service) SendMeterReport(unit string, _ bool) (bool, error) {
 	normalizedUnit, ok := s.normalizeUnit(unit)
 	if !ok {
 		return false, fmt.Errorf("%s: unit is unsupported: %s", s.Name(), unit)
@@ -78,7 +78,7 @@ func (s *service) SendReport(unit string, _ bool) (bool, error) {
 
 	value, err := s.reporter.ElectricityMeterReport(unit)
 	if err != nil {
-		return false, fmt.Errorf("%s: failed to retrieve report: %w", s.Name(), err)
+		return false, fmt.Errorf("%s: failed to retrieve meter report: %w", s.Name(), err)
 	}
 
 	message := fimpgo.NewFloatMessage(
@@ -94,28 +94,28 @@ func (s *service) SendReport(unit string, _ bool) (bool, error) {
 
 	err = s.SendMessage(message)
 	if err != nil {
-		return false, fmt.Errorf("%s: failed to send report for unit %s: %w", s.Name(), normalizedUnit, err)
+		return false, fmt.Errorf("%s: failed to send meter report for unit %s: %w", s.Name(), normalizedUnit, err)
 	}
 
 	return true, nil
 }
 
-// SendExtendedReport sends an extended electricity meter report. Returns true if a report was sent.
+// SendMeterExtendedReport sends an extended electricity meter report. Returns true if a report was sent.
 // Depending on a caching and reporting configuration the service might decide to skip a report.
 // To make sure report is being sent regardless of circumstances set the force argument to true.
-func (s *service) SendExtendedReport(force bool) (bool, error) {
+func (s *service) SendMeterExtendedReport(force bool) (bool, error) {
 	if !s.SupportsExtendedReport() {
-		return false, fmt.Errorf("%s: extended report is unsupported", s.Name())
+		return false, fmt.Errorf("%s: extended meter report is unsupported", s.Name())
 	}
 
-	extendedReporter, ok := s.reporter.(ExtendedReporter)
+	extendedReporter, ok := s.reporter.(ExtendedElectricityMeter)
 	if !ok {
-		return false, fmt.Errorf("%s: extended report is unsupported", s.Name())
+		return false, fmt.Errorf("%s: extended meter report is unsupported", s.Name())
 	}
 
 	values, err := extendedReporter.ElectricityMeterExtendedReport()
 	if err != nil {
-		return false, fmt.Errorf("%s: failed to retrieve extended report: %w", s.Name(), err)
+		return false, fmt.Errorf("%s: failed to retrieve extended meter report: %w", s.Name(), err)
 	}
 
 	message := fimpgo.NewFloatMapMessage(
@@ -129,7 +129,7 @@ func (s *service) SendExtendedReport(force bool) (bool, error) {
 
 	err = s.SendMessage(message)
 	if err != nil {
-		return false, fmt.Errorf("meter_elect: failed to send extended report: %w", err)
+		return false, fmt.Errorf("meter_elect: failed to send extended meter report: %w", err)
 	}
 
 	return true, nil
@@ -147,7 +147,7 @@ func (s *service) SupportedExtendedValues() []string {
 
 // SupportsExtendedReport returns true if meter supports the extended report.
 func (s *service) SupportsExtendedReport() bool {
-	_, ok := s.reporter.(ExtendedReporter)
+	_, ok := s.reporter.(ExtendedElectricityMeter)
 	if !ok {
 		return false
 	}

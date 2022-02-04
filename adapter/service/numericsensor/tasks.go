@@ -1,4 +1,4 @@
-package sensornumeric
+package numericsensor
 
 import (
 	"strings"
@@ -29,7 +29,7 @@ func HandleReporting(adapter adapter.Adapter) func() {
 			}
 
 			for _, unit := range sensor.SupportedUnits() {
-				_, err := sensor.SendReport(unit, false)
+				_, err := sensor.SendSensorReport(unit, false)
 				if err != nil {
 					log.WithError(err).Errorf("adapter: failed to send sensor report for unit: %s", unit)
 				}
