@@ -26,5 +26,3 @@ type Service interface {
 	// SupportedUnits returns units that are supported by the numeric sensor report.
 	SupportedUnits() []string
 }
-
-

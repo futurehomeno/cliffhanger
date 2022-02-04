@@ -17,9 +17,9 @@ func NewMainElec(
 	mqtt *fimpgo.MqttTransport,
 	inclusionReport *fimptype.ThingInclusionReport,
 	meterElecSpecification *fimptype.Service,
-	meterElecReporter meterelec.Reporter,
+	electricityMeter meterelec.ElectricityMeter,
 ) adapter.Thing {
-	meterElec := meterelec.NewService(mqtt, meterElecSpecification, meterElecReporter)
+	meterElec := meterelec.NewService(mqtt, meterElecSpecification, electricityMeter)
 
 	return adapter.NewThing(inclusionReport, meterElec)
 }
