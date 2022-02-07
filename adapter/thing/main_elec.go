@@ -12,7 +12,7 @@ import (
 	"github.com/futurehomeno/cliffhanger/task"
 )
 
-// NewMainElec creates a thing that satisfies expectations for main electricity meter.
+// NewMainElec creates a thing that satisfies expectations for the main electricity meter.
 func NewMainElec(
 	mqtt *fimpgo.MqttTransport,
 	inclusionReport *fimptype.ThingInclusionReport,
@@ -24,12 +24,12 @@ func NewMainElec(
 	return adapter.NewThing(inclusionReport, meterElec)
 }
 
-// RouteMainElec creates routing required to satisfy expectations for main electricity meter.
+// RouteMainElec creates routing required to satisfy expectations for the main electricity meter.
 func RouteMainElec(adapter adapter.Adapter) []*router.Routing {
 	return meterelec.RouteService(adapter)
 }
 
-// TaskMainElec creates background tasks specific to main electricity meter.
+// TaskMainElec creates background tasks specific for the main electricity meter.
 func TaskMainElec(
 	adapter adapter.Adapter,
 	reportingInterval time.Duration,

@@ -9,25 +9,25 @@ import (
 	"github.com/futurehomeno/cliffhanger/adapter"
 	"github.com/futurehomeno/cliffhanger/adapter/service/meterelec"
 	"github.com/futurehomeno/cliffhanger/adapter/service/numericsensor"
-	"github.com/futurehomeno/cliffhanger/adapter/service/thermostat"
+	"github.com/futurehomeno/cliffhanger/adapter/service/waterheater"
 	"github.com/futurehomeno/cliffhanger/router"
 	"github.com/futurehomeno/cliffhanger/task"
 )
 
-// NewThermostat creates a thing that satisfies expectations for a thermostat controller.
+// NewBoiler creates a thing that satisfies expectations for a boiler.
 // Specification and implementations for temperature sensor and electricity meter are optional.
-func NewThermostat(
+func NewBoiler(
 	mqtt *fimpgo.MqttTransport,
 	inclusionReport *fimptype.ThingInclusionReport,
-	thermostatSpecification *fimptype.Service,
-	thermostatController thermostat.ThermostatController,
+	waterHeaterSpecification *fimptype.Service,
+	waterHeaterController waterheater.WaterHeaterController,
 	sensorTempSpecification *fimptype.Service,
 	temperatureSensor numericsensor.NumericSensor,
 	meterElecSpecification *fimptype.Service,
 	electricityMeter meterelec.ElectricityMeter,
 ) adapter.Thing {
 	services := []adapter.Service{
-		thermostat.NewService(mqtt, thermostatSpecification, thermostatController),
+		waterheater.NewService(mqtt, waterHeaterSpecification, waterHeaterController),
 	}
 
 	if sensorTempSpecification != nil && temperatureSensor != nil {
@@ -41,17 +41,17 @@ func NewThermostat(
 	return adapter.NewThing(inclusionReport, services...)
 }
 
-// RouteThermostat creates routing required to satisfy expectations for a thermostat controller.
-func RouteThermostat(adapter adapter.Adapter) []*router.Routing {
+// RouteBoiler creates routing required to satisfy expectations for a boiler.
+func RouteBoiler(adapter adapter.Adapter) []*router.Routing {
 	return router.Combine(
-		thermostat.RouteService(adapter),
+		waterheater.RouteService(adapter),
 		numericsensor.RouteService(adapter),
 		meterelec.RouteService(adapter),
 	)
 }
 
-// TaskThermostat creates background tasks specific for a thermostat controller.
-func TaskThermostat(
+// TaskBoiler creates background tasks specific for a boiler.
+func TaskBoiler(
 	adapter adapter.Adapter,
 	reportingInterval time.Duration,
 	reportingVoters ...task.Voter,
