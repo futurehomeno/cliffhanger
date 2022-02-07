@@ -50,13 +50,13 @@ type Service interface {
 func NewService(
 	mqtt *fimpgo.MqttTransport,
 	specification *fimptype.Service,
-	reporter ElectricityMeter,
+	meter ElectricityMeter,
 ) Service {
 	specification.Name = MeterElec
 
 	return &service{
-		Service:  adapter.NewService(mqtt, specification),
-		reporter: reporter,
+		Service: adapter.NewService(mqtt, specification),
+		meter:   meter,
 	}
 }
 
@@ -64,7 +64,7 @@ func NewService(
 type service struct {
 	adapter.Service
 
-	reporter ElectricityMeter
+	meter ElectricityMeter
 }
 
 // SendMeterReport sends a simplified electricity meter report based on requested unit. Returns true if a report was sent.
@@ -76,7 +76,7 @@ func (s *service) SendMeterReport(unit string, _ bool) (bool, error) {
 		return false, fmt.Errorf("%s: unit is unsupported: %s", s.Name(), unit)
 	}
 
-	value, err := s.reporter.ElectricityMeterReport(unit)
+	value, err := s.meter.ElectricityMeterReport(unit)
 	if err != nil {
 		return false, fmt.Errorf("%s: failed to retrieve meter report: %w", s.Name(), err)
 	}
@@ -108,7 +108,7 @@ func (s *service) SendMeterExtendedReport(force bool) (bool, error) {
 		return false, fmt.Errorf("%s: extended meter report is unsupported", s.Name())
 	}
 
-	extendedReporter, ok := s.reporter.(ExtendedElectricityMeter)
+	extendedReporter, ok := s.meter.(ExtendedElectricityMeter)
 	if !ok {
 		return false, fmt.Errorf("%s: extended meter report is unsupported", s.Name())
 	}
@@ -147,7 +147,7 @@ func (s *service) SupportedExtendedValues() []string {
 
 // SupportsExtendedReport returns true if meter supports the extended report.
 func (s *service) SupportsExtendedReport() bool {
-	_, ok := s.reporter.(ExtendedElectricityMeter)
+	_, ok := s.meter.(ExtendedElectricityMeter)
 	if !ok {
 		return false
 	}

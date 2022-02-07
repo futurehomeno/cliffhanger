@@ -33,11 +33,11 @@ type Service interface {
 func NewService(
 	mqtt *fimpgo.MqttTransport,
 	specification *fimptype.Service,
-	reporter NumericSensor,
+	sensor NumericSensor,
 ) Service {
 	return &service{
-		Service:  adapter.NewService(mqtt, specification),
-		reporter: reporter,
+		Service: adapter.NewService(mqtt, specification),
+		sensor:  sensor,
 	}
 }
 
@@ -45,7 +45,7 @@ func NewService(
 type service struct {
 	adapter.Service
 
-	reporter NumericSensor
+	sensor NumericSensor
 }
 
 // SendSensorReport sends a numeric sensor report based on requested unit. Returns true if a report was sent.
@@ -57,7 +57,7 @@ func (s *service) SendSensorReport(unit string, _ bool) (bool, error) {
 		return false, fmt.Errorf("%s: unit is unsupported: %s", s.Name(), unit)
 	}
 
-	value, err := s.reporter.NumericSensorReport(unit)
+	value, err := s.sensor.NumericSensorReport(unit)
 	if err != nil {
 		return false, fmt.Errorf("%s: failed to retrieve sensor report: %w", s.Name(), err)
 	}
