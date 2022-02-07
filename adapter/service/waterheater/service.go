@@ -1,8 +1,7 @@
-package thermostat
+package waterheater
 
 import (
 	"fmt"
-	"strconv"
 	"strings"
 
 	"github.com/futurehomeno/fimpgo"
@@ -11,22 +10,22 @@ import (
 	"github.com/futurehomeno/cliffhanger/adapter"
 )
 
-// ThermostatController is an interface representing an actual climate control device.
+// WaterHeaterController is an interface representing an actual water heating device.
 // In a polling scenario implementation might require some safeguards against excessive polling.
-type ThermostatController interface {
-	// SetThermostatMode sets a new thermostat mode.
-	SetThermostatMode(mode string) error
-	// SetThermostatSetpoint sets a setpoint for a particular mode.
-	SetThermostatSetpoint(mode string, value float64, unit string) error
-	// ThermostatModeReport returns a current mode information.
-	ThermostatModeReport() (mode string, err error)
-	// ThermostatSetpointReport returns a current setpoint for given mode.
-	ThermostatSetpointReport(mode string) (value float64, unit string, err error)
-	// ThermostatStateReport returns a current state of the thermostat.
-	ThermostatStateReport() (string, error)
+type WaterHeaterController interface {
+	// SetWaterHeaterMode sets a new waterHeater mode.
+	SetWaterHeaterMode(mode string) error
+	// SetWaterHeaterSetpoint sets a setpoint for a particular mode.
+	SetWaterHeaterSetpoint(mode string, value float64, unit string) error
+	// WaterHeaterModeReport returns a current mode information.
+	WaterHeaterModeReport() (mode string, err error)
+	// WaterHeaterSetpointReport returns a current setpoint for given mode.
+	WaterHeaterSetpointReport(mode string) (value float64, unit string, err error)
+	// WaterHeaterStateReport returns a current state of the waterHeater.
+	WaterHeaterStateReport() (string, error)
 }
 
-// Service is an interface representing a thermostat FIMP service.
+// Service is an interface representing a waterHeater FIMP service.
 type Service interface {
 	adapter.Service
 
@@ -46,33 +45,33 @@ type Service interface {
 	// Depending on a caching and reporting configuration the service might decide to skip a report.
 	// To make sure report is being sent regardless of circumstances set the force argument to true.
 	SendStateReport(force bool) (bool, error)
-	// SupportedModes returns modes that are supported by the thermostat.
+	// SupportedModes returns modes that are supported by the waterHeater.
 	SupportedModes() []string
-	// SupportedSetpoints returns setpoints that are supported by the thermostat.
+	// SupportedSetpoints returns setpoints that are supported by the waterHeater.
 	SupportedSetpoints() []string
-	// SupportedStates returns states that are supported by the thermostat.
+	// SupportedStates returns states that are supported by the waterHeater.
 	SupportedStates() []string
 }
 
-// NewService creates new instance of a thermostat FIMP service.
+// NewService creates new instance of a water heater FIMP service.
 func NewService(
 	mqtt *fimpgo.MqttTransport,
 	specification *fimptype.Service,
-	thermostat ThermostatController,
+	waterHeater WaterHeaterController,
 ) Service {
-	specification.Name = Thermostat
+	specification.Name = WaterHeater
 
 	return &service{
-		Service:    adapter.NewService(mqtt, specification),
-		thermostat: thermostat,
+		Service:     adapter.NewService(mqtt, specification),
+		waterHeater: waterHeater,
 	}
 }
 
-// service is a private implementation of a thermostat FIMP service.
+// service is a private implementation of a water heater FIMP service.
 type service struct {
 	adapter.Service
 
-	thermostat ThermostatController
+	waterHeater WaterHeaterController
 }
 
 // SetMode sets mode of the device.
@@ -82,7 +81,7 @@ func (s *service) SetMode(mode string) error {
 		return fmt.Errorf("%s: mode is unsupported: %s", s.Name(), mode)
 	}
 
-	err := s.thermostat.SetThermostatMode(normalizedMode)
+	err := s.waterHeater.SetWaterHeaterMode(normalizedMode)
 	if err != nil {
 		return fmt.Errorf("%s: failed to set mode %s: %w", s.Name(), normalizedMode, err)
 	}
@@ -97,7 +96,7 @@ func (s *service) SetSetpoint(mode string, value float64, unit string) error {
 		return fmt.Errorf("%s: mode is unsupported: %s", s.Name(), mode)
 	}
 
-	err := s.thermostat.SetThermostatSetpoint(normalizedMode, value, unit)
+	err := s.waterHeater.SetWaterHeaterSetpoint(normalizedMode, value, unit)
 	if err != nil {
 		return fmt.Errorf("%s: failed to set setpoint for mode %s for value %.01f: %w", s.Name(), normalizedMode, value, err)
 	}
@@ -109,7 +108,7 @@ func (s *service) SetSetpoint(mode string, value float64, unit string) error {
 // Depending on a caching and reporting configuration the service might decide to skip a report.
 // To make sure report is being sent regardless of circumstances set the force argument to true.
 func (s *service) SendModeReport(_ bool) (bool, error) {
-	value, err := s.thermostat.ThermostatModeReport()
+	value, err := s.waterHeater.WaterHeaterModeReport()
 	if err != nil {
 		return false, fmt.Errorf("%s: failed to retrieve mode report: %w", s.Name(), err)
 	}
@@ -140,15 +139,15 @@ func (s *service) SendSetpointReport(mode string, _ bool) (bool, error) {
 		return false, fmt.Errorf("%s: mode is unsupported: %s", s.Name(), mode)
 	}
 
-	value, unit, err := s.thermostat.ThermostatSetpointReport(normalizedMode)
+	value, unit, err := s.waterHeater.WaterHeaterSetpointReport(normalizedMode)
 	if err != nil {
 		return false, fmt.Errorf("%s: failed to retrieve setpoint report for mode %s: %w", s.Name(), normalizedMode, err)
 	}
 
-	message := fimpgo.NewStrMapMessage(
+	message := fimpgo.NewObjectMessage(
 		EvtSetpointReport,
 		s.Name(),
-		NewSetpoint(normalizedMode, value, unit).StringMap(),
+		NewSetpoint(normalizedMode, value, unit),
 		nil,
 		nil,
 		nil,
@@ -166,7 +165,7 @@ func (s *service) SendSetpointReport(mode string, _ bool) (bool, error) {
 // Depending on a caching and reporting configuration the service might decide to skip a report.
 // To make sure report is being sent regardless of circumstances set the force argument to true.
 func (s *service) SendStateReport(_ bool) (bool, error) {
-	value, err := s.thermostat.ThermostatStateReport()
+	value, err := s.waterHeater.WaterHeaterStateReport()
 	if err != nil {
 		return false, fmt.Errorf("%s: failed to retrieve state report: %w", s.Name(), err)
 	}
@@ -188,17 +187,17 @@ func (s *service) SendStateReport(_ bool) (bool, error) {
 	return true, nil
 }
 
-// SupportedModes returns modes that are supported by the thermostat.
+// SupportedModes returns modes that are supported by the water heater
 func (s *service) SupportedModes() []string {
 	return s.Service.Specification().PropertyStrings("sup_modes")
 }
 
-// SupportedSetpoints returns setpoints that are supported by the thermostat.
+// SupportedSetpoints returns setpoints that are supported by the water heater.
 func (s *service) SupportedSetpoints() []string {
 	return s.Service.Specification().PropertyStrings("sup_setpoints")
 }
 
-// SupportedStates returns states that are supported by the thermostat.
+// SupportedStates returns states that are supported by the water heater.
 func (s *service) SupportedStates() []string {
 	return s.Service.Specification().PropertyStrings("sup_states")
 }
@@ -214,11 +213,11 @@ func (s *service) normalizeMode(mode string) (string, bool) {
 	return "", false
 }
 
-// Setpoint is an object representing a Thermostat setpoint.
+// Setpoint is an object representing a water heater setpoint.
 type Setpoint struct {
-	Mode        string
-	Temperature float64
-	Unit        string
+	Mode        string  `json:"mode"`
+	Temperature float64 `json:"temp"`
+	Unit        string  `json:"unit"`
 }
 
 // NewSetpoint create a new setpoint object.
@@ -228,42 +227,4 @@ func NewSetpoint(mode string, temp float64, unit string) *Setpoint {
 		Temperature: temp,
 		Unit:        unit,
 	}
-}
-
-// StringMap creates a string map out of existing setpoint object.
-func (s *Setpoint) StringMap() map[string]string {
-	return map[string]string{
-		"mode": s.Mode,
-		"temp": strconv.FormatFloat(s.Temperature, 'f', 1, 64),
-		"unit": s.Unit,
-	}
-}
-
-// SetpointFromStringMap converts string map into a Setpoint object.
-func SetpointFromStringMap(input map[string]string) (*Setpoint, error) {
-	mode, ok := input["mode"]
-	if !ok {
-		return nil, fmt.Errorf("setpoint: missing `mode` field in a string map")
-	}
-
-	unit, ok := input["unit"]
-	if !ok {
-		return nil, fmt.Errorf("setpoint: missing `unit` field in a string map")
-	}
-
-	tempStr, ok := input["temp"]
-	if !ok {
-		return nil, fmt.Errorf("setpoint: missing `temp` field in a string map")
-	}
-
-	temp, err := strconv.ParseFloat(tempStr, 64)
-	if err != nil {
-		return nil, fmt.Errorf("setpoint: cannot parse `temp` field %s: %w", tempStr, err)
-	}
-
-	return &Setpoint{
-		Mode:        mode,
-		Temperature: temp,
-		Unit:        unit,
-	}, nil
 }
