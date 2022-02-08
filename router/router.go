@@ -20,11 +20,11 @@ type Router interface {
 }
 
 // NewRouter creates new instance of a router service.
-func NewRouter(mqt *fimpgo.MqttTransport, channelID string, routing ...*Routing) Router {
+func NewRouter(mqtt *fimpgo.MqttTransport, channelID string, routing ...*Routing) Router {
 	return &router{
 		channelID: channelID,
 		routing:   routing,
-		mqtt:      mqt,
+		mqtt:      mqtt,
 		lock:      &sync.Mutex{},
 		wg:        &sync.WaitGroup{},
 	}

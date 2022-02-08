@@ -8,6 +8,12 @@ issues:
       linters:
         - lll
         - funlen
+    - path: adapter/thing/
+      linters:
+        - dupl
+    - path: adapter/service/
+      linters:
+        - dupl
 linters:
   enable:
     # Enabled by default

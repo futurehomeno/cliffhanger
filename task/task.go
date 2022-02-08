@@ -39,3 +39,14 @@ func (t *Task) vote() bool {
 
 	return true
 }
+
+// Combine is a helper to easily combine multiple slices of tasks into one.
+func Combine(parts ...[]*Task) []*Task {
+	var combined []*Task
+
+	for _, p := range parts {
+		combined = append(combined, p...)
+	}
+
+	return combined
+}

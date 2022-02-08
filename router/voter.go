@@ -1,6 +1,8 @@
 package router
 
 import (
+	"strings"
+
 	"github.com/futurehomeno/fimpgo"
 )
 
@@ -22,6 +24,13 @@ func (f MessageVoterFn) Vote(message *fimpgo.Message) bool {
 func ForService(service string) MessageVoter {
 	return MessageVoterFn(func(message *fimpgo.Message) bool {
 		return message.Payload.Service == service
+	})
+}
+
+// ForServicePrefix is a message voter allowing a routing to handle message only if it is relevant.
+func ForServicePrefix(prefix string) MessageVoter {
+	return MessageVoterFn(func(message *fimpgo.Message) bool {
+		return strings.HasPrefix(message.Payload.Service, prefix)
 	})
 }
 
