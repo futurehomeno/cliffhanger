@@ -72,6 +72,11 @@ func HandleCmdModeSet(adapter adapter.Adapter) router.MessageHandler {
 				return nil, fmt.Errorf("adapter: failed to send water heater mode report: %w", err)
 			}
 
+			_, err = waterHeater.SendSetpointReport(mode, true)
+			if err != nil {
+				return nil, fmt.Errorf("adapter: failed to send water heater setpoint report: %w", err)
+			}
+
 			return nil, nil
 		}),
 	)
