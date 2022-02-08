@@ -10,9 +10,9 @@ import (
 	"github.com/futurehomeno/cliffhanger/adapter"
 )
 
-// WaterHeaterController is an interface representing an actual water heating device.
+// Controller is an interface representing an actual water heating device.
 // In a polling scenario implementation might require some safeguards against excessive polling.
-type WaterHeaterController interface {
+type Controller interface {
 	// SetWaterHeaterMode sets a new waterHeater mode.
 	SetWaterHeaterMode(mode string) error
 	// SetWaterHeaterSetpoint sets a setpoint for a particular mode.
@@ -21,17 +21,17 @@ type WaterHeaterController interface {
 	WaterHeaterModeReport() (mode string, err error)
 	// WaterHeaterSetpointReport returns a current setpoint for given mode.
 	WaterHeaterSetpointReport(mode string) (value float64, unit string, err error)
-	// WaterHeaterStateReport returns a current state of the waterHeater.
+	// WaterHeaterStateReport returns a current state of the water heater.
 	WaterHeaterStateReport() (string, error)
 }
 
-// Service is an interface representing a waterHeater FIMP service.
+// Service is an interface representing a water heater FIMP service.
 type Service interface {
 	adapter.Service
 
-	// SetMode sets mode of the device.
+	// SetMode sets the mode of the device.
 	SetMode(mode string) error
-	// SetSetpoint sets setpoint for a specific mode. Unit value is ignored and maintained for informational purpose only.
+	// SetSetpoint sets the setpoint for a specific mode. Unit value is ignored and maintained for informational purpose only.
 	SetSetpoint(mode string, value float64, unit string) error
 	// SendModeReport sends a mode report. Returns true if a report was sent.
 	// Depending on a caching and reporting configuration the service might decide to skip a report.
@@ -57,13 +57,13 @@ type Service interface {
 func NewService(
 	mqtt *fimpgo.MqttTransport,
 	specification *fimptype.Service,
-	waterHeater WaterHeaterController,
+	controller Controller,
 ) Service {
 	specification.Name = WaterHeater
 
 	return &service{
-		Service:     adapter.NewService(mqtt, specification),
-		waterHeater: waterHeater,
+		Service:    adapter.NewService(mqtt, specification),
+		controller: controller,
 	}
 }
 
@@ -71,7 +71,7 @@ func NewService(
 type service struct {
 	adapter.Service
 
-	waterHeater WaterHeaterController
+	controller Controller
 }
 
 // SetMode sets mode of the device.
@@ -81,7 +81,7 @@ func (s *service) SetMode(mode string) error {
 		return fmt.Errorf("%s: mode is unsupported: %s", s.Name(), mode)
 	}
 
-	err := s.waterHeater.SetWaterHeaterMode(normalizedMode)
+	err := s.controller.SetWaterHeaterMode(normalizedMode)
 	if err != nil {
 		return fmt.Errorf("%s: failed to set mode %s: %w", s.Name(), normalizedMode, err)
 	}
@@ -96,7 +96,7 @@ func (s *service) SetSetpoint(mode string, value float64, unit string) error {
 		return fmt.Errorf("%s: mode is unsupported: %s", s.Name(), mode)
 	}
 
-	err := s.waterHeater.SetWaterHeaterSetpoint(normalizedMode, value, unit)
+	err := s.controller.SetWaterHeaterSetpoint(normalizedMode, value, unit)
 	if err != nil {
 		return fmt.Errorf("%s: failed to set setpoint for mode %s for value %.01f: %w", s.Name(), normalizedMode, value, err)
 	}
@@ -108,7 +108,7 @@ func (s *service) SetSetpoint(mode string, value float64, unit string) error {
 // Depending on a caching and reporting configuration the service might decide to skip a report.
 // To make sure report is being sent regardless of circumstances set the force argument to true.
 func (s *service) SendModeReport(_ bool) (bool, error) {
-	value, err := s.waterHeater.WaterHeaterModeReport()
+	value, err := s.controller.WaterHeaterModeReport()
 	if err != nil {
 		return false, fmt.Errorf("%s: failed to retrieve mode report: %w", s.Name(), err)
 	}
@@ -139,7 +139,7 @@ func (s *service) SendSetpointReport(mode string, _ bool) (bool, error) {
 		return false, fmt.Errorf("%s: mode is unsupported: %s", s.Name(), mode)
 	}
 
-	value, unit, err := s.waterHeater.WaterHeaterSetpointReport(normalizedMode)
+	value, unit, err := s.controller.WaterHeaterSetpointReport(normalizedMode)
 	if err != nil {
 		return false, fmt.Errorf("%s: failed to retrieve setpoint report for mode %s: %w", s.Name(), normalizedMode, err)
 	}
@@ -165,7 +165,7 @@ func (s *service) SendSetpointReport(mode string, _ bool) (bool, error) {
 // Depending on a caching and reporting configuration the service might decide to skip a report.
 // To make sure report is being sent regardless of circumstances set the force argument to true.
 func (s *service) SendStateReport(_ bool) (bool, error) {
-	value, err := s.waterHeater.WaterHeaterStateReport()
+	value, err := s.controller.WaterHeaterStateReport()
 	if err != nil {
 		return false, fmt.Errorf("%s: failed to retrieve state report: %w", s.Name(), err)
 	}
@@ -187,7 +187,7 @@ func (s *service) SendStateReport(_ bool) (bool, error) {
 	return true, nil
 }
 
-// SupportedModes returns modes that are supported by the water heater
+// SupportedModes returns modes that are supported by the water heater.
 func (s *service) SupportedModes() []string {
 	return s.Service.Specification().PropertyStrings("sup_modes")
 }

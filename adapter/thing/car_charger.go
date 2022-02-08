@@ -7,6 +7,7 @@ import (
 	"github.com/futurehomeno/fimpgo/fimptype"
 
 	"github.com/futurehomeno/cliffhanger/adapter"
+	"github.com/futurehomeno/cliffhanger/adapter/service/chargepoint"
 	"github.com/futurehomeno/cliffhanger/adapter/service/meterelec"
 	"github.com/futurehomeno/cliffhanger/adapter/service/numericsensor"
 	"github.com/futurehomeno/cliffhanger/adapter/service/waterheater"
@@ -14,24 +15,18 @@ import (
 	"github.com/futurehomeno/cliffhanger/task"
 )
 
-// NewBoiler creates a thing that satisfies expectations for a boiler.
-// Specification and implementations for temperature sensor and electricity meter are optional.
-func NewBoiler(
+// NewCarCharger creates a thing that satisfies expectations for a car charger.
+// Specification and implementation for electricity meter is optional.
+func NewCarCharger(
 	mqtt *fimpgo.MqttTransport,
 	inclusionReport *fimptype.ThingInclusionReport,
-	waterHeaterSpecification *fimptype.Service,
-	waterHeaterController waterheater.Controller,
-	sensorWatTempSpecification *fimptype.Service,
-	sensorWatTempReporter numericsensor.Reporter,
+	chargepointSpecification *fimptype.Service,
+	chargepointController chargepoint.Controller,
 	meterElecSpecification *fimptype.Service,
 	meterElecReporter meterelec.Reporter,
 ) adapter.Thing {
 	services := []adapter.Service{
-		waterheater.NewService(mqtt, waterHeaterSpecification, waterHeaterController),
-	}
-
-	if sensorWatTempSpecification != nil && sensorWatTempReporter != nil && sensorWatTempSpecification.Name == numericsensor.SensorWatTemp {
-		services = append(services, numericsensor.NewService(mqtt, sensorWatTempSpecification, sensorWatTempReporter))
+		chargepoint.NewService(mqtt, chargepointSpecification, chargepointController),
 	}
 
 	if meterElecSpecification != nil && meterElecReporter != nil {
@@ -41,8 +36,8 @@ func NewBoiler(
 	return adapter.NewThing(inclusionReport, services...)
 }
 
-// RouteBoiler creates routing required to satisfy expectations for a boiler.
-func RouteBoiler(adapter adapter.Adapter) []*router.Routing {
+// RouteCarCharger creates routing required to satisfy expectations for a car charger.
+func RouteCarCharger(adapter adapter.Adapter) []*router.Routing {
 	return router.Combine(
 		waterheater.RouteService(adapter),
 		numericsensor.RouteService(adapter),
@@ -50,14 +45,13 @@ func RouteBoiler(adapter adapter.Adapter) []*router.Routing {
 	)
 }
 
-// TaskBoiler creates background tasks specific for a boiler.
-func TaskBoiler(
+// TaskCarCharger creates background tasks specific for a car charger.
+func TaskCarCharger(
 	adapter adapter.Adapter,
 	reportingInterval time.Duration,
 	reportingVoters ...task.Voter,
 ) []*task.Task {
 	return []*task.Task{
-		numericsensor.TaskReporting(adapter, reportingInterval, reportingVoters...),
 		meterelec.TaskReporting(adapter, reportingInterval, reportingVoters...),
 	}
 }

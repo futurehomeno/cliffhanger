@@ -10,9 +10,9 @@ import (
 	"github.com/futurehomeno/cliffhanger/adapter"
 )
 
-// NumericSensor is an interface representing an actual device reporting numeric sensor values.
+// Reporter is an interface representing an actual device reporting numeric sensor values.
 // In a polling scenario implementation might require some safeguards against excessive polling.
-type NumericSensor interface {
+type Reporter interface {
 	// NumericSensorReport returns numeric sensor report based on the requested unit.
 	NumericSensorReport(unit string) (float64, error)
 }
@@ -33,11 +33,11 @@ type Service interface {
 func NewService(
 	mqtt *fimpgo.MqttTransport,
 	specification *fimptype.Service,
-	sensor NumericSensor,
+	reporter Reporter,
 ) Service {
 	return &service{
 		Service: adapter.NewService(mqtt, specification),
-		sensor:  sensor,
+		sensor:  reporter,
 	}
 }
 
@@ -45,7 +45,7 @@ func NewService(
 type service struct {
 	adapter.Service
 
-	sensor NumericSensor
+	sensor Reporter
 }
 
 // SendSensorReport sends a numeric sensor report based on requested unit. Returns true if a report was sent.

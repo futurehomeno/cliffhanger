@@ -20,22 +20,22 @@ func NewThermostat(
 	mqtt *fimpgo.MqttTransport,
 	inclusionReport *fimptype.ThingInclusionReport,
 	thermostatSpecification *fimptype.Service,
-	thermostatController thermostat.ThermostatController,
+	thermostatController thermostat.Controller,
 	sensorTempSpecification *fimptype.Service,
-	temperatureSensor numericsensor.NumericSensor,
+	sensorTempReporter numericsensor.Reporter,
 	meterElecSpecification *fimptype.Service,
-	electricityMeter meterelec.ElectricityMeter,
+	meterElecReporter meterelec.Reporter,
 ) adapter.Thing {
 	services := []adapter.Service{
 		thermostat.NewService(mqtt, thermostatSpecification, thermostatController),
 	}
 
-	if sensorTempSpecification != nil && temperatureSensor != nil {
-		services = append(services, numericsensor.NewService(mqtt, sensorTempSpecification, temperatureSensor))
+	if sensorTempSpecification != nil && sensorTempReporter != nil && sensorTempSpecification.Name == numericsensor.SensorTemp {
+		services = append(services, numericsensor.NewService(mqtt, sensorTempSpecification, sensorTempReporter))
 	}
 
-	if meterElecSpecification != nil && electricityMeter != nil {
-		services = append(services, meterelec.NewService(mqtt, meterElecSpecification, electricityMeter))
+	if meterElecSpecification != nil && meterElecReporter != nil {
+		services = append(services, meterelec.NewService(mqtt, meterElecSpecification, meterElecReporter))
 	}
 
 	return adapter.NewThing(inclusionReport, services...)

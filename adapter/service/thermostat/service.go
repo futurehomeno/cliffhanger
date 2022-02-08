@@ -11,9 +11,9 @@ import (
 	"github.com/futurehomeno/cliffhanger/adapter"
 )
 
-// ThermostatController is an interface representing an actual climate control device.
+// Controller is an interface representing an actual climate control device.
 // In a polling scenario implementation might require some safeguards against excessive polling.
-type ThermostatController interface {
+type Controller interface {
 	// SetThermostatMode sets a new thermostat mode.
 	SetThermostatMode(mode string) error
 	// SetThermostatSetpoint sets a setpoint for a particular mode.
@@ -30,9 +30,9 @@ type ThermostatController interface {
 type Service interface {
 	adapter.Service
 
-	// SetMode sets mode of the device.
+	// SetMode sets the mode of the device.
 	SetMode(mode string) error
-	// SetSetpoint sets setpoint for a specific mode. Unit value is ignored and maintained for informational purpose only.
+	// SetSetpoint sets the setpoint for a specific mode. Unit value is ignored and maintained for informational purpose only.
 	SetSetpoint(mode string, value float64, unit string) error
 	// SendModeReport sends a mode report. Returns true if a report was sent.
 	// Depending on a caching and reporting configuration the service might decide to skip a report.
@@ -58,13 +58,13 @@ type Service interface {
 func NewService(
 	mqtt *fimpgo.MqttTransport,
 	specification *fimptype.Service,
-	thermostat ThermostatController,
+	controller Controller,
 ) Service {
 	specification.Name = Thermostat
 
 	return &service{
 		Service:    adapter.NewService(mqtt, specification),
-		thermostat: thermostat,
+		controller: controller,
 	}
 }
 
@@ -72,7 +72,7 @@ func NewService(
 type service struct {
 	adapter.Service
 
-	thermostat ThermostatController
+	controller Controller
 }
 
 // SetMode sets mode of the device.
@@ -82,7 +82,7 @@ func (s *service) SetMode(mode string) error {
 		return fmt.Errorf("%s: mode is unsupported: %s", s.Name(), mode)
 	}
 
-	err := s.thermostat.SetThermostatMode(normalizedMode)
+	err := s.controller.SetThermostatMode(normalizedMode)
 	if err != nil {
 		return fmt.Errorf("%s: failed to set mode %s: %w", s.Name(), normalizedMode, err)
 	}
@@ -97,7 +97,7 @@ func (s *service) SetSetpoint(mode string, value float64, unit string) error {
 		return fmt.Errorf("%s: mode is unsupported: %s", s.Name(), mode)
 	}
 
-	err := s.thermostat.SetThermostatSetpoint(normalizedMode, value, unit)
+	err := s.controller.SetThermostatSetpoint(normalizedMode, value, unit)
 	if err != nil {
 		return fmt.Errorf("%s: failed to set setpoint for mode %s for value %.01f: %w", s.Name(), normalizedMode, value, err)
 	}
@@ -109,7 +109,7 @@ func (s *service) SetSetpoint(mode string, value float64, unit string) error {
 // Depending on a caching and reporting configuration the service might decide to skip a report.
 // To make sure report is being sent regardless of circumstances set the force argument to true.
 func (s *service) SendModeReport(_ bool) (bool, error) {
-	value, err := s.thermostat.ThermostatModeReport()
+	value, err := s.controller.ThermostatModeReport()
 	if err != nil {
 		return false, fmt.Errorf("%s: failed to retrieve mode report: %w", s.Name(), err)
 	}
@@ -140,7 +140,7 @@ func (s *service) SendSetpointReport(mode string, _ bool) (bool, error) {
 		return false, fmt.Errorf("%s: mode is unsupported: %s", s.Name(), mode)
 	}
 
-	value, unit, err := s.thermostat.ThermostatSetpointReport(normalizedMode)
+	value, unit, err := s.controller.ThermostatSetpointReport(normalizedMode)
 	if err != nil {
 		return false, fmt.Errorf("%s: failed to retrieve setpoint report for mode %s: %w", s.Name(), normalizedMode, err)
 	}
@@ -166,7 +166,7 @@ func (s *service) SendSetpointReport(mode string, _ bool) (bool, error) {
 // Depending on a caching and reporting configuration the service might decide to skip a report.
 // To make sure report is being sent regardless of circumstances set the force argument to true.
 func (s *service) SendStateReport(_ bool) (bool, error) {
-	value, err := s.thermostat.ThermostatStateReport()
+	value, err := s.controller.ThermostatStateReport()
 	if err != nil {
 		return false, fmt.Errorf("%s: failed to retrieve state report: %w", s.Name(), err)
 	}
