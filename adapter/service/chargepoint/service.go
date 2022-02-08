@@ -75,7 +75,7 @@ type service struct {
 
 // StartCharging starts car charging.
 func (s *service) StartCharging() error {
-	err := s.controller.StopChargepointCharging()
+	err := s.controller.StartChargepointCharging()
 	if err != nil {
 		return fmt.Errorf("%s: failed to start charging: %w", s.Name(), err)
 	}
@@ -95,7 +95,7 @@ func (s *service) StopCharging() error {
 
 // SetCableLock locks and unlocks the cable connector.
 func (s *service) SetCableLock(lock bool) error {
-	err := s.controller.StopChargepointCharging()
+	err := s.controller.SetChargepointCableLock(lock)
 	if err != nil {
 		return fmt.Errorf("%s: failed to set cable lock to %t: %w", s.Name(), lock, err)
 	}
