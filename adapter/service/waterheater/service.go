@@ -10,6 +10,17 @@ import (
 	"github.com/futurehomeno/cliffhanger/adapter"
 )
 
+// Constants defining important properties specific for the service
+const (
+	UnitC = "C"
+	UnitF = "F"
+
+	ModeOff = "off"
+
+	StateHeat = "heat"
+	StateIdle = "idle"
+)
+
 // Controller is an interface representing an actual water heating device.
 // In a polling scenario implementation might require some safeguards against excessive polling.
 type Controller interface {

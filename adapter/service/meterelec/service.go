@@ -10,6 +10,14 @@ import (
 	"github.com/futurehomeno/cliffhanger/adapter"
 )
 
+// Constants defining important properties specific for the service
+const (
+	UnitKWh = "kWh"
+	UnitW   = "W"
+	UnitA   = "A"
+	UnitV   = "V"
+)
+
 // Reporter is an interface representing an actual device reporting electricity meter values.
 // In a polling scenario implementation might require some safeguards against excessive polling.
 type Reporter interface {

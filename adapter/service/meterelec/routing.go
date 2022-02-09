@@ -17,11 +17,6 @@ const (
 	EvtMeterExtReport    = "evt.meter_ext.report"
 
 	MeterElec = "meter_elec"
-
-	UnitKWh = "kWh"
-	UnitW   = "W"
-	UnitA   = "A"
-	UnitV   = "V"
 )
 
 // RouteService returns routing for service specific commands.

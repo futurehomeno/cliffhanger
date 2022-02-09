@@ -54,9 +54,6 @@ const (
 	SensorWind        = prefix + "wind"
 
 	prefix = "sensor_"
-
-	UnitC = "C"
-	UnitF = "F"
 )
 
 // RouteService returns routing for service specific commands.
