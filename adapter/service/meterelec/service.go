@@ -16,6 +16,9 @@ const (
 	UnitW   = "W"
 	UnitA   = "A"
 	UnitV   = "V"
+
+	PropertySupportedUnits          = "sup_units"
+	PropertySupportedExtendedValues = "sup_extended_vals"
 )
 
 // Reporter is an interface representing an actual device reporting electricity meter values.
@@ -145,12 +148,12 @@ func (s *service) SendMeterExtendedReport(force bool) (bool, error) {
 
 // SupportedUnits returns units that are supported by the simplified meter report.
 func (s *service) SupportedUnits() []string {
-	return s.Specification().PropertyStrings("sup_units")
+	return s.Specification().PropertyStrings(PropertySupportedUnits)
 }
 
 // SupportedExtendedValues returns extended values that are supported by the extended meter report.
 func (s *service) SupportedExtendedValues() []string {
-	return s.Specification().PropertyStrings("sup_extended_vals")
+	return s.Specification().PropertyStrings(PropertySupportedExtendedValues)
 }
 
 // SupportsExtendedReport returns true if meter supports the extended report.

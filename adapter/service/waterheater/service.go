@@ -19,6 +19,10 @@ const (
 
 	StateHeat = "heat"
 	StateIdle = "idle"
+
+	PropertySupportedModes = "sup_modes"
+	PropertySupportedSetpoints = "sup_setpoints"
+	PropertySupportedStates = "sup_states"
 )
 
 // Controller is an interface representing an actual water heating device.
@@ -200,17 +204,17 @@ func (s *service) SendStateReport(_ bool) (bool, error) {
 
 // SupportedModes returns modes that are supported by the water heater.
 func (s *service) SupportedModes() []string {
-	return s.Service.Specification().PropertyStrings("sup_modes")
+	return s.Service.Specification().PropertyStrings(PropertySupportedModes)
 }
 
 // SupportedSetpoints returns setpoints that are supported by the water heater.
 func (s *service) SupportedSetpoints() []string {
-	return s.Service.Specification().PropertyStrings("sup_setpoints")
+	return s.Service.Specification().PropertyStrings(PropertySupportedSetpoints)
 }
 
 // SupportedStates returns states that are supported by the water heater.
 func (s *service) SupportedStates() []string {
-	return s.Service.Specification().PropertyStrings("sup_states")
+	return s.Service.Specification().PropertyStrings(PropertySupportedStates)
 }
 
 // normalizeMode checks if mode is supported and returns its normalized form.

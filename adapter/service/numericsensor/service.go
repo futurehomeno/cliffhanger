@@ -14,6 +14,8 @@ import (
 const (
 	UnitC = "C"
 	UnitF = "F"
+
+	PropertySupportedUnits = "sup_units"
 )
 
 // Reporter is an interface representing an actual device reporting numeric sensor values.
@@ -89,7 +91,7 @@ func (s *service) SendSensorReport(unit string, _ bool) (bool, error) {
 
 // SupportedUnits returns units that are supported by the numeric sensor report.
 func (s *service) SupportedUnits() []string {
-	return s.Service.Specification().PropertyStrings("sup_units")
+	return s.Service.Specification().PropertyStrings(PropertySupportedUnits)
 }
 
 // normalizeUnit checks if unit is supported and returns its normalized form.
