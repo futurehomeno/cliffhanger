@@ -241,7 +241,7 @@ func (s *service) SupportedStates() []string {
 
 // SupportsSetpoint returns true if provided setpoint mode is supported.
 func (s *service) SupportsSetpoint(setpoint string) bool {
-	_, ok := s.normalizeMode(setpoint)
+	_, ok := s.normalizeSetpoint(setpoint)
 
 	return ok
 }
