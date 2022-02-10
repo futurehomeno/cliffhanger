@@ -57,21 +57,9 @@ func HandleCmdMeterGetReport(adapter adapter.Adapter) router.MessageHandler {
 				)
 			}
 
-			var units []string
-
-			if message.Payload.ValueType == fimpgo.VTypeNull {
-				units = electricityMeter.SupportedUnits()
-			} else {
-				unit, err := message.Payload.GetStringValue()
-				if err != nil {
-					return nil, fmt.Errorf("adapter: provided unit has an incorrect format: %w", err)
-				}
-
-				if unit != "" {
-					units = append(units, unit)
-				} else {
-					units = electricityMeter.SupportedUnits()
-				}
+			units, err := unitsToReport(electricityMeter, message)
+			if err != nil {
+				return nil, err
 			}
 
 			for _, unit := range units {
@@ -117,4 +105,33 @@ func HandleCmdMeterExtGetReport(adapter adapter.Adapter) router.MessageHandler {
 			return nil, nil
 		}),
 	)
+}
+
+// unitsToReport is a helper method that determines which units should be reported.
+func unitsToReport(electricityMeter Service, message *fimpgo.Message) ([]string, error) {
+	if message.Payload.ValueType != fimpgo.VTypeString && message.Payload.ValueType != fimpgo.VTypeNull {
+		return nil, fmt.Errorf(
+			"adapter: provided message value has an invalid type, received %s instead of %s or %s",
+			message.Payload.ValueType, fimpgo.VTypeString, fimpgo.VTypeNull,
+		)
+	}
+
+	var units []string
+
+	if message.Payload.ValueType == fimpgo.VTypeNull {
+		units = electricityMeter.SupportedUnits()
+	} else {
+		unit, err := message.Payload.GetStringValue()
+		if err != nil {
+			return nil, fmt.Errorf("adapter: provided unit has an incorrect format: %w", err)
+		}
+
+		if unit != "" {
+			units = append(units, unit)
+		} else {
+			units = electricityMeter.SupportedUnits()
+		}
+	}
+
+	return units, nil
 }

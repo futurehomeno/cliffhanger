@@ -207,5 +207,5 @@ func (s *service) SendStateReport(_ bool) (bool, error) {
 
 // SupportedStates returns states that are supported by the chargepoint.
 func (s *service) SupportedStates() []string {
-	return s.Service.Specification().PropertyStrings("sup_states")
+	return s.Service.Specification().PropertyStrings(PropertySupportedStates)
 }

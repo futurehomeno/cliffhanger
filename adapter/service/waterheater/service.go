@@ -11,7 +11,7 @@ import (
 	"github.com/futurehomeno/cliffhanger/adapter"
 )
 
-// Constants defining important properties specific for the service
+// Constants defining important properties specific for the service.
 const (
 	UnitC = "C"
 	UnitF = "F"
