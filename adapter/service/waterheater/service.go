@@ -270,7 +270,7 @@ func (s *service) normalizeSetpoint(mode string) (string, bool) {
 
 // Setpoint is an object representing a water heater setpoint.
 type Setpoint struct {
-	Mode        string  `json:"mode"`
+	Type        string  `json:"type"`
 	Temperature float64 `json:"temp"`
 	Unit        string  `json:"unit"`
 }
@@ -278,7 +278,7 @@ type Setpoint struct {
 // NewSetpoint create a new setpoint object.
 func NewSetpoint(mode string, temp float64, unit string) *Setpoint {
 	return &Setpoint{
-		Mode:        mode,
+		Type:        mode,
 		Temperature: temp,
 		Unit:        unit,
 	}

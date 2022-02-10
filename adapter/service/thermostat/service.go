@@ -271,7 +271,7 @@ func (s *service) normalizeSetpoint(mode string) (string, bool) {
 
 // Setpoint is an object representing a Thermostat setpoint.
 type Setpoint struct {
-	Mode        string
+	Type        string
 	Temperature float64
 	Unit        string
 }
@@ -279,7 +279,7 @@ type Setpoint struct {
 // NewSetpoint create a new setpoint object.
 func NewSetpoint(mode string, temp float64, unit string) *Setpoint {
 	return &Setpoint{
-		Mode:        mode,
+		Type:        mode,
 		Temperature: temp,
 		Unit:        unit,
 	}
@@ -288,7 +288,7 @@ func NewSetpoint(mode string, temp float64, unit string) *Setpoint {
 // StringMap creates a string map out of existing setpoint object.
 func (s *Setpoint) StringMap() map[string]string {
 	return map[string]string{
-		"mode": s.Mode,
+		"type": s.Type,
 		"temp": strconv.FormatFloat(s.Temperature, 'f', 1, 64),
 		"unit": s.Unit,
 	}
@@ -296,9 +296,9 @@ func (s *Setpoint) StringMap() map[string]string {
 
 // SetpointFromStringMap converts string map into a Setpoint object.
 func SetpointFromStringMap(input map[string]string) (*Setpoint, error) {
-	mode, ok := input["mode"]
+	t, ok := input["type"]
 	if !ok {
-		return nil, fmt.Errorf("setpoint: missing `mode` field in a string map")
+		return nil, fmt.Errorf("setpoint: missing `type` field in a string map")
 	}
 
 	unit, ok := input["unit"]
@@ -317,7 +317,7 @@ func SetpointFromStringMap(input map[string]string) (*Setpoint, error) {
 	}
 
 	return &Setpoint{
-		Mode:        mode,
+		Type:        t,
 		Temperature: temp,
 		Unit:        unit,
 	}, nil
