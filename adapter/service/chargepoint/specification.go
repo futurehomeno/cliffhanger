@@ -1,4 +1,4 @@
-package thermostat
+package chargepoint
 
 import (
 	"fmt"
@@ -15,19 +15,15 @@ func Specification(
 	resourceAddress,
 	address string,
 	groups,
-	supportedModes,
-	supportedSetpoints,
 	supportedStates []string,
 ) *fimptype.Service {
 	return &fimptype.Service{
-		Address: fmt.Sprintf("/rt:dev/rn:%s/ad:%s/sv:%s/ad:%s", resourceName, resourceAddress, Thermostat, address),
-		Name:    Thermostat,
+		Address: fmt.Sprintf("/rt:dev/rn:%s/ad:%s/sv:%s/ad:%s", resourceName, resourceAddress, Chargepoint, address),
+		Name:    Chargepoint,
 		Groups:  groups,
 		Enabled: true,
 		Props: map[string]interface{}{
-			PropertySupportedModes:     supportedModes,
-			PropertySupportedSetpoints: supportedSetpoints,
-			PropertySupportedStates:    supportedStates,
+			PropertySupportedStates: supportedStates,
 		},
 		Interfaces: requiredInterfaces(),
 	}
@@ -38,38 +34,14 @@ func requiredInterfaces() []fimptype.Interface {
 	return []fimptype.Interface{
 		{
 			Type:      fimptype.TypeIn,
-			MsgType:   CmdModeGetReport,
+			MsgType:   CmdChargeStart,
 			ValueType: fimpgo.VTypeNull,
 			Version:   "1",
 		},
 		{
 			Type:      fimptype.TypeIn,
-			MsgType:   CmdModeSet,
-			ValueType: fimpgo.VTypeString,
-			Version:   "1",
-		},
-		{
-			Type:      fimptype.TypeOut,
-			MsgType:   EvtModeReport,
-			ValueType: fimpgo.VTypeString,
-			Version:   "1",
-		},
-		{
-			Type:      fimptype.TypeIn,
-			MsgType:   CmdSetpointGetReport,
-			ValueType: fimpgo.VTypeString,
-			Version:   "1",
-		},
-		{
-			Type:      fimptype.TypeIn,
-			MsgType:   CmdSetpointSet,
-			ValueType: fimpgo.VTypeStrMap,
-			Version:   "1",
-		},
-		{
-			Type:      fimptype.TypeOut,
-			MsgType:   EvtSetpointReport,
-			ValueType: fimpgo.VTypeStrMap,
+			MsgType:   CmdChargeStop,
+			ValueType: fimpgo.VTypeNull,
 			Version:   "1",
 		},
 		{
@@ -82,6 +54,36 @@ func requiredInterfaces() []fimptype.Interface {
 			Type:      fimptype.TypeOut,
 			MsgType:   EvtStateReport,
 			ValueType: fimpgo.VTypeString,
+			Version:   "1",
+		},
+		{
+			Type:      fimptype.TypeIn,
+			MsgType:   CmdCableLockSet,
+			ValueType: fimpgo.VTypeBool,
+			Version:   "1",
+		},
+		{
+			Type:      fimptype.TypeIn,
+			MsgType:   CmdCableLockGetReport,
+			ValueType: fimpgo.VTypeNull,
+			Version:   "1",
+		},
+		{
+			Type:      fimptype.TypeOut,
+			MsgType:   EvtCableLockReport,
+			ValueType: fimpgo.VTypeBool,
+			Version:   "1",
+		},
+		{
+			Type:      fimptype.TypeIn,
+			MsgType:   CmdCableLockGetReport,
+			ValueType: fimpgo.VTypeNull,
+			Version:   "1",
+		},
+		{
+			Type:      fimptype.TypeOut,
+			MsgType:   EvtCurrentSessionReport,
+			ValueType: fimpgo.VTypeFloat,
 			Version:   "1",
 		},
 		{

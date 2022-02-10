@@ -1,4 +1,4 @@
-package thermostat
+package waterheater
 
 import (
 	"fmt"
@@ -20,8 +20,8 @@ func Specification(
 	supportedStates []string,
 ) *fimptype.Service {
 	return &fimptype.Service{
-		Address: fmt.Sprintf("/rt:dev/rn:%s/ad:%s/sv:%s/ad:%s", resourceName, resourceAddress, Thermostat, address),
-		Name:    Thermostat,
+		Address: fmt.Sprintf("/rt:dev/rn:%s/ad:%s/sv:%s/ad:%s", resourceName, resourceAddress, WaterHeater, address),
+		Name:    WaterHeater,
 		Groups:  groups,
 		Enabled: true,
 		Props: map[string]interface{}{

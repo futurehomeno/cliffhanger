@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"strconv"
 	"strings"
+	"sync"
 
 	"github.com/futurehomeno/fimpgo"
 	"github.com/futurehomeno/fimpgo/fimptype"
@@ -21,9 +22,9 @@ const (
 	StateHeat = "heat"
 	StateIdle = "idle"
 
-	PropertySupportedModes = "sup_modes"
+	PropertySupportedModes     = "sup_modes"
 	PropertySupportedSetpoints = "sup_setpoints"
-	PropertySupportedStates = "sup_states"
+	PropertySupportedStates    = "sup_states"
 )
 
 // Controller is an interface representing an actual climate control device.
@@ -67,6 +68,8 @@ type Service interface {
 	SupportedSetpoints() []string
 	// SupportedStates returns states that are supported by the thermostat.
 	SupportedStates() []string
+	// SupportsSetpoint returns true if provided setpoint mode is supported.
+	SupportsSetpoint(setpoint string) bool
 }
 
 // NewService creates new instance of a thermostat FIMP service.
@@ -77,9 +80,12 @@ func NewService(
 ) Service {
 	specification.Name = Thermostat
 
+	specification.EnsureInterfaces(requiredInterfaces()...)
+
 	return &service{
 		Service:    adapter.NewService(mqtt, specification),
 		controller: controller,
+		lock:       &sync.Mutex{},
 	}
 }
 
@@ -88,10 +94,14 @@ type service struct {
 	adapter.Service
 
 	controller Controller
+	lock       *sync.Mutex
 }
 
 // SetMode sets mode of the device.
 func (s *service) SetMode(mode string) error {
+	s.lock.Lock()
+	defer s.lock.Unlock()
+
 	normalizedMode, ok := s.normalizeMode(mode)
 	if !ok {
 		return fmt.Errorf("%s: mode is unsupported: %s", s.Name(), mode)
@@ -107,9 +117,12 @@ func (s *service) SetMode(mode string) error {
 
 // SetSetpoint sets setpoint for a specific mode. Unit value is ignored and maintained for informational purpose only.
 func (s *service) SetSetpoint(mode string, value float64, unit string) error {
-	normalizedMode, ok := s.normalizeMode(mode)
+	s.lock.Lock()
+	defer s.lock.Unlock()
+
+	normalizedMode, ok := s.normalizeSetpoint(mode)
 	if !ok {
-		return fmt.Errorf("%s: mode is unsupported: %s", s.Name(), mode)
+		return fmt.Errorf("%s: setpoint mode is unsupported: %s", s.Name(), mode)
 	}
 
 	err := s.controller.SetThermostatSetpoint(normalizedMode, value, unit)
@@ -124,6 +137,9 @@ func (s *service) SetSetpoint(mode string, value float64, unit string) error {
 // Depending on a caching and reporting configuration the service might decide to skip a report.
 // To make sure report is being sent regardless of circumstances set the force argument to true.
 func (s *service) SendModeReport(_ bool) (bool, error) {
+	s.lock.Lock()
+	defer s.lock.Unlock()
+
 	value, err := s.controller.ThermostatModeReport()
 	if err != nil {
 		return false, fmt.Errorf("%s: failed to retrieve mode report: %w", s.Name(), err)
@@ -150,9 +166,12 @@ func (s *service) SendModeReport(_ bool) (bool, error) {
 // Depending on a caching and reporting configuration the service might decide to skip a report.
 // To make sure report is being sent regardless of circumstances set the force argument to true.
 func (s *service) SendSetpointReport(mode string, _ bool) (bool, error) {
-	normalizedMode, ok := s.normalizeMode(mode)
+	s.lock.Lock()
+	defer s.lock.Unlock()
+
+	normalizedMode, ok := s.normalizeSetpoint(mode)
 	if !ok {
-		return false, fmt.Errorf("%s: mode is unsupported: %s", s.Name(), mode)
+		return false, fmt.Errorf("%s: setpoint mode is unsupported: %s", s.Name(), mode)
 	}
 
 	value, unit, err := s.controller.ThermostatSetpointReport(normalizedMode)
@@ -181,6 +200,9 @@ func (s *service) SendSetpointReport(mode string, _ bool) (bool, error) {
 // Depending on a caching and reporting configuration the service might decide to skip a report.
 // To make sure report is being sent regardless of circumstances set the force argument to true.
 func (s *service) SendStateReport(_ bool) (bool, error) {
+	s.lock.Lock()
+	defer s.lock.Unlock()
+
 	value, err := s.controller.ThermostatStateReport()
 	if err != nil {
 		return false, fmt.Errorf("%s: failed to retrieve state report: %w", s.Name(), err)
@@ -218,9 +240,27 @@ func (s *service) SupportedStates() []string {
 	return s.Service.Specification().PropertyStrings(PropertySupportedStates)
 }
 
+// SupportsSetpoint returns true if provided setpoint mode is supported.
+func (s *service) SupportsSetpoint(setpoint string) bool {
+	_, ok := s.normalizeMode(setpoint)
+
+	return ok
+}
+
 // normalizeMode checks if mode is supported and returns its normalized form.
 func (s *service) normalizeMode(mode string) (string, bool) {
 	for _, value := range s.SupportedModes() {
+		if strings.EqualFold(mode, value) {
+			return value, true
+		}
+	}
+
+	return "", false
+}
+
+// normalizeSetpoint checks if setpoint is supported and returns its normalized form.
+func (s *service) normalizeSetpoint(mode string) (string, bool) {
+	for _, value := range s.SupportedSetpoints() {
 		if strings.EqualFold(mode, value) {
 			return value, true
 		}

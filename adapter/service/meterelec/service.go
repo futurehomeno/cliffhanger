@@ -3,6 +3,7 @@ package meterelec
 import (
 	"fmt"
 	"strings"
+	"sync"
 
 	"github.com/futurehomeno/fimpgo"
 	"github.com/futurehomeno/fimpgo/fimptype"
@@ -65,10 +66,19 @@ func NewService(
 ) Service {
 	specification.Name = MeterElec
 
-	return &service{
+	specification.EnsureInterfaces(requiredInterfaces()...)
+
+	s := &service{
 		Service:  adapter.NewService(mqtt, specification),
 		reporter: reporter,
+		lock:     &sync.Mutex{},
 	}
+
+	if s.SupportsExtendedReport() {
+		specification.EnsureInterfaces(extendedInterfaces()...)
+	}
+
+	return s
 }
 
 // service is a private implementation of a meter_elec FIMP service.
@@ -76,12 +86,16 @@ type service struct {
 	adapter.Service
 
 	reporter Reporter
+	lock     *sync.Mutex
 }
 
 // SendMeterReport sends a simplified electricity meter report based on requested unit. Returns true if a report was sent.
 // Depending on a caching and reporting configuration the service might decide to skip a report.
 // To make sure report is being sent regardless of circumstances set the force argument to true.
 func (s *service) SendMeterReport(unit string, _ bool) (bool, error) {
+	s.lock.Lock()
+	defer s.lock.Unlock()
+
 	normalizedUnit, ok := s.normalizeUnit(unit)
 	if !ok {
 		return false, fmt.Errorf("%s: unit is unsupported: %s", s.Name(), unit)
@@ -115,6 +129,9 @@ func (s *service) SendMeterReport(unit string, _ bool) (bool, error) {
 // Depending on a caching and reporting configuration the service might decide to skip a report.
 // To make sure report is being sent regardless of circumstances set the force argument to true.
 func (s *service) SendMeterExtendedReport(force bool) (bool, error) {
+	s.lock.Lock()
+	defer s.lock.Unlock()
+
 	if !s.SupportsExtendedReport() {
 		return false, fmt.Errorf("%s: extended meter report is unsupported", s.Name())
 	}

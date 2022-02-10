@@ -58,16 +58,20 @@ func HandleCmdMeterGetReport(adapter adapter.Adapter) router.MessageHandler {
 			}
 
 			var units []string
-			if message.Payload.ValueType == fimpgo.VTypeString {
-				var unit string
-				unit, err = message.Payload.GetStringValue()
+
+			if message.Payload.ValueType == fimpgo.VTypeNull {
+				units = electricityMeter.SupportedUnits()
+			} else {
+				unit, err := message.Payload.GetStringValue()
 				if err != nil {
 					return nil, fmt.Errorf("adapter: provided unit has an incorrect format: %w", err)
 				}
 
-				units = append(units, unit)
-			} else {
-				units = electricityMeter.SupportedUnits()
+				if unit != "" {
+					units = append(units, unit)
+				} else {
+					units = electricityMeter.SupportedUnits()
+				}
 			}
 
 			for _, unit := range units {

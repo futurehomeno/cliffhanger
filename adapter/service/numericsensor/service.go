@@ -3,6 +3,7 @@ package numericsensor
 import (
 	"fmt"
 	"strings"
+	"sync"
 
 	"github.com/futurehomeno/fimpgo"
 	"github.com/futurehomeno/fimpgo/fimptype"
@@ -43,9 +44,12 @@ func NewService(
 	specification *fimptype.Service,
 	reporter Reporter,
 ) Service {
+	specification.EnsureInterfaces(requiredInterfaces()...)
+
 	return &service{
 		Service: adapter.NewService(mqtt, specification),
 		sensor:  reporter,
+		lock:    &sync.Mutex{},
 	}
 }
 
@@ -54,12 +58,16 @@ type service struct {
 	adapter.Service
 
 	sensor Reporter
+	lock   *sync.Mutex
 }
 
 // SendSensorReport sends a numeric sensor report based on requested unit. Returns true if a report was sent.
 // Depending on a caching and reporting configuration the service might decide to skip a report.
 // To make sure report is being sent regardless of circumstances set the force argument to true.
 func (s *service) SendSensorReport(unit string, _ bool) (bool, error) {
+	s.lock.Lock()
+	defer s.lock.Unlock()
+
 	normalizedUnit, ok := s.normalizeUnit(unit)
 	if !ok {
 		return false, fmt.Errorf("%s: unit is unsupported: %s", s.Name(), unit)

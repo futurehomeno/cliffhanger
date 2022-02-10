@@ -97,17 +97,23 @@ func HandleCmdSensorGetReport(adapter adapter.Adapter) router.MessageHandler {
 				)
 			}
 
+
+
 			var units []string
-			if message.Payload.ValueType == fimpgo.VTypeString {
-				var unit string
-				unit, err = message.Payload.GetStringValue()
+
+			if message.Payload.ValueType == fimpgo.VTypeNull {
+				units = numericSensor.SupportedUnits()
+			} else {
+				unit, err := message.Payload.GetStringValue()
 				if err != nil {
 					return nil, fmt.Errorf("adapter: provided unit has an incorrect format: %w", err)
 				}
 
-				units = append(units, unit)
-			} else {
-				units = numericSensor.SupportedUnits()
+				if unit != "" {
+					units = append(units, unit)
+				} else {
+					units = numericSensor.SupportedUnits()
+				}
 			}
 
 			for _, unit := range units {
@@ -121,3 +127,4 @@ func HandleCmdSensorGetReport(adapter adapter.Adapter) router.MessageHandler {
 		}),
 	)
 }
+
