@@ -72,9 +72,11 @@ func HandleCmdModeSet(adapter adapter.Adapter) router.MessageHandler {
 				return nil, fmt.Errorf("adapter: failed to send thermostat mode report: %w", err)
 			}
 
-			_, err = thermostat.SendSetpointReport(mode, true)
-			if err != nil {
-				return nil, fmt.Errorf("adapter: failed to send thermostat setpoint report: %w", err)
+			if thermostat.SupportsSetpoint(mode) {
+				_, err = thermostat.SendSetpointReport(mode, true)
+				if err != nil {
+					return nil, fmt.Errorf("adapter: failed to send thermostat setpoint report: %w", err)
+				}
 			}
 
 			return nil, nil
@@ -115,12 +117,12 @@ func HandleCmdSetpointSet(adapter adapter.Adapter) router.MessageHandler {
 				return nil, fmt.Errorf("adapter: provided setpoint string map has an incorrect format: %w", err)
 			}
 
-			err = thermostat.SetSetpoint(setpoint.Mode, setpoint.Temperature, setpoint.Unit)
+			err = thermostat.SetSetpoint(setpoint.Type, setpoint.Temperature, setpoint.Unit)
 			if err != nil {
 				return nil, fmt.Errorf("adapter: failed to set thermostat setpoint: %w", err)
 			}
 
-			_, err = thermostat.SendSetpointReport(setpoint.Mode, true)
+			_, err = thermostat.SendSetpointReport(setpoint.Type, true)
 			if err != nil {
 				return nil, fmt.Errorf("adapter: failed to send thermostat setpoint report: %w", err)
 			}

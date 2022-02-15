@@ -3,11 +3,20 @@ package numericsensor
 import (
 	"fmt"
 	"strings"
+	"sync"
 
 	"github.com/futurehomeno/fimpgo"
 	"github.com/futurehomeno/fimpgo/fimptype"
 
 	"github.com/futurehomeno/cliffhanger/adapter"
+)
+
+// Constants defining important properties specific for the service.
+const (
+	UnitC = "C"
+	UnitF = "F"
+
+	PropertySupportedUnits = "sup_units"
 )
 
 // Reporter is an interface representing an actual device reporting numeric sensor values.
@@ -35,9 +44,12 @@ func NewService(
 	specification *fimptype.Service,
 	reporter Reporter,
 ) Service {
+	specification.EnsureInterfaces(requiredInterfaces()...)
+
 	return &service{
 		Service: adapter.NewService(mqtt, specification),
 		sensor:  reporter,
+		lock:    &sync.Mutex{},
 	}
 }
 
@@ -46,12 +58,16 @@ type service struct {
 	adapter.Service
 
 	sensor Reporter
+	lock   *sync.Mutex
 }
 
 // SendSensorReport sends a numeric sensor report based on requested unit. Returns true if a report was sent.
 // Depending on a caching and reporting configuration the service might decide to skip a report.
 // To make sure report is being sent regardless of circumstances set the force argument to true.
 func (s *service) SendSensorReport(unit string, _ bool) (bool, error) {
+	s.lock.Lock()
+	defer s.lock.Unlock()
+
 	normalizedUnit, ok := s.normalizeUnit(unit)
 	if !ok {
 		return false, fmt.Errorf("%s: unit is unsupported: %s", s.Name(), unit)
@@ -83,7 +99,7 @@ func (s *service) SendSensorReport(unit string, _ bool) (bool, error) {
 
 // SupportedUnits returns units that are supported by the numeric sensor report.
 func (s *service) SupportedUnits() []string {
-	return s.Service.Specification().PropertyStrings("sup_units")
+	return s.Service.Specification().PropertyStrings(PropertySupportedUnits)
 }
 
 // normalizeUnit checks if unit is supported and returns its normalized form.

@@ -72,9 +72,11 @@ func HandleCmdModeSet(adapter adapter.Adapter) router.MessageHandler {
 				return nil, fmt.Errorf("adapter: failed to send water heater mode report: %w", err)
 			}
 
-			_, err = waterHeater.SendSetpointReport(mode, true)
-			if err != nil {
-				return nil, fmt.Errorf("adapter: failed to send water heater setpoint report: %w", err)
+			if waterHeater.SupportsSetpoint(mode) {
+				_, err = waterHeater.SendSetpointReport(mode, true)
+				if err != nil {
+					return nil, fmt.Errorf("adapter: failed to send water heater setpoint report: %w", err)
+				}
 			}
 
 			return nil, nil
@@ -112,12 +114,12 @@ func HandleCmdSetpointSet(adapter adapter.Adapter) router.MessageHandler {
 				return nil, fmt.Errorf("adapter: provided setpoint object has an incorrect format: %w", err)
 			}
 
-			err = waterHeater.SetSetpoint(setpoint.Mode, setpoint.Temperature, setpoint.Unit)
+			err = waterHeater.SetSetpoint(setpoint.Type, setpoint.Temperature, setpoint.Unit)
 			if err != nil {
 				return nil, fmt.Errorf("adapter: failed to set water heater setpoint: %w", err)
 			}
 
-			_, err = waterHeater.SendSetpointReport(setpoint.Mode, true)
+			_, err = waterHeater.SendSetpointReport(setpoint.Type, true)
 			if err != nil {
 				return nil, fmt.Errorf("adapter: failed to send water heater setpoint report: %w", err)
 			}

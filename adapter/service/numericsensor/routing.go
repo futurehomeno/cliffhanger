@@ -90,24 +90,9 @@ func HandleCmdSensorGetReport(adapter adapter.Adapter) router.MessageHandler {
 				return nil, fmt.Errorf("adapter: incorrect service found under the provided address: %s", message.Addr.ServiceAddress)
 			}
 
-			if message.Payload.ValueType != fimpgo.VTypeString && message.Payload.ValueType != fimpgo.VTypeNull {
-				return nil, fmt.Errorf(
-					"adapter: provided message value has an invalid type, received %s instead of %s or %s",
-					message.Payload.ValueType, fimpgo.VTypeString, fimpgo.VTypeNull,
-				)
-			}
-
-			var units []string
-			if message.Payload.ValueType == fimpgo.VTypeString {
-				var unit string
-				unit, err = message.Payload.GetStringValue()
-				if err != nil {
-					return nil, fmt.Errorf("adapter: provided unit has an incorrect format: %w", err)
-				}
-
-				units = append(units, unit)
-			} else {
-				units = numericSensor.SupportedUnits()
+			units, err := unitsToReport(numericSensor, message)
+			if err != nil {
+				return nil, err
 			}
 
 			for _, unit := range units {
@@ -120,4 +105,22 @@ func HandleCmdSensorGetReport(adapter adapter.Adapter) router.MessageHandler {
 			return nil, nil
 		}),
 	)
+}
+
+// unitsToReport is a helper method that determines which units should be reported.
+func unitsToReport(service Service, message *fimpgo.Message) ([]string, error) {
+	if message.Payload.ValueType == fimpgo.VTypeNull {
+		return service.SupportedUnits(), nil
+	}
+
+	unit, err := message.Payload.GetStringValue()
+	if err != nil {
+		return nil, fmt.Errorf("adapter: provided unit has an incorrect format: %w", err)
+	}
+
+	if unit == "" {
+		return service.SupportedUnits(), nil
+	}
+
+	return []string{unit}, nil
 }

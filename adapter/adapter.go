@@ -141,13 +141,13 @@ func (a *adapter) RegisterThing(thing Thing) {
 
 // UnregisterThing unregisters thing from the adapter without sending an exclusion report.
 func (a *adapter) UnregisterThing(address string) {
-	a.lock.Lock()
-	defer a.lock.Unlock()
-
 	t := a.ThingByAddress(address)
 	if t == nil {
 		return
 	}
+
+	a.lock.Lock()
+	defer a.lock.Unlock()
 
 	delete(a.things, t.Address())
 }
@@ -172,13 +172,13 @@ func (a *adapter) AddThing(thing Thing) error {
 
 // RemoveThing unregisters thing and sends exclusion report.
 func (a *adapter) RemoveThing(address string) error {
-	a.lock.Lock()
-	defer a.lock.Unlock()
-
 	t := a.ThingByAddress(address)
 	if t == nil {
 		return nil
 	}
+
+	a.lock.Lock()
+	defer a.lock.Unlock()
 
 	delete(a.things, t.Address())
 

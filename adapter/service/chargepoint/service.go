@@ -2,11 +2,16 @@ package chargepoint
 
 import (
 	"fmt"
+	"sync"
 
 	"github.com/futurehomeno/fimpgo"
 	"github.com/futurehomeno/fimpgo/fimptype"
 
 	"github.com/futurehomeno/cliffhanger/adapter"
+)
+
+const (
+	PropertySupportedStates = "sup_states"
 )
 
 // Controller is an interface representing an actual car charger device.
@@ -60,9 +65,12 @@ func NewService(
 ) Service {
 	specification.Name = Chargepoint
 
+	specification.EnsureInterfaces(requiredInterfaces()...)
+
 	return &service{
 		Service:    adapter.NewService(mqtt, specification),
 		controller: controller,
+		lock:       &sync.Mutex{},
 	}
 }
 
@@ -71,10 +79,14 @@ type service struct {
 	adapter.Service
 
 	controller Controller
+	lock       *sync.Mutex
 }
 
 // StartCharging starts car charging.
 func (s *service) StartCharging() error {
+	s.lock.Lock()
+	defer s.lock.Unlock()
+
 	err := s.controller.StartChargepointCharging()
 	if err != nil {
 		return fmt.Errorf("%s: failed to start charging: %w", s.Name(), err)
@@ -85,6 +97,9 @@ func (s *service) StartCharging() error {
 
 // StopCharging stops car charging.
 func (s *service) StopCharging() error {
+	s.lock.Lock()
+	defer s.lock.Unlock()
+
 	err := s.controller.StopChargepointCharging()
 	if err != nil {
 		return fmt.Errorf("%s: failed to stop charging: %w", s.Name(), err)
@@ -95,6 +110,9 @@ func (s *service) StopCharging() error {
 
 // SetCableLock locks and unlocks the cable connector.
 func (s *service) SetCableLock(lock bool) error {
+	s.lock.Lock()
+	defer s.lock.Unlock()
+
 	err := s.controller.SetChargepointCableLock(lock)
 	if err != nil {
 		return fmt.Errorf("%s: failed to set cable lock to %t: %w", s.Name(), lock, err)
@@ -133,6 +151,9 @@ func (s *service) SendCurrentSessionReport(_ bool) (bool, error) {
 // Depending on a caching and reporting configuration the service might decide to skip a report.
 // To make sure report is being sent regardless of circumstances set the force argument to true.
 func (s *service) SendCableLockReport(_ bool) (bool, error) {
+	s.lock.Lock()
+	defer s.lock.Unlock()
+
 	value, err := s.controller.ChargepointCableLockReport()
 	if err != nil {
 		return false, fmt.Errorf("%s: failed to retrieve cable lock report: %w", s.Name(), err)
@@ -159,6 +180,9 @@ func (s *service) SendCableLockReport(_ bool) (bool, error) {
 // Depending on a caching and reporting configuration the service might decide to skip a report.
 // To make sure report is being sent regardless of circumstances set the force argument to true.
 func (s *service) SendStateReport(_ bool) (bool, error) {
+	s.lock.Lock()
+	defer s.lock.Unlock()
+
 	value, err := s.controller.ChargepointStateReport()
 	if err != nil {
 		return false, fmt.Errorf("%s: failed to retrieve state report: %w", s.Name(), err)
@@ -183,5 +207,5 @@ func (s *service) SendStateReport(_ bool) (bool, error) {
 
 // SupportedStates returns states that are supported by the chargepoint.
 func (s *service) SupportedStates() []string {
-	return s.Service.Specification().PropertyStrings("sup_states")
+	return s.Service.Specification().PropertyStrings(PropertySupportedStates)
 }
