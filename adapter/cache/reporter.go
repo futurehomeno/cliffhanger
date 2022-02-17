@@ -47,6 +47,7 @@ type ReportingCache interface {
 
 func NewReportingCache() ReportingCache {
 	return &cache{
+		lock:   &sync.RWMutex{},
 		values: make(map[string]map[string]*value),
 	}
 }
