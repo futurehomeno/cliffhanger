@@ -10,6 +10,7 @@ import (
 	"github.com/futurehomeno/fimpgo/fimptype"
 
 	"github.com/futurehomeno/cliffhanger/adapter"
+	"github.com/futurehomeno/cliffhanger/adapter/cache"
 )
 
 // Constants defining important properties specific for the service.
@@ -26,6 +27,9 @@ const (
 	PropertySupportedSetpoints = "sup_setpoints"
 	PropertySupportedStates    = "sup_states"
 )
+
+// DefaultReportingStrategy is the default reporting strategy used by the service for periodic reports.
+var DefaultReportingStrategy = cache.ReportOnChangeOnly()
 
 // Controller is an interface representing an actual climate control device.
 // In a polling scenario implementation might require some safeguards against excessive polling.
@@ -72,20 +76,32 @@ type Service interface {
 	SupportsSetpoint(setpoint string) bool
 }
 
+// Config represents a service configuration.
+type Config struct {
+	Specification     *fimptype.Service
+	Controller        Controller
+	ReportingStrategy cache.ReportingStrategy
+}
+
 // NewService creates new instance of a thermostat FIMP service.
 func NewService(
 	mqtt *fimpgo.MqttTransport,
-	specification *fimptype.Service,
-	controller Controller,
+	cfg *Config,
 ) Service {
-	specification.Name = Thermostat
+	cfg.Specification.Name = Thermostat
 
-	specification.EnsureInterfaces(requiredInterfaces()...)
+	cfg.Specification.EnsureInterfaces(requiredInterfaces()...)
+
+	if cfg.ReportingStrategy == nil {
+		cfg.ReportingStrategy = DefaultReportingStrategy
+	}
 
 	return &service{
-		Service:    adapter.NewService(mqtt, specification),
-		controller: controller,
-		lock:       &sync.Mutex{},
+		Service:           adapter.NewService(mqtt, cfg.Specification),
+		controller:        cfg.Controller,
+		lock:              &sync.Mutex{},
+		reportingStrategy: cfg.ReportingStrategy,
+		reportingCache:    cache.NewReportingCache(),
 	}
 }
 
@@ -93,8 +109,10 @@ func NewService(
 type service struct {
 	adapter.Service
 
-	controller Controller
-	lock       *sync.Mutex
+	controller        Controller
+	lock              *sync.Mutex
+	reportingCache    cache.ReportingCache
+	reportingStrategy cache.ReportingStrategy
 }
 
 // SetMode sets mode of the device.
@@ -136,13 +154,17 @@ func (s *service) SetSetpoint(mode string, value float64, unit string) error {
 // SendModeReport sends a mode report. Returns true if a report was sent.
 // Depending on a caching and reporting configuration the service might decide to skip a report.
 // To make sure report is being sent regardless of circumstances set the force argument to true.
-func (s *service) SendModeReport(_ bool) (bool, error) {
+func (s *service) SendModeReport(force bool) (bool, error) {
 	s.lock.Lock()
 	defer s.lock.Unlock()
 
 	value, err := s.controller.ThermostatModeReport()
 	if err != nil {
 		return false, fmt.Errorf("%s: failed to retrieve mode report: %w", s.Name(), err)
+	}
+
+	if !force && !s.reportingCache.ReportRequired(s.reportingStrategy, EvtModeReport, "", value) {
+		return false, nil
 	}
 
 	message := fimpgo.NewStringMessage(
@@ -159,13 +181,15 @@ func (s *service) SendModeReport(_ bool) (bool, error) {
 		return false, fmt.Errorf("%s: failed to send mode report: %w", s.Name(), err)
 	}
 
+	s.reportingCache.Reported(EvtModeReport, "", value)
+
 	return true, nil
 }
 
 // SendSetpointReport sends a setpoint report based on provided mode. Returns true if a report was sent.
 // Depending on a caching and reporting configuration the service might decide to skip a report.
 // To make sure report is being sent regardless of circumstances set the force argument to true.
-func (s *service) SendSetpointReport(mode string, _ bool) (bool, error) {
+func (s *service) SendSetpointReport(mode string, force bool) (bool, error) {
 	s.lock.Lock()
 	defer s.lock.Unlock()
 
@@ -177,6 +201,10 @@ func (s *service) SendSetpointReport(mode string, _ bool) (bool, error) {
 	value, unit, err := s.controller.ThermostatSetpointReport(normalizedMode)
 	if err != nil {
 		return false, fmt.Errorf("%s: failed to retrieve setpoint report for mode %s: %w", s.Name(), normalizedMode, err)
+	}
+
+	if !force && !s.reportingCache.ReportRequired(s.reportingStrategy, EvtSetpointReport, mode, value) {
+		return false, nil
 	}
 
 	message := fimpgo.NewStrMapMessage(
@@ -193,19 +221,25 @@ func (s *service) SendSetpointReport(mode string, _ bool) (bool, error) {
 		return false, fmt.Errorf("%s: failed to send state report: %w", s.Name(), err)
 	}
 
+	s.reportingCache.Reported(EvtSetpointReport, mode, value)
+
 	return true, nil
 }
 
 // SendStateReport sends a state report. Returns true if a report was sent.
 // Depending on a caching and reporting configuration the service might decide to skip a report.
 // To make sure report is being sent regardless of circumstances set the force argument to true.
-func (s *service) SendStateReport(_ bool) (bool, error) {
+func (s *service) SendStateReport(force bool) (bool, error) {
 	s.lock.Lock()
 	defer s.lock.Unlock()
 
 	value, err := s.controller.ThermostatStateReport()
 	if err != nil {
 		return false, fmt.Errorf("%s: failed to retrieve state report: %w", s.Name(), err)
+	}
+
+	if !force && !s.reportingCache.ReportRequired(s.reportingStrategy, EvtStateReport, "", value) {
+		return false, nil
 	}
 
 	message := fimpgo.NewStringMessage(
@@ -221,6 +255,8 @@ func (s *service) SendStateReport(_ bool) (bool, error) {
 	if err != nil {
 		return false, fmt.Errorf("%s: failed to send state report: %w", s.Name(), err)
 	}
+
+	s.reportingCache.Reported(EvtStateReport, "", value)
 
 	return true, nil
 }

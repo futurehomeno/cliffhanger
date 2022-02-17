@@ -14,31 +14,33 @@ import (
 	"github.com/futurehomeno/cliffhanger/task"
 )
 
+// BoilerConfig represents a thing configuration.
+type BoilerConfig struct {
+	InclusionReport     *fimptype.ThingInclusionReport
+	WaterHeaterConfig   *waterheater.Config
+	SensorWatTempConfig *numericsensor.Config // Optional
+	MeterElecConfig     *meterelec.Config     // Optional
+}
+
 // NewBoiler creates a thing that satisfies expectations for a boiler.
 // Specification and implementations for temperature sensor and electricity meter are optional.
 func NewBoiler(
 	mqtt *fimpgo.MqttTransport,
-	inclusionReport *fimptype.ThingInclusionReport,
-	waterHeaterSpecification *fimptype.Service,
-	waterHeaterController waterheater.Controller,
-	sensorWatTempSpecification *fimptype.Service,
-	sensorWatTempReporter numericsensor.Reporter,
-	meterElecSpecification *fimptype.Service,
-	meterElecReporter meterelec.Reporter,
+	cfg *BoilerConfig,
 ) adapter.Thing {
 	services := []adapter.Service{
-		waterheater.NewService(mqtt, waterHeaterSpecification, waterHeaterController),
+		waterheater.NewService(mqtt, cfg.WaterHeaterConfig),
 	}
 
-	if sensorWatTempSpecification != nil && sensorWatTempReporter != nil && sensorWatTempSpecification.Name == numericsensor.SensorWatTemp {
-		services = append(services, numericsensor.NewService(mqtt, sensorWatTempSpecification, sensorWatTempReporter))
+	if cfg.SensorWatTempConfig != nil && cfg.SensorWatTempConfig.Specification.Name == numericsensor.SensorWatTemp {
+		services = append(services, numericsensor.NewService(mqtt, cfg.SensorWatTempConfig))
 	}
 
-	if meterElecSpecification != nil && meterElecReporter != nil {
-		services = append(services, meterelec.NewService(mqtt, meterElecSpecification, meterElecReporter))
+	if cfg.MeterElecConfig != nil {
+		services = append(services, meterelec.NewService(mqtt, cfg.MeterElecConfig))
 	}
 
-	return adapter.NewThing(inclusionReport, services...)
+	return adapter.NewThing(cfg.InclusionReport, services...)
 }
 
 // RouteBoiler creates routing required to satisfy expectations for a boiler.
@@ -57,6 +59,7 @@ func TaskBoiler(
 	reportingVoters ...task.Voter,
 ) []*task.Task {
 	return []*task.Task{
+		waterheater.TaskReporting(adapter, reportingInterval, reportingVoters...),
 		numericsensor.TaskReporting(adapter, reportingInterval, reportingVoters...),
 		meterelec.TaskReporting(adapter, reportingInterval, reportingVoters...),
 	}
