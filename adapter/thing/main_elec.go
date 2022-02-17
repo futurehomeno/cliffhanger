@@ -7,21 +7,30 @@ import (
 	"github.com/futurehomeno/fimpgo/fimptype"
 
 	"github.com/futurehomeno/cliffhanger/adapter"
+	"github.com/futurehomeno/cliffhanger/adapter/cache"
 	"github.com/futurehomeno/cliffhanger/adapter/service/meterelec"
 	"github.com/futurehomeno/cliffhanger/router"
 	"github.com/futurehomeno/cliffhanger/task"
 )
 
+// MainElecConfig represents a thing configuration.
+type MainElecConfig struct {
+	InclusionReport *fimptype.ThingInclusionReport
+	MeterElecConfig *meterelec.Config
+}
+
 // NewMainElec creates a thing that satisfies expectations for the main electricity meter.
 func NewMainElec(
 	mqtt *fimpgo.MqttTransport,
-	inclusionReport *fimptype.ThingInclusionReport,
-	meterElecSpecification *fimptype.Service,
-	meterElecReporter meterelec.Reporter,
+	cfg *MainElecConfig,
 ) adapter.Thing {
-	meterElec := meterelec.NewService(mqtt, meterElecSpecification, meterElecReporter)
+	if cfg.MeterElecConfig.ReportingStrategy == nil {
+		cfg.MeterElecConfig.ReportingStrategy = cache.ReportAlways()
+	}
 
-	return adapter.NewThing(inclusionReport, meterElec)
+	meterElec := meterelec.NewService(mqtt, cfg.MeterElecConfig)
+
+	return adapter.NewThing(cfg.InclusionReport, meterElec)
 }
 
 // RouteMainElec creates routing required to satisfy expectations for the main electricity meter.

@@ -3,15 +3,24 @@ package chargepoint
 import (
 	"fmt"
 	"sync"
+	"time"
 
 	"github.com/futurehomeno/fimpgo"
 	"github.com/futurehomeno/fimpgo/fimptype"
 
 	"github.com/futurehomeno/cliffhanger/adapter"
+	"github.com/futurehomeno/cliffhanger/adapter/cache"
 )
 
 const (
 	PropertySupportedStates = "sup_states"
+)
+
+var (
+	// DefaultStateReportingStrategy is the default reporting strategy used by the service for periodic reports of state changes.
+	DefaultStateReportingStrategy = cache.ReportOnChangeOnly()
+	// DefaultSessionReportingStrategy is the default reporting strategy used by the service for periodic reports of session.
+	DefaultSessionReportingStrategy = cache.ReportAtLeastEvery(30 * time.Minute)
 )
 
 // Controller is an interface representing an actual car charger device.
@@ -57,20 +66,38 @@ type Service interface {
 	SupportedStates() []string
 }
 
+// Config represents a service configuration.
+type Config struct {
+	Specification            *fimptype.Service
+	Controller               Controller
+	StateReportingStrategy   cache.ReportingStrategy
+	SessionReportingStrategy cache.ReportingStrategy
+}
+
 // NewService creates new instance of a water heater FIMP service.
 func NewService(
 	mqtt *fimpgo.MqttTransport,
-	specification *fimptype.Service,
-	controller Controller,
+	cfg *Config,
 ) Service {
-	specification.Name = Chargepoint
+	cfg.Specification.Name = Chargepoint
 
-	specification.EnsureInterfaces(requiredInterfaces()...)
+	cfg.Specification.EnsureInterfaces(requiredInterfaces()...)
+
+	if cfg.SessionReportingStrategy == nil {
+		cfg.SessionReportingStrategy = DefaultSessionReportingStrategy
+	}
+
+	if cfg.StateReportingStrategy == nil {
+		cfg.StateReportingStrategy = DefaultStateReportingStrategy
+	}
 
 	return &service{
-		Service:    adapter.NewService(mqtt, specification),
-		controller: controller,
-		lock:       &sync.Mutex{},
+		Service:                  adapter.NewService(mqtt, cfg.Specification),
+		controller:               cfg.Controller,
+		lock:                     &sync.Mutex{},
+		reportingCache:           cache.NewReportingCache(),
+		sessionReportingStrategy: cfg.SessionReportingStrategy,
+		stateReportingStrategy:   cfg.StateReportingStrategy,
 	}
 }
 
@@ -78,8 +105,11 @@ func NewService(
 type service struct {
 	adapter.Service
 
-	controller Controller
-	lock       *sync.Mutex
+	controller               Controller
+	lock                     *sync.Mutex
+	reportingCache           cache.ReportingCache
+	stateReportingStrategy   cache.ReportingStrategy
+	sessionReportingStrategy cache.ReportingStrategy
 }
 
 // StartCharging starts car charging.
@@ -124,10 +154,17 @@ func (s *service) SetCableLock(lock bool) error {
 // SendCurrentSessionReport sends a current charging session report. Returns true if a report was sent.
 // Depending on a caching and reporting configuration the service might decide to skip a report.
 // To make sure report is being sent regardless of circumstances set the force argument to true.
-func (s *service) SendCurrentSessionReport(_ bool) (bool, error) {
+func (s *service) SendCurrentSessionReport(force bool) (bool, error) {
+	s.lock.Lock()
+	defer s.lock.Unlock()
+
 	value, err := s.controller.ChargepointCurrentSessionReport()
 	if err != nil {
 		return false, fmt.Errorf("%s: failed to retrieve current session report: %w", s.Name(), err)
+	}
+
+	if !force && !s.reportingCache.ReportRequired(s.sessionReportingStrategy, EvtCurrentSessionReport, "", value) {
+		return false, nil
 	}
 
 	message := fimpgo.NewFloatMessage(
@@ -144,19 +181,25 @@ func (s *service) SendCurrentSessionReport(_ bool) (bool, error) {
 		return false, fmt.Errorf("%s: failed to send current session report: %w", s.Name(), err)
 	}
 
+	s.reportingCache.Reported(EvtCurrentSessionReport, "", value)
+
 	return true, nil
 }
 
 // SendCableLockReport sends a cable lock report. Returns true if a report was sent.
 // Depending on a caching and reporting configuration the service might decide to skip a report.
 // To make sure report is being sent regardless of circumstances set the force argument to true.
-func (s *service) SendCableLockReport(_ bool) (bool, error) {
+func (s *service) SendCableLockReport(force bool) (bool, error) {
 	s.lock.Lock()
 	defer s.lock.Unlock()
 
 	value, err := s.controller.ChargepointCableLockReport()
 	if err != nil {
 		return false, fmt.Errorf("%s: failed to retrieve cable lock report: %w", s.Name(), err)
+	}
+
+	if !force && !s.reportingCache.ReportRequired(s.stateReportingStrategy, EvtCableLockReport, "", value) {
+		return false, nil
 	}
 
 	message := fimpgo.NewBoolMessage(
@@ -173,19 +216,25 @@ func (s *service) SendCableLockReport(_ bool) (bool, error) {
 		return false, fmt.Errorf("%s: failed to send cable lock report: %w", s.Name(), err)
 	}
 
+	s.reportingCache.Reported(EvtCableLockReport, "", value)
+
 	return true, nil
 }
 
 // SendStateReport sends a state report. Returns true if a report was sent.
 // Depending on a caching and reporting configuration the service might decide to skip a report.
 // To make sure report is being sent regardless of circumstances set the force argument to true.
-func (s *service) SendStateReport(_ bool) (bool, error) {
+func (s *service) SendStateReport(force bool) (bool, error) {
 	s.lock.Lock()
 	defer s.lock.Unlock()
 
 	value, err := s.controller.ChargepointStateReport()
 	if err != nil {
 		return false, fmt.Errorf("%s: failed to retrieve state report: %w", s.Name(), err)
+	}
+
+	if !force && !s.reportingCache.ReportRequired(s.stateReportingStrategy, EvtStateReport, "", value) {
+		return false, nil
 	}
 
 	message := fimpgo.NewStringMessage(
@@ -201,6 +250,8 @@ func (s *service) SendStateReport(_ bool) (bool, error) {
 	if err != nil {
 		return false, fmt.Errorf("%s: failed to send state report: %w", s.Name(), err)
 	}
+
+	s.reportingCache.Reported(EvtStateReport, "", value)
 
 	return true, nil
 }

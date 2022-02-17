@@ -14,31 +14,33 @@ import (
 	"github.com/futurehomeno/cliffhanger/task"
 )
 
+// ThermostatConfig represents a thing configuration.
+type ThermostatConfig struct {
+	InclusionReport  *fimptype.ThingInclusionReport
+	ThermostatConfig *thermostat.Config
+	SensorTempConfig *numericsensor.Config // Optional
+	MeterElecConfig  *meterelec.Config     // Optional
+}
+
 // NewThermostat creates a thing that satisfies expectations for a thermostat controller.
 // Specification and implementations for temperature sensor and electricity meter are optional.
 func NewThermostat(
 	mqtt *fimpgo.MqttTransport,
-	inclusionReport *fimptype.ThingInclusionReport,
-	thermostatSpecification *fimptype.Service,
-	thermostatController thermostat.Controller,
-	sensorTempSpecification *fimptype.Service,
-	sensorTempReporter numericsensor.Reporter,
-	meterElecSpecification *fimptype.Service,
-	meterElecReporter meterelec.Reporter,
+	cfg *ThermostatConfig,
 ) adapter.Thing {
 	services := []adapter.Service{
-		thermostat.NewService(mqtt, thermostatSpecification, thermostatController),
+		thermostat.NewService(mqtt, cfg.ThermostatConfig),
 	}
 
-	if sensorTempSpecification != nil && sensorTempReporter != nil && sensorTempSpecification.Name == numericsensor.SensorTemp {
-		services = append(services, numericsensor.NewService(mqtt, sensorTempSpecification, sensorTempReporter))
+	if cfg.SensorTempConfig != nil && cfg.SensorTempConfig.Specification.Name == numericsensor.SensorTemp {
+		services = append(services, numericsensor.NewService(mqtt, cfg.SensorTempConfig))
 	}
 
-	if meterElecSpecification != nil && meterElecReporter != nil {
-		services = append(services, meterelec.NewService(mqtt, meterElecSpecification, meterElecReporter))
+	if cfg.MeterElecConfig != nil {
+		services = append(services, meterelec.NewService(mqtt, cfg.MeterElecConfig))
 	}
 
-	return adapter.NewThing(inclusionReport, services...)
+	return adapter.NewThing(cfg.InclusionReport, services...)
 }
 
 // RouteThermostat creates routing required to satisfy expectations for a thermostat controller.
@@ -57,6 +59,7 @@ func TaskThermostat(
 	reportingVoters ...task.Voter,
 ) []*task.Task {
 	return []*task.Task{
+		thermostat.TaskReporting(adapter, reportingInterval, reportingVoters...),
 		numericsensor.TaskReporting(adapter, reportingInterval, reportingVoters...),
 		meterelec.TaskReporting(adapter, reportingInterval, reportingVoters...),
 	}
