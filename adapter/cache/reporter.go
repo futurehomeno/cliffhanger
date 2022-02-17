@@ -7,28 +7,35 @@ import (
 	"github.com/google/go-cmp/cmp"
 )
 
+// ReportingStrategy is an interface representing a strategy to determine whether reporting is required or not.
 type ReportingStrategy interface {
+	// reportRequired determines if report is required based on input information.
 	reportRequired(hasChanged bool, lastReported time.Time) bool
 }
 
+// reportingStrategyFn is a function adapter that allows to use anonymous functions as reporting strategy.
 type reportingStrategyFn func(hasChanged bool, lastReported time.Time) bool
 
+// reportRequired determines if report is required based on input information.
 func (f reportingStrategyFn) reportRequired(hasChanged bool, lastReported time.Time) bool {
 	return f(hasChanged, lastReported)
 }
 
+// ReportAlways is a reporting strategy in which report is always sent.
 func ReportAlways() ReportingStrategy {
 	return reportingStrategyFn(func(_ bool, _ time.Time) bool {
 		return true
 	})
 }
 
+// ReportOnChangeOnly is a reporting strategy in which report is sent only if value changed.
 func ReportOnChangeOnly() ReportingStrategy {
 	return reportingStrategyFn(func(hasChanged bool, _ time.Time) bool {
 		return hasChanged
 	})
 }
 
+// ReportAtLeastEvery is a reporting strategy in which report is sent only if value changed or a specific time has passed.
 func ReportAtLeastEvery(interval time.Duration) ReportingStrategy {
 	return reportingStrategyFn(func(hasChanged bool, lastReported time.Time) bool {
 		if hasChanged {
@@ -39,25 +46,32 @@ func ReportAtLeastEvery(interval time.Duration) ReportingStrategy {
 	})
 }
 
+// ReportingCache is a service responsible for storing reported values to allow determine if changes occurred.
 type ReportingCache interface {
+	// ReportRequired returns true if report for a provided key, sub key and value should be sent according to provided strategy.
 	ReportRequired(strategy ReportingStrategy, key, subKey string, value interface{}) bool
+	// HasChanged returns true if value for a provided key and sub key changed.
 	HasChanged(key, subKey string, value interface{}) bool
+	// Reported marks value for a provided key and sub key as reported.
 	Reported(key, subKey string, value interface{})
 }
 
+// NewReportingCache creates new instance of a reporting cache.
 func NewReportingCache() ReportingCache {
-	return &cache{
+	return &reportingCache{
 		lock:   &sync.RWMutex{},
 		values: make(map[string]map[string]*value),
 	}
 }
 
-type cache struct {
+// reportingCache is a private implementation of reporting cache service.
+type reportingCache struct {
 	lock   *sync.RWMutex
 	values map[string]map[string]*value
 }
 
-func (c *cache) ReportRequired(strategy ReportingStrategy, key, subKey string, val interface{}) bool {
+// ReportRequired returns true if report for a provided key, sub key and value should be sent according to provided strategy.
+func (c *reportingCache) ReportRequired(strategy ReportingStrategy, key, subKey string, val interface{}) bool {
 	c.lock.RLock()
 	defer c.lock.RUnlock()
 
@@ -69,7 +83,8 @@ func (c *cache) ReportRequired(strategy ReportingStrategy, key, subKey string, v
 	return strategy.reportRequired(v.hasChanged(val), v.reported)
 }
 
-func (c *cache) HasChanged(key, subKey string, val interface{}) bool {
+// HasChanged returns true if value for a provided key and sub key changed.
+func (c *reportingCache) HasChanged(key, subKey string, val interface{}) bool {
 	c.lock.RLock()
 	defer c.lock.RUnlock()
 
@@ -81,7 +96,8 @@ func (c *cache) HasChanged(key, subKey string, val interface{}) bool {
 	return v.hasChanged(val)
 }
 
-func (c *cache) Reported(key, subKey string, val interface{}) {
+// Reported marks value for a provided key and sub key as reported.
+func (c *reportingCache) Reported(key, subKey string, val interface{}) {
 	c.lock.Lock()
 	defer c.lock.Unlock()
 
@@ -100,11 +116,13 @@ func (c *cache) Reported(key, subKey string, val interface{}) {
 	v.value = val
 }
 
+// value is an object holding reporting value and time of last report.
 type value struct {
 	reported time.Time
 	value    interface{}
 }
 
+// hasChanged returns true if value is different than provided one.
 func (v *value) hasChanged(val interface{}) bool {
 	return !cmp.Equal(v.value, val)
 }
