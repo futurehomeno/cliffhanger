@@ -345,6 +345,7 @@ func (s *service) supportedRange(mode string) *Range {
 		return supportedRange
 	}
 
+	supportedRange = &Range{}
 	ok = s.Service.Specification().PropertyObject(PropertySupportedRange, supportedRange)
 	if ok {
 		return supportedRange
