@@ -9,8 +9,6 @@ import (
 	"github.com/futurehomeno/cliffhanger/adapter"
 	"github.com/futurehomeno/cliffhanger/adapter/service/chargepoint"
 	"github.com/futurehomeno/cliffhanger/adapter/service/meterelec"
-	"github.com/futurehomeno/cliffhanger/adapter/service/numericsensor"
-	"github.com/futurehomeno/cliffhanger/adapter/service/waterheater"
 	"github.com/futurehomeno/cliffhanger/router"
 	"github.com/futurehomeno/cliffhanger/task"
 )
@@ -42,8 +40,7 @@ func NewCarCharger(
 // RouteCarCharger creates routing required to satisfy expectations for a car charger.
 func RouteCarCharger(adapter adapter.Adapter) []*router.Routing {
 	return router.Combine(
-		waterheater.RouteService(adapter),
-		numericsensor.RouteService(adapter),
+		chargepoint.RouteService(adapter),
 		meterelec.RouteService(adapter),
 	)
 }
@@ -55,6 +52,7 @@ func TaskCarCharger(
 	reportingVoters ...task.Voter,
 ) []*task.Task {
 	return []*task.Task{
+		chargepoint.TaskReporting(adapter, reportingInterval, reportingVoters...),
 		meterelec.TaskReporting(adapter, reportingInterval, reportingVoters...),
 	}
 }

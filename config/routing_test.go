@@ -66,7 +66,7 @@ func TestNewCmdLogSetLevel(t *testing.T) { //nolint:paralleltest
 
 			if tt.wantErr {
 				assert.NotNil(t, got)
-				assert.Equal(t, "evt.log.error", got.Payload.Type)
+				assert.Equal(t, "evt.error.report", got.Payload.Type)
 			} else {
 				assert.Nil(t, got)
 				assert.Equal(t, tt.wantLogLvl, log.GetLevel())
