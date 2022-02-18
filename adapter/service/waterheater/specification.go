@@ -9,7 +9,14 @@ import (
 	"github.com/futurehomeno/cliffhanger/router"
 )
 
+// Range represents setpoint acceptable range.
+type Range struct {
+	Min float64 `json:"min"`
+	Max float64 `json:"max"`
+}
+
 // Specification creates a service specification.
+// Supported range and supported ranges are optional parameters.
 func Specification(
 	resourceName,
 	resourceAddress,
@@ -18,8 +25,11 @@ func Specification(
 	supportedModes,
 	supportedSetpoints,
 	supportedStates []string,
+	supportedRange *Range,
+	supportedRanges map[string]Range,
+	supportedStep float64,
 ) *fimptype.Service {
-	return &fimptype.Service{
+	s := &fimptype.Service{
 		Address: fmt.Sprintf("/rt:dev/rn:%s/ad:%s/sv:%s/ad:%s", resourceName, resourceAddress, WaterHeater, address),
 		Name:    WaterHeater,
 		Groups:  groups,
@@ -28,9 +38,18 @@ func Specification(
 			PropertySupportedModes:     supportedModes,
 			PropertySupportedSetpoints: supportedSetpoints,
 			PropertySupportedStates:    supportedStates,
+			PropertySupportedStep:      supportedStep,
 		},
 		Interfaces: requiredInterfaces(),
 	}
+
+	if supportedRanges != nil {
+		s.Props[PropertySupportedRanges] = supportedRanges
+	} else if supportedRange != nil {
+		s.Props[PropertySupportedRange] = *supportedRange
+	}
+
+	return s
 }
 
 // requiredInterfaces returns required interfaces by the service.
