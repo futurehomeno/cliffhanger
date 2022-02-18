@@ -16,6 +16,8 @@ import (
 const (
 	DataDirectory     = "data"
 	DefaultsDirectory = "defaults"
+
+	backupExtension = ".bak"
 )
 
 // Storage is an interface representing a service responsible for loading JSON configuration from provided location.
@@ -83,17 +85,30 @@ func (s *storage) load(defaultsExists, dataExists bool) error {
 	}
 
 	if !dataExists {
-		return nil
-	}
+		_, err := s.loadBackup()
 
-	err := s.loadFile(s.getDataPath())
-	if err != nil && !defaultsExists {
 		return err
 	}
 
-	if err != nil {
-		log.WithError(err).Errorf("storage: failed to read the configuration file at path %s, falling back to defaults", s.getDataPath())
+	err := s.loadFile(s.getDataPath())
+	if err == nil {
+		return nil
 	}
+
+	loaded, backupErr := s.loadBackup()
+	if backupErr != nil {
+		return backupErr
+	}
+
+	if loaded {
+		return nil
+	}
+
+	if !defaultsExists {
+		return err
+	}
+
+	log.WithError(err).Errorf("storage: failed to read the configuration file at path %s, falling back to defaults", s.getDataPath())
 
 	return nil
 }
@@ -103,18 +118,23 @@ func (s *storage) Save() error {
 	s.lock.Lock()
 	defer s.lock.Unlock()
 
+	err := os.MkdirAll(path.Dir(s.getDataPath()), 0774) //nolint:gofumpt
+	if err != nil {
+		return fmt.Errorf("storage: cannot create a configuration directory at path %s: %w", path.Dir(s.getDataPath()), err)
+	}
+
+	err = s.makeBackup()
+	if err != nil {
+		return fmt.Errorf("storage: failed to make a configuration backup: %w", err)
+	}
+
 	body, err := json.MarshalIndent(s.config, "", "\t")
 	if err != nil {
 		return fmt.Errorf("storage: cannot marshal a configuration file at path %s: %w", s.getDataPath(), err)
 	}
 
-	err = os.MkdirAll(path.Dir(s.getDataPath()), 0774)
-	if err != nil {
-		return fmt.Errorf("storage: cannot create a configuration directory at path %s: %w", path.Dir(s.getDataPath()), err)
-	}
-
-	// nolint:gosec
-	err = ioutil.WriteFile(s.getDataPath(), body, 0664)
+	//nolint:gosec
+	err = ioutil.WriteFile(s.getDataPath(), body, 0664) //nolint:gofumpt
 	if err != nil {
 		return fmt.Errorf("storage: cannot save a configuration file at path %s: %w", s.getDataPath(), err)
 	}
@@ -130,6 +150,11 @@ func (s *storage) getDataPath() string {
 // getDefaultPath returns the defaults path.
 func (s *storage) getDefaultPath() string {
 	return filepath.Join(s.workDir, DefaultsDirectory, s.name)
+}
+
+// getBackupPath returns the backup path.
+func (s *storage) getBackupPath() string {
+	return s.getDataPath() + backupExtension
 }
 
 // fileExists checks if the file exists.
@@ -157,4 +182,46 @@ func (s *storage) loadFile(path string) error {
 	}
 
 	return nil
+}
+
+func (s *storage) makeBackup() error {
+	cfgExists, err := s.fileExists(s.getDataPath())
+	if err != nil {
+		return err
+	}
+
+	if !cfgExists {
+		return nil
+	}
+
+	body, err := ioutil.ReadFile(s.getDataPath())
+	if err != nil {
+		return err
+	}
+
+	//nolint:gosec
+	err = ioutil.WriteFile(s.getBackupPath(), body, 0664) //nolint:gofumpt
+	if err != nil {
+		return err
+	}
+
+	return nil
+}
+
+func (s *storage) loadBackup() (bool, error) {
+	backupExists, err := s.fileExists(s.getBackupPath())
+	if err != nil {
+		return false, err
+	}
+
+	if !backupExists {
+		return false, nil
+	}
+
+	err = s.loadFile(s.getBackupPath())
+	if err != nil {
+		return false, err
+	}
+
+	return true, nil
 }

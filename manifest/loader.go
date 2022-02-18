@@ -32,5 +32,5 @@ func (l *loader) Load() (*Manifest, error) {
 		return nil, fmt.Errorf("manifest loader: failed to load the manifest: %w", err)
 	}
 
-	return s.Model().(*Manifest), nil
+	return s.Model().(*Manifest), nil //nolint:forcetypeassert
 }
