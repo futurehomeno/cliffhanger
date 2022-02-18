@@ -2,6 +2,7 @@ package waterheater
 
 import (
 	"fmt"
+	"math"
 	"strings"
 	"sync"
 
@@ -25,6 +26,9 @@ const (
 	PropertySupportedModes     = "sup_modes"
 	PropertySupportedSetpoints = "sup_setpoints"
 	PropertySupportedStates    = "sup_states"
+	PropertySupportedRange     = "sup_range"
+	PropertySupportedRanges    = "sup_ranges"
+	PropertySupportedStep      = "sup_step"
 )
 
 // DefaultReportingStrategy is the default reporting strategy used by the service for periodic reports.
@@ -142,9 +146,14 @@ func (s *service) SetSetpoint(mode string, value float64, unit string) error {
 		return fmt.Errorf("%s: setpoint mode is unsupported: %s", s.Name(), mode)
 	}
 
-	err := s.controller.SetWaterHeaterSetpoint(normalizedMode, value, unit)
+	normalizedValue, err := s.normalizeValue(mode, value)
 	if err != nil {
-		return fmt.Errorf("%s: failed to set setpoint for mode %s for value %.01f: %w", s.Name(), normalizedMode, value, err)
+		return fmt.Errorf("%s: setpoint value is incorrect: %w", s.Name(), err)
+	}
+
+	err = s.controller.SetWaterHeaterSetpoint(normalizedMode, normalizedValue, unit)
+	if err != nil {
+		return fmt.Errorf("%s: failed to set setpoint for mode %s for value %.01f: %w", s.Name(), normalizedMode, normalizedValue, err)
 	}
 
 	return nil
@@ -302,6 +311,47 @@ func (s *service) normalizeSetpoint(mode string) (string, bool) {
 	}
 
 	return "", false
+}
+
+// normalizeValue normalizes setpoint value for a specific mode.
+func (s *service) normalizeValue(mode string, value float64) (float64, error) {
+	step, ok := s.Service.Specification().PropertyFloat(PropertySupportedStep)
+	if ok && step > 0 {
+		value = math.Round(value/step) * step
+	}
+
+	supportedRange := s.supportedRange(mode)
+	if supportedRange == nil {
+		return value, nil
+	}
+
+	if value < supportedRange.Min || value > supportedRange.Max {
+		return 0, fmt.Errorf("%s: value %.01f is out of range %.01f - %.01f for mode %s",
+			s.Name(), value, supportedRange.Min, supportedRange.Max, mode,
+		)
+	}
+
+	return value, nil
+}
+
+// supportedRange returns range supported for a given mode.
+func (s *service) supportedRange(mode string) *Range {
+	var supportedRanges map[string]*Range
+
+	_ = s.Service.Specification().PropertyObject(PropertySupportedRanges, &supportedRanges)
+
+	supportedRange, ok := supportedRanges[mode]
+	if ok {
+		return supportedRange
+	}
+
+	supportedRange = &Range{}
+	ok = s.Service.Specification().PropertyObject(PropertySupportedRange, supportedRange)
+	if ok {
+		return supportedRange
+	}
+
+	return nil
 }
 
 // Setpoint is an object representing a water heater setpoint.
