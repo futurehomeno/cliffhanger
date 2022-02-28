@@ -68,16 +68,6 @@ func TestStorage_Load(t *testing.T) { //nolint:paralleltest
 			},
 		},
 		{
-			name:       "backup as the only source of truth",
-			path:       "../testdata/storage/load_backup_only/",
-			configName: config.Name,
-			want: &testConfig{
-				SettingA: "A",
-				SettingB: "B",
-				SettingC: "C",
-			},
-		},
-		{
 			name:       "no data to read",
 			path:       "../testdata/storage/empty_dir/",
 			configName: config.Name,
