@@ -106,7 +106,7 @@ func (a *extendedAdapter) InitializeThings() error {
 	var things []Thing
 
 	for _, ts := range a.state.all() {
-		t, err := a.factory.Create(ts)
+		t, err := a.factory.Create(a.mqtt, a, ts)
 		if err != nil {
 			return fmt.Errorf("adapter: failed to create thing with ID %s: %w", ts.ID(), err)
 		}
