@@ -26,6 +26,8 @@ type Storage interface {
 	Load() error
 	// Save saves configuration to the configured location.
 	Save() error
+	// Reset deletes the configuration file and reloads default configuration.
+	Reset() error
 	// Model returns a configuration model object.
 	Model() interface{}
 }
@@ -181,6 +183,40 @@ func (s *storage) makeBackup() error {
 	}
 
 	return nil
+}
+
+// Reset deletes the configuration file and reloads default configuration.
+func (s *storage) Reset() error {
+	s.lock.Lock()
+	defer s.lock.Unlock()
+
+	defaultsExists, err := s.fileExists(s.getDefaultPath())
+	if err != nil {
+		return err
+	}
+
+	if !defaultsExists {
+		return fmt.Errorf("storage: cannot reset as the default configuration file at ath %s is not found", s.getBackupPath())
+	}
+
+	cfgExists, err := s.fileExists(s.getDataPath())
+	if err != nil {
+		return err
+	}
+
+	if cfgExists {
+		err = s.makeBackup()
+		if err != nil {
+			return fmt.Errorf("storage: failed to make backup of the configuration file at path %s: %w", s.getBackupPath(), err)
+		}
+
+		err = os.Remove(s.getDataPath())
+		if err != nil {
+			return fmt.Errorf("storage: failed to remove the configuration file at path %s: %w", s.getDataPath(), err)
+		}
+	}
+
+	return s.load(true, false)
 }
 
 // getDataPath returns the data path.

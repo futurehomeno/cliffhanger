@@ -52,7 +52,7 @@ func (s *service) Specification() *fimptype.Service {
 func (s *service) SendMessage(message *fimpgo.FimpMessage) error {
 	address, err := fimpgo.NewAddressFromString(s.Topic())
 	if err != nil {
-		return fmt.Errorf("service: failed to parse service topic %s: %w", s.Topic(), err)
+		return fmt.Errorf("service: failed to parse a service topic %s: %w", s.Topic(), err)
 	}
 
 	address.MsgType = fimpgo.MsgTypeEvt
@@ -60,7 +60,7 @@ func (s *service) SendMessage(message *fimpgo.FimpMessage) error {
 
 	err = s.mqtt.Publish(address, message)
 	if err != nil {
-		return fmt.Errorf("service: failed to publish report: %w", err)
+		return fmt.Errorf("service: failed to publish a report: %w", err)
 	}
 
 	return nil

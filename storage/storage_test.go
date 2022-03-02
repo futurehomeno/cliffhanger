@@ -162,3 +162,24 @@ func TestStorage_Save(t *testing.T) { //nolint:paralleltest
 	err = os.RemoveAll(path.Join(p, storage.DataDirectory))
 	assert.NoError(t, err)
 }
+
+func TestStorage_Reset(t *testing.T) { //nolint:paralleltest
+	p := "../testdata/storage/reset/"
+
+	source, err := ioutil.ReadFile(path.Join(p, storage.DataDirectory, config.Name+".bak"))
+	assert.NoError(t, err)
+
+	//nolint:gosec
+	err = ioutil.WriteFile(path.Join(p, storage.DataDirectory, config.Name), source, 0664) //nolint:gofumpt
+	assert.NoError(t, err)
+
+	store := storage.New(&testConfig{}, p, config.Name)
+
+	err = store.Load()
+	assert.NoError(t, err)
+	assert.Equal(t, &testConfig{"A", "B", "C"}, store.Model().(*testConfig)) //nolint:forcetypeassert
+
+	err = store.Reset()
+	assert.NoError(t, err)
+	assert.Equal(t, &testConfig{"X", "X", "X"}, store.Model().(*testConfig)) //nolint:forcetypeassert
+}

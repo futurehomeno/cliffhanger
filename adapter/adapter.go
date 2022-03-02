@@ -167,7 +167,11 @@ func (a *adapter) AddThing(thing Thing) error {
 
 	a.things[thing.Address()] = thing
 
-	return a.SendInclusionReport(thing)
+	if err := a.SendInclusionReport(thing); err != nil {
+		return fmt.Errorf("adapter: failed to send the inclusion report for thing with address %s: %w", thing.Address(), err)
+	}
+
+	return nil
 }
 
 // RemoveThing unregisters thing and sends exclusion report.
@@ -182,7 +186,11 @@ func (a *adapter) RemoveThing(address string) error {
 
 	delete(a.things, t.Address())
 
-	return a.SendExclusionReport(t)
+	if err := a.SendExclusionReport(t); err != nil {
+		return fmt.Errorf("adapter: failed to send the exclusion report for thing with address %s: %w", t.Address(), err)
+	}
+
+	return nil
 }
 
 // RemoveAllThings unregisters all things and sends exclusion reports. Useful when uninstalling or resetting adapter.
@@ -195,7 +203,7 @@ func (a *adapter) RemoveAllThings() error {
 
 		err := a.SendExclusionReport(t)
 		if err != nil {
-			return err
+			return fmt.Errorf("adapter: failed to send the exclusion report for thing with address %s: %w", t.Address(), err)
 		}
 	}
 
@@ -224,7 +232,7 @@ func (a *adapter) SendInclusionReport(thing Thing) error {
 
 	err := a.mqtt.Publish(addr, msg)
 	if err != nil {
-		return fmt.Errorf("adapter: failed to publish the inclusion report")
+		return fmt.Errorf("adapter: failed to publish the inclusion report for thing with address %s: %w", thing.Address(), err)
 	}
 
 	return nil
@@ -254,7 +262,7 @@ func (a *adapter) SendExclusionReport(thing Thing) error {
 
 	err := a.mqtt.Publish(addr, msg)
 	if err != nil {
-		return fmt.Errorf("adapter: failed to publish the exclusion report")
+		return fmt.Errorf("adapter: failed to publish the exclusion report for thing with address %s: %w", thing.Address(), err)
 	}
 
 	return nil

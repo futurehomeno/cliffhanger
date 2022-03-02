@@ -6,6 +6,12 @@ import (
 	"github.com/futurehomeno/fimpgo/fimptype"
 )
 
+// ThingFactory is an interface representing a thing factory service which is used by a stateful adapter.
+type ThingFactory interface {
+	// Create creates an instance of a thing using provided state.
+	Create(thingState ThingState) (Thing, error)
+}
+
 // Thing is an interface representing FIMP thing.
 type Thing interface {
 	// InclusionReport returns an inclusion report of the thing.
