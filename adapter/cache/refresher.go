@@ -13,6 +13,8 @@ const defaultOffset = 0.05
 type Refresher interface {
 	// Refresh refreshes data if required and returns it.
 	Refresh() (interface{}, error)
+	// Reset cache so next invocation will result in execution of provided refresh function.
+	Reset()
 }
 
 // NewRefresher creates new instance of a refresher service.
@@ -53,4 +55,13 @@ func (r *refresher) Refresh() (interface{}, error) {
 	r.lastRefresh = time.Now()
 
 	return r.value, nil
+}
+
+// Reset cache so next invocation will result in execution of provided refresh function.
+func (r *refresher) Reset() {
+	r.lock.Lock()
+	defer r.lock.Unlock()
+
+	r.value = nil
+	r.lastRefresh = time.Time{}
 }
