@@ -43,6 +43,7 @@ func NewExtendedAdapter(
 		Adapter: NewAdapter(mqtt, resourceName, resourceAddress),
 		factory: factory,
 		state:   state,
+		mqtt:    mqtt,
 		lock:    &sync.RWMutex{},
 	}
 }
@@ -53,6 +54,7 @@ type extendedAdapter struct {
 
 	state   State
 	factory ThingFactory
+	mqtt    *fimpgo.MqttTransport
 	lock    *sync.RWMutex
 }
 
@@ -202,7 +204,7 @@ func (a *extendedAdapter) createThing(id string, info interface{}) error {
 		return fmt.Errorf("adapter: failed to create state for thing with ID %s: %w", id, err)
 	}
 
-	t, err := a.factory.Create(ts)
+	t, err := a.factory.Create(a.mqtt, a, ts)
 	if err != nil {
 		return fmt.Errorf("adapter: failed to create thing with ID %s: %w", id, err)
 	}
