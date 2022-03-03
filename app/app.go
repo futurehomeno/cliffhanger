@@ -14,9 +14,29 @@ type App interface {
 	Uninstall() error
 }
 
-// ExtendedApp is an interface representing App with additional functionalities.
-type ExtendedApp interface {
+// ResettableApp is an interface representing app with additional functionalities.
+type ResettableApp interface {
 	App
+
 	// Reset cleans up all saved settings and introduced changes by the application.
 	Reset() error
+}
+
+// InitializableApp is an interface representing app with additional functionalities.
+type InitializableApp interface {
+	App
+
+	// Initialize performs initialization of the application during its startup.
+	// If error is returned application lifecycle state is changed to startup error.
+	// While in startup error reinitialization is later retried withing configured period.
+	Initialize() error
+}
+
+// CheckableApp is an interface representing app with additional functionalities.
+type CheckableApp interface {
+	App
+
+	// Check performs periodic checks of the application status.
+	// Check is performed only if application is in running state.
+	Check() error
 }
