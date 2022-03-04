@@ -198,7 +198,7 @@ func (s *storage) Reset() error {
 	}
 
 	if !defaultsExists {
-		return fmt.Errorf("storage: cannot reset as the default configuration file at ath %s is not found", s.getBackupPath())
+		return fmt.Errorf("storage: cannot reset as the default configuration file at path %s is not found", s.getBackupPath())
 	}
 
 	cfgExists, err := s.fileExists(s.getDataPath())

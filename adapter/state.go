@@ -95,6 +95,10 @@ func (s *state) add(model *thingStateModel) (ThingState, error) {
 	s.lock.Lock()
 	defer s.lock.Unlock()
 
+	if s.model.Things == nil {
+		s.model.Things = make(map[string]*thingStateModel)
+	}
+
 	s.model.Things[model.ID] = model
 
 	if err := s.storage.Save(); err != nil {
