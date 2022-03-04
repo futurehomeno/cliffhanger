@@ -81,6 +81,17 @@ func HandleCmdThingDelete(adapter Adapter, deleteCallback func(thing Thing)) rou
 				return nil, fmt.Errorf("adapter: thing not found under the provided address: %s", address)
 			}
 
+			extended, ok := adapter.(ExtendedAdapter)
+			if ok {
+				id, ok := extended.ExchangeAddress(address)
+				if ok {
+					err = extended.DestroyThing(id)
+					if err != nil {
+						return nil, fmt.Errorf("adapter: failed to delete thing: %w", err)
+					}
+				}
+			}
+
 			err = adapter.RemoveThing(address)
 			if err != nil {
 				return nil, fmt.Errorf("adapter: failed to send the exclusion report: %w", err)

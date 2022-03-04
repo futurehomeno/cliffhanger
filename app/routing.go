@@ -38,30 +38,20 @@ func RouteApp(
 	locker router.MessageHandlerLocker,
 	app App,
 ) []*router.Routing {
-	return []*router.Routing{
+	routing := []*router.Routing{
 		RouteCmdAppGetState(serviceName, appLifecycle),
 		RouteCmdConfigGetExtendedReport(serviceName, configStorage),
 		RouteCmdAppGetManifest(serviceName, appLifecycle, configStorage, app),
 		RouteCmdConfigExtendedSet(serviceName, appLifecycle, configFactory, app, locker),
 		RouteCmdAppUninstall(serviceName, appLifecycle, app, locker),
 	}
-}
 
-// RouteExtendedApp creates routing for an extended application.
-func RouteExtendedApp(
-	serviceName string,
-	appLifecycle *lifecycle.Lifecycle,
-	configStorage storage.Storage,
-	configFactory func() interface{},
-	locker router.MessageHandlerLocker,
-	app ExtendedApp,
-) []*router.Routing {
-	return router.Combine(
-		RouteApp(serviceName, appLifecycle, configStorage, configFactory, locker, app),
-		[]*router.Routing{
-			RouteCmdAppReset(serviceName, locker, app),
-		},
-	)
+	resettable, ok := app.(ResettableApp)
+	if ok {
+		routing = append(routing, RouteCmdAppReset(serviceName, locker, resettable))
+	}
+
+	return routing
 }
 
 // RouteCmdAppGetState returns a routing responsible for handling the command.
@@ -249,7 +239,7 @@ func HandleCmdAppUninstall(
 func RouteCmdAppReset(
 	serviceName string,
 	locker router.MessageHandlerLocker,
-	app ExtendedApp,
+	app ResettableApp,
 ) *router.Routing {
 	action := func(_ string) *manifest.ButtonActionResponse {
 		err := app.Reset()

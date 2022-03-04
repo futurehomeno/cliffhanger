@@ -100,6 +100,9 @@ linters-settings:
   lll:
     line-length: 160
   gci:
-    local-prefixes: github.com/futurehomeno/cliffhanger
+    sections:
+      - standard
+      - default
+      - prefix(github.com/futurehomeno/cliffhanger)
   goimports:
     local-prefixes: github.com/futurehomeno/cliffhanger

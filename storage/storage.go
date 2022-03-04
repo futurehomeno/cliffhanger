@@ -26,6 +26,8 @@ type Storage interface {
 	Load() error
 	// Save saves configuration to the configured location.
 	Save() error
+	// Reset deletes the configuration file and reloads default configuration.
+	Reset() error
 	// Model returns a configuration model object.
 	Model() interface{}
 }
@@ -68,47 +70,65 @@ func (s *storage) Load() error {
 		return err
 	}
 
+	if !dataExists && !defaultsExists {
+		return fmt.Errorf(
+			"storage: no configuration files were found at paths: %s, %s",
+			s.getDataPath(), s.getDefaultPath(),
+		)
+	}
+
 	return s.load(defaultsExists, dataExists)
 }
 
 // load loads the configuration files in the right order and performs fallback if allowed.
 func (s *storage) load(defaultsExists, dataExists bool) error {
-	if !dataExists && !defaultsExists {
-		return fmt.Errorf("storage: no configuration files were found at paths: %s, %s", s.getDataPath(), s.getDefaultPath())
-	}
-
+	// Always try to load default configuration first.
 	if defaultsExists {
 		err := s.loadFile(s.getDefaultPath())
 		if err != nil {
 			return err
 		}
+
+		if !dataExists {
+			return nil
+		}
 	}
 
-	if !dataExists {
-		_, err := s.loadBackup()
+	// Load actual data file.
+	err := s.loadData()
+	if err != nil {
+		if !defaultsExists {
+			return err
+		}
 
-		return err
+		log.WithError(err).Errorf("storage: failed to read the configuration file at path %s, falling back to defaults", s.getDataPath())
 	}
 
+	return nil
+}
+
+// load loads the configuration files and performs fallback to a last backup if possible.
+func (s *storage) loadData() error {
 	err := s.loadFile(s.getDataPath())
 	if err == nil {
 		return nil
 	}
 
-	loaded, backupErr := s.loadBackup()
-	if backupErr != nil {
-		return backupErr
+	backupExists, existsErr := s.fileExists(s.getBackupPath())
+	if existsErr != nil {
+		return existsErr
 	}
 
-	if loaded {
-		return nil
-	}
-
-	if !defaultsExists {
+	if !backupExists {
 		return err
 	}
 
-	log.WithError(err).Errorf("storage: failed to read the configuration file at path %s, falling back to defaults", s.getDataPath())
+	err = s.loadFile(s.getBackupPath())
+	if err != nil {
+		return err
+	}
+
+	log.WithError(err).Errorf("storage: failed to read the configuration file at path %s, falling back to last backup", s.getDataPath())
 
 	return nil
 }
@@ -140,6 +160,65 @@ func (s *storage) Save() error {
 	}
 
 	return nil
+}
+
+// makeBackup copies contents of an existing configuration to a backup file.
+func (s *storage) makeBackup() error {
+	cfgExists, err := s.fileExists(s.getDataPath())
+	if err != nil {
+		return err
+	}
+
+	if !cfgExists {
+		return nil
+	}
+
+	body, err := ioutil.ReadFile(s.getDataPath())
+	if err != nil {
+		return err
+	}
+
+	//nolint:gosec
+	err = ioutil.WriteFile(s.getBackupPath(), body, 0664) //nolint:gofumpt
+	if err != nil {
+		return err
+	}
+
+	return nil
+}
+
+// Reset deletes the configuration file and reloads default configuration.
+func (s *storage) Reset() error {
+	s.lock.Lock()
+	defer s.lock.Unlock()
+
+	defaultsExists, err := s.fileExists(s.getDefaultPath())
+	if err != nil {
+		return err
+	}
+
+	if !defaultsExists {
+		return fmt.Errorf("storage: cannot reset as the default configuration file at path %s is not found", s.getBackupPath())
+	}
+
+	cfgExists, err := s.fileExists(s.getDataPath())
+	if err != nil {
+		return err
+	}
+
+	if cfgExists {
+		err = s.makeBackup()
+		if err != nil {
+			return fmt.Errorf("storage: failed to make backup of the configuration file at path %s: %w", s.getBackupPath(), err)
+		}
+
+		err = os.Remove(s.getDataPath())
+		if err != nil {
+			return fmt.Errorf("storage: failed to remove the configuration file at path %s: %w", s.getDataPath(), err)
+		}
+	}
+
+	return s.load(true, false)
 }
 
 // getDataPath returns the data path.
@@ -182,46 +261,4 @@ func (s *storage) loadFile(path string) error {
 	}
 
 	return nil
-}
-
-func (s *storage) makeBackup() error {
-	cfgExists, err := s.fileExists(s.getDataPath())
-	if err != nil {
-		return err
-	}
-
-	if !cfgExists {
-		return nil
-	}
-
-	body, err := ioutil.ReadFile(s.getDataPath())
-	if err != nil {
-		return err
-	}
-
-	//nolint:gosec
-	err = ioutil.WriteFile(s.getBackupPath(), body, 0664) //nolint:gofumpt
-	if err != nil {
-		return err
-	}
-
-	return nil
-}
-
-func (s *storage) loadBackup() (bool, error) {
-	backupExists, err := s.fileExists(s.getBackupPath())
-	if err != nil {
-		return false, err
-	}
-
-	if !backupExists {
-		return false, nil
-	}
-
-	err = s.loadFile(s.getBackupPath())
-	if err != nil {
-		return false, err
-	}
-
-	return true, nil
 }
