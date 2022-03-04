@@ -198,9 +198,11 @@ func (s *thingState) Info(model interface{}) error {
 	s.state.lock.RLock()
 	defer s.state.lock.RUnlock()
 
-	b := s.model.Info
+	if len(s.model.Info) == 0 {
+		return nil
+	}
 
-	err := json.Unmarshal(b, model)
+	err := json.Unmarshal(s.model.Info, model)
 	if err != nil {
 		return fmt.Errorf("thing state: failed to unmarshal info of a thing with ID %s into a provided model: %w", s.ID(), err)
 	}
@@ -213,9 +215,11 @@ func (s *thingState) State(model interface{}) error {
 	s.state.lock.RLock()
 	defer s.state.lock.RUnlock()
 
-	b := s.model.State
+	if len(s.model.State) == 0 {
+		return nil
+	}
 
-	err := json.Unmarshal(b, model)
+	err := json.Unmarshal(s.model.State, model)
 	if err != nil {
 		return fmt.Errorf("thing state: failed to unmarshal state of a thing with ID %s into a provided model: %w", s.ID(), err)
 	}
