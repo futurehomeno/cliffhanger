@@ -6,7 +6,7 @@ import (
 	"time"
 )
 
-// defaultOffset is the default percentage offset of the refresh interval.
+// DefaultOffset is the default percentage offset of the refresh interval.
 const defaultOffset = 0.05
 
 // Refresher is a helper service that performs refreshing if the a configured interval has passed.
@@ -17,10 +17,13 @@ type Refresher interface {
 	Reset()
 }
 
+// OffsetInterval is a helper to offset interval with a safety margin.
+func OffsetInterval(interval time.Duration) time.Duration {
+	return time.Duration((1 - defaultOffset) * float64(interval))
+}
+
 // NewRefresher creates new instance of a refresher service.
 func NewRefresher(refresh func() (interface{}, error), interval time.Duration) Refresher {
-	interval = time.Duration((1 - defaultOffset) * float64(interval))
-
 	return &refresher{
 		lock:     &sync.Mutex{},
 		interval: interval,

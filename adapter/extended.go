@@ -89,7 +89,7 @@ func (a *extendedAdapter) ExchangeAddress(address string) (id string, ok bool) {
 	a.lock.RLock()
 	defer a.lock.RUnlock()
 
-	ts := a.state.byAddress(id)
+	ts := a.state.byAddress(address)
 	if ts == nil {
 		return "", false
 	}
@@ -188,7 +188,7 @@ func (a *extendedAdapter) DestroyAllThings() error {
 	defer a.lock.Unlock()
 
 	for _, ts := range a.state.all() {
-		err := a.DestroyThing(ts.ID())
+		err := a.destroyThing(ts.ID())
 		if err != nil {
 			return fmt.Errorf("adapter: failed to destroy thing with ID %s: %w", ts.ID(), err)
 		}
@@ -258,7 +258,7 @@ func (a *extendedAdapter) destroyThing(id string) error {
 		return fmt.Errorf("adapter: failed to remove thing with ID %s from the adapter: %w", id, err)
 	}
 
-	err = a.state.remove(ts.Address())
+	err = a.state.remove(ts.ID())
 	if err != nil {
 		return fmt.Errorf("adapter: failed to remove thing with ID %s from persistent state: %w", id, err)
 	}
