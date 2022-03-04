@@ -133,7 +133,7 @@ func (a *extendedAdapter) EnsureThings(idsAndInfo map[string]interface{}) error 
 	for _, ts := range thingStates {
 		_, ok := idsAndInfo[ts.ID()]
 		if !ok {
-			toRemove = append(toRemove, ts.Address())
+			toRemove = append(toRemove, ts.ID())
 
 			continue
 		}
