@@ -96,11 +96,13 @@ func (s *storage) load(defaultsExists, dataExists bool) error {
 
 	// Load actual data file.
 	err := s.loadData()
-	if err != nil && !defaultsExists {
-		return err
-	}
+	if err != nil {
+		if !defaultsExists {
+			return err
+		}
 
-	log.WithError(err).Errorf("storage: failed to read the configuration file at path %s, falling back to defaults", s.getDataPath())
+		log.WithError(err).Errorf("storage: failed to read the configuration file at path %s, falling back to defaults", s.getDataPath())
+	}
 
 	return nil
 }
