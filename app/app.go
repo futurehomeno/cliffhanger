@@ -42,6 +42,10 @@ type Credentials struct {
 	Encrypted bool   `json:"encrypted"`
 }
 
+type CredentialsError struct {
+	Errors string `json:"errors"`
+}
+
 type LogginableApp interface {
 	Login(*Credentials) error
 }
