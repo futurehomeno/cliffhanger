@@ -42,10 +42,9 @@ type Credentials struct {
 	Encrypted bool   `json:"encrypted"`
 }
 
-type CredentialsError struct {
-	Errors string `json:"errors"`
-}
-
+// LogginableApp is an interface representing app with additional functionalities.
 type LogginableApp interface {
+	// Login performs login of the application into a third party app and persistence of credentials in local storage.
+	// If error is returned login is considered as unsuccessful.
 	Login(*Credentials) error
 }

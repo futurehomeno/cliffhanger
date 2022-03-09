@@ -386,21 +386,14 @@ func HandleCmdAuthLogin(
 
 			err = logginable.Login(login)
 			if err != nil {
-				return nil, fmt.Errorf("application: failed to login: %w", err)
-			}
-
-			var payload interface{}
-			if appLifecycle.AuthState() != lifecycle.AuthStateAuthenticated {
-				payload = &CredentialsError{Errors: "Wrong username or password."}
-			} else {
-				payload = appLifecycle.GetAllStates()
+				return nil, fmt.Errorf("failed to login: %w", err)
 			}
 
 			msg := fimpgo.NewMessage(
 				EvtAuthStatusReport,
 				serviceName,
 				fimpgo.VTypeObject,
-				payload,
+				appLifecycle.GetAllStates(),
 				nil,
 				nil,
 				message.Payload,
