@@ -34,3 +34,14 @@ type CheckableApp interface {
 	// Check is performed only if application is in running state.
 	Check() error
 }
+
+// Credentials is an object representing credentials for the app to log into a third-party service.
+type Credentials struct {
+	Username  string `json:"username"`
+	Password  string `json:"password"`
+	Encrypted bool   `json:"encrypted"`
+}
+
+type LogginableApp interface {
+	Login(*Credentials) error
+}

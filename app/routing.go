@@ -27,6 +27,8 @@ const (
 	EvtAppUninstallReport      = "evt.app.uninstall_report"
 	CmdAppReset                = "cmd.app.reset"
 	EvtAppConfigActionReport   = "evt.app.config_action_report"
+	CmdAuthLogin               = "cmd.auth.login"
+	EvtAuthStatusReport        = "evt.auth.status_report"
 )
 
 // RouteApp creates routing for an application.
@@ -49,6 +51,11 @@ func RouteApp(
 	resettable, ok := app.(ResettableApp)
 	if ok {
 		routing = append(routing, RouteCmdAppReset(serviceName, locker, resettable))
+	}
+
+	logginable, ok := app.(LogginableApp)
+	if ok {
+		routing = append(routing, RouteCmdAuthLogin(serviceName, appLifecycle, locker, logginable))
 	}
 
 	return routing
@@ -345,4 +352,54 @@ func makeConfigurationReply(
 		nil,
 		message.Payload,
 	)
+}
+
+// RouteCmdAuthLogin returns a routing responsible for handling the command.
+func RouteCmdAuthLogin(
+	serviceName string,
+	appLifecycle *lifecycle.Lifecycle,
+	locker router.MessageHandlerLocker,
+	logginable LogginableApp,
+) *router.Routing {
+	return router.NewRouting(
+		HandleCmdAuthLogin(serviceName, appLifecycle, locker, logginable),
+		router.ForService(serviceName),
+		router.ForType(CmdAuthLogin),
+	)
+}
+
+// HandleCmdAuthLogin returns a handler responsible for handling the command.
+func HandleCmdAuthLogin(
+	serviceName string,
+	appLifecycle *lifecycle.Lifecycle,
+	locker router.MessageHandlerLocker,
+	logginable LogginableApp,
+) router.MessageHandler {
+	return router.NewMessageHandler(
+		router.MessageProcessorFn(func(message *fimpgo.Message) (*fimpgo.FimpMessage, error) {
+			login := &Credentials{}
+
+			err := message.Payload.GetObjectValue(login)
+			if err != nil {
+				return nil, fmt.Errorf("provided credentials have an invalid format: %w", err)
+			}
+
+			err = logginable.Login(login)
+			if err != nil {
+				return nil, fmt.Errorf("failed to log in: %w", err)
+			}
+
+			msg := fimpgo.NewMessage(
+				EvtAuthStatusReport,
+				serviceName,
+				fimpgo.VTypeObject,
+				appLifecycle.GetAllStates(),
+				nil,
+				nil,
+				message.Payload,
+			)
+
+			return msg, nil
+		}),
+		router.WithExternalLock(locker))
 }
