@@ -28,6 +28,7 @@ const (
 	CmdAppReset                = "cmd.app.reset"
 	EvtAppConfigActionReport   = "evt.app.config_action_report"
 	CmdAuthLogin               = "cmd.auth.login"
+	CmdAuthLogout              = "cmd.auth.logout"
 	EvtAuthStatusReport        = "evt.auth.status_report"
 )
 
@@ -55,7 +56,11 @@ func RouteApp(
 
 	logginable, ok := app.(LogginableApp)
 	if ok {
-		routing = append(routing, RouteCmdAuthLogin(serviceName, appLifecycle, locker, logginable))
+		routing = append(
+			routing,
+			RouteCmdAuthLogin(serviceName, appLifecycle, locker, logginable),
+			RouteCmdAuthLogout(serviceName, appLifecycle, locker, logginable),
+		)
 	}
 
 	return routing
@@ -385,6 +390,49 @@ func HandleCmdAuthLogin(
 			}
 
 			err = logginable.Login(login)
+			if err != nil {
+				return nil, fmt.Errorf("failed to login: %w", err)
+			}
+
+			msg := fimpgo.NewMessage(
+				EvtAuthStatusReport,
+				serviceName,
+				fimpgo.VTypeObject,
+				appLifecycle.GetAllStates(),
+				nil,
+				nil,
+				message.Payload,
+			)
+
+			return msg, nil
+		}),
+		router.WithExternalLock(locker))
+}
+
+// RouteCmdAuthLogout returns a routing responsible for handling the command.
+func RouteCmdAuthLogout(
+	serviceName string,
+	appLifecycle *lifecycle.Lifecycle,
+	locker router.MessageHandlerLocker,
+	logginable LogginableApp,
+) *router.Routing {
+	return router.NewRouting(
+		HandleCmdAuthLogout(serviceName, appLifecycle, locker, logginable),
+		router.ForService(serviceName),
+		router.ForType(CmdAuthLogout),
+	)
+}
+
+// HandleCmdAuthLogout returns a handler responsible for handling the command.
+func HandleCmdAuthLogout(
+	serviceName string,
+	appLifecycle *lifecycle.Lifecycle,
+	locker router.MessageHandlerLocker,
+	logginable LogginableApp,
+) router.MessageHandler {
+	return router.NewMessageHandler(
+		router.MessageProcessorFn(func(message *fimpgo.Message) (*fimpgo.FimpMessage, error) {
+			err := logginable.Logout()
 			if err != nil {
 				return nil, fmt.Errorf("failed to login: %w", err)
 			}
