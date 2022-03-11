@@ -35,8 +35,8 @@ type CheckableApp interface {
 	Check() error
 }
 
-// Credentials is an object representing credentials for the app to log into a third-party service.
-type Credentials struct {
+// LoginCredentials is an object representing credentials for the app to log into a third-party service.
+type LoginCredentials struct {
 	Username  string `json:"username"`
 	Password  string `json:"password"`
 	Encrypted bool   `json:"encrypted"`
@@ -44,9 +44,33 @@ type Credentials struct {
 
 // LogginableApp is an interface representing app with additional functionalities.
 type LogginableApp interface {
+	LogoutableApp
+
 	// Login performs login of the application into a third party app and persistence of credentials in local storage.
 	// If error is returned login is considered as unsuccessful.
-	Login(*Credentials) error
+	Login(credentials *LoginCredentials) error
+}
+
+// AuthorizationCredentials is an object representing credentials for the app to log into a third-party service.
+type AuthorizationCredentials struct {
+	AccessToken  string `json:"access_token"`
+	TokenType    string `json:"token_type"`
+	ExpiresIn    int    `json:"expires_in"`
+	RefreshToken string `json:"refresh_token"`
+	Scope        string `json:"scope"`
+}
+
+// AuthorizableApp is an interface representing app with additional functionalities.
+type AuthorizableApp interface {
+	LogoutableApp
+
+	// Authorize performs authorization of the application into a third party app and persistence of credentials in local storage.
+	// If error is returned authorization is considered as unsuccessful.
+	Authorize(credentials *AuthorizationCredentials) error
+}
+
+// LogoutableApp is an interface representing app with additional functionalities.
+type LogoutableApp interface {
 	// Logout performs logout of the application from a third party app and removal of credentials in local storage.
 	Logout() error
 }
