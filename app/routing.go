@@ -6,6 +6,7 @@ import (
 	"github.com/futurehomeno/fimpgo"
 	log "github.com/sirupsen/logrus"
 
+	"github.com/futurehomeno/cliffhanger/auth"
 	"github.com/futurehomeno/cliffhanger/config"
 	"github.com/futurehomeno/cliffhanger/lifecycle"
 	"github.com/futurehomeno/cliffhanger/manifest"
@@ -392,7 +393,7 @@ func HandleCmdAuthLogin(
 ) router.MessageHandler {
 	return router.NewMessageHandler(
 		router.MessageProcessorFn(func(message *fimpgo.Message) (*fimpgo.FimpMessage, error) {
-			credentials := &LoginCredentials{}
+			credentials := &auth.LoginResponse{}
 
 			err := message.Payload.GetObjectValue(credentials)
 			if err != nil {
@@ -442,7 +443,7 @@ func HandleCmdAuthSetTokens(
 ) router.MessageHandler {
 	return router.NewMessageHandler(
 		router.MessageProcessorFn(func(message *fimpgo.Message) (*fimpgo.FimpMessage, error) {
-			credentials := &AuthorizationCredentials{}
+			credentials := &auth.OAuth2TokenResponse{}
 
 			err := message.Payload.GetObjectValue(credentials)
 			if err != nil {

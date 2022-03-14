@@ -1,6 +1,7 @@
 package app
 
 import (
+	"github.com/futurehomeno/cliffhanger/auth"
 	"github.com/futurehomeno/cliffhanger/manifest"
 )
 
@@ -35,29 +36,13 @@ type CheckableApp interface {
 	Check() error
 }
 
-// LoginCredentials is an object representing credentials for the app to log into a third-party service.
-type LoginCredentials struct {
-	Username  string `json:"username"`
-	Password  string `json:"password"`
-	Encrypted bool   `json:"encrypted"`
-}
-
 // LogginableApp is an interface representing app with additional functionalities.
 type LogginableApp interface {
 	LogoutableApp
 
 	// Login performs login of the application into a third party app and persistence of credentials in local storage.
 	// If error is returned login is considered as unsuccessful.
-	Login(credentials *LoginCredentials) error
-}
-
-// AuthorizationCredentials is an object representing credentials for the app to log into a third-party service.
-type AuthorizationCredentials struct {
-	AccessToken  string `json:"access_token"`
-	TokenType    string `json:"token_type"`
-	ExpiresIn    int    `json:"expires_in"`
-	RefreshToken string `json:"refresh_token"`
-	Scope        string `json:"scope"`
+	Login(credentials *auth.LoginResponse) error
 }
 
 // AuthorizableApp is an interface representing app with additional functionalities.
@@ -66,7 +51,7 @@ type AuthorizableApp interface {
 
 	// Authorize performs authorization of the application into a third party app and persistence of credentials in local storage.
 	// If error is returned authorization is considered as unsuccessful.
-	Authorize(credentials *AuthorizationCredentials) error
+	Authorize(credentials *auth.OAuth2TokenResponse) error
 }
 
 // LogoutableApp is an interface representing app with additional functionalities.
