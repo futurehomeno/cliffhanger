@@ -42,7 +42,7 @@ type LogginableApp interface {
 
 	// Login performs login of the application into a third party app and persistence of credentials in local storage.
 	// If error is returned login is considered as unsuccessful.
-	Login(credentials *auth.LoginResponse) error
+	Login(credentials *LoginCredentials) error
 }
 
 // AuthorizableApp is an interface representing app with additional functionalities.

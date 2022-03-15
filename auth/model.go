@@ -4,13 +4,6 @@ import (
 	"github.com/futurehomeno/cliffhanger/hub"
 )
 
-// LoginResponse is an object representing credentials for the app to log into a third-party service.
-type LoginResponse struct {
-	Username  string `json:"username"`
-	Password  string `json:"password"`
-	Encrypted bool   `json:"encrypted"`
-}
-
 // OAuth2TokenResponse is an object representing credentials for the app to log into a third-party service.
 type OAuth2TokenResponse struct {
 	AccessToken  string      `json:"access_token"`
