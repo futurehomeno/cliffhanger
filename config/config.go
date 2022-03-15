@@ -10,6 +10,7 @@ type Default struct {
 	MQTTUsername       string `json:"mqtt_server_username"`
 	MQTTPassword       string `json:"mqtt_server_password"`
 	MQTTClientIDPrefix string `json:"mqtt_client_id_prefix"`
+	InfoFile           string `json:"info_file"`
 	LogFile            string `json:"log_file"`
 	LogLevel           string `json:"log_level"`
 	LogFormat          string `json:"log_format"`

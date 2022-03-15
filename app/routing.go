@@ -6,7 +6,7 @@ import (
 	"github.com/futurehomeno/fimpgo"
 	log "github.com/sirupsen/logrus"
 
-	"github.com/futurehomeno/cliffhanger/config"
+	"github.com/futurehomeno/cliffhanger/auth"
 	"github.com/futurehomeno/cliffhanger/lifecycle"
 	"github.com/futurehomeno/cliffhanger/manifest"
 	"github.com/futurehomeno/cliffhanger/router"
@@ -29,6 +29,7 @@ const (
 	EvtAppConfigActionReport   = "evt.app.config_action_report"
 	CmdAuthLogin               = "cmd.auth.login"
 	CmdAuthLogout              = "cmd.auth.logout"
+	CmdAuthSetTokens           = "cmd.auth.set_tokens" // nolint:gosec
 	EvtAuthStatusReport        = "evt.auth.status_report"
 )
 
@@ -60,6 +61,15 @@ func RouteApp(
 			routing,
 			RouteCmdAuthLogin(serviceName, appLifecycle, locker, logginable),
 			RouteCmdAuthLogout(serviceName, appLifecycle, locker, logginable),
+		)
+	}
+
+	authorizable, ok := app.(AuthorizableApp)
+	if ok {
+		routing = append(
+			routing,
+			RouteCmdAuthSetTokens(serviceName, appLifecycle, locker, authorizable),
+			RouteCmdAuthLogout(serviceName, appLifecycle, locker, authorizable),
 		)
 	}
 
@@ -331,8 +341,8 @@ func makeConfigurationReply(
 	appLifecycle *lifecycle.Lifecycle,
 	err error,
 ) *fimpgo.FimpMessage {
-	configReport := &config.Report{
-		OpStatus: config.OperationStatusOK,
+	configReport := &ConfigurationReport{
+		OpStatus: OperationStatusOK,
 	}
 
 	if err != nil {
@@ -342,7 +352,7 @@ func makeConfigurationReply(
 			WithField("type", message.Payload.Type).
 			Error("failed to configure the application")
 
-		configReport.OpStatus = config.OperationStatusError
+		configReport.OpStatus = OperationStatusError
 		configReport.OpError = fmt.Sprintf("failed to configure the application: %s", err)
 	}
 
@@ -364,10 +374,10 @@ func RouteCmdAuthLogin(
 	serviceName string,
 	appLifecycle *lifecycle.Lifecycle,
 	locker router.MessageHandlerLocker,
-	logginable LogginableApp,
+	app LogginableApp,
 ) *router.Routing {
 	return router.NewRouting(
-		HandleCmdAuthLogin(serviceName, appLifecycle, locker, logginable),
+		HandleCmdAuthLogin(serviceName, appLifecycle, locker, app),
 		router.ForService(serviceName),
 		router.ForType(CmdAuthLogin),
 	)
@@ -378,27 +388,87 @@ func HandleCmdAuthLogin(
 	serviceName string,
 	appLifecycle *lifecycle.Lifecycle,
 	locker router.MessageHandlerLocker,
-	logginable LogginableApp,
+	app LogginableApp,
 ) router.MessageHandler {
 	return router.NewMessageHandler(
 		router.MessageProcessorFn(func(message *fimpgo.Message) (*fimpgo.FimpMessage, error) {
-			login := &Credentials{}
+			credentials := &LoginCredentials{}
 
-			err := message.Payload.GetObjectValue(login)
+			err := message.Payload.GetObjectValue(credentials)
 			if err != nil {
-				return nil, fmt.Errorf("provided credentials have an invalid format: %w", err)
+				return nil, fmt.Errorf("provided login credentials have an invalid format: %w", err)
 			}
 
-			err = logginable.Login(login)
-			if err != nil {
-				return nil, fmt.Errorf("failed to login: %w", err)
+			report := &AuthenticationReport{}
+
+			if err = app.Login(credentials); err != nil {
+				log.WithError(err).Errorf("application: failed to login")
+
+				report.ErrorText = "failed to login"
 			}
+
+			report.Status = string(appLifecycle.AuthState())
 
 			msg := fimpgo.NewMessage(
 				EvtAuthStatusReport,
 				serviceName,
 				fimpgo.VTypeObject,
-				appLifecycle.GetAllStates(),
+				report,
+				nil,
+				nil,
+				message.Payload,
+			)
+
+			return msg, nil
+		}),
+		router.WithExternalLock(locker))
+}
+
+// RouteCmdAuthSetTokens returns a routing responsible for handling the command.
+func RouteCmdAuthSetTokens(
+	serviceName string,
+	appLifecycle *lifecycle.Lifecycle,
+	locker router.MessageHandlerLocker,
+	app AuthorizableApp,
+) *router.Routing {
+	return router.NewRouting(
+		HandleCmdAuthSetTokens(serviceName, appLifecycle, locker, app),
+		router.ForService(serviceName),
+		router.ForType(CmdAuthSetTokens),
+	)
+}
+
+// HandleCmdAuthSetTokens returns a handler responsible for handling the command.
+func HandleCmdAuthSetTokens(
+	serviceName string,
+	appLifecycle *lifecycle.Lifecycle,
+	locker router.MessageHandlerLocker,
+	app AuthorizableApp,
+) router.MessageHandler {
+	return router.NewMessageHandler(
+		router.MessageProcessorFn(func(message *fimpgo.Message) (*fimpgo.FimpMessage, error) {
+			credentials := &auth.OAuth2TokenResponse{}
+
+			err := message.Payload.GetObjectValue(credentials)
+			if err != nil {
+				return nil, fmt.Errorf("provided authorization credentials have an invalid format: %w", err)
+			}
+
+			report := &AuthenticationReport{}
+
+			if err = app.Authorize(credentials); err != nil {
+				log.WithError(err).Errorf("application: failed to authorize")
+
+				report.ErrorText = "failed to authorize"
+			}
+
+			report.Status = string(appLifecycle.AuthState())
+
+			msg := fimpgo.NewMessage(
+				EvtAuthStatusReport,
+				serviceName,
+				fimpgo.VTypeObject,
+				report,
 				nil,
 				nil,
 				message.Payload,
@@ -414,10 +484,10 @@ func RouteCmdAuthLogout(
 	serviceName string,
 	appLifecycle *lifecycle.Lifecycle,
 	locker router.MessageHandlerLocker,
-	logginable LogginableApp,
+	app LogoutableApp,
 ) *router.Routing {
 	return router.NewRouting(
-		HandleCmdAuthLogout(serviceName, appLifecycle, locker, logginable),
+		HandleCmdAuthLogout(serviceName, appLifecycle, locker, app),
 		router.ForService(serviceName),
 		router.ForType(CmdAuthLogout),
 	)
@@ -428,20 +498,25 @@ func HandleCmdAuthLogout(
 	serviceName string,
 	appLifecycle *lifecycle.Lifecycle,
 	locker router.MessageHandlerLocker,
-	logginable LogginableApp,
+	app LogoutableApp,
 ) router.MessageHandler {
 	return router.NewMessageHandler(
 		router.MessageProcessorFn(func(message *fimpgo.Message) (*fimpgo.FimpMessage, error) {
-			err := logginable.Logout()
-			if err != nil {
-				return nil, fmt.Errorf("failed to login: %w", err)
+			report := &AuthenticationReport{}
+
+			if err := app.Logout(); err != nil {
+				log.WithError(err).Errorf("application: failed to logout")
+
+				report.ErrorText = "failed to logout"
 			}
+
+			report.Status = string(appLifecycle.AuthState())
 
 			msg := fimpgo.NewMessage(
 				EvtAuthStatusReport,
 				serviceName,
 				fimpgo.VTypeObject,
-				appLifecycle.GetAllStates(),
+				report,
 				nil,
 				nil,
 				message.Payload,
