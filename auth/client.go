@@ -52,7 +52,9 @@ func NewProxyClient(cfg *ProxyClientConfig) ProxyClient {
 
 	return &proxyClient{
 		cfg:    cfg,
-		client: &http.Client{},
+		client: &http.Client{
+			Timeout: time.Second * 60,
+		},
 	}
 }
 
