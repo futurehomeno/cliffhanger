@@ -7,7 +7,6 @@ import (
 	"fmt"
 	"io/ioutil"
 	"net/http"
-	"path"
 	"time"
 
 	log "github.com/sirupsen/logrus"
@@ -67,14 +66,14 @@ type proxyClient struct {
 func (c *proxyClient) ExchangeAuthorizationCode(code string) (*OAuth2TokenResponse, error) {
 	request := &OAuth2AuthCodeProxyRequest{AuthCode: code, PartnerCode: c.cfg.PartnerCode}
 
-	return c.getToken(request, path.Join(c.cfg.URL, "/api/control/edge/proxy/auth-code"))
+	return c.getToken(request, c.cfg.URL + "/api/control/edge/proxy/auth-code")
 }
 
 // ExchangeRefreshToken exchanges a refresh token for the access token response.
 func (c *proxyClient) ExchangeRefreshToken(refreshToken string) (*OAuth2TokenResponse, error) {
 	request := OAuth2RefreshProxyRequest{RefreshToken: refreshToken, PartnerCode: c.cfg.PartnerCode}
 
-	return c.getToken(request, path.Join(c.cfg.URL, "/api/control/edge/proxy/refresh"))
+	return c.getToken(request, c.cfg.URL + "/api/control/edge/proxy/refresh")
 }
 
 // getToken retrieves token from Partners API.
