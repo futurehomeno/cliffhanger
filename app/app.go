@@ -41,7 +41,6 @@ type LogginableApp interface {
 	LogoutableApp
 
 	// Login performs login of the application into a third party app and persistence of credentials in local storage.
-	// If error is returned login is considered as unsuccessful.
 	Login(credentials *LoginCredentials) error
 }
 
@@ -50,7 +49,6 @@ type AuthorizableApp interface {
 	LogoutableApp
 
 	// Authorize performs authorization of the application into a third party app and persistence of credentials in local storage.
-	// If error is returned authorization is considered as unsuccessful.
 	Authorize(credentials *auth.OAuth2TokenResponse) error
 }
 
