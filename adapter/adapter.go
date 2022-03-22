@@ -39,7 +39,7 @@ type Adapter interface {
 	// SendInclusionReport sends inclusion report for a specific thing.
 	SendInclusionReport(thing Thing) error
 	// SendExclusionReport sends exclusion report for a specific thing.
-	SendExclusionReport(thing Thing) error
+	SendExclusionReport(address string) error
 }
 
 // NewAdapter creates an instance of a device adapter.
@@ -186,7 +186,7 @@ func (a *adapter) RemoveThing(address string) error {
 
 	delete(a.things, t.Address())
 
-	if err := a.SendExclusionReport(t); err != nil {
+	if err := a.SendExclusionReport(t.Address()); err != nil {
 		return fmt.Errorf("adapter: failed to send the exclusion report for thing with address %s: %w", t.Address(), err)
 	}
 
@@ -201,7 +201,7 @@ func (a *adapter) RemoveAllThings() error {
 	for _, t := range a.things {
 		delete(a.things, t.Address())
 
-		err := a.SendExclusionReport(t)
+		err := a.SendExclusionReport(t.Address())
 		if err != nil {
 			return fmt.Errorf("adapter: failed to send the exclusion report for thing with address %s: %w", t.Address(), err)
 		}
@@ -239,9 +239,9 @@ func (a *adapter) SendInclusionReport(thing Thing) error {
 }
 
 // SendExclusionReport sends exclusion report for a specific thing.
-func (a *adapter) SendExclusionReport(thing Thing) error {
+func (a *adapter) SendExclusionReport(address string) error {
 	report := fimptype.ThingExclusionReport{
-		Address: thing.Address(),
+		Address: address,
 	}
 
 	addr := &fimpgo.Address{
@@ -262,7 +262,7 @@ func (a *adapter) SendExclusionReport(thing Thing) error {
 
 	err := a.mqtt.Publish(addr, msg)
 	if err != nil {
-		return fmt.Errorf("adapter: failed to publish the exclusion report for thing with address %s: %w", thing.Address(), err)
+		return fmt.Errorf("adapter: failed to publish the exclusion report for thing with address %s: %w", address, err)
 	}
 
 	return nil
