@@ -91,7 +91,9 @@ func (c *proxyClient) getToken(request interface{}, url string) (*OAuth2TokenRes
 	r.Header.Add("Authorization", "Bearer "+c.cfg.Token)
 
 	for i := 0; i <= c.cfg.Retry; i++ {
-		response, err := c.requestToken(r)
+		var response *OAuth2TokenResponse
+
+		response, err = c.requestToken(r)
 		if err == nil {
 			return response, nil
 		}
