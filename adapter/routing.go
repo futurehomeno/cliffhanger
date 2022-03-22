@@ -4,6 +4,7 @@ import (
 	"fmt"
 
 	"github.com/futurehomeno/fimpgo"
+	log "github.com/sirupsen/logrus"
 
 	"github.com/futurehomeno/cliffhanger/router"
 )
@@ -78,7 +79,14 @@ func HandleCmdThingDelete(adapter Adapter, deleteCallback func(thing Thing)) rou
 
 			t := adapter.ThingByAddress(address)
 			if t == nil {
-				return nil, fmt.Errorf("adapter: thing not found under the provided address: %s", address)
+				log.Warnf("adapter: thing not found under the provided address %s, sending exclusion report regardless...", address)
+
+				err = adapter.SendExclusionReport(address)
+				if err != nil {
+					return nil, fmt.Errorf("adapter: failed to send the exclusion report: %w", err)
+				}
+
+				return nil, nil
 			}
 
 			extended, ok := adapter.(ExtendedAdapter)

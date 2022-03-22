@@ -21,20 +21,17 @@ type ProxyClientConfig struct {
 	URL         string
 	Retry       int
 	RetryDelay  time.Duration
+	Timeout     time.Duration
 }
 
 // setDefaults sets default configuration for a authentication proxy client.
 func (cfg *ProxyClientConfig) setDefaults() {
-	if cfg.Retry == 0 {
-		cfg.Retry = 5
-	}
-
-	if cfg.RetryDelay == 0 {
-		cfg.RetryDelay = 60 * time.Second
-	}
-
 	if cfg.URL == "" {
 		cfg.URL = ProxyURL(hub.EnvProd)
+	}
+
+	if cfg.Timeout == 0 {
+		cfg.Timeout = 60 * time.Second
 	}
 }
 
@@ -51,9 +48,9 @@ func NewProxyClient(cfg *ProxyClientConfig) ProxyClient {
 	cfg.setDefaults()
 
 	return &proxyClient{
-		cfg:    cfg,
+		cfg: cfg,
 		client: &http.Client{
-			Timeout: time.Second * 60,
+			Timeout: cfg.Timeout,
 		},
 	}
 }
@@ -93,15 +90,17 @@ func (c *proxyClient) getToken(request interface{}, url string) (*OAuth2TokenRes
 	r.Header.Add("Content-Type", "application/json")
 	r.Header.Add("Authorization", "Bearer "+c.cfg.Token)
 
-	for i := 0; i < c.cfg.Retry; i++ {
+	for i := 0; i <= c.cfg.Retry; i++ {
 		response, err := c.requestToken(r)
 		if err == nil {
 			return response, nil
 		}
 
-		log.Errorf("proxy proxyClient: Partner API is not responding with success, retrying in %s...", c.cfg.RetryDelay.String())
+		if i < c.cfg.Retry {
+			log.Errorf("proxy proxyClient: Partner API is not responding with success, retrying in %s...", c.cfg.RetryDelay.String())
 
-		time.Sleep(c.cfg.RetryDelay)
+			time.Sleep(c.cfg.RetryDelay)
+		}
 	}
 
 	return nil, err
