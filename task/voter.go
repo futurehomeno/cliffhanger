@@ -59,3 +59,17 @@ func WhenAppEncounteredError(l *lifecycle.Lifecycle) Voter {
 		return l.AppState() == lifecycle.AppStateError
 	})
 }
+
+// WhenAppIsConnected is a task voter allowing a task to run only if relevant state is met.
+func WhenAppIsConnected(l *lifecycle.Lifecycle) Voter {
+	return VoterFn(func() bool {
+		return l.ConnectionState() == lifecycle.ConnStateConnected
+	})
+}
+
+// WhenAppIsDisconnected is a task voter allowing a task to run only if relevant state is met.
+func WhenAppIsDisconnected(l *lifecycle.Lifecycle) Voter {
+	return VoterFn(func() bool {
+		return l.ConnectionState() == lifecycle.ConnStateDisconnected
+	})
+}
