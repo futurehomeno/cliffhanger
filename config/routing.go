@@ -1,6 +1,7 @@
 package config
 
 import (
+	"fmt"
 	"time"
 
 	"github.com/futurehomeno/fimpgo"
@@ -11,17 +12,45 @@ import (
 
 // Constants defining routing commands and events.
 const (
-	CmdLogSetLevel = "cmd.log.set_level"
+	CmdLogSetLevel    = "cmd.log.set_level"
+	CmdLogGetLevel    = "cmd.log.get_level"
+	EvtLogLevelReport = "evt.log.level_report"
 
-	cmdConfigSet = "cmd.config.set_"
+	cmdConfigSet    = "cmd.config.set_"
+	cmdConfigGet    = "cmd.config.get_"
+	evtConfigReport = "cmd.config.%s_report"
 )
+
+// RouteCmdLogGetLevel returns a routing responsible for handling the command.
+func RouteCmdLogGetLevel(serviceName string, logGetter func() string) *router.Routing {
+	return router.NewRouting(
+		HandleCmdLogGetLevel(serviceName, logGetter),
+		router.ForService(serviceName),
+		router.ForType(CmdLogSetLevel),
+	)
+}
+
+// HandleCmdLogGetLevel returns a handler responsible for handling the command.
+func HandleCmdLogGetLevel(serviceName string, logGetter func() string) router.MessageHandler {
+	return router.NewMessageHandler(
+		router.MessageProcessorFn(func(message *fimpgo.Message) (reply *fimpgo.FimpMessage, err error) {
+			return fimpgo.NewStringMessage(
+				EvtLogLevelReport,
+				serviceName,
+				logGetter(),
+				nil,
+				nil,
+				message.Payload,
+			), nil
+		}))
+}
 
 // RouteCmdLogSetLevel returns a routing responsible for handling the command.
 func RouteCmdLogSetLevel(serviceName string, logSetter func(string) error) *router.Routing {
 	return router.NewRouting(
 		HandleCmdLogSetLevel(logSetter),
 		router.ForService(serviceName),
-		router.ForType(CmdLogSetLevel),
+		router.ForType(CmdLogGetLevel),
 	)
 }
 
@@ -48,6 +77,30 @@ func HandleCmdLogSetLevel(logSetter func(string) error) router.MessageHandler {
 			log.Infof("Log level updated to %s", logLevel)
 
 			return nil, nil
+		}))
+}
+
+// RouteCmdConfigGetBool returns a routing responsible for handling the command.
+func RouteCmdConfigGetBool(serviceName, setting string, getter func() bool) *router.Routing {
+	return router.NewRouting(
+		HandleCmdConfigGetBool(serviceName, setting, getter),
+		router.ForService(serviceName),
+		router.ForType(cmdConfigGet+setting),
+	)
+}
+
+// HandleCmdConfigGetBool returns a handler responsible for handling the command.
+func HandleCmdConfigGetBool(serviceName, setting string, getter func() bool) router.MessageHandler {
+	return router.NewMessageHandler(
+		router.MessageProcessorFn(func(message *fimpgo.Message) (reply *fimpgo.FimpMessage, err error) {
+			return fimpgo.NewBoolMessage(
+				fmt.Sprintf(evtConfigReport, setting),
+				serviceName,
+				getter(),
+				nil,
+				nil,
+				message.Payload,
+			), nil
 		}))
 }
 
@@ -78,6 +131,30 @@ func HandleCmdConfigSetBool(setter func(bool) error) router.MessageHandler {
 		}))
 }
 
+// RouteCmdConfigGetString returns a routing responsible for handling the command.
+func RouteCmdConfigGetString(serviceName, setting string, getter func() string) *router.Routing {
+	return router.NewRouting(
+		HandleCmdConfigGetString(serviceName, setting, getter),
+		router.ForService(serviceName),
+		router.ForType(cmdConfigGet+setting),
+	)
+}
+
+// HandleCmdConfigGetString returns a handler responsible for handling the command.
+func HandleCmdConfigGetString(serviceName, setting string, getter func() string) router.MessageHandler {
+	return router.NewMessageHandler(
+		router.MessageProcessorFn(func(message *fimpgo.Message) (reply *fimpgo.FimpMessage, err error) {
+			return fimpgo.NewStringMessage(
+				fmt.Sprintf(evtConfigReport, setting),
+				serviceName,
+				getter(),
+				nil,
+				nil,
+				message.Payload,
+			), nil
+		}))
+}
+
 // RouteCmdConfigSetString returns a routing responsible for handling the command.
 func RouteCmdConfigSetString(serviceName, setting string, setter func(string) error) *router.Routing {
 	return router.NewRouting(
@@ -102,6 +179,30 @@ func HandleCmdConfigSetString(setter func(string) error) router.MessageHandler {
 			}
 
 			return nil, nil
+		}))
+}
+
+// RouteCmdConfigGetInt returns a routing responsible for handling the command.
+func RouteCmdConfigGetInt(serviceName, setting string, getter func() int64) *router.Routing {
+	return router.NewRouting(
+		HandleCmdConfigGetInt(serviceName, setting, getter),
+		router.ForService(serviceName),
+		router.ForType(cmdConfigGet+setting),
+	)
+}
+
+// HandleCmdConfigGetInt returns a handler responsible for handling the command.
+func HandleCmdConfigGetInt(serviceName, setting string, getter func() int64) router.MessageHandler {
+	return router.NewMessageHandler(
+		router.MessageProcessorFn(func(message *fimpgo.Message) (reply *fimpgo.FimpMessage, err error) {
+			return fimpgo.NewIntMessage(
+				fmt.Sprintf(evtConfigReport, setting),
+				serviceName,
+				getter(),
+				nil,
+				nil,
+				message.Payload,
+			), nil
 		}))
 }
 
@@ -132,6 +233,30 @@ func HandleCmdConfigSetInt(setter func(int) error) router.MessageHandler {
 		}))
 }
 
+// RouteCmdConfigGetFloat returns a routing responsible for handling the command.
+func RouteCmdConfigGetFloat(serviceName, setting string, getter func() float64) *router.Routing {
+	return router.NewRouting(
+		HandleCmdConfigGetFloat(serviceName, setting, getter),
+		router.ForService(serviceName),
+		router.ForType(cmdConfigGet+setting),
+	)
+}
+
+// HandleCmdConfigGetFloat returns a handler responsible for handling the command.
+func HandleCmdConfigGetFloat(serviceName, setting string, getter func() float64) router.MessageHandler {
+	return router.NewMessageHandler(
+		router.MessageProcessorFn(func(message *fimpgo.Message) (reply *fimpgo.FimpMessage, err error) {
+			return fimpgo.NewFloatMessage(
+				fmt.Sprintf(evtConfigReport, setting),
+				serviceName,
+				getter(),
+				nil,
+				nil,
+				message.Payload,
+			), nil
+		}))
+}
+
 // RouteCmdConfigSetFloat returns a routing responsible for handling the command.
 func RouteCmdConfigSetFloat(serviceName, setting string, setter func(float64) error) *router.Routing {
 	return router.NewRouting(
@@ -156,6 +281,30 @@ func HandleCmdConfigSetFloat(setter func(float64) error) router.MessageHandler {
 			}
 
 			return nil, nil
+		}))
+}
+
+// RouteCmdConfigGetDuration returns a routing responsible for handling the command.
+func RouteCmdConfigGetDuration(serviceName, setting string, getter func() time.Duration) *router.Routing {
+	return router.NewRouting(
+		HandleCmdConfigGetDuration(serviceName, setting, getter),
+		router.ForService(serviceName),
+		router.ForType(cmdConfigGet+setting),
+	)
+}
+
+// HandleCmdConfigGetDuration returns a handler responsible for handling the command.
+func HandleCmdConfigGetDuration(serviceName, setting string, getter func() time.Duration) router.MessageHandler {
+	return router.NewMessageHandler(
+		router.MessageProcessorFn(func(message *fimpgo.Message) (reply *fimpgo.FimpMessage, err error) {
+			return fimpgo.NewStringMessage(
+				fmt.Sprintf(evtConfigReport, setting),
+				serviceName,
+				getter().String(),
+				nil,
+				nil,
+				message.Payload,
+			), nil
 		}))
 }
 
