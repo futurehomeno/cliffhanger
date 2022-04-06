@@ -26,7 +26,7 @@ func RouteCmdLogGetLevel(serviceName string, logGetter func() string) *router.Ro
 	return router.NewRouting(
 		HandleCmdLogGetLevel(serviceName, logGetter),
 		router.ForService(serviceName),
-		router.ForType(CmdLogSetLevel),
+		router.ForType(CmdLogGetLevel),
 	)
 }
 
@@ -50,7 +50,7 @@ func RouteCmdLogSetLevel(serviceName string, logSetter func(string) error) *rout
 	return router.NewRouting(
 		HandleCmdLogSetLevel(logSetter),
 		router.ForService(serviceName),
-		router.ForType(CmdLogGetLevel),
+		router.ForType(CmdLogSetLevel),
 	)
 }
 
