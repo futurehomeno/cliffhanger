@@ -10,22 +10,38 @@ import (
 	"gopkg.in/natefinch/lumberjack.v2"
 )
 
-var workDir string
+// GetConfigurationDirectory returns a configuration directory passed through the -c option.
+func GetConfigurationDirectory() string {
+	const c = "c"
 
-// GetWorkingDirectory returns a working directory passed through the -c option.
+	if flag.Lookup(c) == nil {
+		flag.String(c, "", "Configuration directory.")
+		flag.Parse()
+	}
+
+	return flag.Lookup(c).Value.String()
+}
+
+// GetWorkingDirectory returns a working directory passed through the -w option with a fallback to a process working directory.
 func GetWorkingDirectory() string {
-	if workDir != "" {
-		return workDir
+	const w = "w"
+
+	if flag.Lookup(w) == nil {
+		flag.String(w, "", "Working directory.")
+		flag.Parse()
 	}
 
-	flag.StringVar(&workDir, "c", "", "Working directory.")
-	flag.Parse()
-
-	if workDir == "" {
-		workDir = "./"
+	dir := flag.Lookup(w).Value.String()
+	if dir != "" {
+		return dir
 	}
 
-	return workDir
+	dir, err := os.Getwd()
+	if err != nil {
+		return "./"
+	}
+
+	return dir
 }
 
 // InitializeLogger initializes logger with an optional log rotation.
