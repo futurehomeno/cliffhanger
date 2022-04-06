@@ -8,6 +8,6 @@ before_script:
 
 script:
   - golangci-lint run ./... --timeout 2m
-  - go test -p 1 -mod=vendor -v -covermode=atomic -coverprofile=profile_full.cov -coverpkg=./... ./...
+  - go test -p 1 -v -covermode=atomic -coverprofile=profile_full.cov -coverpkg=./... ./...
   - cat profile_full.cov | grep -v .pb.go | grep -v mock | grep -v test > profile.cov;
   - goveralls -coverprofile=profile.cov -service=travis-pro -repotoken B8NnLqJBg7cuw4oChepQJNnyZ9Tcg5Izy || true
