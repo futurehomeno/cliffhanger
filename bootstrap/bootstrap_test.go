@@ -1,7 +1,6 @@
 package bootstrap_test
 
 import (
-	"flag"
 	"os"
 	"testing"
 
@@ -16,15 +15,11 @@ func TestGetConfigurationDirectory(t *testing.T) { //nolint:paralleltest
 	assert.Equal(t, "/my/configuration/directory", bootstrap.GetConfigurationDirectory())
 }
 
-func TestGetWorkingDirectory(t *testing.T) { //nolint:paralleltest
+func TestGetWorkingDirectory(t *testing.T) {
+	t.Parallel()
+
 	wd, err := os.Getwd()
 
 	assert.NoError(t, err)
 	assert.Equal(t, wd, bootstrap.GetWorkingDirectory())
-
-	os.Args = append(os.Args, "-w=/my/working/directory")
-
-	flag.Parse()
-
-	assert.Equal(t, "/my/working/directory", bootstrap.GetWorkingDirectory())
 }

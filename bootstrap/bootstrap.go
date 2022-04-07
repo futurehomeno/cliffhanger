@@ -22,20 +22,8 @@ func GetConfigurationDirectory() string {
 	return flag.Lookup(c).Value.String()
 }
 
-// GetWorkingDirectory returns a working directory passed through the -w option with a fallback to a process working directory.
+// GetWorkingDirectory returns a working directory with a fallback to a relative path.
 func GetWorkingDirectory() string {
-	const w = "w"
-
-	if flag.Lookup(w) == nil {
-		flag.String(w, "", "Working directory.")
-		flag.Parse()
-	}
-
-	dir := flag.Lookup(w).Value.String()
-	if dir != "" {
-		return dir
-	}
-
 	dir, err := os.Getwd()
 	if err != nil {
 		return "./"
