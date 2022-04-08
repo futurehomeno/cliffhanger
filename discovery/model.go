@@ -13,16 +13,16 @@ type Resource struct {
 	Description            string            `json:"description"`              // Description as shown in registry.
 	Author                 string            `json:"author"`                   // Author of the application.
 	Version                string            `json:"version"`                  // Version of the application.
-	PackageName            string            `json:"package_name"`             // Package name which in some cases package may have different name from the resource name.
+	PackageName            string            `json:"package_name"`             // Package name may be different from the resource name.
 	State                  string            `json:"state"`                    // Current application state.
 	AppInfo                AppInfo           `json:"app_info"`                 // Additional information base onf the resource type.
 	AdapterInfo            AdapterInfo       `json:"adapter_info"`             // Additional information base onf the resource type.
 	ConfigRequired         bool              `json:"config_required"`          // If true, the service should be configured before it can be used.
 	Configs                map[string]string `json:"configs"`                  // Configuration parameters.
 	Props                  map[string]string `json:"props"`                    // Service properties
-	DocUrl                 string            `json:"doc_url"`                  // URL containing documentation.
+	DocURL                 string            `json:"doc_url"`                  // URL containing documentation.
 	IsInstanceConfigurable bool              `json:"is_instance_configurable"` // If true, the service should be configured before it can be used.
-	InstanceId             string            `json:"instance_id"`              // An instance ID of the service, usually 1.
+	InstanceID             string            `json:"instance_id"`              // An instance ID of the service, usually 1.
 }
 
 // AppInfo contains specific information about the application. Deprecated.
