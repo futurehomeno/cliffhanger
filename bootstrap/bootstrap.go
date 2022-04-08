@@ -10,7 +10,7 @@ import (
 	"gopkg.in/natefinch/lumberjack.v2"
 )
 
-// GetConfigurationDirectory returns a configuration directory passed through the -c option.
+// GetConfigurationDirectory returns a configuration directory passed through the -c option with a fallback to a relative path.
 func GetConfigurationDirectory() string {
 	const c = "c"
 
@@ -19,7 +19,12 @@ func GetConfigurationDirectory() string {
 		flag.Parse()
 	}
 
-	return flag.Lookup(c).Value.String()
+	dir := flag.Lookup(c).Value.String()
+	if dir != "" {
+		return dir
+	}
+
+	return "./"
 }
 
 // GetWorkingDirectory returns a working directory with a fallback to a relative path.
