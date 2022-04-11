@@ -5,6 +5,7 @@ import (
 
 	"github.com/futurehomeno/fimpgo"
 
+	"github.com/futurehomeno/cliffhanger/discovery"
 	"github.com/futurehomeno/cliffhanger/router"
 	"github.com/futurehomeno/cliffhanger/task"
 )
@@ -17,6 +18,7 @@ func NewBuilder() *Builder {
 // Builder is a core app builder that helps to set up and run core application on a hub.
 type Builder struct {
 	mqtt               *fimpgo.MqttTransport
+	resource           *discovery.Resource
 	topicSubscriptions []string
 	routing            []*router.Routing
 	tasks              []*task.Task
@@ -50,10 +52,22 @@ func (b *Builder) WithTask(tasks ...*task.Task) *Builder {
 	return b
 }
 
+// WithServiceDiscovery sets the optional service discovery resource.
+func (b *Builder) WithServiceDiscovery(resource *discovery.Resource) *Builder {
+	b.resource = resource
+
+	return b
+}
+
 // Build builds the core application.
 func (b *Builder) Build() (Core, error) {
 	if err := b.check(); err != nil {
 		return nil, err
+	}
+
+	if b.resource != nil {
+		b.topicSubscriptions = append(b.topicSubscriptions, discovery.Topic)
+		b.routing = append(b.routing, discovery.Route(b.resource))
 	}
 
 	messageRouter := router.NewRouter(b.mqtt, router.DefaultChannelID, b.routing...)

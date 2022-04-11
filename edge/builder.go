@@ -4,8 +4,8 @@ import (
 	"errors"
 
 	"github.com/futurehomeno/fimpgo"
-	"github.com/futurehomeno/fimpgo/discovery"
 
+	"github.com/futurehomeno/cliffhanger/discovery"
 	"github.com/futurehomeno/cliffhanger/lifecycle"
 	"github.com/futurehomeno/cliffhanger/router"
 	"github.com/futurehomeno/cliffhanger/task"
@@ -74,8 +74,8 @@ func (b *Builder) Build() (Edge, error) {
 		return nil, err
 	}
 
-	discoveryResponder := discovery.NewServiceDiscoveryResponder(b.mqtt)
-	discoveryResponder.RegisterResource(*b.resource)
+	b.topicSubscriptions = append(b.topicSubscriptions, discovery.Topic)
+	b.routing = append(b.routing, discovery.Route(b.resource))
 
 	messageRouter := router.NewRouter(b.mqtt, router.DefaultChannelID, b.routing...)
 
@@ -83,7 +83,6 @@ func (b *Builder) Build() (Edge, error) {
 
 	return New(
 		b.mqtt,
-		discoveryResponder,
 		b.lifecycle,
 		b.topicSubscriptions,
 		messageRouter,

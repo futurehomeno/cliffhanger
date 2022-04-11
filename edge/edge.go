@@ -4,7 +4,6 @@ import (
 	"fmt"
 
 	"github.com/futurehomeno/fimpgo"
-	"github.com/futurehomeno/fimpgo/discovery"
 
 	"github.com/futurehomeno/cliffhanger/lifecycle"
 	"github.com/futurehomeno/cliffhanger/router"
@@ -22,7 +21,6 @@ type Edge interface {
 // New creates a new edge application instance.
 func New(
 	mqtt *fimpgo.MqttTransport,
-	discovery *discovery.ServiceDiscoveryResponder,
 	lifecycle *lifecycle.Lifecycle,
 	topicSubscriptions []string,
 	router router.Router,
@@ -30,7 +28,6 @@ func New(
 ) Edge {
 	return &edge{
 		mqtt:               mqtt,
-		discovery:          discovery,
 		lifecycle:          lifecycle,
 		topicSubscriptions: topicSubscriptions,
 		messageRouter:      router,
@@ -41,7 +38,6 @@ func New(
 // edge is an implementation of edge application interface.
 type edge struct {
 	mqtt               *fimpgo.MqttTransport
-	discovery          *discovery.ServiceDiscoveryResponder
 	lifecycle          *lifecycle.Lifecycle
 	topicSubscriptions []string
 	messageRouter      router.Router
@@ -54,8 +50,6 @@ func (e *edge) Start() error {
 	if err != nil {
 		return fmt.Errorf("edge: failed to start MQTT broker: %w", err)
 	}
-
-	e.discovery.Start()
 
 	err = e.messageRouter.Start()
 	if err != nil {
@@ -97,8 +91,6 @@ func (e *edge) Stop() error {
 	if err != nil {
 		return fmt.Errorf("edge: failed to stop message router: %w", err)
 	}
-
-	e.discovery.Stop()
 
 	e.mqtt.Stop()
 

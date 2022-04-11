@@ -12,12 +12,11 @@ import (
 	log "github.com/sirupsen/logrus"
 )
 
-// Constants defining data and defaults locations.
+// Constants defining internal settings of the storage.
 const (
-	DataDirectory     = "data"
-	DefaultsDirectory = "defaults"
-
-	backupExtension = ".bak"
+	dataDirectory     = "data"
+	defaultsDirectory = "defaults"
+	backupExtension   = ".bak"
 )
 
 // Storage is an interface representing a service responsible for loading JSON configuration from provided location.
@@ -32,27 +31,40 @@ type Storage interface {
 	Model() interface{}
 }
 
-// New creates new storage service. Provided config model should be a pointer.
-func New(cfg interface{}, workDir string, name string) Storage {
+// New creates a new storage service in accordance to Thingsplex layout. Provided model should be a pointer.
+func New(model interface{}, workDir string, name string) Storage {
 	return &storage{
-		lock:    &sync.Mutex{},
-		workDir: workDir,
-		name:    name,
-		config:  cfg,
+		lock:         &sync.Mutex{},
+		dataPath:     filepath.Join(workDir, dataDirectory, name),
+		backupPath:   filepath.Join(workDir, dataDirectory, name) + backupExtension,
+		defaultsPath: filepath.Join(workDir, defaultsDirectory, name),
+		model:        model,
+	}
+}
+
+// NewCanonical creates a new storage service allowing canonical separate paths for defaults and data. Provided model should be a pointer.
+func NewCanonical(model interface{}, workDir, defaultsDir, name string) Storage {
+	return &storage{
+		lock:         &sync.Mutex{},
+		dataPath:     filepath.Join(workDir, name),
+		backupPath:   filepath.Join(workDir, name) + backupExtension,
+		defaultsPath: filepath.Join(defaultsDir, name),
+		model:        model,
 	}
 }
 
 // storage is an implementation of the storage service.
 type storage struct {
-	lock    *sync.Mutex
-	workDir string
-	name    string
-	config  interface{}
+	lock         *sync.Mutex
+	dataPath     string
+	backupPath   string
+	defaultsPath string
+	model        interface{}
 }
 
 // Model returns a configuration model object.
 func (s *storage) Model() interface{} {
-	return s.config
+	return s.model
 }
 
 // Load loads the configuration. First a default configuration is loaded if present and then an actual configuration is used to override the defaults.
@@ -60,12 +72,12 @@ func (s *storage) Load() error {
 	s.lock.Lock()
 	defer s.lock.Unlock()
 
-	dataExists, err := s.fileExists(s.getDataPath())
+	dataExists, err := s.fileExists(s.dataPath)
 	if err != nil {
 		return err
 	}
 
-	defaultsExists, err := s.fileExists(s.getDefaultPath())
+	defaultsExists, err := s.fileExists(s.defaultsPath)
 	if err != nil {
 		return err
 	}
@@ -73,7 +85,7 @@ func (s *storage) Load() error {
 	if !dataExists && !defaultsExists {
 		return fmt.Errorf(
 			"storage: no configuration files were found at paths: %s, %s",
-			s.getDataPath(), s.getDefaultPath(),
+			s.dataPath, s.defaultsPath,
 		)
 	}
 
@@ -84,7 +96,7 @@ func (s *storage) Load() error {
 func (s *storage) load(defaultsExists, dataExists bool) error {
 	// Always try to load default configuration first.
 	if defaultsExists {
-		err := s.loadFile(s.getDefaultPath())
+		err := s.loadFile(s.defaultsPath)
 		if err != nil {
 			return err
 		}
@@ -101,7 +113,7 @@ func (s *storage) load(defaultsExists, dataExists bool) error {
 			return err
 		}
 
-		log.WithError(err).Errorf("storage: failed to read the configuration file at path %s, falling back to defaults", s.getDataPath())
+		log.WithError(err).Errorf("storage: failed to read the configuration file at path %s, falling back to defaults", s.dataPath)
 	}
 
 	return nil
@@ -109,12 +121,12 @@ func (s *storage) load(defaultsExists, dataExists bool) error {
 
 // load loads the configuration files and performs fallback to a last backup if possible.
 func (s *storage) loadData() error {
-	err := s.loadFile(s.getDataPath())
+	err := s.loadFile(s.dataPath)
 	if err == nil {
 		return nil
 	}
 
-	backupExists, existsErr := s.fileExists(s.getBackupPath())
+	backupExists, existsErr := s.fileExists(s.backupPath)
 	if existsErr != nil {
 		return existsErr
 	}
@@ -123,12 +135,12 @@ func (s *storage) loadData() error {
 		return err
 	}
 
-	err = s.loadFile(s.getBackupPath())
+	err = s.loadFile(s.backupPath)
 	if err != nil {
 		return err
 	}
 
-	log.WithError(err).Errorf("storage: failed to read the configuration file at path %s, falling back to last backup", s.getDataPath())
+	log.WithError(err).Errorf("storage: failed to read the configuration file at path %s, falling back to last backup", s.dataPath)
 
 	return nil
 }
@@ -138,9 +150,9 @@ func (s *storage) Save() error {
 	s.lock.Lock()
 	defer s.lock.Unlock()
 
-	err := os.MkdirAll(path.Dir(s.getDataPath()), 0774) //nolint:gofumpt
+	err := os.MkdirAll(path.Dir(s.dataPath), 0774) //nolint:gofumpt
 	if err != nil {
-		return fmt.Errorf("storage: cannot create a configuration directory at path %s: %w", path.Dir(s.getDataPath()), err)
+		return fmt.Errorf("storage: cannot create a configuration directory at path %s: %w", path.Dir(s.dataPath), err)
 	}
 
 	err = s.makeBackup()
@@ -148,15 +160,15 @@ func (s *storage) Save() error {
 		return fmt.Errorf("storage: failed to make a configuration backup: %w", err)
 	}
 
-	body, err := json.MarshalIndent(s.config, "", "\t")
+	body, err := json.MarshalIndent(s.model, "", "\t")
 	if err != nil {
-		return fmt.Errorf("storage: cannot marshal a configuration file at path %s: %w", s.getDataPath(), err)
+		return fmt.Errorf("storage: cannot marshal a configuration file at path %s: %w", s.dataPath, err)
 	}
 
 	//nolint:gosec
-	err = ioutil.WriteFile(s.getDataPath(), body, 0664) //nolint:gofumpt
+	err = ioutil.WriteFile(s.dataPath, body, 0664) //nolint:gofumpt
 	if err != nil {
-		return fmt.Errorf("storage: cannot save a configuration file at path %s: %w", s.getDataPath(), err)
+		return fmt.Errorf("storage: cannot save a configuration file at path %s: %w", s.dataPath, err)
 	}
 
 	return nil
@@ -164,7 +176,7 @@ func (s *storage) Save() error {
 
 // makeBackup copies contents of an existing configuration to a backup file.
 func (s *storage) makeBackup() error {
-	cfgExists, err := s.fileExists(s.getDataPath())
+	cfgExists, err := s.fileExists(s.dataPath)
 	if err != nil {
 		return err
 	}
@@ -173,13 +185,13 @@ func (s *storage) makeBackup() error {
 		return nil
 	}
 
-	body, err := ioutil.ReadFile(s.getDataPath())
+	body, err := ioutil.ReadFile(s.dataPath)
 	if err != nil {
 		return err
 	}
 
 	//nolint:gosec
-	err = ioutil.WriteFile(s.getBackupPath(), body, 0664) //nolint:gofumpt
+	err = ioutil.WriteFile(s.backupPath, body, 0664) //nolint:gofumpt
 	if err != nil {
 		return err
 	}
@@ -192,16 +204,16 @@ func (s *storage) Reset() error {
 	s.lock.Lock()
 	defer s.lock.Unlock()
 
-	defaultsExists, err := s.fileExists(s.getDefaultPath())
+	defaultsExists, err := s.fileExists(s.defaultsPath)
 	if err != nil {
 		return err
 	}
 
 	if !defaultsExists {
-		return fmt.Errorf("storage: cannot reset as the default configuration file at path %s is not found", s.getBackupPath())
+		return fmt.Errorf("storage: cannot reset as the default configuration file at path %s is not found", s.defaultsPath)
 	}
 
-	cfgExists, err := s.fileExists(s.getDataPath())
+	cfgExists, err := s.fileExists(s.dataPath)
 	if err != nil {
 		return err
 	}
@@ -209,31 +221,16 @@ func (s *storage) Reset() error {
 	if cfgExists {
 		err = s.makeBackup()
 		if err != nil {
-			return fmt.Errorf("storage: failed to make backup of the configuration file at path %s: %w", s.getBackupPath(), err)
+			return fmt.Errorf("storage: failed to make backup of the configuration file at path %s: %w", s.backupPath, err)
 		}
 
-		err = os.Remove(s.getDataPath())
+		err = os.Remove(s.dataPath)
 		if err != nil {
-			return fmt.Errorf("storage: failed to remove the configuration file at path %s: %w", s.getDataPath(), err)
+			return fmt.Errorf("storage: failed to remove the configuration file at path %s: %w", s.dataPath, err)
 		}
 	}
 
 	return s.load(true, false)
-}
-
-// getDataPath returns the data path.
-func (s *storage) getDataPath() string {
-	return filepath.Join(s.workDir, DataDirectory, s.name)
-}
-
-// getDefaultPath returns the defaults path.
-func (s *storage) getDefaultPath() string {
-	return filepath.Join(s.workDir, DefaultsDirectory, s.name)
-}
-
-// getBackupPath returns the backup path.
-func (s *storage) getBackupPath() string {
-	return s.getDataPath() + backupExtension
 }
 
 // fileExists checks if the file exists.
@@ -255,7 +252,7 @@ func (s *storage) loadFile(path string) error {
 		return fmt.Errorf("storage: cannot load a configuration file from path %s: %w", path, err)
 	}
 
-	err = json.Unmarshal(body, s.config)
+	err = json.Unmarshal(body, s.model)
 	if err != nil {
 		return fmt.Errorf("storage: cannot unmarshal a configuration file from path %s with contents '%s': %w", path, body, err)
 	}

@@ -10,22 +10,31 @@ import (
 	"gopkg.in/natefinch/lumberjack.v2"
 )
 
-var workDir string
+// GetConfigurationDirectory returns a configuration directory passed through the -c option with a fallback to a relative path.
+func GetConfigurationDirectory() string {
+	const c = "c"
 
-// GetWorkingDirectory returns a working directory passed through the -c option.
+	if flag.Lookup(c) == nil {
+		flag.String(c, "", "Configuration directory.")
+		flag.Parse()
+	}
+
+	dir := flag.Lookup(c).Value.String()
+	if dir != "" {
+		return dir
+	}
+
+	return "./"
+}
+
+// GetWorkingDirectory returns a working directory with a fallback to a relative path.
 func GetWorkingDirectory() string {
-	if workDir != "" {
-		return workDir
+	dir, err := os.Getwd()
+	if err != nil {
+		return "./"
 	}
 
-	flag.StringVar(&workDir, "c", "", "Working directory.")
-	flag.Parse()
-
-	if workDir == "" {
-		workDir = "./"
-	}
-
-	return workDir
+	return dir
 }
 
 // InitializeLogger initializes logger with an optional log rotation.

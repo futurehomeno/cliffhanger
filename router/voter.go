@@ -20,6 +20,13 @@ func (f MessageVoterFn) Vote(message *fimpgo.Message) bool {
 	return f(message)
 }
 
+// ForTopic is a message voter allowing a routing to handle message only if it is relevant.
+func ForTopic(topic string) MessageVoter {
+	return MessageVoterFn(func(message *fimpgo.Message) bool {
+		return message.Topic == topic
+	})
+}
+
 // ForService is a message voter allowing a routing to handle message only if it is relevant.
 func ForService(service string) MessageVoter {
 	return MessageVoterFn(func(message *fimpgo.Message) bool {
