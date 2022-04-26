@@ -60,7 +60,7 @@ func TestNewCmdLogSetLevel(t *testing.T) { //nolint:paralleltest
 	for _, tt := range tests { //nolint:paralleltest
 		tt := tt
 		t.Run(tt.name, func(t *testing.T) {
-			f := config.HandleCmdLogSetLevel(tt.logSetter)
+			f := config.HandleCmdLogSetLevel("test", tt.logSetter)
 
 			got := f.Handle(tt.msg)
 
@@ -68,7 +68,9 @@ func TestNewCmdLogSetLevel(t *testing.T) { //nolint:paralleltest
 				assert.NotNil(t, got)
 				assert.Equal(t, "evt.error.report", got.Payload.Type)
 			} else {
-				assert.Nil(t, got)
+				assert.NotNil(t, got)
+				assert.Equal(t, config.EvtLogLevelReport, got.Payload.Type)
+				assert.Equal(t, tt.wantLogLvl.String(), got.Payload.Value)
 				assert.Equal(t, tt.wantLogLvl, log.GetLevel())
 			}
 		})
