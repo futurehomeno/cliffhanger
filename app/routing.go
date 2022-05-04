@@ -409,6 +409,11 @@ func HandleCmdAuthLogin(
 
 			report.Status = string(appLifecycle.AuthState())
 
+			// Compatibility hack for FHX which implemented login flow not in accordance with the specification.
+			if err != nil || appLifecycle.AuthState() != lifecycle.AuthStateAuthenticated {
+				report.Errors = "failed to login"
+			}
+
 			msg := fimpgo.NewMessage(
 				EvtAuthStatusReport,
 				serviceName,
