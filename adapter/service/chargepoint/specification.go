@@ -77,7 +77,7 @@ func requiredInterfaces() []fimptype.Interface {
 		},
 		{
 			Type:      fimptype.TypeIn,
-			MsgType:   CmdCableLockGetReport,
+			MsgType:   CmdCurrentSessionGetReport,
 			ValueType: fimpgo.VTypeNull,
 			Version:   "1",
 		},
