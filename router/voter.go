@@ -20,6 +20,19 @@ func (f MessageVoterFn) Vote(message *fimpgo.Message) bool {
 	return f(message)
 }
 
+// Or is a composite voter returning true if at least one of voters returned true, equal to logic OR statement.
+func Or(voters ...MessageVoter) MessageVoter {
+	return MessageVoterFn(func(message *fimpgo.Message) bool {
+		for _, v := range voters {
+			if v.Vote(message) {
+				return true
+			}
+		}
+
+		return false
+	})
+}
+
 // ForTopic is a message voter allowing a routing to handle message only if it is relevant.
 func ForTopic(topic string) MessageVoter {
 	return MessageVoterFn(func(message *fimpgo.Message) bool {
