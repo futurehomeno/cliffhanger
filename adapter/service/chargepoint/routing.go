@@ -31,6 +31,8 @@ func RouteService(adapter adapter.Adapter) []*router.Routing {
 		RouteCmdChargeStop(adapter),
 		RouteCmdCableLockSet(adapter),
 		RouteCmdStateGetReport(adapter),
+		RouteCmdCurrentSessionGetReport(adapter),
+		RouteCmdCableLockGetReport(adapter),
 	}
 }
 
