@@ -73,7 +73,6 @@ func TestRouteMainElec(t *testing.T) { //nolint:paralleltest
 						MockElectricityMeterReport("W", 0, errors.New("test"), true),
 				),
 				Nodes: []*suite.Node{
-
 					{
 						Name:    "Reporter error on power report",
 						Command: suite.StringMessage("pt:j1/mt:cmd/rt:dev/rn:test_adapter/ad:1/sv:meter_elec/ad:2", "cmd.meter.get_report", "meter_elec", "W"),
@@ -156,7 +155,7 @@ func TestRouteMainElec(t *testing.T) { //nolint:paralleltest
 	s.Run(t)
 }
 
-func TestTaskMainElec(t *testing.T) {
+func TestTaskMainElec(t *testing.T) { //nolint:paralleltest
 	s := &suite.Suite{
 		Cases: []*suite.Case{
 			{
