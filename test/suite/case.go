@@ -7,13 +7,14 @@ import (
 	"github.com/stretchr/testify/mock"
 
 	"github.com/futurehomeno/cliffhanger/router"
+	"github.com/futurehomeno/cliffhanger/task"
 )
 
 type Mock interface {
 	AssertExpectations(t mock.TestingT) bool
 }
 
-type CaseSetup func(t *testing.T, mqtt *fimpgo.MqttTransport) ([]*router.Routing, []Mock)
+type CaseSetup func(t *testing.T, mqtt *fimpgo.MqttTransport) ([]*router.Routing, []*task.Task, []Mock)
 
 func NewCase(name string) *Case {
 	return &Case{
@@ -24,11 +25,13 @@ func NewCase(name string) *Case {
 type Case struct {
 	Name    string
 	Routing []*router.Routing
+	Tasks   []*task.Task
 	Mocks   []Mock
 	Setup   CaseSetup
 	Nodes   []*Node
 
-	router router.Router
+	router      router.Router
+	taskManager task.Manager
 }
 
 func (c *Case) WithName(name string) *Case {
@@ -74,9 +77,10 @@ func (c *Case) setup(t *testing.T, mqtt *fimpgo.MqttTransport) {
 	t.Helper()
 
 	if c.Setup != nil {
-		routing, mocks := c.Setup(t, mqtt)
+		routing, tasks, mocks := c.Setup(t, mqtt)
 
 		c.Routing = append(c.Routing, routing...)
+		c.Tasks = append(c.Tasks, tasks...)
 		c.Mocks = append(c.Mocks, mocks...)
 	}
 
@@ -86,6 +90,17 @@ func (c *Case) setup(t *testing.T, mqtt *fimpgo.MqttTransport) {
 		err := c.router.Start()
 		if err != nil {
 			t.Fatalf("failed to start the router for the test case: %s", err)
+		}
+	}
+
+	if len(c.Tasks) > 0 && len(c.Nodes) > 0 {
+		c.taskManager = task.NewManager(c.Tasks...)
+
+		c.Nodes[0].postExpectationCallback = func(t *testing.T) {
+			err := c.taskManager.Start()
+			if err != nil {
+				t.Fatalf("failed to start the task manager for the test case: %s", err)
+			}
 		}
 	}
 }
@@ -98,5 +113,16 @@ func (c *Case) tearDown(t *testing.T) {
 		if err != nil {
 			t.Fatalf("failed to stop the router for the test case: %s", err)
 		}
+
+		c.router = nil
+	}
+
+	if c.taskManager != nil && len(c.Nodes) > 0 {
+		err := c.taskManager.Stop()
+		if err != nil {
+			t.Fatalf("failed to stop the task manager for the test case: %s", err)
+		}
+
+		c.taskManager = nil
 	}
 }

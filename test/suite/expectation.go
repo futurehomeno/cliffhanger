@@ -25,12 +25,28 @@ func ExpectString(topic, messageType, service, value string) *Expectation {
 		ExpectString(value)
 }
 
+func ExpectFloat(topic, messageType, service string, value float64) *Expectation {
+	return NewExpectation().
+		ExpectTopic(topic).
+		ExpectType(messageType).
+		ExpectService(service).
+		ExpectFloat(value)
+}
+
 func ExpectObject(topic, messageType, service string, object interface{}) *Expectation {
 	return NewExpectation().
 		ExpectTopic(topic).
 		ExpectType(messageType).
 		ExpectService(service).
 		ExpectObject(object)
+}
+
+func ExpectStringMap(topic, messageType, service string, value map[string]string) *Expectation {
+	return NewExpectation().
+		ExpectTopic(topic).
+		ExpectType(messageType).
+		ExpectService(service).
+		ExpectStringMap(value)
 }
 
 func ExpectError(topic, service string) *Expectation {
@@ -140,6 +156,32 @@ func (e *Expectation) ExpectObject(object interface{}) *Expectation {
 		}
 
 		return cmp.Equal(raw, message.Payload.GetRawObjectValue())
+	}))
+
+	return e
+}
+
+func (e *Expectation) ExpectStringMap(value map[string]string) *Expectation {
+	e.Voters = append(e.Voters, router.MessageVoterFn(func(message *fimpgo.Message) bool {
+		v, err := message.Payload.GetStrMapValue()
+		if err != nil {
+			return false
+		}
+
+		return cmp.Equal(value, v)
+	}))
+
+	return e
+}
+
+func (e *Expectation) ExpectProperty(propertyName string, propertyValue interface{}) *Expectation {
+	e.Voters = append(e.Voters, router.MessageVoterFn(func(message *fimpgo.Message) bool {
+		property, ok := message.Payload.Properties[propertyName]
+		if !ok {
+			return false
+		}
+
+		return cmp.Equal(property, propertyValue)
 	}))
 
 	return e

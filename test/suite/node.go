@@ -25,8 +25,9 @@ type Node struct {
 	Expectations []*Expectation
 	Timeout      time.Duration
 
-	lock *sync.RWMutex
-	done chan struct{}
+	lock                    *sync.RWMutex
+	done                    chan struct{}
+	postExpectationCallback func(t *testing.T)
 }
 
 func (n *Node) WithName(name string) *Node {
@@ -63,6 +64,10 @@ func (n *Node) Run(t *testing.T, mqtt *fimpgo.MqttTransport) {
 	err := nodeRouter.Start()
 	if err != nil {
 		t.Fatalf("failed to start the node router")
+	}
+
+	if n.postExpectationCallback != nil {
+		n.postExpectationCallback(t)
 	}
 
 	n.publishMessage(t, mqtt, n.Command)

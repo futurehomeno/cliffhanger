@@ -26,21 +26,21 @@ func HandleReporting(adapter adapter.Adapter) func() {
 			if len(waterHeater.SupportedModes()) > 0 {
 				_, err := waterHeater.SendModeReport(false)
 				if err != nil {
-					log.WithError(err).Errorf("adapter: failed to send water header mode report")
+					log.WithError(err).Errorf("adapter: failed to send water heater mode report")
 				}
 			}
 
 			for _, mode := range waterHeater.SupportedSetpoints() {
 				_, err := waterHeater.SendSetpointReport(mode, false)
 				if err != nil {
-					log.WithError(err).Errorf("adapter: failed to send water header setpoint report for mode %s", mode)
+					log.WithError(err).Errorf("adapter: failed to send water heater setpoint report for mode %s", mode)
 				}
 			}
 
 			if len(waterHeater.SupportedStates()) > 0 {
 				_, err := waterHeater.SendStateReport(false)
 				if err != nil {
-					log.WithError(err).Errorf("adapter: failed to send water header state report")
+					log.WithError(err).Errorf("adapter: failed to send water heater state report")
 				}
 			}
 		}
