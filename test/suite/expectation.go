@@ -49,6 +49,14 @@ func ExpectStringMap(topic, messageType, service string, value map[string]string
 		ExpectStringMap(value)
 }
 
+func ExpectFloatMap(topic, messageType, service string, value map[string]float64) *Expectation {
+	return NewExpectation().
+		ExpectTopic(topic).
+		ExpectType(messageType).
+		ExpectService(service).
+		ExpectFloatMap(value)
+}
+
 func ExpectError(topic, service string) *Expectation {
 	return NewExpectation().
 		ExpectTopic(topic).
@@ -164,6 +172,19 @@ func (e *Expectation) ExpectObject(object interface{}) *Expectation {
 func (e *Expectation) ExpectStringMap(value map[string]string) *Expectation {
 	e.Voters = append(e.Voters, router.MessageVoterFn(func(message *fimpgo.Message) bool {
 		v, err := message.Payload.GetStrMapValue()
+		if err != nil {
+			return false
+		}
+
+		return cmp.Equal(value, v)
+	}))
+
+	return e
+}
+
+func (e *Expectation) ExpectFloatMap(value map[string]float64) *Expectation {
+	e.Voters = append(e.Voters, router.MessageVoterFn(func(message *fimpgo.Message) bool {
+		v, err := message.Payload.GetFloatMapValue()
 		if err != nil {
 			return false
 		}
