@@ -17,10 +17,38 @@ func NullMessage(topic, messageType, service string) *fimpgo.Message {
 	}
 }
 
+func BoolMessage(topic, messageType, service string, value bool) *fimpgo.Message {
+	return &fimpgo.Message{
+		Topic: topic,
+		Payload: fimpgo.NewBoolMessage(
+			messageType,
+			service,
+			value,
+			nil,
+			nil,
+			nil,
+		),
+	}
+}
+
 func StringMessage(topic, messageType, service, value string) *fimpgo.Message {
 	return &fimpgo.Message{
 		Topic: topic,
 		Payload: fimpgo.NewStringMessage(
+			messageType,
+			service,
+			value,
+			nil,
+			nil,
+			nil,
+		),
+	}
+}
+
+func IntMessage(topic, messageType, service string, value int64) *fimpgo.Message {
+	return &fimpgo.Message{
+		Topic: topic,
+		Payload: fimpgo.NewIntMessage(
 			messageType,
 			service,
 			value,
@@ -63,6 +91,20 @@ func StringMapMessage(topic, messageType, service string, value map[string]strin
 	return &fimpgo.Message{
 		Topic: topic,
 		Payload: fimpgo.NewStrMapMessage(
+			messageType,
+			service,
+			value,
+			nil,
+			nil,
+			nil,
+		),
+	}
+}
+
+func FloatMapMessage(topic, messageType, service string, value map[string]float64) *fimpgo.Message {
+	return &fimpgo.Message{
+		Topic: topic,
+		Payload: fimpgo.NewFloatMapMessage(
 			messageType,
 			service,
 			value,

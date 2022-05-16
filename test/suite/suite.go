@@ -87,8 +87,5 @@ func (s *Suite) init(t *testing.T) {
 func (s *Suite) tearDown(t *testing.T) {
 	t.Helper()
 
-	err := s.mqtt.Start()
-	if err != nil {
-		t.Fatalf("failed to stop the MQTT client: %s", err)
-	}
+	s.mqtt.Stop()
 }

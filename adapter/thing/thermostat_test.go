@@ -464,7 +464,7 @@ func routeThermostat(
 	thermostatController *mockedthermostat.Controller,
 	sensorTempReporter *mockednumericsensor.Reporter,
 	meterElecReporter *mockedmeterelec.Reporter,
-) suite.CaseSetup {
+) suite.BaseSetup {
 	return func(t *testing.T, mqtt *fimpgo.MqttTransport) ([]*router.Routing, []*task.Task, []suite.Mock) {
 		t.Helper()
 
@@ -479,7 +479,7 @@ func taskThermostat(
 	sensorTempReporter *mockednumericsensor.Reporter,
 	meterElecReporter *mockedmeterelec.Reporter,
 	interval time.Duration,
-) suite.CaseSetup {
+) suite.BaseSetup {
 	return func(t *testing.T, mqtt *fimpgo.MqttTransport) ([]*router.Routing, []*task.Task, []suite.Mock) {
 		t.Helper()
 

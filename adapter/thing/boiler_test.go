@@ -450,7 +450,7 @@ func routeBoiler(
 	waterHeaterController *mockedwaterheater.Controller,
 	sensorWatTempReporter *mockednumericsensor.Reporter,
 	meterElecReporter *mockedmeterelec.Reporter,
-) suite.CaseSetup {
+) suite.BaseSetup {
 	return func(t *testing.T, mqtt *fimpgo.MqttTransport) ([]*router.Routing, []*task.Task, []suite.Mock) {
 		t.Helper()
 
@@ -465,7 +465,7 @@ func taskBoiler(
 	sensorWatTempReporter *mockednumericsensor.Reporter,
 	meterElecReporter *mockedmeterelec.Reporter,
 	interval time.Duration,
-) suite.CaseSetup {
+) suite.BaseSetup {
 	return func(t *testing.T, mqtt *fimpgo.MqttTransport) ([]*router.Routing, []*task.Task, []suite.Mock) {
 		t.Helper()
 

@@ -21,7 +21,7 @@ func TopicPatternApplication(serviceName string) string {
 	return fmt.Sprintf("pt:j1/+/rt:app/rn:%s/ad:1", serviceName)
 }
 
-// EvtErrorReport is a type of a message for error responses.
+// EvtErrorReport is a type of message for error responses.
 const EvtErrorReport = "evt.error.report"
 
 // Routing is an object representing a particular routing. It contains a message handler and a set of message voters.

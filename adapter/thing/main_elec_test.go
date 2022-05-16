@@ -218,7 +218,7 @@ type mockedMeterElec interface {
 
 func routeMainElec[T mockedMeterElec](
 	meterElecReporter T,
-) suite.CaseSetup {
+) suite.BaseSetup {
 	return func(t *testing.T, mqtt *fimpgo.MqttTransport) ([]*router.Routing, []*task.Task, []suite.Mock) {
 		t.Helper()
 
@@ -231,7 +231,7 @@ func routeMainElec[T mockedMeterElec](
 func taskMainElec[T mockedMeterElec](
 	meterElecReporter T,
 	interval time.Duration,
-) suite.CaseSetup {
+) suite.BaseSetup {
 	return func(t *testing.T, mqtt *fimpgo.MqttTransport) ([]*router.Routing, []*task.Task, []suite.Mock) {
 		t.Helper()
 

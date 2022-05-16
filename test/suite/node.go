@@ -20,14 +20,14 @@ func NewNode(name string) *Node {
 }
 
 type Node struct {
-	Name         string
-	Command      *fimpgo.Message
-	Expectations []*Expectation
-	Timeout      time.Duration
+	Name          string
+	Command       *fimpgo.Message
+	Expectations  []*Expectation
+	Timeout       time.Duration
+	InitCallbacks []Callback
 
-	lock                    *sync.RWMutex
-	done                    chan struct{}
-	postExpectationCallback func(t *testing.T)
+	lock *sync.RWMutex
+	done chan struct{}
 }
 
 func (n *Node) WithName(name string) *Node {
@@ -54,6 +54,12 @@ func (n *Node) WithTimeout(timeout time.Duration) *Node {
 	return n
 }
 
+func (n *Node) WithInitCallbacks(callbacks ...Callback) *Node {
+	n.InitCallbacks = append(n.InitCallbacks, callbacks...)
+
+	return n
+}
+
 func (n *Node) Run(t *testing.T, mqtt *fimpgo.MqttTransport) {
 	t.Helper()
 
@@ -66,8 +72,8 @@ func (n *Node) Run(t *testing.T, mqtt *fimpgo.MqttTransport) {
 		t.Fatalf("failed to start the node router")
 	}
 
-	if n.postExpectationCallback != nil {
-		n.postExpectationCallback(t)
+	for _, callback := range n.InitCallbacks {
+		callback(t)
 	}
 
 	n.publishMessage(t, mqtt, n.Command)

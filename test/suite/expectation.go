@@ -25,6 +25,22 @@ func ExpectString(topic, messageType, service, value string) *Expectation {
 		ExpectString(value)
 }
 
+func ExpectBool(topic, messageType, service string, value bool) *Expectation {
+	return NewExpectation().
+		ExpectTopic(topic).
+		ExpectType(messageType).
+		ExpectService(service).
+		ExpectBool(value)
+}
+
+func ExpectInt(topic, messageType, service string, value int64) *Expectation {
+	return NewExpectation().
+		ExpectTopic(topic).
+		ExpectType(messageType).
+		ExpectService(service).
+		ExpectInt(value)
+}
+
 func ExpectFloat(topic, messageType, service string, value float64) *Expectation {
 	return NewExpectation().
 		ExpectTopic(topic).
