@@ -17,6 +17,13 @@ const (
 	AtMostOnce
 )
 
+func ExpectMessage(topic, messageType, service string) *Expectation {
+	return NewExpectation().
+		ExpectTopic(topic).
+		ExpectType(messageType).
+		ExpectService(service)
+}
+
 func ExpectString(topic, messageType, service, value string) *Expectation {
 	return NewExpectation().
 		ExpectTopic(topic).
