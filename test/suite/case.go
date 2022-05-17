@@ -137,8 +137,6 @@ func (c *Case) initRouting(mqtt *fimpgo.MqttTransport) {
 		}
 	}
 
-	c.Nodes[0].InitCallbacks = append(c.Nodes[0].InitCallbacks, initCallback)
-
 	tearDownCallback := func(t *testing.T) {
 		err := r.Stop()
 		if err != nil {
@@ -146,7 +144,7 @@ func (c *Case) initRouting(mqtt *fimpgo.MqttTransport) {
 		}
 	}
 
-	c.TearDown = append(c.TearDown, tearDownCallback)
+	c.injectCallbacks(initCallback, tearDownCallback)
 }
 
 func (c *Case) initTasks() {
@@ -163,8 +161,6 @@ func (c *Case) initTasks() {
 		}
 	}
 
-	c.Nodes[0].InitCallbacks = append(c.Nodes[0].InitCallbacks, initCallback)
-
 	tearDownCallback := func(t *testing.T) {
 		err := taskManager.Stop()
 		if err != nil {
@@ -172,7 +168,7 @@ func (c *Case) initTasks() {
 		}
 	}
 
-	c.TearDown = append(c.TearDown, tearDownCallback)
+	c.injectCallbacks(initCallback, tearDownCallback)
 }
 
 func (c *Case) initService() {
@@ -187,14 +183,24 @@ func (c *Case) initService() {
 		}
 	}
 
-	c.Nodes[0].InitCallbacks = append(c.Nodes[0].InitCallbacks, initCallback)
-
 	tearDownCallback := func(t *testing.T) {
 		err := c.Service.Stop()
 		if err != nil {
 			t.Fatalf("failed to stop the service for the test case: %s", err)
 		}
 	}
+
+	c.injectCallbacks(initCallback, tearDownCallback)
+}
+
+// injectCallbacks is responsible for queuing callbacks for execution at the correct stage of the test case.
+// All initialization callbacks must execute only after a first node has already set up its expectations to avoid a race condition.
+// For this reason all initialization callbacks are injected into the first node which is responsible for running them at a correct moment.
+func (c *Case) injectCallbacks(initCallback Callback, tearDownCallback Callback) {
+
+	firstNode := c.Nodes[0]
+
+	firstNode.InitCallbacks = append(c.Nodes[0].InitCallbacks, initCallback)
 
 	c.TearDown = append(c.TearDown, tearDownCallback)
 }
