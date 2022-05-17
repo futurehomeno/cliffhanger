@@ -16,8 +16,9 @@ func Specification(
 	address string,
 	groups,
 	supportedUnits []string,
+	extendedValues []string,
 ) *fimptype.Service {
-	return &fimptype.Service{
+	specification := &fimptype.Service{
 		Address: fmt.Sprintf("/rt:dev/rn:%s/ad:%s/sv:%s/ad:%s", resourceName, resourceAddress, MeterElec, address),
 		Name:    MeterElec,
 		Groups:  groups,
@@ -27,6 +28,12 @@ func Specification(
 		},
 		Interfaces: requiredInterfaces(),
 	}
+
+	if len(extendedValues) > 0 {
+		specification.Props[PropertySupportedExtendedValues] = extendedValues
+	}
+
+	return specification
 }
 
 // requiredInterfaces returns required interfaces by the service.

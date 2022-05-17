@@ -45,7 +45,9 @@ func Specification(
 
 	if supportedRanges != nil {
 		s.Props[PropertySupportedRanges] = supportedRanges
-	} else if supportedRange != nil {
+	}
+
+	if supportedRange != nil {
 		s.Props[PropertySupportedRange] = *supportedRange
 	}
 
