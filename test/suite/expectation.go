@@ -15,6 +15,7 @@ const (
 	AtLeastOnce Occurrence = iota
 	ExactlyOnce
 	AtMostOnce
+	Never
 )
 
 func ExpectMessage(topic, messageType, service string) *Expectation {
@@ -261,6 +262,12 @@ func (e *Expectation) AtMostOnce() *Expectation {
 	return e
 }
 
+func (e *Expectation) Never() *Expectation {
+	e.Occurrence = Never
+
+	return e
+}
+
 func (e *Expectation) vote(message *fimpgo.Message) bool {
 	for _, v := range e.Voters {
 		if !v.Vote(message) {
@@ -279,6 +286,8 @@ func (e *Expectation) assert() bool {
 		return e.called == 1
 	case AtMostOnce:
 		return e.called <= 1
+	case Never:
+		return e.called == 0
 	}
 
 	return false
