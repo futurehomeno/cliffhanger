@@ -98,7 +98,9 @@ func NewExpectation(voters ...router.MessageVoter) *Expectation {
 type Expectation struct {
 	Voters     []router.MessageVoter
 	Reply      *fimpgo.FimpMessage
+	ReplyFn    func() *fimpgo.FimpMessage
 	Publish    *fimpgo.Message
+	PublishFn  func() *fimpgo.Message
 	Occurrence Occurrence
 
 	called int
@@ -238,8 +240,20 @@ func (e *Expectation) ReplyWith(reply *fimpgo.FimpMessage) *Expectation {
 	return e
 }
 
-func (e *Expectation) PublishInResponse(message *fimpgo.Message) *Expectation {
-	e.Publish = message
+func (e *Expectation) ReplyWithFn(replyFn func() *fimpgo.FimpMessage) *Expectation {
+	e.ReplyFn = replyFn
+
+	return e
+}
+
+func (e *Expectation) PublishInResponse(publish *fimpgo.Message) *Expectation {
+	e.Publish = publish
+
+	return e
+}
+
+func (e *Expectation) PublishInResponseFn(publishFn func() *fimpgo.Message) *Expectation {
+	e.PublishFn = publishFn
 
 	return e
 }

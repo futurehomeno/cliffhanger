@@ -134,7 +134,15 @@ func (n *Node) processMessage(t *testing.T, mqtt *fimpgo.MqttTransport, message 
 
 		n.lock.Unlock()
 
+		if e.PublishFn != nil {
+			e.Publish = e.PublishFn()
+		}
+
 		n.publishMessage(t, mqtt, e.Publish)
+
+		if e.ReplyFn != nil {
+			e.Reply = e.ReplyFn()
+		}
 
 		return e.Reply, nil
 	}
