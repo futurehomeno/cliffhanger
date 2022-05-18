@@ -27,6 +27,7 @@ type Node struct {
 	InitCallbacks []Callback
 
 	lock *sync.RWMutex
+	once *sync.Once
 	done chan struct{}
 }
 
@@ -99,6 +100,7 @@ func (n *Node) configure() {
 	}
 
 	n.lock = &sync.RWMutex{}
+	n.once = &sync.Once{}
 	n.done = make(chan struct{})
 }
 
@@ -178,7 +180,9 @@ func (n *Node) checkIfDone() {
 		}
 	}
 
-	close(n.done)
+	n.once.Do(func() {
+		close(n.done)
+	})
 }
 
 func (n *Node) assertExpectations(t *testing.T) {
