@@ -45,10 +45,13 @@ type Controller interface {
 	ChargepointStateReport() (string, error)
 }
 
+// EnergyAwareController is an interface representing an actual car charger device with energy management capabilities.
 type EnergyAwareController interface {
 	Controller
 
+	// SetChargepointChargingMode sets a charging mode on the chargepoint.
 	SetChargepointChargingMode(mode string) error
+	// ChargepointChargingModeReport returns a charging mode of a chargepoint.
 	ChargepointChargingModeReport() (string, error)
 }
 
