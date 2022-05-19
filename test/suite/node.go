@@ -178,6 +178,11 @@ func (n *Node) checkIfDone() {
 		if !e.assert() {
 			return
 		}
+
+		// If at least one expectation is negative, node needs to wait until timeout.
+		if e.Occurrence == Never {
+			return
+		}
 	}
 
 	n.once.Do(func() {
