@@ -27,6 +27,7 @@ type Node struct {
 	InitCallbacks []Callback
 
 	lock *sync.RWMutex
+	once *sync.Once
 	done chan struct{}
 }
 
@@ -99,6 +100,7 @@ func (n *Node) configure() {
 	}
 
 	n.lock = &sync.RWMutex{}
+	n.once = &sync.Once{}
 	n.done = make(chan struct{})
 }
 
@@ -134,7 +136,15 @@ func (n *Node) processMessage(t *testing.T, mqtt *fimpgo.MqttTransport, message 
 
 		n.lock.Unlock()
 
+		if e.PublishFn != nil {
+			e.Publish = e.PublishFn()
+		}
+
 		n.publishMessage(t, mqtt, e.Publish)
+
+		if e.ReplyFn != nil {
+			e.Reply = e.ReplyFn()
+		}
 
 		return e.Reply, nil
 	}
@@ -168,9 +178,16 @@ func (n *Node) checkIfDone() {
 		if !e.assert() {
 			return
 		}
+
+		// If at least one expectation is negative, node needs to wait until timeout.
+		if e.Occurrence == Never {
+			return
+		}
 	}
 
-	close(n.done)
+	n.once.Do(func() {
+		close(n.done)
+	})
 }
 
 func (n *Node) assertExpectations(t *testing.T) {

@@ -15,7 +15,15 @@ const (
 	AtLeastOnce Occurrence = iota
 	ExactlyOnce
 	AtMostOnce
+	Never
 )
+
+func ExpectMessage(topic, messageType, service string) *Expectation {
+	return NewExpectation().
+		ExpectTopic(topic).
+		ExpectType(messageType).
+		ExpectService(service)
+}
 
 func ExpectString(topic, messageType, service, value string) *Expectation {
 	return NewExpectation().
@@ -90,7 +98,9 @@ func NewExpectation(voters ...router.MessageVoter) *Expectation {
 type Expectation struct {
 	Voters     []router.MessageVoter
 	Reply      *fimpgo.FimpMessage
+	ReplyFn    func() *fimpgo.FimpMessage
 	Publish    *fimpgo.Message
+	PublishFn  func() *fimpgo.Message
 	Occurrence Occurrence
 
 	called int
@@ -230,8 +240,20 @@ func (e *Expectation) ReplyWith(reply *fimpgo.FimpMessage) *Expectation {
 	return e
 }
 
-func (e *Expectation) PublishInResponse(message *fimpgo.Message) *Expectation {
-	e.Publish = message
+func (e *Expectation) ReplyWithFn(replyFn func() *fimpgo.FimpMessage) *Expectation {
+	e.ReplyFn = replyFn
+
+	return e
+}
+
+func (e *Expectation) PublishInResponse(publish *fimpgo.Message) *Expectation {
+	e.Publish = publish
+
+	return e
+}
+
+func (e *Expectation) PublishInResponseFn(publishFn func() *fimpgo.Message) *Expectation {
+	e.PublishFn = publishFn
 
 	return e
 }
@@ -254,6 +276,12 @@ func (e *Expectation) AtMostOnce() *Expectation {
 	return e
 }
 
+func (e *Expectation) Never() *Expectation {
+	e.Occurrence = Never
+
+	return e
+}
+
 func (e *Expectation) vote(message *fimpgo.Message) bool {
 	for _, v := range e.Voters {
 		if !v.Vote(message) {
@@ -272,6 +300,8 @@ func (e *Expectation) assert() bool {
 		return e.called == 1
 	case AtMostOnce:
 		return e.called <= 1
+	case Never:
+		return e.called == 0
 	}
 
 	return false
