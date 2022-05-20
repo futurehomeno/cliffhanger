@@ -39,6 +39,13 @@ func HandleReporting(adapter adapter.Adapter) func() {
 					log.WithError(err).Errorf("adapter: failed to send chargepoint state report")
 				}
 			}
+
+			if chargepoint.SupportsChargingModes() {
+				_, err = chargepoint.SendChargingModeReport(false)
+				if err != nil {
+					log.WithError(err).Errorf("adapter: failed to send chargepoint charging mode report")
+				}
+			}
 		}
 	}
 }

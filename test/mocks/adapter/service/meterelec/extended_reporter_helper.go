@@ -1,9 +1,5 @@
 package mockedmeterelec
 
-func MockExtendedReporter() *ExtendedReporter {
-	return &ExtendedReporter{}
-}
-
 func (_m *ExtendedReporter) MockElectricityMeterReport(unit string, value float64, err error, once bool) *ExtendedReporter {
 	c := _m.On("ElectricityMeterReport", unit).Return(value, err)
 

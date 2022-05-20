@@ -1,9 +1,5 @@
 package mockedthermostat
 
-func MockController() *Controller {
-	return &Controller{}
-}
-
 func (_m *Controller) MockSetThermostatMode(mode string, err error, once bool) *Controller {
 	c := _m.On("SetThermostatMode", mode).Return(err)
 
@@ -53,5 +49,3 @@ func (_m *Controller) MockThermostatStateReport(state string, err error, once bo
 
 	return _m
 }
-
-

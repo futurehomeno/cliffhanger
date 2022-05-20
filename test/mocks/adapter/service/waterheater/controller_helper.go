@@ -1,9 +1,5 @@
 package mockedwaterheater
 
-func MockController() *Controller {
-	return &Controller{}
-}
-
 func (_m *Controller) MockSetWaterHeaterMode(mode string, err error, once bool) *Controller {
 	c := _m.On("SetWaterHeaterMode", mode).Return(err)
 
@@ -53,5 +49,3 @@ func (_m *Controller) MockWaterHeaterStateReport(state string, err error, once b
 
 	return _m
 }
-
-

@@ -1,9 +1,5 @@
 package mockedchargepoint
 
-func MockController() *Controller {
-	return &Controller{}
-}
-
 func (_m *Controller) MockStartChargepointCharging(err error, once bool) *Controller {
 	c := _m.On("StartChargepointCharging").Return(err)
 

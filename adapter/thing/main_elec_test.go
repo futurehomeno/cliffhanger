@@ -23,7 +23,7 @@ func TestRouteMainElec(t *testing.T) { //nolint:paralleltest
 			{
 				Name: "Successful main elec reporting",
 				Setup: routeMainElec(
-					mockedmeterelec.MockReporter().
+					mockedmeterelec.NewReporter(t).
 						MockElectricityMeterReport("W", 1500, nil, false).
 						MockElectricityMeterReport("kWh", 165.78, nil, false),
 				),
@@ -69,7 +69,7 @@ func TestRouteMainElec(t *testing.T) { //nolint:paralleltest
 			{
 				Name: "Failed main elec reporting",
 				Setup: routeMainElec(
-					mockedmeterelec.MockReporter().
+					mockedmeterelec.NewReporter(t).
 						MockElectricityMeterReport("W", 0, errors.New("test"), true),
 				),
 				Nodes: []*suite.Node{
@@ -113,7 +113,7 @@ func TestRouteMainElec(t *testing.T) { //nolint:paralleltest
 			{
 				Name: "Successful extended main elec reporting",
 				Setup: routeMainElec(
-					mockedmeterelec.MockExtendedReporter().
+					mockedmeterelec.NewExtendedReporter(t).
 						MockElectricityMeterExtendedReport(map[string]float64{"p_import": 1500, "e_import": 165.78}, nil, true),
 				),
 				Nodes: []*suite.Node{
@@ -129,7 +129,7 @@ func TestRouteMainElec(t *testing.T) { //nolint:paralleltest
 			{
 				Name: "Failed extended main elec reporting",
 				Setup: routeMainElec(
-					mockedmeterelec.MockExtendedReporter().
+					mockedmeterelec.NewExtendedReporter(t).
 						MockElectricityMeterExtendedReport(nil, errors.New("test"), true),
 				),
 				Nodes: []*suite.Node{
@@ -161,7 +161,7 @@ func TestTaskMainElec(t *testing.T) { //nolint:paralleltest
 			{
 				Name: "Main elec tasks",
 				Setup: taskMainElec(
-					mockedmeterelec.MockReporter().
+					mockedmeterelec.NewReporter(t).
 						MockElectricityMeterReport("W", 1500, nil, true).
 						MockElectricityMeterReport("W", 1500, nil, true).
 						MockElectricityMeterReport("W", 0, errors.New("test"), true).
@@ -187,7 +187,7 @@ func TestTaskMainElec(t *testing.T) { //nolint:paralleltest
 			{
 				Name: "Extended main elec tasks",
 				Setup: taskMainElec(
-					mockedmeterelec.MockExtendedReporter().
+					mockedmeterelec.NewExtendedReporter(t).
 						MockElectricityMeterExtendedReport(map[string]float64{"p_import": 1500, "e_import": 165.78}, nil, true).
 						MockElectricityMeterExtendedReport(map[string]float64{"p_import": 1500, "e_import": 165.78}, nil, true).
 						MockElectricityMeterExtendedReport(nil, errors.New("test"), true).

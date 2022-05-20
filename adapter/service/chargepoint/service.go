@@ -14,9 +14,6 @@ import (
 )
 
 const (
-	ChargingModeSlow   = "slow"
-	ChargingModeNormal = "normal"
-
 	PropertySupportedStates        = "sup_states"
 	PropertySupportedChargingModes = "sup_charging_modes"
 )
@@ -45,8 +42,8 @@ type Controller interface {
 	ChargepointStateReport() (string, error)
 }
 
-// EnergyAwareController is an interface representing an actual car charger device with energy management capabilities.
-type EnergyAwareController interface {
+// AdjustableModeController is an interface representing an actual car charger device with charging modes support.
+type AdjustableModeController interface {
 	Controller
 
 	// SetChargepointChargingMode sets a charging mode on the chargepoint.
@@ -79,8 +76,8 @@ type Service interface {
 	SendStateReport(force bool) (bool, error)
 	// SupportedStates returns states that are supported by the chargepoint.
 	SupportedStates() []string
-	// SupportsEnergyManagement returns true if chargepoint supports energy management.
-	SupportsEnergyManagement() bool
+	// SupportsChargingModes returns true if chargepoint supports charging modes.
+	SupportsChargingModes() bool
 	// SetChargingMode sets the charging mode.
 	SetChargingMode(mode string) error
 	// SendChargingModeReport sends a charging mode report. Returns true if a report was sent.
@@ -123,8 +120,8 @@ func NewService(
 		stateReportingStrategy:   cfg.StateReportingStrategy,
 	}
 
-	if s.SupportsEnergyManagement() {
-		cfg.Specification.EnsureInterfaces(energyManagementInterfaces()...)
+	if s.SupportsChargingModes() {
+		cfg.Specification.EnsureInterfaces(chargingModeInterfaces()...)
 	}
 
 	return s
@@ -290,8 +287,8 @@ func (s *service) SupportedStates() []string {
 	return s.Service.Specification().PropertyStrings(PropertySupportedStates)
 }
 
-func (s *service) SupportsEnergyManagement() bool {
-	_, ok := s.controller.(EnergyAwareController)
+func (s *service) SupportsChargingModes() bool {
+	_, ok := s.controller.(AdjustableModeController)
 	if !ok {
 		return false
 	}
@@ -307,8 +304,8 @@ func (s *service) SetChargingMode(mode string) error {
 	s.lock.Lock()
 	defer s.lock.Unlock()
 
-	if !s.SupportsEnergyManagement() {
-		return fmt.Errorf("%s: setting charging mode is is unsupported", s.Name())
+	if !s.SupportsChargingModes() {
+		return fmt.Errorf("%s: setting charging mode is unsupported", s.Name())
 	}
 
 	normalizedMode, ok := s.normalizeChargingMode(mode)
@@ -316,13 +313,13 @@ func (s *service) SetChargingMode(mode string) error {
 		return fmt.Errorf("%s: unsupported charging mode: %s", s.Name(), mode)
 	}
 
-	controller, ok := s.controller.(EnergyAwareController)
+	controller, ok := s.controller.(AdjustableModeController)
 	if !ok {
 		return fmt.Errorf("%s: setting charging mode is unsupported", s.Name())
 	}
 
 	if err := controller.SetChargepointChargingMode(normalizedMode); err != nil {
-		return fmt.Errorf("%s: failed to retrieve extended meter report: %w", s.Name(), err)
+		return fmt.Errorf("%s: failed to set charging mode: %w", s.Name(), err)
 	}
 
 	return nil
@@ -332,11 +329,11 @@ func (s *service) SendChargingModeReport(force bool) (bool, error) {
 	s.lock.Lock()
 	defer s.lock.Unlock()
 
-	if !s.SupportsEnergyManagement() {
+	if !s.SupportsChargingModes() {
 		return false, fmt.Errorf("%s: charging mode report is unsupported", s.Name())
 	}
 
-	controller, ok := s.controller.(EnergyAwareController)
+	controller, ok := s.controller.(AdjustableModeController)
 	if !ok {
 		return false, fmt.Errorf("%s: charging mode report is unsupported", s.Name())
 	}
@@ -371,12 +368,13 @@ func (s *service) SendChargingModeReport(force bool) (bool, error) {
 
 // normalizeChargingMode normalizes provided charging mode. Returns true, when everything is fine.
 func (s *service) normalizeChargingMode(mode string) (string, bool) {
+	supportedModes := s.Specification().PropertyStrings(PropertySupportedChargingModes)
 	m := strings.ToLower(mode)
 
-	switch m {
-	case ChargingModeNormal:
-	case ChargingModeSlow:
-		return m, true
+	for _, supported := range supportedModes {
+		if m == supported {
+			return m, true
+		}
 	}
 
 	return "", false

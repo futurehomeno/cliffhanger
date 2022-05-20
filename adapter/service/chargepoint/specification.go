@@ -103,8 +103,8 @@ func requiredInterfaces() []fimptype.Interface {
 	}
 }
 
-// energyManagementInterfaces returns optional energy management interfaces of the service.
-func energyManagementInterfaces() []fimptype.Interface {
+// chargingModeInterfaces returns optional charging mode interfaces of the service.
+func chargingModeInterfaces() []fimptype.Interface {
 	return []fimptype.Interface{
 		{
 			Type:      fimptype.TypeIn,
