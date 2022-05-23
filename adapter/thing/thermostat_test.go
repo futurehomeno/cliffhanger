@@ -27,13 +27,13 @@ func TestRouteThermostat(t *testing.T) { //nolint:paralleltest
 			{
 				Name: "Successful thermostat reporting",
 				Setup: routeThermostat(
-					mockedthermostat.MockController().
+					mockedthermostat.NewController(t).
 						MockThermostatModeReport("test_mode_a", nil, true).
 						MockThermostatSetpointReport("test_mode_a", 21, "C", nil, true).
 						MockThermostatStateReport("idle", nil, true),
-					mockednumericsensor.MockReporter().
+					mockednumericsensor.NewReporter(t).
 						MockNumericSensorReport("C", 21.5, nil, false),
-					mockedmeterelec.MockReporter().
+					mockedmeterelec.NewReporter(t).
 						MockElectricityMeterReport("W", 2, nil, false).
 						MockElectricityMeterReport("kWh", 123.45, nil, false),
 				),
@@ -124,13 +124,13 @@ func TestRouteThermostat(t *testing.T) { //nolint:paralleltest
 			{
 				Name: "Failed thermostat reporting",
 				Setup: routeThermostat(
-					mockedthermostat.MockController().
+					mockedthermostat.NewController(t).
 						MockThermostatModeReport("test_mode_a", errors.New("test"), true).
 						MockThermostatSetpointReport("test_mode_a", 0, "", errors.New("test"), true).
 						MockThermostatStateReport("", errors.New("test"), true),
-					mockednumericsensor.MockReporter().
+					mockednumericsensor.NewReporter(t).
 						MockNumericSensorReport("C", 0, errors.New("test"), true),
-					mockedmeterelec.MockReporter().
+					mockedmeterelec.NewReporter(t).
 						MockElectricityMeterReport("W", 0, errors.New("test"), true),
 				),
 				Nodes: []*suite.Node{
@@ -258,7 +258,7 @@ func TestRouteThermostat(t *testing.T) { //nolint:paralleltest
 			{
 				Name: "Successful thermostat configuration",
 				Setup: routeThermostat(
-					mockedthermostat.MockController().
+					mockedthermostat.NewController(t).
 						MockSetThermostatMode("test_mode_c", nil, true).
 						MockThermostatModeReport("test_mode_c", nil, true).
 						MockSetThermostatMode("test_mode_a", nil, true).
@@ -296,7 +296,7 @@ func TestRouteThermostat(t *testing.T) { //nolint:paralleltest
 			{
 				Name: "Failed thermostat configuration",
 				Setup: routeThermostat(
-					mockedthermostat.MockController().
+					mockedthermostat.NewController(t).
 						MockSetThermostatMode("test_mode_a", errors.New("test"), true).
 						MockSetThermostatSetpoint("test_mode_a", 20, "C", errors.New("test"), true),
 					nil, nil,
@@ -400,7 +400,7 @@ func TestTaskThermostat(t *testing.T) { //nolint:paralleltest
 			{
 				Name: "Thermostat tasks",
 				Setup: taskThermostat(
-					mockedthermostat.MockController().
+					mockedthermostat.NewController(t).
 						MockThermostatModeReport("test_mode_a", nil, true).
 						MockThermostatModeReport("", errors.New("test"), true).
 						MockThermostatModeReport("test_mode_a", nil, true).
@@ -417,12 +417,12 @@ func TestTaskThermostat(t *testing.T) { //nolint:paralleltest
 						MockThermostatStateReport("", errors.New("test"), true).
 						MockThermostatStateReport("idle", nil, true).
 						MockThermostatStateReport("heat", nil, false),
-					mockednumericsensor.MockReporter().
+					mockednumericsensor.NewReporter(t).
 						MockNumericSensorReport("C", 21, nil, true).
 						MockNumericSensorReport("C", 0, errors.New("test"), true).
 						MockNumericSensorReport("C", 21, nil, true).
 						MockNumericSensorReport("C", 21.5, nil, false),
-					mockedmeterelec.MockReporter().
+					mockedmeterelec.NewReporter(t).
 						MockElectricityMeterReport("W", 2, nil, true).
 						MockElectricityMeterReport("W", 0, errors.New("test"), true).
 						MockElectricityMeterReport("W", 2, nil, true).

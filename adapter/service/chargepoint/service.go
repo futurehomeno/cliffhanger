@@ -2,6 +2,7 @@ package chargepoint
 
 import (
 	"fmt"
+	"strings"
 	"sync"
 	"time"
 
@@ -13,7 +14,8 @@ import (
 )
 
 const (
-	PropertySupportedStates = "sup_states"
+	PropertySupportedStates        = "sup_states"
+	PropertySupportedChargingModes = "sup_charging_modes"
 )
 
 var (
@@ -40,6 +42,16 @@ type Controller interface {
 	ChargepointStateReport() (string, error)
 }
 
+// AdjustableModeController is an interface representing an actual car charger device with charging modes support.
+type AdjustableModeController interface {
+	Controller
+
+	// SetChargepointChargingMode sets a charging mode on the chargepoint.
+	SetChargepointChargingMode(mode string) error
+	// ChargepointChargingModeReport returns a charging mode of a chargepoint.
+	ChargepointChargingModeReport() (string, error)
+}
+
 // Service is an interface representing a waterHeater FIMP service.
 type Service interface {
 	adapter.Service
@@ -64,6 +76,14 @@ type Service interface {
 	SendStateReport(force bool) (bool, error)
 	// SupportedStates returns states that are supported by the chargepoint.
 	SupportedStates() []string
+	// SupportsChargingModes returns true if chargepoint supports charging modes.
+	SupportsChargingModes() bool
+	// SetChargingMode sets the charging mode.
+	SetChargingMode(mode string) error
+	// SendChargingModeReport sends a charging mode report. Returns true if a report was sent.
+	// Depending on a caching and reporting configuration the service might decide to skip a report.
+	// To make sure report is being sent regardless of circumstances set the force argument to true.
+	SendChargingModeReport(force bool) (bool, error)
 }
 
 // Config represents a service configuration.
@@ -91,7 +111,7 @@ func NewService(
 		cfg.StateReportingStrategy = DefaultStateReportingStrategy
 	}
 
-	return &service{
+	s := &service{
 		Service:                  adapter.NewService(mqtt, cfg.Specification),
 		controller:               cfg.Controller,
 		lock:                     &sync.Mutex{},
@@ -99,6 +119,12 @@ func NewService(
 		sessionReportingStrategy: cfg.SessionReportingStrategy,
 		stateReportingStrategy:   cfg.StateReportingStrategy,
 	}
+
+	if s.SupportsChargingModes() {
+		cfg.Specification.EnsureInterfaces(chargingModeInterfaces()...)
+	}
+
+	return s
 }
 
 // service is a private implementation of a water heater FIMP service.
@@ -259,4 +285,97 @@ func (s *service) SendStateReport(force bool) (bool, error) {
 // SupportedStates returns states that are supported by the chargepoint.
 func (s *service) SupportedStates() []string {
 	return s.Service.Specification().PropertyStrings(PropertySupportedStates)
+}
+
+func (s *service) SupportsChargingModes() bool {
+	_, ok := s.controller.(AdjustableModeController)
+	if !ok {
+		return false
+	}
+
+	if len(s.Specification().PropertyStrings(PropertySupportedChargingModes)) == 0 {
+		return false
+	}
+
+	return true
+}
+
+func (s *service) SetChargingMode(mode string) error {
+	s.lock.Lock()
+	defer s.lock.Unlock()
+
+	if !s.SupportsChargingModes() {
+		return fmt.Errorf("%s: setting charging mode is unsupported", s.Name())
+	}
+
+	normalizedMode, ok := s.normalizeChargingMode(mode)
+	if !ok {
+		return fmt.Errorf("%s: unsupported charging mode: %s", s.Name(), mode)
+	}
+
+	controller, ok := s.controller.(AdjustableModeController)
+	if !ok {
+		return fmt.Errorf("%s: setting charging mode is unsupported", s.Name())
+	}
+
+	if err := controller.SetChargepointChargingMode(normalizedMode); err != nil {
+		return fmt.Errorf("%s: failed to set charging mode: %w", s.Name(), err)
+	}
+
+	return nil
+}
+
+func (s *service) SendChargingModeReport(force bool) (bool, error) {
+	s.lock.Lock()
+	defer s.lock.Unlock()
+
+	if !s.SupportsChargingModes() {
+		return false, fmt.Errorf("%s: charging mode report is unsupported", s.Name())
+	}
+
+	controller, ok := s.controller.(AdjustableModeController)
+	if !ok {
+		return false, fmt.Errorf("%s: charging mode report is unsupported", s.Name())
+	}
+
+	mode, err := controller.ChargepointChargingModeReport()
+	if err != nil {
+		return false, fmt.Errorf("%s: failed to get charging mode report: %w", s.Name(), err)
+	}
+
+	if !force && !s.reportingCache.ReportRequired(s.stateReportingStrategy, EvtChargingModeReport, "", mode) {
+		return false, nil
+	}
+
+	message := fimpgo.NewStringMessage(
+		EvtChargingModeReport,
+		s.Name(),
+		mode,
+		nil,
+		nil,
+		nil,
+	)
+
+	err = s.SendMessage(message)
+	if err != nil {
+		return false, fmt.Errorf("%s: failed to send charging mode report: %w", s.Name(), err)
+	}
+
+	s.reportingCache.Reported(EvtChargingModeReport, "", mode)
+
+	return true, nil
+}
+
+// normalizeChargingMode normalizes provided charging mode. Returns true, when everything is fine.
+func (s *service) normalizeChargingMode(mode string) (string, bool) {
+	supportedModes := s.Specification().PropertyStrings(PropertySupportedChargingModes)
+	m := strings.ToLower(mode)
+
+	for _, supported := range supportedModes {
+		if m == supported {
+			return m, true
+		}
+	}
+
+	return "", false
 }

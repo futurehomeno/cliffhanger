@@ -16,8 +16,9 @@ func Specification(
 	address string,
 	groups,
 	supportedStates []string,
+	supportedChargingModes []string, // Optional
 ) *fimptype.Service {
-	return &fimptype.Service{
+	s := &fimptype.Service{
 		Address: fmt.Sprintf("/rt:dev/rn:%s/ad:%s/sv:%s/ad:%s", resourceName, resourceAddress, Chargepoint, address),
 		Name:    Chargepoint,
 		Groups:  groups,
@@ -27,6 +28,12 @@ func Specification(
 		},
 		Interfaces: requiredInterfaces(),
 	}
+
+	if len(supportedChargingModes) != 0 {
+		s.Props[PropertySupportedChargingModes] = supportedChargingModes
+	}
+
+	return s
 }
 
 // requiredInterfaces returns required interfaces by the service.
@@ -90,6 +97,30 @@ func requiredInterfaces() []fimptype.Interface {
 		{
 			Type:      fimptype.TypeOut,
 			MsgType:   router.EvtErrorReport,
+			ValueType: fimpgo.VTypeString,
+			Version:   "1",
+		},
+	}
+}
+
+// chargingModeInterfaces returns optional charging mode interfaces of the service.
+func chargingModeInterfaces() []fimptype.Interface {
+	return []fimptype.Interface{
+		{
+			Type:      fimptype.TypeIn,
+			MsgType:   CmdChargingModeSet,
+			ValueType: fimpgo.VTypeString,
+			Version:   "1",
+		},
+		{
+			Type:      fimptype.TypeIn,
+			MsgType:   CmdChargingModeGetReport,
+			ValueType: fimpgo.VTypeNull,
+			Version:   "1",
+		},
+		{
+			Type:      fimptype.TypeOut,
+			MsgType:   EvtChargingModeReport,
 			ValueType: fimpgo.VTypeString,
 			Version:   "1",
 		},

@@ -27,13 +27,13 @@ func TestRouteBoiler(t *testing.T) { //nolint:paralleltest
 			{
 				Name: "Successful boiler reporting",
 				Setup: routeBoiler(
-					mockedwaterheater.MockController().
+					mockedwaterheater.NewController(t).
 						MockWaterHeaterModeReport("test_mode_a", nil, true).
 						MockWaterHeaterSetpointReport("test_mode_a", 60, "C", nil, true).
 						MockWaterHeaterStateReport("idle", nil, true),
-					mockednumericsensor.MockReporter().
+					mockednumericsensor.NewReporter(t).
 						MockNumericSensorReport("C", 60, nil, false),
-					mockedmeterelec.MockReporter().
+					mockedmeterelec.NewReporter(t).
 						MockElectricityMeterReport("W", 1500, nil, false).
 						MockElectricityMeterReport("kWh", 31.5, nil, false),
 				),
@@ -124,13 +124,13 @@ func TestRouteBoiler(t *testing.T) { //nolint:paralleltest
 			{
 				Name: "Failed boiler reporting",
 				Setup: routeBoiler(
-					mockedwaterheater.MockController().
+					mockedwaterheater.NewController(t).
 						MockWaterHeaterModeReport("test_mode_a", errors.New("test"), true).
 						MockWaterHeaterSetpointReport("test_mode_a", 0, "", errors.New("test"), true).
 						MockWaterHeaterStateReport("", errors.New("test"), true),
-					mockednumericsensor.MockReporter().
+					mockednumericsensor.NewReporter(t).
 						MockNumericSensorReport("C", 0, errors.New("test"), true),
-					mockedmeterelec.MockReporter().
+					mockedmeterelec.NewReporter(t).
 						MockElectricityMeterReport("W", 0, errors.New("test"), true),
 				),
 				Nodes: []*suite.Node{
@@ -258,7 +258,7 @@ func TestRouteBoiler(t *testing.T) { //nolint:paralleltest
 			{
 				Name: "Successful boiler configuration",
 				Setup: routeBoiler(
-					mockedwaterheater.MockController().
+					mockedwaterheater.NewController(t).
 						MockSetWaterHeaterMode("test_mode_c", nil, true).
 						MockWaterHeaterModeReport("test_mode_c", nil, true).
 						MockSetWaterHeaterMode("test_mode_a", nil, true).
@@ -296,7 +296,7 @@ func TestRouteBoiler(t *testing.T) { //nolint:paralleltest
 			{
 				Name: "Failed boiler configuration",
 				Setup: routeBoiler(
-					mockedwaterheater.MockController().
+					mockedwaterheater.NewController(t).
 						MockSetWaterHeaterMode("test_mode_a", errors.New("test"), true).
 						MockSetWaterHeaterSetpoint("test_mode_a", 70, "C", errors.New("test"), true),
 					nil, nil,
@@ -386,7 +386,7 @@ func TestTaskBoiler(t *testing.T) { //nolint:paralleltest
 			{
 				Name: "Boiler tasks",
 				Setup: taskBoiler(
-					mockedwaterheater.MockController().
+					mockedwaterheater.NewController(t).
 						MockWaterHeaterModeReport("test_mode_a", nil, true).
 						MockWaterHeaterModeReport("", errors.New("test"), true).
 						MockWaterHeaterModeReport("test_mode_a", nil, true).
@@ -403,12 +403,12 @@ func TestTaskBoiler(t *testing.T) { //nolint:paralleltest
 						MockWaterHeaterStateReport("", errors.New("test"), true).
 						MockWaterHeaterStateReport("idle", nil, true).
 						MockWaterHeaterStateReport("heat", nil, false),
-					mockednumericsensor.MockReporter().
+					mockednumericsensor.NewReporter(t).
 						MockNumericSensorReport("C", 60, nil, true).
 						MockNumericSensorReport("C", 0, errors.New("test"), true).
 						MockNumericSensorReport("C", 60, nil, true).
 						MockNumericSensorReport("C", 60.5, nil, false),
-					mockedmeterelec.MockReporter().
+					mockedmeterelec.NewReporter(t).
 						MockElectricityMeterReport("W", 2, nil, true).
 						MockElectricityMeterReport("W", 0, errors.New("test"), true).
 						MockElectricityMeterReport("W", 2, nil, true).
