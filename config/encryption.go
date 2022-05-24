@@ -7,8 +7,19 @@ import (
 	"encoding/hex"
 	"fmt"
 	"io"
+	"io/ioutil"
 	"os"
 )
+
+// Reads key from file it it exists
+func ReadKeyFromFile(path string) (key string, err error) {
+	uint8key, err := ioutil.ReadFile(path)
+	if err != nil {
+		return "", fmt.Errorf("application: could not read key file: %w", err)
+	}
+
+	return string(uint8key), nil
+}
 
 // GenerateKey
 func GenerateKey(path string) error {
