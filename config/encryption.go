@@ -22,11 +22,11 @@ func ReadKeyFromFile(path string) (key string, err error) {
 }
 
 // GenerateKey
-func GenerateKey(path string) error {
+func GenerateKey(path string) (newKey string, err error) {
 	f, err := os.Create(path)
 
 	if err != nil {
-		return fmt.Errorf("config: could not generate key.txt file: %s", err)
+		return "", fmt.Errorf("config: could not generate key.txt file: %s", err)
 	}
 
 	defer f.Close()
@@ -34,16 +34,16 @@ func GenerateKey(path string) error {
 	key := make([]byte, 32)
 	_, err = rand.Read(key)
 	if err != nil {
-		return fmt.Errorf("config: could not generate random key: %s", err)
+		return "", fmt.Errorf("config: could not generate random key: %s", err)
 	}
 
 	_, err = f.WriteString(fmt.Sprintf("%x", key))
 
 	if err != nil {
-		return fmt.Errorf("config: could not write string to key.txt file: %s", err)
+		return "", fmt.Errorf("config: could not write string to key.txt file: %s", err)
 	}
 
-	return nil
+	return fmt.Sprintf("%x", key), nil
 }
 
 func Encrypt(stringToEncrypt string, keyString string) (encryptedString string, err error) {
