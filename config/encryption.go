@@ -16,14 +16,14 @@ func GetKey(path string) (key string, err error) {
 	if err != nil {
 		key, err = generateKey(path)
 		if err != nil {
-			return "", fmt.Errorf("config: could not read or generate key: %s", err)
+			return "", fmt.Errorf("config: could not read or generate key: %w", err)
 		}
 	}
 
 	return key, nil
 }
 
-// readKeyFromFile reads key from file it it exists
+// readKeyFromFile reads key from file it it exists.
 func readKeyFromFile(path string) (key string, err error) {
 	uint8key, err := ioutil.ReadFile(path)
 	if err != nil {
@@ -33,26 +33,27 @@ func readKeyFromFile(path string) (key string, err error) {
 	return string(uint8key), nil
 }
 
-// GenerateKey
+// generateKey creates new .txt file and generates random key.
 func generateKey(path string) (newKey string, err error) {
 	f, err := os.Create(path)
 
 	if err != nil {
-		return "", fmt.Errorf("config: could not generate key.txt file: %s", err)
+		return "", fmt.Errorf("config: could not generate key.txt file: %w", err)
 	}
 
 	defer f.Close()
 
 	key := make([]byte, 32)
+
 	_, err = rand.Read(key)
 	if err != nil {
-		return "", fmt.Errorf("config: could not generate random key: %s", err)
+		return "", fmt.Errorf("config: could not generate random key: %w", err)
 	}
 
 	_, err = f.WriteString(fmt.Sprintf("%x", key))
 
 	if err != nil {
-		return "", fmt.Errorf("config: could not write string to key.txt file: %s", err)
+		return "", fmt.Errorf("config: could not write string to key.txt file: %w", err)
 	}
 
 	return fmt.Sprintf("%x", key), nil
@@ -60,26 +61,30 @@ func generateKey(path string) (newKey string, err error) {
 
 func Encrypt(stringToEncrypt string, keyString string) (encryptedString string, err error) {
 	// Since the key is in string, we need to convert decode it to bytes
-	key, _ := hex.DecodeString(keyString)
+	key, err := hex.DecodeString(keyString)
+	if err != nil {
+		return "", fmt.Errorf("encrypt: failed to decode string: %w", err)
+	}
+
 	plaintext := []byte(stringToEncrypt)
 
 	// Create a new Cipher Block from the key
 	block, err := aes.NewCipher(key)
 	if err != nil {
-		return "", fmt.Errorf("encrypt: unable to create new Cipher Block from key: %s", err)
+		return "", fmt.Errorf("encrypt: unable to create new Cipher Block from key: %w", err)
 	}
 
 	// Create a new GCM - https://en.wikipedia.org/wiki/Galois/Counter_Mode
 	// https://golang.org/pkg/crypto/cipher/#NewGCM
 	aesGCM, err := cipher.NewGCM(block)
 	if err != nil {
-		return "", fmt.Errorf("encrypt: unable to create new GCM: %s", err)
+		return "", fmt.Errorf("encrypt: unable to create new GCM: %w", err)
 	}
 
 	// Create a nonce. Nonce should be from GCM
 	nonce := make([]byte, aesGCM.NonceSize())
 	if _, err = io.ReadFull(rand.Reader, nonce); err != nil {
-		return "", fmt.Errorf("encrypt: unable to create a nonce from GCM: %s", err)
+		return "", fmt.Errorf("encrypt: unable to create a nonce from GCM: %w", err)
 	}
 
 	// Encrypt the data using aesGCM.Seal
@@ -90,19 +95,26 @@ func Encrypt(stringToEncrypt string, keyString string) (encryptedString string, 
 }
 
 func Decrypt(encryptedString string, keyString string) (decryptedString string, err error) {
-	key, _ := hex.DecodeString(keyString)
-	enc, _ := hex.DecodeString(encryptedString)
+	key, err := hex.DecodeString(keyString)
+	if err != nil {
+		return "", fmt.Errorf("encrypt: failed to decode key string: %w", err)
+	}
+
+	enc, err := hex.DecodeString(encryptedString)
+	if err != nil {
+		return "", fmt.Errorf("encrypt: failed to decode encrypted string: %w", err)
+	}
 
 	// Create a new Cipher Block from the key
 	block, err := aes.NewCipher(key)
 	if err != nil {
-		return "", fmt.Errorf("decrypt: unable to create new Cipher Block from key: %s", err)
+		return "", fmt.Errorf("decrypt: unable to create new Cipher Block from key: %w", err)
 	}
 
 	// Create a new GCM
 	aesGCM, err := cipher.NewGCM(block)
 	if err != nil {
-		return "", fmt.Errorf("decrypt: unable to create new GCM: %s", err)
+		return "", fmt.Errorf("decrypt: unable to create new GCM: %w", err)
 	}
 
 	// Get the nonce size
@@ -114,7 +126,7 @@ func Decrypt(encryptedString string, keyString string) (decryptedString string, 
 	// Decrypt the data
 	plaintext, err := aesGCM.Open(nil, nonce, ciphertext, nil)
 	if err != nil {
-		return "", fmt.Errorf("decrypt: unable to decrypt string: %s", err)
+		return "", fmt.Errorf("decrypt: unable to decrypt string: %w", err)
 	}
 
 	return string(plaintext), nil
