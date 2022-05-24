@@ -11,8 +11,20 @@ import (
 	"os"
 )
 
-// Reads key from file it it exists
-func ReadKeyFromFile(path string) (key string, err error) {
+func GetKey(path string) (key string, err error) {
+	key, err = readKeyFromFile(path)
+	if err != nil {
+		key, err = generateKey(path)
+		if err != nil {
+			return "", fmt.Errorf("config: could not read or generate key: %s", err)
+		}
+	}
+
+	return key, nil
+}
+
+// readKeyFromFile reads key from file it it exists
+func readKeyFromFile(path string) (key string, err error) {
 	uint8key, err := ioutil.ReadFile(path)
 	if err != nil {
 		return "", fmt.Errorf("application: could not read key file: %w", err)
@@ -22,7 +34,7 @@ func ReadKeyFromFile(path string) (key string, err error) {
 }
 
 // GenerateKey
-func GenerateKey(path string) (newKey string, err error) {
+func generateKey(path string) (newKey string, err error) {
 	f, err := os.Create(path)
 
 	if err != nil {
