@@ -115,35 +115,8 @@ func FloatMapMessage(topic, messageType, service string, value map[string]float6
 	}
 }
 
-func NullMessageBuilder(topic, messageType, service string) *MessageBuilder {
-	return NewMessageBuilder(NullMessage(topic, messageType, service))
-}
-
-func BoolMessageBuilder(topic, messageType, service string, value bool) *MessageBuilder {
-	return NewMessageBuilder(BoolMessage(topic, messageType, service, value))
-}
-func StringMessageBuilder(topic, messageType, service, value string) *MessageBuilder {
-	return NewMessageBuilder(StringMessage(topic, messageType, service, value))
-}
-func IntMessageBuilder(topic, messageType, service string, value int64) *MessageBuilder {
-	return NewMessageBuilder(IntMessage(topic, messageType, service, value))
-}
-func FloatMessageBuilder(topic, messageType, service string, value float64) *MessageBuilder {
-	return NewMessageBuilder(FloatMessage(topic, messageType, service, value))
-}
-func ObjectMessageBuilder(topic, messageType, service string, value interface{}) *MessageBuilder {
-	return NewMessageBuilder(ObjectMessage(topic, messageType, service, value))
-}
-func StringMapMessageBuilder(topic, messageType, service string, value map[string]string) *MessageBuilder {
-	return NewMessageBuilder(StringMapMessage(topic, messageType, service, value))
-}
-func FloatMapMessageBuilder(topic, messageType, service string, value map[string]float64) *MessageBuilder {
-	return NewMessageBuilder(FloatMapMessage(topic, messageType, service, value))
-}
-
-func NewMessageBuilder(msg *fimpgo.Message) *MessageBuilder {
+func NewMessageBuilder() *MessageBuilder {
 	return &MessageBuilder{
-		msg:   msg,
 		props: make(fimpgo.Props),
 		tags:  make(fimpgo.Tags, 0),
 	}
@@ -153,6 +126,54 @@ type MessageBuilder struct {
 	msg   *fimpgo.Message
 	props fimpgo.Props
 	tags  fimpgo.Tags
+}
+
+func (b *MessageBuilder) NullMessage(topic, messageType, service string) *MessageBuilder {
+	b.msg = NullMessage(topic, messageType, service)
+
+	return b
+}
+
+func (b *MessageBuilder) BoolMessage(topic, messageType, service string, value bool) *MessageBuilder {
+	b.msg = BoolMessage(topic, messageType, service, value)
+
+	return b
+}
+
+func (b *MessageBuilder) StringMessage(topic, messageType, service, value string) *MessageBuilder {
+	b.msg = StringMessage(topic, messageType, service, value)
+
+	return b
+}
+
+func (b *MessageBuilder) IntMessage(topic, messageType, service string, value int64) *MessageBuilder {
+	b.msg = IntMessage(topic, messageType, service, value)
+
+	return b
+}
+
+func (b *MessageBuilder) FloatMessage(topic, messageType, service string, value float64) *MessageBuilder {
+	b.msg = FloatMessage(topic, messageType, service, value)
+
+	return b
+}
+
+func (b *MessageBuilder) ObjectMessage(topic, messageType, service string, value interface{}) *MessageBuilder {
+	b.msg = ObjectMessage(topic, messageType, service, value)
+
+	return b
+}
+
+func (b *MessageBuilder) StringMapMessage(topic, messageType, service string, value map[string]string) *MessageBuilder {
+	b.msg = StringMapMessage(topic, messageType, service, value)
+
+	return b
+}
+
+func (b *MessageBuilder) FloatMapMessage(topic, messageType, service string, value map[string]float64) *MessageBuilder {
+	b.msg = FloatMapMessage(topic, messageType, service, value)
+
+	return b
 }
 
 func (b *MessageBuilder) AddProperty(key, value string) *MessageBuilder {

@@ -50,7 +50,8 @@ func TestRouteCarCharger(t *testing.T) { //nolint:paralleltest
 					},
 					{
 						Name: "start charging with mode unsupported by controller",
-						Command: suite.NullMessageBuilder("pt:j1/mt:cmd/rt:dev/rn:test_adapter/ad:1/sv:chargepoint/ad:2", "cmd.charge.start", "chargepoint").
+						Command: suite.NewMessageBuilder().
+							NullMessage("pt:j1/mt:cmd/rt:dev/rn:test_adapter/ad:1/sv:chargepoint/ad:2", "cmd.charge.start", "chargepoint").
 							AddProperty(chargepoint.PropertyChargingMode, "slow").
 							Build(),
 						Expectations: []*suite.Expectation{
@@ -73,7 +74,8 @@ func TestRouteCarCharger(t *testing.T) { //nolint:paralleltest
 				Nodes: []*suite.Node{
 					{
 						Name: "start charging",
-						Command: suite.NullMessageBuilder("pt:j1/mt:cmd/rt:dev/rn:test_adapter/ad:1/sv:chargepoint/ad:2", "cmd.charge.start", "chargepoint").
+						Command: suite.NewMessageBuilder().
+							NullMessage("pt:j1/mt:cmd/rt:dev/rn:test_adapter/ad:1/sv:chargepoint/ad:2", "cmd.charge.start", "chargepoint").
 							AddProperty(chargepoint.PropertyChargingMode, "Normal").
 							Build(),
 						Expectations: []*suite.Expectation{
@@ -251,7 +253,8 @@ func TestRouteCarCharger(t *testing.T) { //nolint:paralleltest
 				Nodes: []*suite.Node{
 					{
 						Name: "start charging",
-						Command: suite.NullMessageBuilder("pt:j1/mt:cmd/rt:dev/rn:test_adapter/ad:1/sv:chargepoint/ad:2", "cmd.charge.start", "chargepoint").
+						Command: suite.NewMessageBuilder().
+							NullMessage("pt:j1/mt:cmd/rt:dev/rn:test_adapter/ad:1/sv:chargepoint/ad:2", "cmd.charge.start", "chargepoint").
 							AddProperty(chargepoint.PropertyChargingMode, "dummy").
 							Build(),
 						Expectations: []*suite.Expectation{
