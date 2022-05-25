@@ -44,6 +44,12 @@ func (n *Node) WithCommand(command *fimpgo.Message) *Node {
 	return n
 }
 
+func (n *Node) WithCommandFn(commandFn func(t *testing.T) *fimpgo.Message) *Node {
+	n.CommandFn = commandFn
+
+	return n
+}
+
 func (n *Node) WithExpectations(expectations ...*Expectation) *Node {
 	n.Expectations = append(n.Expectations, expectations...)
 
