@@ -22,6 +22,7 @@ func NewNode(name string) *Node {
 type Node struct {
 	Name          string
 	Command       *fimpgo.Message
+	CommandFn     func(t *testing.T) *fimpgo.Message
 	Expectations  []*Expectation
 	Timeout       time.Duration
 	InitCallbacks []Callback
@@ -75,6 +76,10 @@ func (n *Node) Run(t *testing.T, mqtt *fimpgo.MqttTransport) {
 
 	for _, callback := range n.InitCallbacks {
 		callback(t)
+	}
+
+	if n.CommandFn != nil {
+		n.Command = n.CommandFn(t)
 	}
 
 	n.publishMessage(t, mqtt, n.Command)
