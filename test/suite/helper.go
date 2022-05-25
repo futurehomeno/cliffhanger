@@ -114,3 +114,73 @@ func FloatMapMessage(topic, messageType, service string, value map[string]float6
 		),
 	}
 }
+
+func NullMessageBuilder(topic, messageType, service string) *MessageBuilder {
+	return NewMessageBuilder(NullMessage(topic, messageType, service))
+}
+
+func BoolMessageBuilder(topic, messageType, service string, value bool) *MessageBuilder {
+	return NewMessageBuilder(BoolMessage(topic, messageType, service, value))
+}
+func StringMessageBuilder(topic, messageType, service, value string) *MessageBuilder {
+	return NewMessageBuilder(StringMessage(topic, messageType, service, value))
+}
+func IntMessageBuilder(topic, messageType, service string, value int64) *MessageBuilder {
+	return NewMessageBuilder(IntMessage(topic, messageType, service, value))
+}
+func FloatMessageBuilder(topic, messageType, service string, value float64) *MessageBuilder {
+	return NewMessageBuilder(FloatMessage(topic, messageType, service, value))
+}
+func ObjectMessageBuilder(topic, messageType, service string, value interface{}) *MessageBuilder {
+	return NewMessageBuilder(ObjectMessage(topic, messageType, service, value))
+}
+func StringMapMessageBuilder(topic, messageType, service string, value map[string]string) *MessageBuilder {
+	return NewMessageBuilder(StringMapMessage(topic, messageType, service, value))
+}
+func FloatMapMessageBuilder(topic, messageType, service string, value map[string]float64) *MessageBuilder {
+	return NewMessageBuilder(FloatMapMessage(topic, messageType, service, value))
+}
+
+func NewMessageBuilder(msg *fimpgo.Message) *MessageBuilder {
+	return &MessageBuilder{
+		msg:   msg,
+		props: make(fimpgo.Props),
+		tags:  make(fimpgo.Tags, 0),
+	}
+}
+
+type MessageBuilder struct {
+	msg   *fimpgo.Message
+	props fimpgo.Props
+	tags  fimpgo.Tags
+}
+
+func (b *MessageBuilder) AddProperty(key, value string) *MessageBuilder {
+	b.props[key] = value
+
+	return b
+}
+
+func (b *MessageBuilder) AddTag(t string) *MessageBuilder {
+	b.tags = append(b.tags, t)
+
+	return b
+}
+
+func (b *MessageBuilder) Build() *fimpgo.Message {
+	if len(b.props) > 0 {
+		if b.msg.Payload.Properties == nil {
+			b.msg.Payload.Properties = make(fimpgo.Props)
+		}
+
+		for k, v := range b.props {
+			b.msg.Payload.Properties[k] = v
+		}
+	}
+
+	if len(b.tags) > 0 {
+		b.msg.Payload.Tags = append(b.msg.Payload.Tags, b.tags...)
+	}
+
+	return b.msg
+}
