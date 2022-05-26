@@ -3,7 +3,7 @@
 package mockedthermostat
 
 import (
-	"testing"
+	testing "testing"
 
 	mock "github.com/stretchr/testify/mock"
 )

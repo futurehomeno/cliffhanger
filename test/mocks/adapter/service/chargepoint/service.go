@@ -51,27 +51,6 @@ func (_m *Service) SendCableLockReport(force bool) (bool, error) {
 	return r0, r1
 }
 
-// SendChargingModeReport provides a mock function with given fields: force
-func (_m *Service) SendChargingModeReport(force bool) (bool, error) {
-	ret := _m.Called(force)
-
-	var r0 bool
-	if rf, ok := ret.Get(0).(func(bool) bool); ok {
-		r0 = rf(force)
-	} else {
-		r0 = ret.Get(0).(bool)
-	}
-
-	var r1 error
-	if rf, ok := ret.Get(1).(func(bool) error); ok {
-		r1 = rf(force)
-	} else {
-		r1 = ret.Error(1)
-	}
-
-	return r0, r1
-}
-
 // SendCurrentSessionReport provides a mock function with given fields: force
 func (_m *Service) SendCurrentSessionReport(force bool) (bool, error) {
 	ret := _m.Called(force)
@@ -142,20 +121,6 @@ func (_m *Service) SetCableLock(_a0 bool) error {
 	return r0
 }
 
-// SetChargingMode provides a mock function with given fields: mode
-func (_m *Service) SetChargingMode(mode string) error {
-	ret := _m.Called(mode)
-
-	var r0 error
-	if rf, ok := ret.Get(0).(func(string) error); ok {
-		r0 = rf(mode)
-	} else {
-		r0 = ret.Error(0)
-	}
-
-	return r0
-}
-
 // Specification provides a mock function with given fields:
 func (_m *Service) Specification() *fimptype.Service {
 	ret := _m.Called()
@@ -172,13 +137,13 @@ func (_m *Service) Specification() *fimptype.Service {
 	return r0
 }
 
-// StartCharging provides a mock function with given fields:
-func (_m *Service) StartCharging() error {
-	ret := _m.Called()
+// StartCharging provides a mock function with given fields: mode
+func (_m *Service) StartCharging(mode string) error {
+	ret := _m.Called(mode)
 
 	var r0 error
-	if rf, ok := ret.Get(0).(func() error); ok {
-		r0 = rf()
+	if rf, ok := ret.Get(0).(func(string) error); ok {
+		r0 = rf(mode)
 	} else {
 		r0 = ret.Error(0)
 	}
@@ -211,20 +176,6 @@ func (_m *Service) SupportedStates() []string {
 		if ret.Get(0) != nil {
 			r0 = ret.Get(0).([]string)
 		}
-	}
-
-	return r0
-}
-
-// SupportsChargingModes provides a mock function with given fields:
-func (_m *Service) SupportsChargingModes() bool {
-	ret := _m.Called()
-
-	var r0 bool
-	if rf, ok := ret.Get(0).(func() bool); ok {
-		r0 = rf()
-	} else {
-		r0 = ret.Get(0).(bool)
 	}
 
 	return r0

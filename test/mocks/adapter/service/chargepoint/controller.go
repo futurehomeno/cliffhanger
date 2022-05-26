@@ -90,13 +90,13 @@ func (_m *Controller) SetChargepointCableLock(_a0 bool) error {
 	return r0
 }
 
-// StartChargepointCharging provides a mock function with given fields:
-func (_m *Controller) StartChargepointCharging() error {
-	ret := _m.Called()
+// StartChargepointCharging provides a mock function with given fields: mode
+func (_m *Controller) StartChargepointCharging(mode string) error {
+	ret := _m.Called(mode)
 
 	var r0 error
-	if rf, ok := ret.Get(0).(func() error); ok {
-		r0 = rf()
+	if rf, ok := ret.Get(0).(func(string) error); ok {
+		r0 = rf(mode)
 	} else {
 		r0 = ret.Error(0)
 	}

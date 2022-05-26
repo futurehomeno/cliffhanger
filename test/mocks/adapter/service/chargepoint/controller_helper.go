@@ -1,7 +1,7 @@
 package mockedchargepoint
 
-func (_m *Controller) MockStartChargepointCharging(err error, once bool) *Controller {
-	c := _m.On("StartChargepointCharging").Return(err)
+func (_m *Controller) MockStartChargepointCharging(mode string, err error, once bool) *Controller {
+	c := _m.On("StartChargepointCharging", mode).Return(err)
 
 	if once {
 		c.Once()

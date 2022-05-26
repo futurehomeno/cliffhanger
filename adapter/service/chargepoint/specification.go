@@ -102,27 +102,3 @@ func requiredInterfaces() []fimptype.Interface {
 		},
 	}
 }
-
-// chargingModeInterfaces returns optional charging mode interfaces of the service.
-func chargingModeInterfaces() []fimptype.Interface {
-	return []fimptype.Interface{
-		{
-			Type:      fimptype.TypeIn,
-			MsgType:   CmdChargingModeSet,
-			ValueType: fimpgo.VTypeString,
-			Version:   "1",
-		},
-		{
-			Type:      fimptype.TypeIn,
-			MsgType:   CmdChargingModeGetReport,
-			ValueType: fimpgo.VTypeNull,
-			Version:   "1",
-		},
-		{
-			Type:      fimptype.TypeOut,
-			MsgType:   EvtChargingModeReport,
-			ValueType: fimpgo.VTypeString,
-			Version:   "1",
-		},
-	}
-}
