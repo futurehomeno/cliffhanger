@@ -27,7 +27,12 @@ func GetKey(path string) (key string, err error) {
 func readKeyFromFile(path string) (key string, err error) {
 	uint8key, err := ioutil.ReadFile(path)
 	if err != nil {
-		return "", fmt.Errorf("application: could not read key file: %w", err)
+		return "", fmt.Errorf("security: could not read key file: %w", err)
+	}
+
+	err = os.Chmod(path, 0o600)
+	if err != nil {
+		return "", fmt.Errorf("security: could not set chmod on key file: %w", err)
 	}
 
 	return string(uint8key), nil
@@ -67,7 +72,7 @@ func Encrypt(stringToEncrypt string, keyString string) (encryptedString string, 
 	// Since the key is in string, we need to convert decode it to bytes
 	key, err := hex.DecodeString(keyString)
 	if err != nil {
-		return "", fmt.Errorf("encrypt: failed to decode string: %w", err)
+		return "", fmt.Errorf("security: failed to decode string: %w", err)
 	}
 
 	plaintext := []byte(stringToEncrypt)
@@ -75,20 +80,20 @@ func Encrypt(stringToEncrypt string, keyString string) (encryptedString string, 
 	// Create a new Cipher Block from the key
 	block, err := aes.NewCipher(key)
 	if err != nil {
-		return "", fmt.Errorf("encrypt: unable to create new Cipher Block from key: %w", err)
+		return "", fmt.Errorf("security: unable to create new Cipher Block from key: %w", err)
 	}
 
 	// Create a new GCM - https://en.wikipedia.org/wiki/Galois/Counter_Mode
 	// https://golang.org/pkg/crypto/cipher/#NewGCM
 	aesGCM, err := cipher.NewGCM(block)
 	if err != nil {
-		return "", fmt.Errorf("encrypt: unable to create new GCM: %w", err)
+		return "", fmt.Errorf("security: unable to create new GCM: %w", err)
 	}
 
 	// Create a nonce. Nonce should be from GCM
 	nonce := make([]byte, aesGCM.NonceSize())
 	if _, err = io.ReadFull(rand.Reader, nonce); err != nil {
-		return "", fmt.Errorf("encrypt: unable to create a nonce from GCM: %w", err)
+		return "", fmt.Errorf("security: unable to create a nonce from GCM: %w", err)
 	}
 
 	// Encrypt the data using aesGCM.Seal
@@ -102,24 +107,24 @@ func Encrypt(stringToEncrypt string, keyString string) (encryptedString string, 
 func Decrypt(encryptedString string, keyString string) (decryptedString string, err error) {
 	key, err := hex.DecodeString(keyString)
 	if err != nil {
-		return "", fmt.Errorf("encrypt: failed to decode key string: %w", err)
+		return "", fmt.Errorf("security: failed to decode key string: %w", err)
 	}
 
 	enc, err := hex.DecodeString(encryptedString)
 	if err != nil {
-		return "", fmt.Errorf("encrypt: failed to decode encrypted string: %w", err)
+		return "", fmt.Errorf("security: failed to decode encrypted string: %w", err)
 	}
 
 	// Create a new Cipher Block from the key
 	block, err := aes.NewCipher(key)
 	if err != nil {
-		return "", fmt.Errorf("decrypt: unable to create new Cipher Block from key: %w", err)
+		return "", fmt.Errorf("security: unable to create new Cipher Block from key: %w", err)
 	}
 
 	// Create a new GCM
 	aesGCM, err := cipher.NewGCM(block)
 	if err != nil {
-		return "", fmt.Errorf("decrypt: unable to create new GCM: %w", err)
+		return "", fmt.Errorf("security: unable to create new GCM: %w", err)
 	}
 
 	// Get the nonce size
@@ -131,7 +136,7 @@ func Decrypt(encryptedString string, keyString string) (decryptedString string, 
 	// Decrypt the data
 	plaintext, err := aesGCM.Open(nil, nonce, ciphertext, nil)
 	if err != nil {
-		return "", fmt.Errorf("decrypt: unable to decrypt string: %w", err)
+		return "", fmt.Errorf("security: unable to decrypt string: %w", err)
 	}
 
 	return string(plaintext), nil
