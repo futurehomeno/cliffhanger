@@ -14,7 +14,7 @@ import (
 func GetKey(path string) (key string, err error) {
 	key, err = readKeyFromFile(path)
 	if err != nil {
-		key, err = GenerateKey(path)
+		key, err = writeKeyFile(path)
 		if err != nil {
 			return "", fmt.Errorf("security: could not read or generate key: %w", err)
 		}
@@ -38,8 +38,8 @@ func readKeyFromFile(path string) (key string, err error) {
 	return string(uint8key), nil
 }
 
-// GenerateKey creates new .txt file and generates random key.
-func GenerateKey(path string) (newKey string, err error) {
+// writeKeyFile writes writes a randomly generated key to file
+func writeKeyFile(path string) (newKey string, err error) {
 	f, err := os.Create(path)
 	if err != nil {
 		return "", fmt.Errorf("security: could not generate key file: %w", err)
@@ -52,17 +52,28 @@ func GenerateKey(path string) (newKey string, err error) {
 		return "", fmt.Errorf("security: could not set chmod on key file: %w", err)
 	}
 
-	key := make([]byte, 32)
-
-	_, err = rand.Read(key)
+	keySize := 32
+	key, err := GenerateKey(keySize)
 	if err != nil {
-		return "", fmt.Errorf("security: could not generate random key: %w", err)
+		return "", fmt.Errorf("security: could not generate key: %w", err)
 	}
 
 	_, err = f.WriteString(fmt.Sprintf("%x", key))
 
 	if err != nil {
 		return "", fmt.Errorf("security: could not write string to key file: %w", err)
+	}
+
+	return fmt.Sprintf("%x", key), nil
+}
+
+// GenerateKey generates a random key
+func GenerateKey(size int) (newKey string, err error) {
+	key := make([]byte, size)
+
+	_, err = rand.Read(key)
+	if err != nil {
+		return "", fmt.Errorf("security: could not generate random key: %w", err)
 	}
 
 	return fmt.Sprintf("%x", key), nil
