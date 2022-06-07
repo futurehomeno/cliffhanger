@@ -1,4 +1,4 @@
-package config
+package security
 
 import (
 	"crypto/aes"
@@ -14,9 +14,9 @@ import (
 func GetKey(path string) (key string, err error) {
 	key, err = readKeyFromFile(path)
 	if err != nil {
-		key, err = generateKey(path)
+		key, err = GenerateKey(path)
 		if err != nil {
-			return "", fmt.Errorf("config: could not read or generate key: %w", err)
+			return "", fmt.Errorf("security: could not read or generate key: %w", err)
 		}
 	}
 
@@ -33,12 +33,16 @@ func readKeyFromFile(path string) (key string, err error) {
 	return string(uint8key), nil
 }
 
-// generateKey creates new .txt file and generates random key.
-func generateKey(path string) (newKey string, err error) {
+// GenerateKey creates new .txt file and generates random key.
+func GenerateKey(path string) (newKey string, err error) {
 	f, err := os.Create(path)
-
 	if err != nil {
-		return "", fmt.Errorf("config: could not generate key.txt file: %w", err)
+		return "", fmt.Errorf("security: could not generate key file: %w", err)
+	}
+
+	err = os.Chmod(path, 0600)
+	if err != nil {
+		return "", fmt.Errorf("security: could not set chmod on key file: %w", err)
 	}
 
 	defer f.Close()
@@ -47,13 +51,13 @@ func generateKey(path string) (newKey string, err error) {
 
 	_, err = rand.Read(key)
 	if err != nil {
-		return "", fmt.Errorf("config: could not generate random key: %w", err)
+		return "", fmt.Errorf("security: could not generate random key: %w", err)
 	}
 
 	_, err = f.WriteString(fmt.Sprintf("%x", key))
 
 	if err != nil {
-		return "", fmt.Errorf("config: could not write string to key.txt file: %w", err)
+		return "", fmt.Errorf("security: could not write string to key file: %w", err)
 	}
 
 	return fmt.Sprintf("%x", key), nil
