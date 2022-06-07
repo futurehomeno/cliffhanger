@@ -38,7 +38,7 @@ func readKeyFromFile(path string) (key string, err error) {
 	return string(uint8key), nil
 }
 
-// writeKeyFile writes writes a randomly generated key to file
+// writeKeyFile writes writes a randomly generated key to file.
 func writeKeyFile(path string) (newKey string, err error) {
 	f, err := os.Create(path)
 	if err != nil {
@@ -53,6 +53,7 @@ func writeKeyFile(path string) (newKey string, err error) {
 	}
 
 	keySize := 32
+
 	key, err := GenerateKey(keySize)
 	if err != nil {
 		return "", fmt.Errorf("security: could not generate key: %w", err)
@@ -67,7 +68,7 @@ func writeKeyFile(path string) (newKey string, err error) {
 	return fmt.Sprintf("%x", key), nil
 }
 
-// GenerateKey generates a random key
+// GenerateKey generates a random key.
 func GenerateKey(size int) (newKey string, err error) {
 	key := make([]byte, size)
 
