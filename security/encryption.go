@@ -45,12 +45,12 @@ func GenerateKey(path string) (newKey string, err error) {
 		return "", fmt.Errorf("security: could not generate key file: %w", err)
 	}
 
+	defer f.Close()
+
 	err = os.Chmod(path, 0o600)
 	if err != nil {
 		return "", fmt.Errorf("security: could not set chmod on key file: %w", err)
 	}
-
-	defer f.Close()
 
 	key := make([]byte, 32)
 
