@@ -59,7 +59,7 @@ func writeKeyFile(path string) (newKey string, err error) {
 		return "", fmt.Errorf("security: could not generate key: %w", err)
 	}
 
-	_, err = f.WriteString(fmt.Sprintf("%x", key))
+	_, err = f.WriteString(key)
 
 	if err != nil {
 		return "", fmt.Errorf("security: could not write string to key file: %w", err)
