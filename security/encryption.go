@@ -65,7 +65,7 @@ func writeKeyFile(path string) (newKey string, err error) {
 		return "", fmt.Errorf("security: could not write string to key file: %w", err)
 	}
 
-	return fmt.Sprintf("%x", key), nil
+	return key, nil
 }
 
 // GenerateKey generates a random key.
