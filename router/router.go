@@ -99,6 +99,10 @@ func (r *router) processMessage(message *fimpgo.Message) {
 			continue
 		}
 
+		if response.Payload.CorrelationID == "" {
+			response.Payload.CorrelationID = message.Payload.UID
+		}
+
 		if message.Payload.ResponseToTopic != "" {
 			err := r.mqtt.RespondToRequest(message.Payload, response.Payload)
 			if err != nil {
