@@ -13,9 +13,11 @@ import (
 
 // Constants defining important properties specific for the service.
 const (
-	MaxLvl = "max_lvl"
-	MinLvl = "min_lvl"
-	SwType = "sw_type" // "on_off" or "up_down"
+	MaxLvl        = "max_lvl"
+	MinLvl        = "min_lvl"
+	SwitchType    = "sw_type" // "on_off" or "up_down"
+	TypeOnAndOff  = "on_off"
+	TypeUpAndDown = "up_down"
 )
 
 // DefaultReportingStrategy is the default reporting strategy used by the service for periodic reports.
@@ -25,11 +27,13 @@ var DefaultReportingStrategy = cache.ReportAtLeastEvery(30 * time.Minute)
 // In a polling scenario implementation might require some safeguards against excessive polling.
 type Controller interface {
 	// LevelReport returns a current level value.
-	LevelReport() (float64, error)
+	LevelReport() (int64, error)
 	// BinanryReport returns a current binary value.
 	BinaryReport() (bool, error)
 	// SetLvlCtrl sets a level value.
-	SetLvlCtrl(value float64) error
+	SetLevelCtrl(value int64) error
+	// SetLevelWithDurationCtrl sets a level value over a specified duration in seconds.
+	SetLevelWithDurationCtrl(value int64, duration int64) error
 	// SetBinaryCtrl sets a binary value.
 	SetBinaryCtrl(bool) error
 }
@@ -47,9 +51,11 @@ type Service interface {
 	// To make sure report is being sent regardless of circumstances set the force argument to true.
 	SendBinaryReport(force bool) (bool, error)
 	// SetLevel sets a level value.
-	SetLevel(value float64) error
+	SetLevel(value int64) error
+	// SetLevelWithDuration sets a level value over a specified duration in seconds.
+	SetLevelWithDuration(value int64, duration int64) error
 	// SetBinary sets a binary value.
-	SetBinary(value bool) error
+	SetBinaryState(value bool) error
 }
 
 // Config represents a service configuration.
@@ -105,7 +111,7 @@ func (s *service) SendLevelReport(force bool) (bool, error) {
 		return false, nil
 	}
 
-	message := fimpgo.NewFloatMessage(
+	message := fimpgo.NewIntMessage(
 		EvtLvlReport,
 		s.Name(),
 		value,
@@ -157,12 +163,12 @@ func (s *service) SendBinaryReport(force bool) (bool, error) {
 	return true, nil
 }
 
-// SetLvl sets a level value.
-func (s *service) SetLevel(value float64) error {
+// SetLevel sets a level value.
+func (s *service) SetLevel(value int64) error {
 	s.lock.Lock()
 	defer s.lock.Unlock()
 
-	err := s.controller.SetLvlCtrl(value)
+	err := s.controller.SetLevelCtrl(value)
 	if err != nil {
 		return fmt.Errorf("%s: failed to set level: %w", s.Name(), err)
 	}
@@ -170,8 +176,21 @@ func (s *service) SetLevel(value float64) error {
 	return nil
 }
 
+// SetLevelWithDuration sets a level value over a specified duration.
+func (s *service) SetLevelWithDuration(value int64, duration int64) error {
+	s.lock.Lock()
+	defer s.lock.Unlock()
+
+	err := s.controller.SetLevelWithDurationCtrl(value, duration)
+	if err != nil {
+		return fmt.Errorf("%s: failed to set level with duration: %w", s.Name(), err)
+	}
+
+	return nil
+}
+
 // SetBinary sets a binary value.
-func (s *service) SetBinary(value bool) error {
+func (s *service) SetBinaryState(value bool) error {
 	s.lock.Lock()
 	defer s.lock.Unlock()
 

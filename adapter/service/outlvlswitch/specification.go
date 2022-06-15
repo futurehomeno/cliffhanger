@@ -11,23 +11,22 @@ import (
 func Specification(
 	resourceName,
 	resourceAddress,
-	serviceName,
 	address,
 	maxLvl,
 	minLvl,
-	swType string,
+	switchType string,
 	groups []string,
 ) *fimptype.Service {
 	return &fimptype.Service{
-		Address: fmt.Sprintf("/rt:dev/rn:%s/ad:%s/sv:%s/ad:%s", resourceName, resourceAddress, serviceName, address),
-		Name:    serviceName,
+		Address: fmt.Sprintf("/rt:dev/rn:%s/ad:%s/sv:%s/ad:%s", resourceName, resourceAddress, OutLvlSwitch, address),
+		Name:    OutLvlSwitch,
 
 		Groups:  groups,
 		Enabled: true,
 		Props: map[string]interface{}{
-			MaxLvl: maxLvl,
-			MinLvl: minLvl,
-			SwType: swType,
+			MaxLvl:     maxLvl,
+			MinLvl:     minLvl,
+			SwitchType: switchType,
 		},
 		Interfaces: requiredInterfaces(),
 	}

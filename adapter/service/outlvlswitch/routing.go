@@ -20,6 +20,7 @@ const (
 	EvtBinaryReport = "evt.binary.report"
 
 	OutLvlSwitch = "out_lvl_switch"
+	Duration     = "duration"
 )
 
 // RouteService returns routing for service specific commands.
@@ -54,14 +55,21 @@ func HandleCmdLvlSet(adapter adapter.Adapter) router.MessageHandler {
 				return nil, fmt.Errorf("adapter: incorrect service found under the provided address: %s", message.Addr.ServiceAddress)
 			}
 
-			lvl, err := message.Payload.GetFloatValue()
+			lvl, err := message.Payload.GetIntValue()
 			if err != nil {
 				return nil, err
 			}
 
-			err = outLvlSwitch.SetLevel(lvl)
-			if err != nil {
-				return nil, fmt.Errorf("adapter: error while setting level: %w", err)
+			if duration, err := message.Payload.Properties.GetIntValue(Duration); err == nil {
+				err = outLvlSwitch.SetLevelWithDuration(lvl, duration)
+				if err != nil {
+					return nil, fmt.Errorf("adapter: error while setting level with duration: %w", err)
+				}
+			} else {
+				err = outLvlSwitch.SetLevel(lvl)
+				if err != nil {
+					return nil, fmt.Errorf("adapter: error while setting level: %w", err)
+				}
 			}
 
 			_, err = outLvlSwitch.SendLevelReport(true)
@@ -107,7 +115,7 @@ func HandleCmdBinarySet(adapter adapter.Adapter) router.MessageHandler {
 				return nil, err
 			}
 
-			err = outLvlSwitch.SetBinary(binary)
+			err = outLvlSwitch.SetBinaryState(binary)
 			if err != nil {
 				return nil, fmt.Errorf("adapter: error while setting binary: %w", err)
 			}
