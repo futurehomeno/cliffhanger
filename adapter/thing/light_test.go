@@ -251,7 +251,6 @@ func TestTaskLight(t *testing.T) { //nolint:paralleltest
 	}
 
 	s.Run(t)
-
 }
 
 func routeLight(
