@@ -5,10 +5,11 @@ import (
 	"sync"
 	"time"
 
-	"github.com/futurehomeno/cliffhanger/adapter"
-	"github.com/futurehomeno/cliffhanger/adapter/cache"
 	"github.com/futurehomeno/fimpgo"
 	"github.com/futurehomeno/fimpgo/fimptype"
+
+	"github.com/futurehomeno/cliffhanger/adapter"
+	"github.com/futurehomeno/cliffhanger/adapter/cache"
 )
 
 // Constants defining important properties specific for the service.
@@ -27,15 +28,15 @@ var DefaultReportingStrategy = cache.ReportAtLeastEvery(30 * time.Minute)
 // In a polling scenario implementation might require some safeguards against excessive polling.
 type Controller interface {
 	// LevelReport returns a current level value.
-	LevelReport() (int64, error)
+	LevelSwitchLevelReport() (int64, error)
 	// BinanryReport returns a current binary value.
-	BinaryReport() (bool, error)
+	LevelSwitchBinaryReport() (bool, error)
 	// SetLvlCtrl sets a level value.
-	SetLevelCtrl(value int64) error
+	SetLevelSwitchLevel(value int64) error
 	// SetLevelWithDurationCtrl sets a level value over a specified duration in seconds.
-	SetLevelWithDurationCtrl(value int64, duration int64) error
+	SetLevelSwitchLevelWithDuration(value int64, duration int64) error
 	// SetBinaryCtrl sets a binary value.
-	SetBinaryCtrl(bool) error
+	SetLevelSwitchBinaryState(bool) error
 }
 
 // Service is an interface representing a output level switch FIMP service.
@@ -102,7 +103,7 @@ func (s *service) SendLevelReport(force bool) (bool, error) {
 	s.lock.Lock()
 	defer s.lock.Unlock()
 
-	value, err := s.controller.LevelReport()
+	value, err := s.controller.LevelSwitchLevelReport()
 	if err != nil {
 		return false, fmt.Errorf("%s: failed to get level report: %w", s.Name(), err)
 	}
@@ -135,7 +136,7 @@ func (s *service) SendBinaryReport(force bool) (bool, error) {
 	s.lock.Lock()
 	defer s.lock.Unlock()
 
-	value, err := s.controller.BinaryReport()
+	value, err := s.controller.LevelSwitchBinaryReport()
 	if err != nil {
 		return false, fmt.Errorf("%s: failed to get binary report: %w", s.Name(), err)
 	}
@@ -168,7 +169,7 @@ func (s *service) SetLevel(value int64) error {
 	s.lock.Lock()
 	defer s.lock.Unlock()
 
-	err := s.controller.SetLevelCtrl(value)
+	err := s.controller.SetLevelSwitchLevel(value)
 	if err != nil {
 		return fmt.Errorf("%s: failed to set level: %w", s.Name(), err)
 	}
@@ -181,7 +182,7 @@ func (s *service) SetLevelWithDuration(value int64, duration int64) error {
 	s.lock.Lock()
 	defer s.lock.Unlock()
 
-	err := s.controller.SetLevelWithDurationCtrl(value, duration)
+	err := s.controller.SetLevelSwitchLevelWithDuration(value, duration)
 	if err != nil {
 		return fmt.Errorf("%s: failed to set level with duration: %w", s.Name(), err)
 	}
@@ -194,7 +195,7 @@ func (s *service) SetBinaryState(value bool) error {
 	s.lock.Lock()
 	defer s.lock.Unlock()
 
-	err := s.controller.SetBinaryCtrl(value)
+	err := s.controller.SetLevelSwitchBinaryState(value)
 	if err != nil {
 		return fmt.Errorf("%s: failed to set binary: %w", s.Name(), err)
 	}

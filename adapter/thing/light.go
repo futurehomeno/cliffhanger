@@ -3,12 +3,13 @@ package thing
 import (
 	"time"
 
+	"github.com/futurehomeno/fimpgo"
+	"github.com/futurehomeno/fimpgo/fimptype"
+
 	"github.com/futurehomeno/cliffhanger/adapter"
 	"github.com/futurehomeno/cliffhanger/adapter/service/outlvlswitch"
 	"github.com/futurehomeno/cliffhanger/router"
 	"github.com/futurehomeno/cliffhanger/task"
-	"github.com/futurehomeno/fimpgo"
-	"github.com/futurehomeno/fimpgo/fimptype"
 )
 
 // LightConfig represents a thing configuration.

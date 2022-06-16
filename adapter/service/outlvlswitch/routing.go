@@ -3,9 +3,10 @@ package outlvlswitch
 import (
 	"fmt"
 
+	"github.com/futurehomeno/fimpgo"
+
 	"github.com/futurehomeno/cliffhanger/adapter"
 	"github.com/futurehomeno/cliffhanger/router"
-	"github.com/futurehomeno/fimpgo"
 )
 
 // Constants defining routing service, commands and events.

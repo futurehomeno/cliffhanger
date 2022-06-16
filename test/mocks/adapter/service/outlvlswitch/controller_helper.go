@@ -1,7 +1,7 @@
 package mockedoutlvlswitch
 
-func (_m *Controller) MockLevelReport(value int64, err error, once bool) *Controller {
-	c := _m.On("LevelReport").Return(value, err)
+func (_m *Controller) MockLevelSwitchLevelReport(value int64, err error, once bool) *Controller {
+	c := _m.On("LevelSwitchLevelReport").Return(value, err)
 
 	if once {
 		c.Once()
@@ -10,8 +10,8 @@ func (_m *Controller) MockLevelReport(value int64, err error, once bool) *Contro
 	return _m
 }
 
-func (_m *Controller) MockBinaryReport(value bool, err error, once bool) *Controller {
-	c := _m.On("BinaryReport").Return(value, err)
+func (_m *Controller) MockLevelSwitchBinaryReport(value bool, err error, once bool) *Controller {
+	c := _m.On("LevelSwitchBinaryReport").Return(value, err)
 
 	if once {
 		c.Once()
@@ -20,8 +20,8 @@ func (_m *Controller) MockBinaryReport(value bool, err error, once bool) *Contro
 	return _m
 }
 
-func (_m *Controller) MockSetLevelCtrl(value int64, err error, once bool) *Controller {
-	c := _m.On("SetLevelCtrl", value).Return(err)
+func (_m *Controller) MockSetLevelSwitchLevel(value int64, err error, once bool) *Controller {
+	c := _m.On("SetLevelSwitchLevel", value).Return(err)
 
 	if once {
 		c.Once()
@@ -30,8 +30,8 @@ func (_m *Controller) MockSetLevelCtrl(value int64, err error, once bool) *Contr
 	return _m
 }
 
-func (_m *Controller) MockSetLevelWithDurationCtrl(value int64, duration int64, err error, once bool) *Controller {
-	c := _m.On("SetLevelWithDurationCtrl", value, duration).Return(err)
+func (_m *Controller) MockSetLevelSwitchLevelWithDuration(value int64, duration int64, err error, once bool) *Controller {
+	c := _m.On("SetLevelSwitchLevelWithDuration", value, duration).Return(err)
 
 	if once {
 		c.Once()
@@ -40,8 +40,8 @@ func (_m *Controller) MockSetLevelWithDurationCtrl(value int64, duration int64, 
 	return _m
 }
 
-func (_m *Controller) MockSetBinaryCtrl(value bool, err error, once bool) *Controller {
-	c := _m.On("SetBinaryCtrl", value).Return(err)
+func (_m *Controller) MockSetLevelSwitchBinaryState(value bool, err error, once bool) *Controller {
+	c := _m.On("SetLevelSwitchBinaryState", value).Return(err)
 
 	if once {
 		c.Once()

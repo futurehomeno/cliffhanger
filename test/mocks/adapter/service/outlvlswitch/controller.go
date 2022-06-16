@@ -9,8 +9,8 @@ type Controller struct {
 	mock.Mock
 }
 
-// BinaryReport provides a mock function with given fields:
-func (_m *Controller) BinaryReport() (bool, error) {
+// LevelSwitchBinaryReport provides a mock function with given fields:
+func (_m *Controller) LevelSwitchBinaryReport() (bool, error) {
 	ret := _m.Called()
 
 	var r0 bool
@@ -30,8 +30,8 @@ func (_m *Controller) BinaryReport() (bool, error) {
 	return r0, r1
 }
 
-// LevelReport provides a mock function with given fields:
-func (_m *Controller) LevelReport() (int64, error) {
+// LevelSwitchLevelReport provides a mock function with given fields:
+func (_m *Controller) LevelSwitchLevelReport() (int64, error) {
 	ret := _m.Called()
 
 	var r0 int64
@@ -51,8 +51,8 @@ func (_m *Controller) LevelReport() (int64, error) {
 	return r0, r1
 }
 
-// SetBinaryCtrl provides a mock function with given fields: _a0
-func (_m *Controller) SetBinaryCtrl(_a0 bool) error {
+// SetLevelSwitchBinaryState provides a mock function with given fields: _a0
+func (_m *Controller) SetLevelSwitchBinaryState(_a0 bool) error {
 	ret := _m.Called(_a0)
 
 	var r0 error
@@ -65,8 +65,8 @@ func (_m *Controller) SetBinaryCtrl(_a0 bool) error {
 	return r0
 }
 
-// SetLevelCtrl provides a mock function with given fields: value
-func (_m *Controller) SetLevelCtrl(value int64) error {
+// SetLevelSwitchLevel provides a mock function with given fields: value
+func (_m *Controller) SetLevelSwitchLevel(value int64) error {
 	ret := _m.Called(value)
 
 	var r0 error
@@ -79,8 +79,8 @@ func (_m *Controller) SetLevelCtrl(value int64) error {
 	return r0
 }
 
-// SetLevelWithDurationCtrl provides a mock function with given fields: value, duration
-func (_m *Controller) SetLevelWithDurationCtrl(value int64, duration int64) error {
+// SetLevelSwitchLevelWithDuration provides a mock function with given fields: value, duration
+func (_m *Controller) SetLevelSwitchLevelWithDuration(value int64, duration int64) error {
 	ret := _m.Called(value, duration)
 
 	var r0 error
