@@ -227,6 +227,33 @@ func TestRouteLight(t *testing.T) { //nolint:paralleltest
 	s.Run(t)
 }
 
+func TestTaskLight(t *testing.T) { //nolint:paralleltest
+	s := &suite.Suite{
+		Cases: []*suite.Case{
+			{
+				Name: "Light tasks",
+				Setup: taskLight(
+					mockedoutlvlswitch.NewController(t).
+						MockLevelSwitchLevelReport(99, nil, true).
+						MockLevelSwitchBinaryReport(false, nil, true),
+				),
+				Nodes: []*suite.Node{
+					{
+						Name: "One error and one change",
+						Expectations: []*suite.Expectation{
+							suite.ExpectInt("pt:j1/mt:evt/rt:dev/rn:test_adapter/ad:1/sv:out_lvl_switch/ad:2", "evt.lvl.report", "out_lvl_switch", 99),
+							suite.ExpectBool("pt:j1/mt:evt/rt:dev/rn:test_adapter/ad:1/sv:out_lvl_switch/ad:2", "evt.binary.report", "out_lvl_switch", false),
+						},
+					},
+				},
+			},
+		},
+	}
+
+	s.Run(t)
+
+}
+
 func routeLight(
 	lightController *mockedoutlvlswitch.Controller,
 ) suite.BaseSetup {
@@ -236,6 +263,18 @@ func routeLight(
 		routing, _, mocks := setupLight(t, mqtt, lightController, 0)
 
 		return routing, nil, mocks
+	}
+}
+
+func taskLight(
+	lightController *mockedoutlvlswitch.Controller,
+) suite.BaseSetup {
+	return func(t *testing.T, mqtt *fimpgo.MqttTransport) ([]*router.Routing, []*task.Task, []suite.Mock) {
+		t.Helper()
+
+		_, tasks, mocks := setupLight(t, mqtt, lightController, 0)
+
+		return nil, tasks, mocks
 	}
 }
 
