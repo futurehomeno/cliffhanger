@@ -235,11 +235,13 @@ func TestTaskLight(t *testing.T) { //nolint:paralleltest
 				Setup: taskLight(
 					mockedoutlvlswitch.NewController(t).
 						MockLevelSwitchLevelReport(99, nil, true).
-						MockLevelSwitchBinaryReport(false, nil, true),
+						MockLevelSwitchBinaryReport(false, nil, true).
+						MockLevelSwitchLevelReport(99, errors.New("task error"), false).
+						MockLevelSwitchBinaryReport(false, errors.New("task error"), false),
 				),
 				Nodes: []*suite.Node{
 					{
-						Name: "One error and one change",
+						Name: "Two reports",
 						Expectations: []*suite.Expectation{
 							suite.ExpectInt("pt:j1/mt:evt/rt:dev/rn:test_adapter/ad:1/sv:out_lvl_switch/ad:2", "evt.lvl.report", "out_lvl_switch", 99),
 							suite.ExpectBool("pt:j1/mt:evt/rt:dev/rn:test_adapter/ad:1/sv:out_lvl_switch/ad:2", "evt.binary.report", "out_lvl_switch", false),
