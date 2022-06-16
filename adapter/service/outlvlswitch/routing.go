@@ -78,11 +78,6 @@ func HandleCmdLvlSet(adapter adapter.Adapter) router.MessageHandler {
 				return nil, fmt.Errorf("adapter: error while sending level report: %w", err)
 			}
 
-			_, err = outLvlSwitch.SendBinaryReport(true)
-			if err != nil {
-				return nil, fmt.Errorf("adapter: error while sending binary report: %w", err)
-			}
-
 			return nil, nil
 		}),
 	)
@@ -157,11 +152,6 @@ func HandleCmdLvlGetReport(adapter adapter.Adapter) router.MessageHandler {
 			_, err := outLvlSwitch.SendLevelReport(true)
 			if err != nil {
 				return nil, fmt.Errorf("adapter: error while sending level report: %w", err)
-			}
-
-			_, err = outLvlSwitch.SendBinaryReport(true)
-			if err != nil {
-				return nil, fmt.Errorf("adapter: error while sending binary report: %w", err)
 			}
 
 			return nil, nil
