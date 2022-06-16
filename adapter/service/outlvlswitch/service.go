@@ -3,7 +3,6 @@ package outlvlswitch
 import (
 	"fmt"
 	"sync"
-	"time"
 
 	"github.com/futurehomeno/fimpgo"
 	"github.com/futurehomeno/fimpgo/fimptype"
@@ -22,7 +21,7 @@ const (
 )
 
 // DefaultReportingStrategy is the default reporting strategy used by the service for periodic reports.
-var DefaultReportingStrategy = cache.ReportAtLeastEvery(30 * time.Minute)
+var DefaultReportingStrategy = cache.ReportOnChangeOnly()
 
 // Controller is an interface representing an actual device.
 // In a polling scenario implementation might require some safeguards against excessive polling.
