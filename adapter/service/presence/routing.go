@@ -13,7 +13,7 @@ const (
 	CmdPresenceGetReport = "cmd.presence.get_report"
 	EvtPresenceReport    = "evt.presence.report"
 
-	Presence = "presence"
+	Presence = "sensor_presence"
 )
 
 // RouteService returns routing for service specific commands.

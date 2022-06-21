@@ -11,7 +11,7 @@ import (
 func Specification(
 	resourceName,
 	resourceAddress,
-	address,
+	address string,
 	groups []string,
 ) *fimptype.Service {
 	return &fimptype.Service{
