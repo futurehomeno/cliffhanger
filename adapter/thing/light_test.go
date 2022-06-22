@@ -24,8 +24,8 @@ func TestRouteLight(t *testing.T) { //nolint:paralleltest
 				Name: "successful set level routing",
 				Setup: routeLight(
 					mockedoutlvlswitch.NewController(t).
-						MockSetLevelSwitchLevel(99, nil, false).
-						MockLevelSwitchLevelReport(99, nil, false),
+						MockSetLevelSwitchLevel(99, nil, true).
+						MockLevelSwitchLevelReport(99, nil, true),
 				),
 				Nodes: []*suite.Node{
 					{
@@ -41,8 +41,8 @@ func TestRouteLight(t *testing.T) { //nolint:paralleltest
 				Name: "successful set binary routing",
 				Setup: routeLight(
 					mockedoutlvlswitch.NewController(t).
-						MockSetLevelSwitchBinaryState(true, nil, false).
-						MockLevelSwitchBinaryReport(true, nil, false),
+						MockSetLevelSwitchBinaryState(true, nil, true).
+						MockLevelSwitchBinaryReport(true, nil, true),
 				),
 				Nodes: []*suite.Node{
 					{
@@ -58,8 +58,8 @@ func TestRouteLight(t *testing.T) { //nolint:paralleltest
 				Name: "successful set level routing with duration",
 				Setup: routeLight(
 					mockedoutlvlswitch.NewController(t).
-						MockSetLevelSwitchLevelWithDuration(99, 1, nil, false).
-						MockLevelSwitchLevelReport(99, nil, false),
+						MockSetLevelSwitchLevelWithDuration(99, 1*time.Second, nil, true).
+						MockLevelSwitchLevelReport(99, nil, true),
 				),
 				Nodes: []*suite.Node{
 					{
@@ -78,7 +78,7 @@ func TestRouteLight(t *testing.T) { //nolint:paralleltest
 				Name: "successful get report",
 				Setup: routeLight(
 					mockedoutlvlswitch.NewController(t).
-						MockLevelSwitchLevelReport(99, nil, false),
+						MockLevelSwitchLevelReport(99, nil, true),
 				),
 				Nodes: []*suite.Node{
 					{
@@ -96,7 +96,7 @@ func TestRouteLight(t *testing.T) { //nolint:paralleltest
 				Name: "failed set level - setting error",
 				Setup: routeLight(
 					mockedoutlvlswitch.NewController(t).
-						MockSetLevelSwitchLevel(99, errors.New("setting error"), false),
+						MockSetLevelSwitchLevel(99, errors.New("setting error"), true),
 				),
 				Nodes: []*suite.Node{
 					{
@@ -126,7 +126,7 @@ func TestRouteLight(t *testing.T) { //nolint:paralleltest
 				Name: "failed set level with duration - setting error",
 				Setup: routeLight(
 					mockedoutlvlswitch.NewController(t).
-						MockSetLevelSwitchLevelWithDuration(99, 1, errors.New("setting error"), false),
+						MockSetLevelSwitchLevelWithDuration(99, 1*time.Second, errors.New("setting error"), true),
 				),
 				Nodes: []*suite.Node{
 					{
@@ -145,8 +145,8 @@ func TestRouteLight(t *testing.T) { //nolint:paralleltest
 				Name: "failed set level - level report error",
 				Setup: routeLight(
 					mockedoutlvlswitch.NewController(t).
-						MockSetLevelSwitchLevel(99, nil, false).
-						MockLevelSwitchLevelReport(99, errors.New("report error"), false),
+						MockSetLevelSwitchLevel(99, nil, true).
+						MockLevelSwitchLevelReport(99, errors.New("report error"), true),
 				),
 				Nodes: []*suite.Node{
 					{
@@ -162,7 +162,7 @@ func TestRouteLight(t *testing.T) { //nolint:paralleltest
 				Name: "failed set binary - setting error",
 				Setup: routeLight(
 					mockedoutlvlswitch.NewController(t).
-						MockSetLevelSwitchBinaryState(true, errors.New("setting error"), false),
+						MockSetLevelSwitchBinaryState(true, errors.New("setting error"), true),
 				),
 				Nodes: []*suite.Node{
 					{
@@ -192,8 +192,8 @@ func TestRouteLight(t *testing.T) { //nolint:paralleltest
 				Name: "failed set binary - binary report error",
 				Setup: routeLight(
 					mockedoutlvlswitch.NewController(t).
-						MockSetLevelSwitchBinaryState(true, nil, false).
-						MockLevelSwitchBinaryReport(true, errors.New("report error"), false),
+						MockSetLevelSwitchBinaryState(true, nil, true).
+						MockLevelSwitchBinaryReport(true, errors.New("report error"), true),
 				),
 				Nodes: []*suite.Node{
 					{
@@ -209,7 +209,7 @@ func TestRouteLight(t *testing.T) { //nolint:paralleltest
 				Name: "failed get level - send level error",
 				Setup: routeLight(
 					mockedoutlvlswitch.NewController(t).
-						MockLevelSwitchLevelReport(99, errors.New("sending error"), false),
+						MockLevelSwitchLevelReport(99, errors.New("sending error"), true),
 				),
 				Nodes: []*suite.Node{
 					{
@@ -236,8 +236,11 @@ func TestTaskLight(t *testing.T) { //nolint:paralleltest
 					mockedoutlvlswitch.NewController(t).
 						MockLevelSwitchLevelReport(99, nil, true).
 						MockLevelSwitchBinaryReport(false, nil, true).
-						MockLevelSwitchLevelReport(99, errors.New("task error"), false).
-						MockLevelSwitchBinaryReport(false, errors.New("task error"), false),
+						MockLevelSwitchLevelReport(99, errors.New("task error"), true).
+						MockLevelSwitchBinaryReport(false, errors.New("task error"), true).
+						MockLevelSwitchLevelReport(98, nil, true).
+						MockLevelSwitchBinaryReport(true, nil, true),
+					100*time.Millisecond,
 				),
 				Nodes: []*suite.Node{
 					{
@@ -245,6 +248,8 @@ func TestTaskLight(t *testing.T) { //nolint:paralleltest
 						Expectations: []*suite.Expectation{
 							suite.ExpectInt("pt:j1/mt:evt/rt:dev/rn:test_adapter/ad:1/sv:out_lvl_switch/ad:2", "evt.lvl.report", "out_lvl_switch", 99),
 							suite.ExpectBool("pt:j1/mt:evt/rt:dev/rn:test_adapter/ad:1/sv:out_lvl_switch/ad:2", "evt.binary.report", "out_lvl_switch", false),
+							suite.ExpectInt("pt:j1/mt:evt/rt:dev/rn:test_adapter/ad:1/sv:out_lvl_switch/ad:2", "evt.lvl.report", "out_lvl_switch", 98),
+							suite.ExpectBool("pt:j1/mt:evt/rt:dev/rn:test_adapter/ad:1/sv:out_lvl_switch/ad:2", "evt.binary.report", "out_lvl_switch", true),
 						},
 					},
 				},
@@ -269,11 +274,12 @@ func routeLight(
 
 func taskLight(
 	lightController *mockedoutlvlswitch.Controller,
+	interval time.Duration,
 ) suite.BaseSetup {
 	return func(t *testing.T, mqtt *fimpgo.MqttTransport) ([]*router.Routing, []*task.Task, []suite.Mock) {
 		t.Helper()
 
-		_, tasks, mocks := setupLight(t, mqtt, lightController, 0)
+		_, tasks, mocks := setupLight(t, mqtt, lightController, interval)
 
 		return nil, tasks, mocks
 	}

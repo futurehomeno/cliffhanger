@@ -12,16 +12,14 @@ import (
 // Constants defining routing service, commands and events.
 const (
 	CmdLvlSet       = "cmd.lvl.set"
+	CmdLvlGetReport = "cmd.lvl.get_report"
+	EvtLvlReport    = "evt.lvl.report"
 	CmdLvlStart     = "cmd.lvl.start"
 	CmdLvlStop      = "cmd.lvl.stop"
 	CmdBinarySet    = "cmd.binary.set"
-	CmdLvlGetReport = "cmd.lvl.get_report"
-
-	EvtLvlReport    = "evt.lvl.report"
 	EvtBinaryReport = "evt.binary.report"
 
 	OutLvlSwitch = "out_lvl_switch"
-	Duration     = "duration"
 )
 
 // RouteService returns routing for service specific commands.
@@ -58,18 +56,18 @@ func HandleCmdLvlSet(adapter adapter.Adapter) router.MessageHandler {
 
 			lvl, err := message.Payload.GetIntValue()
 			if err != nil {
-				return nil, err
+				return nil, fmt.Errorf("adapter: error while getting level value from message: %w", err)
 			}
 
-			if duration, err := message.Payload.Properties.GetIntValue(Duration); err == nil {
-				err = outLvlSwitch.SetLevelWithDuration(lvl, duration)
-				if err != nil {
-					return nil, fmt.Errorf("adapter: error while setting level with duration: %w", err)
-				}
-			} else {
+			if duration, err := message.Payload.Properties.GetIntValue(Duration); err != nil {
 				err = outLvlSwitch.SetLevel(lvl)
 				if err != nil {
 					return nil, fmt.Errorf("adapter: error while setting level: %w", err)
+				}
+			} else {
+				err = outLvlSwitch.SetLevelWithDuration(lvl, duration)
+				if err != nil {
+					return nil, fmt.Errorf("adapter: error while setting level with duration: %w", err)
 				}
 			}
 
@@ -108,7 +106,7 @@ func HandleCmdBinarySet(adapter adapter.Adapter) router.MessageHandler {
 
 			binary, err := message.Payload.GetBoolValue()
 			if err != nil {
-				return nil, err
+				return nil, fmt.Errorf("adapter: error while getting binary value from message: %w", err)
 			}
 
 			err = outLvlSwitch.SetBinaryState(binary)

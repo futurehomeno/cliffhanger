@@ -3,6 +3,7 @@ package outlvlswitch
 import (
 	"fmt"
 	"sync"
+	"time"
 
 	"github.com/futurehomeno/fimpgo"
 	"github.com/futurehomeno/fimpgo/fimptype"
@@ -18,6 +19,7 @@ const (
 	SwitchType    = "sw_type" // "on_off" or "up_down"
 	TypeOnAndOff  = "on_off"
 	TypeUpAndDown = "up_down"
+	Duration      = "duration"
 )
 
 // DefaultReportingStrategy is the default reporting strategy used by the service for periodic reports.
@@ -26,15 +28,15 @@ var DefaultReportingStrategy = cache.ReportOnChangeOnly()
 // Controller is an interface representing an actual device.
 // In a polling scenario implementation might require some safeguards against excessive polling.
 type Controller interface {
-	// LevelReport returns a current level value.
+	// LevelSwitchLevelReport returns a current level value.
 	LevelSwitchLevelReport() (int64, error)
-	// BinanryReport returns a current binary value.
+	// LevelSwitchBinaryReport returns a current binary value.
 	LevelSwitchBinaryReport() (bool, error)
-	// SetLvlCtrl sets a level value.
+	// SetLevelSwitchLevel sets a level value.
 	SetLevelSwitchLevel(value int64) error
-	// SetLevelWithDurationCtrl sets a level value over a specified duration in seconds.
-	SetLevelSwitchLevelWithDuration(value int64, duration int64) error
-	// SetBinaryCtrl sets a binary value.
+	// SetLevelSwitchLevelWithDuration sets a level value over a specified duration in seconds.
+	SetLevelSwitchLevelWithDuration(value int64, duration time.Duration) error
+	// SetLevelSwitchBinaryState sets a binary value.
 	SetLevelSwitchBinaryState(bool) error
 }
 
@@ -54,7 +56,7 @@ type Service interface {
 	SetLevel(value int64) error
 	// SetLevelWithDuration sets a level value over a specified duration in seconds.
 	SetLevelWithDuration(value int64, duration int64) error
-	// SetBinary sets a binary value.
+	// SetBinaryState sets a binary value.
 	SetBinaryState(value bool) error
 }
 
@@ -181,7 +183,8 @@ func (s *service) SetLevelWithDuration(value int64, duration int64) error {
 	s.lock.Lock()
 	defer s.lock.Unlock()
 
-	err := s.controller.SetLevelSwitchLevelWithDuration(value, duration)
+	timeDuration := time.Duration(duration) * time.Second
+	err := s.controller.SetLevelSwitchLevelWithDuration(value, timeDuration)
 	if err != nil {
 		return fmt.Errorf("%s: failed to set level with duration: %w", s.Name(), err)
 	}
@@ -189,7 +192,7 @@ func (s *service) SetLevelWithDuration(value int64, duration int64) error {
 	return nil
 }
 
-// SetBinary sets a binary value.
+// SetBinaryState sets a binary value.
 func (s *service) SetBinaryState(value bool) error {
 	s.lock.Lock()
 	defer s.lock.Unlock()

@@ -20,7 +20,6 @@ func Specification(
 	return &fimptype.Service{
 		Address: fmt.Sprintf("/rt:dev/rn:%s/ad:%s/sv:%s/ad:%s", resourceName, resourceAddress, OutLvlSwitch, address),
 		Name:    OutLvlSwitch,
-
 		Groups:  groups,
 		Enabled: true,
 		Props: map[string]interface{}{
