@@ -184,6 +184,7 @@ func (s *service) SetLevelWithDuration(value int64, duration int64) error {
 	defer s.lock.Unlock()
 
 	timeDuration := time.Duration(duration) * time.Second
+
 	err := s.controller.SetLevelSwitchLevelWithDuration(value, timeDuration)
 	if err != nil {
 		return fmt.Errorf("%s: failed to set level with duration: %w", s.Name(), err)
