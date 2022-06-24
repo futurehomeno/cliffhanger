@@ -28,27 +28,6 @@ func (_m *Service) Name() string {
 	return r0
 }
 
-// SendBinaryReport provides a mock function with given fields: force
-func (_m *Service) SendBinaryReport(force bool) (bool, error) {
-	ret := _m.Called(force)
-
-	var r0 bool
-	if rf, ok := ret.Get(0).(func(bool) bool); ok {
-		r0 = rf(force)
-	} else {
-		r0 = ret.Get(0).(bool)
-	}
-
-	var r1 error
-	if rf, ok := ret.Get(1).(func(bool) error); ok {
-		r1 = rf(force)
-	} else {
-		r1 = ret.Error(1)
-	}
-
-	return r0, r1
-}
-
 // SendLevelReport provides a mock function with given fields: force
 func (_m *Service) SendLevelReport(force bool) (bool, error) {
 	ret := _m.Called(force)
@@ -137,6 +116,20 @@ func (_m *Service) Specification() *fimptype.Service {
 		if ret.Get(0) != nil {
 			r0 = ret.Get(0).(*fimptype.Service)
 		}
+	}
+
+	return r0
+}
+
+// SupportDuration provides a mock function with given fields:
+func (_m *Service) SupportDuration() bool {
+	ret := _m.Called()
+
+	var r0 bool
+	if rf, ok := ret.Get(0).(func() bool); ok {
+		r0 = rf()
+	} else {
+		r0 = ret.Get(0).(bool)
 	}
 
 	return r0

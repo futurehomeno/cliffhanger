@@ -27,11 +27,6 @@ func HandleReporting(adapter adapter.Adapter) func() {
 			if err != nil {
 				log.WithError(err).Errorf("adapter: failed to send lvl report")
 			}
-
-			_, err = outLvlSwitch.SendBinaryReport(false)
-			if err != nil {
-				log.WithError(err).Errorf("adapter: failed to send binary report")
-			}
 		}
 	}
 }

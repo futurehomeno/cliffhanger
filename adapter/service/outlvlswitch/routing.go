@@ -5,6 +5,8 @@ import (
 
 	"github.com/futurehomeno/fimpgo"
 
+	log "github.com/sirupsen/logrus"
+
 	"github.com/futurehomeno/cliffhanger/adapter"
 	"github.com/futurehomeno/cliffhanger/router"
 )
@@ -17,7 +19,6 @@ const (
 	CmdLvlStart     = "cmd.lvl.start"
 	CmdLvlStop      = "cmd.lvl.stop"
 	CmdBinarySet    = "cmd.binary.set"
-	EvtBinaryReport = "evt.binary.report"
 
 	OutLvlSwitch = "out_lvl_switch"
 )
@@ -59,15 +60,26 @@ func HandleCmdLvlSet(adapter adapter.Adapter) router.MessageHandler {
 				return nil, fmt.Errorf("adapter: error while getting level value from message: %w", err)
 			}
 
-			if duration, err := message.Payload.Properties.GetIntValue(Duration); err != nil {
+			if outLvlSwitch.SupportDuration() {
+				log.Info("The device supports duration")
+				if duration, err := message.Payload.Properties.GetIntValue(Duration); err != nil {
+					log.Errorf("adapter: error while getting duration value from message: %s. Setting level without duration.", err)
+
+					err = outLvlSwitch.SetLevel(lvl)
+					if err != nil {
+						return nil, fmt.Errorf("adapter: error while setting level: %w", err)
+					}
+				} else {
+					err = outLvlSwitch.SetLevelWithDuration(lvl, duration)
+					if err != nil {
+						return nil, fmt.Errorf("adapter: error while setting level with duration: %w", err)
+					}
+				}
+			} else {
+				log.Info("The device does not support duration")
 				err = outLvlSwitch.SetLevel(lvl)
 				if err != nil {
 					return nil, fmt.Errorf("adapter: error while setting level: %w", err)
-				}
-			} else {
-				err = outLvlSwitch.SetLevelWithDuration(lvl, duration)
-				if err != nil {
-					return nil, fmt.Errorf("adapter: error while setting level with duration: %w", err)
 				}
 			}
 
@@ -114,9 +126,9 @@ func HandleCmdBinarySet(adapter adapter.Adapter) router.MessageHandler {
 				return nil, fmt.Errorf("adapter: error while setting binary: %w", err)
 			}
 
-			_, err = outLvlSwitch.SendBinaryReport(true)
+			_, err = outLvlSwitch.SendLevelReport(true)
 			if err != nil {
-				return nil, fmt.Errorf("adapter: error while sending binary report: %w", err)
+				return nil, fmt.Errorf("adapter: error while sending level report: %w", err)
 			}
 
 			return nil, nil

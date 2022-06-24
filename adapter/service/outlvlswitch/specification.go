@@ -23,9 +23,9 @@ func Specification(
 		Groups:  groups,
 		Enabled: true,
 		Props: map[string]interface{}{
-			MaxLvl:     maxLvl,
-			MinLvl:     minLvl,
-			SwitchType: switchType,
+			PropertyMaxLvl:     maxLvl,
+			PropertyMinLvl:     minLvl,
+			PropertySwitchType: switchType,
 		},
 		Interfaces: requiredInterfaces(),
 	}
@@ -68,12 +68,6 @@ func requiredInterfaces() []fimptype.Interface {
 			Type:      fimptype.TypeOut,
 			MsgType:   EvtLvlReport,
 			ValueType: fimpgo.VTypeInt,
-			Version:   "1",
-		},
-		{
-			Type:      fimptype.TypeOut,
-			MsgType:   EvtBinaryReport,
-			ValueType: fimpgo.VTypeBool,
 			Version:   "1",
 		},
 	}
