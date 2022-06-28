@@ -1,6 +1,7 @@
 package presence_test
 
 import (
+	"errors"
 	"testing"
 	"time"
 
@@ -36,6 +37,33 @@ func TestRoutePresence(t *testing.T) { //nolint:paralleltest
 					},
 				},
 			},
+			{
+				Name: "failed get report",
+				Setup: routePresence(
+					mockedpresence.NewController(t).
+						MockPresencePresenceReport(false, errors.New("error"), true),
+				),
+				Nodes: []*suite.Node{
+					{
+						Name: "get report error",
+						Command: suite.NewMessageBuilder().
+							NullMessage("pt:j1/mt:cmd/rt:dev/rn:test_adapter/ad:1/sv:sensor_presence/ad:2", "cmd.presence.get_report", "sensor_presence").
+							Build(),
+						Expectations: []*suite.Expectation{
+							suite.ExpectError("pt:j1/mt:evt/rt:dev/rn:test_adapter/ad:1/sv:sensor_presence/ad:2", "sensor_presence"),
+						},
+					},
+					{
+						Name: "wrond address",
+						Command: suite.NewMessageBuilder().
+							NullMessage("pt:j1/mt:cmd/rt:dev/rn:test_adapter/ad:1/sv:sensor_presence/ad:3", "cmd.presence.get_report", "sensor_presence").
+							Build(),
+						Expectations: []*suite.Expectation{
+							suite.ExpectError("pt:j1/mt:evt/rt:dev/rn:test_adapter/ad:1/sv:sensor_presence/ad:3", "sensor_presence"),
+						},
+					},
+				},
+			},
 		},
 	}
 
@@ -49,13 +77,18 @@ func TestTaskPresence(t *testing.T) { //nolint:paralleltest
 				Name: "Presence thing tasks",
 				Setup: taskPresence(
 					mockedpresence.NewController(t).
-						MockPresencePresenceReport(true, nil, true),
+						MockPresencePresenceReport(true, nil, true).
+						MockPresencePresenceReport(true, errors.New("task error"), true).
+						MockPresencePresenceReport(false, nil, true).
+						MockPresencePresenceReport(false, nil, false),
+					100*time.Millisecond,
 				),
 				Nodes: []*suite.Node{
 					{
 						Name: "Two reports and one skip",
 						Expectations: []*suite.Expectation{
 							suite.ExpectBool("pt:j1/mt:evt/rt:dev/rn:test_adapter/ad:1/sv:sensor_presence/ad:2", "evt.presence.report", "sensor_presence", true),
+							suite.ExpectBool("pt:j1/mt:evt/rt:dev/rn:test_adapter/ad:1/sv:sensor_presence/ad:2", "evt.presence.report", "sensor_presence", false),
 						},
 					},
 				},
@@ -80,11 +113,12 @@ func routePresence(
 
 func taskPresence(
 	presenceController *mockedpresence.Controller,
+	interval time.Duration,
 ) suite.BaseSetup {
 	return func(t *testing.T, mqtt *fimpgo.MqttTransport) ([]*router.Routing, []*task.Task, []suite.Mock) {
 		t.Helper()
 
-		_, tasks, mocks := setupPresence(t, mqtt, presenceController, 0)
+		_, tasks, mocks := setupPresence(t, mqtt, presenceController, interval)
 
 		return nil, tasks, mocks
 	}
