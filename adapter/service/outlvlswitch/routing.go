@@ -2,6 +2,7 @@ package outlvlswitch
 
 import (
 	"fmt"
+	"time"
 
 	"github.com/futurehomeno/fimpgo"
 
@@ -60,26 +61,24 @@ func HandleCmdLvlSet(adapter adapter.Adapter) router.MessageHandler {
 				return nil, fmt.Errorf("adapter: error while getting level value from message: %w", err)
 			}
 
-			if outLvlSwitch.SupportDuration() {
-				log.Info("The device supports duration")
-				if duration, err := message.Payload.Properties.GetIntValue(Duration); err != nil {
-					log.Errorf("adapter: error while getting duration value from message: %s. Setting level without duration.", err)
-
-					err = outLvlSwitch.SetLevel(lvl)
-					if err != nil {
-						return nil, fmt.Errorf("adapter: error while setting level: %w", err)
-					}
-				} else {
-					err = outLvlSwitch.SetLevelWithDuration(lvl, duration)
-					if err != nil {
-						return nil, fmt.Errorf("adapter: error while setting level with duration: %w", err)
-					}
-				}
-			} else {
-				log.Info("The device does not support duration")
-				err = outLvlSwitch.SetLevel(lvl)
+			if d, ok, err := message.Payload.Properties.GetIntValue(Duration); !ok {
+				log.Info("adapter: duration not found in message properties. Setting level without duration.")
+				err = outLvlSwitch.SetLevel(lvl, time.Duration(0))
 				if err != nil {
 					return nil, fmt.Errorf("adapter: error while setting level: %w", err)
+				}
+			} else if err != nil {
+				log.Errorf("adapter: error while getting duration value from message: %s. Setting level without duration.", err)
+
+				err = outLvlSwitch.SetLevel(lvl, time.Duration(0))
+				if err != nil {
+					return nil, fmt.Errorf("adapter: error while setting level: %w", err)
+				}
+			} else {
+				duration := time.Duration(d) * time.Second
+				err = outLvlSwitch.SetLevel(lvl, duration)
+				if err != nil {
+					return nil, fmt.Errorf("adapter: error while setting level with duration: %w", err)
 				}
 			}
 

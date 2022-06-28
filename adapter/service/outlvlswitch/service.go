@@ -2,13 +2,11 @@ package outlvlswitch
 
 import (
 	"fmt"
-	"reflect"
 	"sync"
 	"time"
 
 	"github.com/futurehomeno/fimpgo"
 	"github.com/futurehomeno/fimpgo/fimptype"
-	log "github.com/sirupsen/logrus"
 
 	"github.com/futurehomeno/cliffhanger/adapter"
 	"github.com/futurehomeno/cliffhanger/adapter/cache"
@@ -35,16 +33,9 @@ type Controller interface {
 	// LevelSwitchLevelReport returns a current level value.
 	LevelSwitchLevelReport() (int64, error)
 	// SetLevelSwitchLevel sets a level value.
-	SetLevelSwitchLevel(value int64) error
+	SetLevelSwitchLevel(value int64, duration time.Duration) error
 	// SetLevelSwitchBinaryState sets a binary value.
 	SetLevelSwitchBinaryState(bool) error
-}
-
-type ControllerWithDurationSupport interface {
-	Controller
-
-	// SetLevelSwitchLevelWithDuration sets a level value over a specified duration.
-	SetLevelSwitchLevelWithDuration(value int64, duration time.Duration) error
 }
 
 // Service is an interface representing a output level switch FIMP service.
@@ -56,21 +47,16 @@ type Service interface {
 	// To make sure report is being sent regardless of circumstances set the force argument to true.
 	SendLevelReport(force bool) (bool, error)
 	// SetLevel sets a level value.
-	SetLevel(value int64) error
-	// SetLevelWithDuration sets a level value over a specified duration in seconds.
-	SetLevelWithDuration(value int64, duration int64) error
+	SetLevel(value int64, duration time.Duration) error
 	// SetBinaryState sets a binary value.
 	SetBinaryState(value bool) error
-	// SupportDuration returns true if the service supports duration.
-	SupportDuration() bool
 }
 
 // Config represents a service configuration.
 type Config struct {
-	Specification                 *fimptype.Service
-	Controller                    Controller
-	ControllerWithDurationSupport ControllerWithDurationSupport
-	ReportingStrategy             cache.ReportingStrategy
+	Specification     *fimptype.Service
+	Controller        Controller
+	ReportingStrategy cache.ReportingStrategy
 }
 
 // NewService creates new instance of a output level switch FIMP service.
@@ -87,25 +73,9 @@ func NewService(
 	s := &service{
 		Service:           adapter.NewService(mqtt, cfg.Specification),
 		lock:              &sync.Mutex{},
+		controller:        cfg.Controller,
 		reportingStrategy: cfg.ReportingStrategy,
 		reportingCache:    cache.NewReportingCache(),
-	}
-
-	s.controller = cfg.Controller
-	s.controllerWithDurationSupport = cfg.ControllerWithDurationSupport
-
-	log.Info(reflect.TypeOf(s.controllerWithDurationSupport))
-	log.Info("s.controllerWithDurationSupport: ", s.controllerWithDurationSupport) // this logs <nil>
-	if s.controllerWithDurationSupport != nil {
-		log.Info("supports duration") // but this is true??
-	} else {
-		log.Info("does not support duration")
-	}
-
-	if !s.SupportDuration() {
-		log.Info("i am in")
-		s.controller = cfg.Controller
-		s.controllerWithDurationSupport = nil
 	}
 
 	return s
@@ -115,11 +85,10 @@ func NewService(
 type service struct {
 	adapter.Service
 
-	controller                    Controller
-	controllerWithDurationSupport ControllerWithDurationSupport
-	lock                          *sync.Mutex
-	reportingCache                cache.ReportingCache
-	reportingStrategy             cache.ReportingStrategy
+	controller        Controller
+	lock              *sync.Mutex
+	reportingCache    cache.ReportingCache
+	reportingStrategy cache.ReportingStrategy
 }
 
 // SendLevelReport sends a level report. Returns true if a report was sent.
@@ -158,28 +127,20 @@ func (s *service) SendLevelReport(force bool) (bool, error) {
 }
 
 // SetLevel sets a level value.
-func (s *service) SetLevel(value int64) error {
+func (s *service) SetLevel(value int64, duration time.Duration) error {
 	s.lock.Lock()
 	defer s.lock.Unlock()
 
-	err := s.controller.SetLevelSwitchLevel(value)
-	if err != nil {
-		return fmt.Errorf("%s: failed to set level: %w", s.Name(), err)
-	}
-
-	return nil
-}
-
-// SetLevelWithDuration sets a level value over a specified duration.
-func (s *service) SetLevelWithDuration(value int64, duration int64) error {
-	s.lock.Lock()
-	defer s.lock.Unlock()
-
-	timeDuration := time.Duration(duration) * time.Second
-
-	err := s.controllerWithDurationSupport.SetLevelSwitchLevelWithDuration(value, timeDuration)
-	if err != nil {
-		return fmt.Errorf("%s: failed to set level with duration: %w", s.Name(), err)
+	if duration.Nanoseconds() > 0 {
+		err := s.controller.SetLevelSwitchLevel(value, duration)
+		if err != nil {
+			return fmt.Errorf("%s: failed to set level: %w", s.Name(), err)
+		}
+	} else {
+		err := s.controller.SetLevelSwitchLevel(value, time.Duration(0))
+		if err != nil {
+			return fmt.Errorf("%s: failed to set level: %w", s.Name(), err)
+		}
 	}
 
 	return nil
@@ -196,9 +157,4 @@ func (s *service) SetBinaryState(value bool) error {
 	}
 
 	return nil
-}
-
-// SupportDuration returns true if the service supports duration.
-func (s *service) SupportDuration() bool {
-	return s.controllerWithDurationSupport != nil
 }
