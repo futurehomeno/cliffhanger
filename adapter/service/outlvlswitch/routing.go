@@ -5,7 +5,6 @@ import (
 	"time"
 
 	"github.com/futurehomeno/fimpgo"
-
 	log "github.com/sirupsen/logrus"
 
 	"github.com/futurehomeno/cliffhanger/adapter"
@@ -61,25 +60,9 @@ func HandleCmdLvlSet(adapter adapter.Adapter) router.MessageHandler {
 				return nil, fmt.Errorf("adapter: error while getting level value from message: %w", err)
 			}
 
-			if d, ok, err := message.Payload.Properties.GetIntValue(Duration); !ok {
-				log.Info("adapter: duration not found in message properties. Setting level without duration.")
-				err = outLvlSwitch.SetLevel(lvl, time.Duration(0))
-				if err != nil {
-					return nil, fmt.Errorf("adapter: error while setting level: %w", err)
-				}
-			} else if err != nil {
-				log.Errorf("adapter: error while getting duration value from message: %s. Setting level without duration.", err)
-
-				err = outLvlSwitch.SetLevel(lvl, time.Duration(0))
-				if err != nil {
-					return nil, fmt.Errorf("adapter: error while setting level: %w", err)
-				}
-			} else {
-				duration := time.Duration(d) * time.Second
-				err = outLvlSwitch.SetLevel(lvl, duration)
-				if err != nil {
-					return nil, fmt.Errorf("adapter: error while setting level with duration: %w", err)
-				}
+			err = getDurationAndSetLevel(message, outLvlSwitch, lvl)
+			if err != nil {
+				return nil, fmt.Errorf("adapter: error while setting level: %w", err)
 			}
 
 			_, err = outLvlSwitch.SendLevelReport(true)
@@ -90,6 +73,35 @@ func HandleCmdLvlSet(adapter adapter.Adapter) router.MessageHandler {
 			return nil, nil
 		}),
 	)
+}
+
+func getDurationAndSetLevel(message *fimpgo.Message, outLvlSwitch Service, lvl int64) error {
+	switch d, ok, err := message.Payload.Properties.GetIntValue(Duration); {
+	case !ok:
+		log.Info("adapter: duration not found in message properties. Setting level without duration.")
+
+		err = outLvlSwitch.SetLevel(lvl, time.Duration(0))
+		if err != nil {
+			return fmt.Errorf("adapter: error while setting level: %w", err)
+		}
+
+	case err != nil:
+		log.Errorf("adapter: error while getting duration value from message: %s. Setting level without duration.", err)
+
+		err = outLvlSwitch.SetLevel(lvl, time.Duration(0))
+		if err != nil {
+			return fmt.Errorf("adapter: error while setting level: %w", err)
+		}
+	default:
+		duration := time.Duration(d) * time.Second
+
+		err = outLvlSwitch.SetLevel(lvl, duration)
+		if err != nil {
+			return fmt.Errorf("adapter: error while setting level with duration: %w", err)
+		}
+	}
+
+	return nil
 }
 
 // RouteCmdBinarySet returns a routing responsible for handling the command.
