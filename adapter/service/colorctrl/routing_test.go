@@ -1,6 +1,7 @@
 package color_ctrl_test
 
 import (
+	"errors"
 	"testing"
 	"time"
 
@@ -15,10 +16,15 @@ import (
 )
 
 func TestRouteColorCtrl(t *testing.T) {
-	m := make(map[string]int64)
-	m["red"] = 255
-	m["green"] = 255
-	m["blue"] = 255
+	val := make(map[string]int64)
+	val["red"] = 255
+	val["green"] = 55
+	val["blue"] = 100
+
+	wrongValueType := make(map[string]float64)
+	wrongValueType["red"] = 255.0
+	wrongValueType["green"] = 55.0
+	wrongValueType["blue"] = 100.0
 
 	s := &suite.Suite{
 		Cases: []*suite.Case{
@@ -27,21 +33,133 @@ func TestRouteColorCtrl(t *testing.T) {
 
 				Setup: routeColorCtrl(
 					mockedcolorctrl.NewController(t).
-						MockSetColorCtrlColor(m, nil, true).
-						MockColorCtrlColorReport(m, nil, true),
+						MockSetColorCtrlColor(val, nil, true).
+						MockColorCtrlColorReport(val, nil, true),
 				),
 				Nodes: []*suite.Node{
 					{
 						Name:    "set color",
-						Command: suite.IntMapMessage("pt:j1/mt:cmd/rt:dev/rn:test_adapter/ad:1/sv:color_ctrl/ad:2", "cmd.color.set", "color_ctrl", m),
+						Command: suite.IntMapMessage("pt:j1/mt:cmd/rt:dev/rn:test_adapter/ad:1/sv:color_ctrl/ad:2", "cmd.color.set", "color_ctrl", val),
 						Expectations: []*suite.Expectation{
-							suite.ExpectIntMap("pt:j1/mt:evt/rt:dev/rn:test_adapter/ad:1/sv:color_ctrl/ad:2", "evt.color.report", "color_ctrl", m),
+							suite.ExpectIntMap("pt:j1/mt:evt/rt:dev/rn:test_adapter/ad:1/sv:color_ctrl/ad:2", "evt.color.report", "color_ctrl", val),
+						},
+					},
+				},
+			},
+			{
+				Name: "successful get color",
+
+				Setup: routeColorCtrl(
+					mockedcolorctrl.NewController(t).
+						MockColorCtrlColorReport(val, nil, true),
+				),
+				Nodes: []*suite.Node{
+					{
+						Name:    "get color",
+						Command: suite.NullMessage("pt:j1/mt:cmd/rt:dev/rn:test_adapter/ad:1/sv:color_ctrl/ad:2", "cmd.color.get_report", "color_ctrl"),
+						Expectations: []*suite.Expectation{
+							suite.ExpectIntMap("pt:j1/mt:evt/rt:dev/rn:test_adapter/ad:1/sv:color_ctrl/ad:2", "evt.color.report", "color_ctrl", val),
+						},
+					},
+				},
+			},
+			{
+				Name: "failed set level - setting error",
+
+				Setup: routeColorCtrl(
+					mockedcolorctrl.NewController(t).
+						MockSetColorCtrlColor(val, errors.New("error"), false),
+				),
+				Nodes: []*suite.Node{
+					{
+						Name:    "setting error",
+						Command: suite.IntMapMessage("pt:j1/mt:cmd/rt:dev/rn:test_adapter/ad:1/sv:color_ctrl/ad:2", "cmd.color.set", "color_ctrl", val),
+						Expectations: []*suite.Expectation{
+							suite.ExpectError("pt:j1/mt:evt/rt:dev/rn:test_adapter/ad:1/sv:color_ctrl/ad:2", "color_ctrl"),
+						},
+					},
+					{
+						Name:    "wrong value type",
+						Command: suite.FloatMapMessage("pt:j1/mt:cmd/rt:dev/rn:test_adapter/ad:1/sv:color_ctrl/ad:2", "cmd.color.set", "color_ctrl", wrongValueType),
+						Expectations: []*suite.Expectation{
+							suite.ExpectError("pt:j1/mt:evt/rt:dev/rn:test_adapter/ad:1/sv:color_ctrl/ad:2", "color_ctrl"),
+						},
+					},
+					{
+						Name:    "wrong address",
+						Command: suite.IntMapMessage("pt:j1/mt:cmd/rt:dev/rn:test_adapter/ad:1/sv:color_ctrl/ad:3", "cmd.color.set", "color_ctrl", val),
+						Expectations: []*suite.Expectation{
+							suite.ExpectError("pt:j1/mt:evt/rt:dev/rn:test_adapter/ad:1/sv:color_ctrl/ad:3", "color_ctrl"),
+						},
+					},
+				},
+			},
+			{
+				Name: "failed set level - report error",
+
+				Setup: routeColorCtrl(
+					mockedcolorctrl.NewController(t).
+						MockSetColorCtrlColor(val, nil, true).
+						MockColorCtrlColorReport(val, errors.New("error"), false),
+				),
+				Nodes: []*suite.Node{
+					{
+						Name:    "report error",
+						Command: suite.IntMapMessage("pt:j1/mt:cmd/rt:dev/rn:test_adapter/ad:1/sv:color_ctrl/ad:2", "cmd.color.set", "color_ctrl", val),
+						Expectations: []*suite.Expectation{
+							suite.ExpectError("pt:j1/mt:evt/rt:dev/rn:test_adapter/ad:1/sv:color_ctrl/ad:2", "color_ctrl"),
 						},
 					},
 				},
 			},
 		},
 	}
+	s.Run(t)
+}
+
+func TestTaskColorCtrl(t *testing.T) {
+	val1 := make(map[string]int64)
+	val1["red"] = 255
+	val1["green"] = 55
+	val1["blue"] = 100
+
+	val2 := make(map[string]int64)
+	val2["red"] = 55
+	val2["green"] = 155
+	val2["blue"] = 255
+
+	val3 := make(map[string]int64)
+	val3["red"] = 100
+	val3["green"] = 200
+	val3["blue"] = 0
+
+	s := &suite.Suite{
+		Cases: []*suite.Case{
+			{
+				Name: "ColorCtrl Tasks",
+				Setup: taskColorCtrl(
+					mockedcolorctrl.NewController(t).
+						MockColorCtrlColorReport(val1, nil, true).
+						MockColorCtrlColorReport(val1, errors.New("task error"), true).
+						MockColorCtrlColorReport(val2, nil, true).
+						MockColorCtrlColorReport(val3, nil, true).
+						MockColorCtrlColorReport(val3, nil, false),
+					100*time.Millisecond,
+				),
+				Nodes: []*suite.Node{
+					{
+						Name: "Tasks",
+						Expectations: []*suite.Expectation{
+							suite.ExpectIntMap("pt:j1/mt:evt/rt:dev/rn:test_adapter/ad:1/sv:color_ctrl/ad:2", "evt.color.report", "color_ctrl", val1),
+							suite.ExpectIntMap("pt:j1/mt:evt/rt:dev/rn:test_adapter/ad:1/sv:color_ctrl/ad:2", "evt.color.report", "color_ctrl", val2),
+							suite.ExpectIntMap("pt:j1/mt:evt/rt:dev/rn:test_adapter/ad:1/sv:color_ctrl/ad:2", "evt.color.report", "color_ctrl", val3),
+						},
+					},
+				},
+			},
+		},
+	}
+
 	s.Run(t)
 }
 

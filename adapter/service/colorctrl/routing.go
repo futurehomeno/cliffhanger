@@ -51,6 +51,7 @@ func HandleCmdColorSet(adapter adapter.Adapter) router.MessageHandler {
 			if !ok {
 				return nil, fmt.Errorf("adapter: incorrect service found under the provided address: %s", message.Addr.ServiceAddress)
 			}
+
 			color, err := message.Payload.GetIntMapValue()
 			if err != nil {
 				return nil, fmt.Errorf("adapter: failed to parse color: %s", err.Error())
