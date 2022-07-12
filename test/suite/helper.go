@@ -115,6 +115,20 @@ func FloatMapMessage(topic, messageType, service string, value map[string]float6
 	}
 }
 
+func IntMapMessage(topic, messageType, service string, value map[string]int64) *fimpgo.Message {
+	return &fimpgo.Message{
+		Topic: topic,
+		Payload: fimpgo.NewIntMapMessage(
+			messageType,
+			service,
+			value,
+			nil,
+			nil,
+			nil,
+		),
+	}
+}
+
 func NewMessageBuilder() *MessageBuilder {
 	return &MessageBuilder{
 		props: make(fimpgo.Props),
