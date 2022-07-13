@@ -1,4 +1,4 @@
-package color_ctrl
+package colorctrl
 
 import (
 	"time"

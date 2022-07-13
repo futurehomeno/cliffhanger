@@ -1,11 +1,12 @@
-package color_ctrl
+package colorctrl
 
 import (
 	"fmt"
 
+	"github.com/futurehomeno/fimpgo"
+
 	"github.com/futurehomeno/cliffhanger/adapter"
 	"github.com/futurehomeno/cliffhanger/router"
-	"github.com/futurehomeno/fimpgo"
 )
 
 // Constants defining routing service, commands and events.
@@ -54,17 +55,17 @@ func HandleCmdColorSet(adapter adapter.Adapter) router.MessageHandler {
 
 			color, err := message.Payload.GetIntMapValue()
 			if err != nil {
-				return nil, fmt.Errorf("adapter: failed to parse color: %s", err.Error())
+				return nil, fmt.Errorf("adapter: failed to parse color: %w", err)
 			}
 
 			err = colorctrl.SetColor(color)
 			if err != nil {
-				return nil, fmt.Errorf("adapter: failed to set color: %s", err.Error())
+				return nil, fmt.Errorf("adapter: failed to set color: %w", err)
 			}
 
 			_, err = colorctrl.SendColorReport(true)
 			if err != nil {
-				return nil, fmt.Errorf("adapter: failed to send color report: %s", err.Error())
+				return nil, fmt.Errorf("adapter: failed to send color report: %w", err)
 			}
 
 			return nil, nil
@@ -97,7 +98,7 @@ func HandleCmdColorGetReport(adapter adapter.Adapter) router.MessageHandler {
 
 			_, err := colorctrl.SendColorReport(false)
 			if err != nil {
-				return nil, fmt.Errorf("adapter: failed to send color report: %s", err.Error())
+				return nil, fmt.Errorf("adapter: failed to send color report: %w", err)
 			}
 
 			return nil, nil
@@ -130,14 +131,14 @@ func HandleCmdColorStartTransition(adapter adapter.Adapter) router.MessageHandle
 
 			var transitionObject map[string]interface{}
 
-			err := message.Payload.GetObjectValue(transitionObject)
+			err := message.Payload.GetObjectValue(&transitionObject)
 			if err != nil {
-				return nil, fmt.Errorf("adapter: failed to parse transition object: %s", err.Error())
+				return nil, fmt.Errorf("adapter: failed to parse transition object: %w", err)
 			}
 
 			err = colorctrl.StartTransition(transitionObject)
 			if err != nil {
-				return nil, fmt.Errorf("adapter: failed to start transition: %s", err.Error())
+				return nil, fmt.Errorf("adapter: failed to start transition: %w", err)
 			}
 
 			return nil, nil
@@ -170,12 +171,12 @@ func HandleCmdColorStopTransition(adapter adapter.Adapter) router.MessageHandler
 
 			value, err := message.Payload.GetStringValue()
 			if err != nil {
-				return nil, fmt.Errorf("adapter: failed to parse string: %s", err.Error())
+				return nil, fmt.Errorf("adapter: failed to parse string: %w", err)
 			}
 
 			err = colorctrl.StopTransition(value)
 			if err != nil {
-				return nil, fmt.Errorf("adapter: failed to stop transition: %s", err.Error())
+				return nil, fmt.Errorf("adapter: failed to stop transition: %w", err)
 			}
 
 			return nil, nil

@@ -1,30 +1,31 @@
-package color_ctrl_test
+package colorctrl_test
 
 import (
 	"errors"
 	"testing"
 	"time"
 
+	"github.com/futurehomeno/fimpgo"
+	"github.com/futurehomeno/fimpgo/fimptype"
+
 	"github.com/futurehomeno/cliffhanger/adapter"
-	color_ctrl "github.com/futurehomeno/cliffhanger/adapter/service/colorctrl"
+	"github.com/futurehomeno/cliffhanger/adapter/service/colorctrl"
 	"github.com/futurehomeno/cliffhanger/router"
 	"github.com/futurehomeno/cliffhanger/task"
 	mockedcolorctrl "github.com/futurehomeno/cliffhanger/test/mocks/adapter/service/colorctrl"
 	"github.com/futurehomeno/cliffhanger/test/suite"
-	"github.com/futurehomeno/fimpgo"
-	"github.com/futurehomeno/fimpgo/fimptype"
 )
 
-func TestRouteColorCtrl(t *testing.T) {
-	val := make(map[string]int64)
-	val["red"] = 255
-	val["green"] = 55
-	val["blue"] = 100
+func TestRouteColorCtrl(t *testing.T) { // nolint:paralleltest
+	colorVal := make(map[string]int64)
+	colorVal["red"] = 255
+	colorVal["green"] = 55
+	colorVal["blue"] = 100
 
-	wrongValueType := make(map[string]float64)
-	wrongValueType["red"] = 255.0
-	wrongValueType["green"] = 55.0
-	wrongValueType["blue"] = 100.0
+	wrongColorValueType := make(map[string]float64)
+	wrongColorValueType["red"] = 255.0
+	wrongColorValueType["green"] = 55.0
+	wrongColorValueType["blue"] = 100.0
 
 	s := &suite.Suite{
 		Cases: []*suite.Case{
@@ -33,15 +34,15 @@ func TestRouteColorCtrl(t *testing.T) {
 
 				Setup: routeColorCtrl(
 					mockedcolorctrl.NewController(t).
-						MockSetColorCtrlColor(val, nil, true).
-						MockColorCtrlColorReport(val, nil, true),
+						MockSetColorCtrlColor(colorVal, nil, true).
+						MockColorCtrlColorReport(colorVal, nil, true),
 				),
 				Nodes: []*suite.Node{
 					{
 						Name:    "set color",
-						Command: suite.IntMapMessage("pt:j1/mt:cmd/rt:dev/rn:test_adapter/ad:1/sv:color_ctrl/ad:2", "cmd.color.set", "color_ctrl", val),
+						Command: suite.IntMapMessage("pt:j1/mt:cmd/rt:dev/rn:test_adapter/ad:1/sv:color_ctrl/ad:2", "cmd.color.set", "color_ctrl", colorVal),
 						Expectations: []*suite.Expectation{
-							suite.ExpectIntMap("pt:j1/mt:evt/rt:dev/rn:test_adapter/ad:1/sv:color_ctrl/ad:2", "evt.color.report", "color_ctrl", val),
+							suite.ExpectIntMap("pt:j1/mt:evt/rt:dev/rn:test_adapter/ad:1/sv:color_ctrl/ad:2", "evt.color.report", "color_ctrl", colorVal),
 						},
 					},
 				},
@@ -51,14 +52,14 @@ func TestRouteColorCtrl(t *testing.T) {
 
 				Setup: routeColorCtrl(
 					mockedcolorctrl.NewController(t).
-						MockColorCtrlColorReport(val, nil, true),
+						MockColorCtrlColorReport(colorVal, nil, true),
 				),
 				Nodes: []*suite.Node{
 					{
 						Name:    "get color",
 						Command: suite.NullMessage("pt:j1/mt:cmd/rt:dev/rn:test_adapter/ad:1/sv:color_ctrl/ad:2", "cmd.color.get_report", "color_ctrl"),
 						Expectations: []*suite.Expectation{
-							suite.ExpectIntMap("pt:j1/mt:evt/rt:dev/rn:test_adapter/ad:1/sv:color_ctrl/ad:2", "evt.color.report", "color_ctrl", val),
+							suite.ExpectIntMap("pt:j1/mt:evt/rt:dev/rn:test_adapter/ad:1/sv:color_ctrl/ad:2", "evt.color.report", "color_ctrl", colorVal),
 						},
 					},
 				},
@@ -68,26 +69,26 @@ func TestRouteColorCtrl(t *testing.T) {
 
 				Setup: routeColorCtrl(
 					mockedcolorctrl.NewController(t).
-						MockSetColorCtrlColor(val, errors.New("error"), false),
+						MockSetColorCtrlColor(colorVal, errors.New("error"), false),
 				),
 				Nodes: []*suite.Node{
 					{
 						Name:    "setting error",
-						Command: suite.IntMapMessage("pt:j1/mt:cmd/rt:dev/rn:test_adapter/ad:1/sv:color_ctrl/ad:2", "cmd.color.set", "color_ctrl", val),
+						Command: suite.IntMapMessage("pt:j1/mt:cmd/rt:dev/rn:test_adapter/ad:1/sv:color_ctrl/ad:2", "cmd.color.set", "color_ctrl", colorVal),
 						Expectations: []*suite.Expectation{
 							suite.ExpectError("pt:j1/mt:evt/rt:dev/rn:test_adapter/ad:1/sv:color_ctrl/ad:2", "color_ctrl"),
 						},
 					},
 					{
-						Name:    "wrong value type",
-						Command: suite.FloatMapMessage("pt:j1/mt:cmd/rt:dev/rn:test_adapter/ad:1/sv:color_ctrl/ad:2", "cmd.color.set", "color_ctrl", wrongValueType),
+						Name:    "wrong colorValue type",
+						Command: suite.FloatMapMessage("pt:j1/mt:cmd/rt:dev/rn:test_adapter/ad:1/sv:color_ctrl/ad:2", "cmd.color.set", "color_ctrl", wrongColorValueType),
 						Expectations: []*suite.Expectation{
 							suite.ExpectError("pt:j1/mt:evt/rt:dev/rn:test_adapter/ad:1/sv:color_ctrl/ad:2", "color_ctrl"),
 						},
 					},
 					{
 						Name:    "wrong address",
-						Command: suite.IntMapMessage("pt:j1/mt:cmd/rt:dev/rn:test_adapter/ad:1/sv:color_ctrl/ad:3", "cmd.color.set", "color_ctrl", val),
+						Command: suite.IntMapMessage("pt:j1/mt:cmd/rt:dev/rn:test_adapter/ad:1/sv:color_ctrl/ad:3", "cmd.color.set", "color_ctrl", colorVal),
 						Expectations: []*suite.Expectation{
 							suite.ExpectError("pt:j1/mt:evt/rt:dev/rn:test_adapter/ad:1/sv:color_ctrl/ad:3", "color_ctrl"),
 						},
@@ -99,13 +100,13 @@ func TestRouteColorCtrl(t *testing.T) {
 
 				Setup: routeColorCtrl(
 					mockedcolorctrl.NewController(t).
-						MockSetColorCtrlColor(val, nil, true).
-						MockColorCtrlColorReport(val, errors.New("error"), false),
+						MockSetColorCtrlColor(colorVal, nil, true).
+						MockColorCtrlColorReport(colorVal, errors.New("error"), false),
 				),
 				Nodes: []*suite.Node{
 					{
 						Name:    "report error",
-						Command: suite.IntMapMessage("pt:j1/mt:cmd/rt:dev/rn:test_adapter/ad:1/sv:color_ctrl/ad:2", "cmd.color.set", "color_ctrl", val),
+						Command: suite.IntMapMessage("pt:j1/mt:cmd/rt:dev/rn:test_adapter/ad:1/sv:color_ctrl/ad:2", "cmd.color.set", "color_ctrl", colorVal),
 						Expectations: []*suite.Expectation{
 							suite.ExpectError("pt:j1/mt:evt/rt:dev/rn:test_adapter/ad:1/sv:color_ctrl/ad:2", "color_ctrl"),
 						},
@@ -117,7 +118,7 @@ func TestRouteColorCtrl(t *testing.T) {
 	s.Run(t)
 }
 
-func TestTaskColorCtrl(t *testing.T) {
+func TestTaskColorCtrl(t *testing.T) { // nolint:paralleltest
 	val1 := make(map[string]int64)
 	val1["red"] = 255
 	val1["green"] = 55
@@ -202,8 +203,8 @@ func setupColorCtrl(
 		InclusionReport: &fimptype.ThingInclusionReport{
 			Address: "2",
 		},
-		ColorCtrlConfig: &color_ctrl.Config{
-			Specification: color_ctrl.Specification(
+		ColorCtrlConfig: &colorctrl.Config{
+			Specification: colorctrl.Specification(
 				"test_adapter",
 				"1",
 				"2",
@@ -225,35 +226,35 @@ func setupColorCtrl(
 // ThingConfig represents a config for testing colorctrl service.
 type ColorCtrlThingConfig struct {
 	InclusionReport *fimptype.ThingInclusionReport
-	ColorCtrlConfig *color_ctrl.Config
+	ColorCtrlConfig *colorctrl.Config
 }
 
-// newColorCtrlThing creates a thinng that can be used for testing colorctrl service
+// newColorCtrlThing creates a thinng that can be used for testing colorctrl service.
 func newColorCtrlThing(
 	mqtt *fimpgo.MqttTransport,
 	cfg *ColorCtrlThingConfig,
 ) adapter.Thing {
 	services := []adapter.Service{
-		color_ctrl.NewService(mqtt, cfg.ColorCtrlConfig),
+		colorctrl.NewService(mqtt, cfg.ColorCtrlConfig),
 	}
 
 	return adapter.NewThing(cfg.InclusionReport, services...)
 }
 
-// routeColorCtrlThing creates a thing that can be used for testing colorctrl service
+// routeColorCtrlThing creates a thing that can be used for testing colorctrl service.
 func routeColorCtrlThing(adapter adapter.Adapter) []*router.Routing {
 	return router.Combine(
-		color_ctrl.RouteService(adapter),
+		colorctrl.RouteService(adapter),
 	)
 }
 
-// taskColorCtrlThing creates background tasks specific for colorctrl service
+// taskColorCtrlThing creates background tasks specific for colorctrl service.
 func taskColorCtrlThing(
 	adapter adapter.Adapter,
 	interval time.Duration,
 	voter ...task.Voter,
 ) []*task.Task {
 	return []*task.Task{
-		color_ctrl.TaskReporting(adapter, interval, voter...),
+		colorctrl.TaskReporting(adapter, interval, voter...),
 	}
 }

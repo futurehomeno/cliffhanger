@@ -1,4 +1,4 @@
-package color_ctrl
+package colorctrl
 
 import (
 	"fmt"
@@ -35,7 +35,6 @@ func Specification(
 }
 
 // requiredInterfaces returns required interfaces by the service.
-// nolint:funlen
 func requiredInterfaces() []fimptype.Interface {
 	return []fimptype.Interface{
 		{

@@ -1,13 +1,14 @@
-package color_ctrl
+package colorctrl
 
 import (
 	"fmt"
 	"sync"
 
-	"github.com/futurehomeno/cliffhanger/adapter"
-	"github.com/futurehomeno/cliffhanger/adapter/cache"
 	"github.com/futurehomeno/fimpgo"
 	"github.com/futurehomeno/fimpgo/fimptype"
+
+	"github.com/futurehomeno/cliffhanger/adapter"
+	"github.com/futurehomeno/cliffhanger/adapter/cache"
 )
 
 const (
@@ -15,10 +16,8 @@ const (
 	PropertySupportedDurations  = "sup_durations"
 )
 
-var (
-	// DefaultReportingStrategy is the default reporting strategy used by the service for periodic reports of state changes.
-	DefaultReportingStrategy = cache.ReportOnChangeOnly()
-)
+// DefaultReportingStrategy is the default reporting strategy used by the service for periodic reports of state changes.
+var DefaultReportingStrategy = cache.ReportOnChangeOnly()
 
 // Controller is an interface representing an actual device using color service.
 // In a polling scenario implementation might require some safeguards against excessive polling.
@@ -80,6 +79,7 @@ func NewService(
 		reportingCache:    cache.NewReportingCache(),
 		reportingStrategy: cfg.ReportingStrategy,
 	}
+
 	return s
 }
 
