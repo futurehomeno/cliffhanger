@@ -14,7 +14,7 @@ func TaskReporting(adapter adapter.Adapter, frequency time.Duration, voters ...t
 	return task.New(HandleReporting(adapter), frequency, voters...)
 }
 
-// HandleReporting
+// HandleReporting creates handler of a reporting task.
 func HandleReporting(adapter adapter.Adapter) func() {
 	return func() {
 		for _, s := range adapter.Services(Battery) {

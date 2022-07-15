@@ -27,7 +27,6 @@ func Specification(
 }
 
 // requiredInterfaces returns required interfaces by the service.
-// nolint:funlen
 func requiredInterfaces() []fimptype.Interface {
 	return []fimptype.Interface{
 		{

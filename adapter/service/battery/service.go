@@ -4,10 +4,11 @@ import (
 	"fmt"
 	"sync"
 
-	"github.com/futurehomeno/cliffhanger/adapter"
-	"github.com/futurehomeno/cliffhanger/adapter/cache"
 	"github.com/futurehomeno/fimpgo"
 	"github.com/futurehomeno/fimpgo/fimptype"
+
+	"github.com/futurehomeno/cliffhanger/adapter"
+	"github.com/futurehomeno/cliffhanger/adapter/cache"
 )
 
 // DefaultReportingStrategy is the default state reporting strategy used by the service for periodic reports of state changes.
@@ -104,7 +105,7 @@ func (s *service) SendBatteryLevelReport(force bool) (bool, error) {
 
 	level, err := s.reporter.BatteryLevelReport()
 	if err != nil {
-		return false, fmt.Errorf("failed to get battery level: %v", err)
+		return false, fmt.Errorf("failed to get battery level: %w", err)
 	}
 
 	if !force && !s.reportingCache.ReportRequired(s.reportingStrategy, EvtLevelReport, "", level) {
@@ -122,7 +123,7 @@ func (s *service) SendBatteryLevelReport(force bool) (bool, error) {
 
 	err = s.SendMessage(message)
 	if err != nil {
-		return false, fmt.Errorf("failed to send battery level report: %v", err)
+		return false, fmt.Errorf("failed to send battery level report: %w", err)
 	}
 
 	s.reportingCache.Reported(EvtLevelReport, "", level)
@@ -139,7 +140,7 @@ func (s *service) SendBatteryAlarmReport(force bool) (bool, error) {
 
 	alarm, err := s.reporter.BatteryAlarmReport()
 	if err != nil {
-		return false, fmt.Errorf("failed to get battery alarm: %v", err)
+		return false, fmt.Errorf("failed to get battery alarm: %w", err)
 	}
 
 	if !force && !s.reportingCache.ReportRequired(s.reportingStrategy, EvtAlarmReport, "", alarm) {
@@ -157,7 +158,7 @@ func (s *service) SendBatteryAlarmReport(force bool) (bool, error) {
 
 	err = s.SendMessage(message)
 	if err != nil {
-		return false, fmt.Errorf("failed to send battery alarm report: %v", err)
+		return false, fmt.Errorf("failed to send battery alarm report: %w", err)
 	}
 
 	s.reportingCache.Reported(EvtAlarmReport, "", alarm)
@@ -174,7 +175,7 @@ func (s *service) SendBatteryHealthReport(force bool) (bool, error) {
 
 	health, err := s.reporter.BatteryHealthReport()
 	if err != nil {
-		return false, fmt.Errorf("failed to get battery health: %v", err)
+		return false, fmt.Errorf("failed to get battery health: %w", err)
 	}
 
 	if !force && !s.reportingCache.ReportRequired(s.reportingStrategy, EvtHealthReport, "", health) {
@@ -192,7 +193,7 @@ func (s *service) SendBatteryHealthReport(force bool) (bool, error) {
 
 	err = s.SendMessage(message)
 	if err != nil {
-		return false, fmt.Errorf("failed to send battery health report: %v", err)
+		return false, fmt.Errorf("failed to send battery health report: %w", err)
 	}
 
 	s.reportingCache.Reported(EvtHealthReport, "", health)
@@ -209,7 +210,7 @@ func (s *service) SendBatterySensorReport(force bool) (bool, error) {
 
 	sensor, err := s.reporter.BatterySensorReport()
 	if err != nil {
-		return false, fmt.Errorf("failed to get battery sensor: %v", err)
+		return false, fmt.Errorf("failed to get battery sensor: %w", err)
 	}
 
 	if !force && !s.reportingCache.ReportRequired(s.reportingStrategy, EvtSensorReport, "", sensor) {
@@ -227,7 +228,7 @@ func (s *service) SendBatterySensorReport(force bool) (bool, error) {
 
 	err = s.SendMessage(message)
 	if err != nil {
-		return false, fmt.Errorf("failed to send battery sensor report: %v", err)
+		return false, fmt.Errorf("failed to send battery sensor report: %w", err)
 	}
 
 	s.reportingCache.Reported(EvtSensorReport, "", sensor)
@@ -244,7 +245,7 @@ func (s *service) SendBatteryFullReport(force bool) (bool, error) {
 
 	full, err := s.reporter.BatteryFullReport()
 	if err != nil {
-		return false, fmt.Errorf("failed to get battery full: %v", err)
+		return false, fmt.Errorf("failed to get battery full: %w", err)
 	}
 
 	if !force && !s.reportingCache.ReportRequired(s.reportingStrategy, EvtBatteryReport, "", full) {
@@ -262,7 +263,7 @@ func (s *service) SendBatteryFullReport(force bool) (bool, error) {
 
 	err = s.SendMessage(message)
 	if err != nil {
-		return false, fmt.Errorf("failed to send battery full report: %v", err)
+		return false, fmt.Errorf("failed to send battery full report: %w", err)
 	}
 
 	s.reportingCache.Reported(EvtBatteryReport, "", full)

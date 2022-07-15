@@ -3,15 +3,16 @@ package battery
 import (
 	"fmt"
 
+	"github.com/futurehomeno/fimpgo"
+
 	"github.com/futurehomeno/cliffhanger/adapter"
 	"github.com/futurehomeno/cliffhanger/router"
-	"github.com/futurehomeno/fimpgo"
 )
 
 // Constants defining routing service, commands and events.
 const (
-	CmdLevelGetReport   = "cmd.level.get_report"
-	EvtLevelReport      = "evt.level.report"
+	CmdLevelGetReport   = "cmd.lvl.get_report"
+	EvtLevelReport      = "evt.lvl.report"
 	EvtAlarmReport      = "evt.alarm.report"
 	CmdHealthGetReport  = "cmd.health.get_report"
 	EvtHealthReport     = "evt.health.report"
@@ -45,7 +46,7 @@ func RouteCmdLevelGetReport(adapter adapter.Adapter) *router.Routing {
 // HandleCmdLevelGetReport returns a handler responsible for handling the command.
 func HandleCmdLevelGetReport(adapter adapter.Adapter) router.MessageHandler {
 	return router.NewMessageHandler(
-		router.MessageProcessorFn(func(message *fimpgo.Message) (reply *fimpgo.FimpMessage, err error) {
+		router.MessageProcessorFn(func(message *fimpgo.Message) (*fimpgo.FimpMessage, error) {
 			s := adapter.ServiceByTopic(message.Topic)
 			if s == nil {
 				return nil, fmt.Errorf("adapter: service not found under the provided address: %s", message.Addr.ServiceAddress)
@@ -56,7 +57,7 @@ func HandleCmdLevelGetReport(adapter adapter.Adapter) router.MessageHandler {
 				return nil, fmt.Errorf("adapter: incorrect service found under the provided address: %s", message.Addr.ServiceAddress)
 			}
 
-			_, err = battery.SendBatteryLevelReport(true)
+			_, err := battery.SendBatteryLevelReport(true)
 			if err != nil {
 				return nil, fmt.Errorf("adapter: failed to send battery level report: %w", err)
 			}
