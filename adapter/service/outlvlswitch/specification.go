@@ -7,7 +7,7 @@ import (
 	"github.com/futurehomeno/fimpgo/fimptype"
 )
 
-// Specificatiion creates a service specification.
+// Specification creates a service specification.
 func Specification(
 	resourceName,
 	resourceAddress,

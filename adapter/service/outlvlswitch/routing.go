@@ -60,7 +60,12 @@ func HandleCmdLvlSet(adapter adapter.Adapter) router.MessageHandler {
 				return nil, fmt.Errorf("adapter: error while getting level value from message: %w", err)
 			}
 
-			err = getDurationAndSetLevel(message, outLvlSwitch, lvl)
+			duration, err := getDuration(message)
+			if err != nil {
+				log.Error(fmt.Errorf("adapter: error while getting duration value from message: %w. Setting level without duration", err))
+			}
+
+			err = outLvlSwitch.SetLevel(lvl, duration)
 			if err != nil {
 				return nil, fmt.Errorf("adapter: error while setting level: %w", err)
 			}
@@ -75,33 +80,20 @@ func HandleCmdLvlSet(adapter adapter.Adapter) router.MessageHandler {
 	)
 }
 
-func getDurationAndSetLevel(message *fimpgo.Message, outLvlSwitch Service, lvl int64) error {
+func getDuration(message *fimpgo.Message) (time.Duration, error) {
 	switch d, ok, err := message.Payload.Properties.GetIntValue(Duration); {
 	case !ok:
-		log.Info("adapter: duration not found in message properties. Setting level without duration.")
+		log.Info("adapter: duration not found in message properties")
 
-		err = outLvlSwitch.SetLevel(lvl, time.Duration(0))
-		if err != nil {
-			return fmt.Errorf("adapter: error while setting level: %w", err)
-		}
+		return time.Duration(0), nil
 
 	case err != nil:
-		log.Errorf("adapter: error while getting duration value from message: %s. Setting level without duration.", err)
+		log.Errorf("adapter: error while getting duration value from message: %s.", err)
 
-		err = outLvlSwitch.SetLevel(lvl, time.Duration(0))
-		if err != nil {
-			return fmt.Errorf("adapter: error while setting level: %w", err)
-		}
+		return time.Duration(0), err
 	default:
-		duration := time.Duration(d) * time.Second
-
-		err = outLvlSwitch.SetLevel(lvl, duration)
-		if err != nil {
-			return fmt.Errorf("adapter: error while setting level with duration: %w", err)
-		}
+		return time.Duration(d) * time.Second, nil
 	}
-
-	return nil
 }
 
 // RouteCmdBinarySet returns a routing responsible for handling the command.

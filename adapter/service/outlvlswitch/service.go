@@ -131,16 +131,18 @@ func (s *service) SetLevel(value int64, duration time.Duration) error {
 	s.lock.Lock()
 	defer s.lock.Unlock()
 
-	if duration.Nanoseconds() > 0 {
+	if duration > 0 {
 		err := s.controller.SetLevelSwitchLevel(value, duration)
 		if err != nil {
 			return fmt.Errorf("%s: failed to set level: %w", s.Name(), err)
 		}
-	} else {
-		err := s.controller.SetLevelSwitchLevel(value, time.Duration(0))
-		if err != nil {
-			return fmt.Errorf("%s: failed to set level: %w", s.Name(), err)
-		}
+
+		return nil
+	}
+
+	err := s.controller.SetLevelSwitchLevel(value, time.Duration(0))
+	if err != nil {
+		return fmt.Errorf("%s: failed to set level: %w", s.Name(), err)
 	}
 
 	return nil
