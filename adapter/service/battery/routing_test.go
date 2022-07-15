@@ -255,7 +255,7 @@ func TestTaskBattery(t *testing.T) { // nolint:paralleltest
 						MockBatteryFullReport(fullValue1, nil, true).
 						MockBatteryFullReport(fullValue2, nil, true).
 						MockBatteryFullReport(nil, errors.New("error"), false),
-					100*time.Millisecond,
+					10*time.Millisecond,
 				),
 				Nodes: []*suite.Node{
 					{
