@@ -26,10 +26,6 @@ type Controller interface {
 	SetColorCtrlColor(color map[string]int64) error
 	// ColorCtrlColorReport returns a current collor of the device.
 	ColorCtrlColorReport() (map[string]int64, error)
-	// StartColorCtrlTransition starts a color transition.
-	StartColorCtrlTransition(transitionObject map[string]interface{}) error
-	// StopColorCtrlTransition stops a color transition.
-	StopColorCtrlTransition(value string) error
 }
 
 // Service is an interface representing a colorctrl FIMP service.
@@ -42,10 +38,6 @@ type Service interface {
 	// Depending on a caching and reporting configuration the service might decide to skip a report.
 	// To make sure report is being sent regardless of circumstances set the force argument to true.
 	SendColorReport(force bool) (bool, error)
-	// StartTransition starts a color transition.
-	StartTransition(transitionObject map[string]interface{}) error
-	// StopTransition stops a color transition.
-	StopTransition(value string) error
 	// SupportedComponents returns a list of supported color components.
 	SupportedComponents() []string
 	// SupportedDurations returns a list of supported durations.
@@ -139,32 +131,6 @@ func (s *service) SendColorReport(force bool) (bool, error) {
 	s.reportingCache.Reported(EvtColorReport, "", color)
 
 	return true, nil
-}
-
-// StartTransition starts a color transition.
-func (s *service) StartTransition(transitionObject map[string]interface{}) error {
-	s.lock.Lock()
-	defer s.lock.Unlock()
-
-	err := s.controller.StartColorCtrlTransition(transitionObject)
-	if err != nil {
-		return fmt.Errorf("failed to start color transition: %w", err)
-	}
-
-	return nil
-}
-
-// StopTransition stops a color transition.
-func (s *service) StopTransition(value string) error {
-	s.lock.Lock()
-	defer s.lock.Unlock()
-
-	err := s.controller.StopColorCtrlTransition(value)
-	if err != nil {
-		return fmt.Errorf("failed to stop color transition: %w", err)
-	}
-
-	return nil
 }
 
 // SupportedComponents returns a list of supported color components.

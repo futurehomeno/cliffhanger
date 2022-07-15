@@ -55,17 +55,5 @@ func requiredInterfaces() []fimptype.Interface {
 			ValueType: fimpgo.VTypeNull,
 			Version:   "1",
 		},
-		{
-			Type:      fimptype.TypeIn,
-			MsgType:   CmdColorStartTransition,
-			ValueType: fimpgo.VTypeObject,
-			Version:   "1",
-		},
-		{
-			Type:      fimptype.TypeIn,
-			MsgType:   CmdColorStopTransition,
-			ValueType: fimpgo.VTypeNull,
-			Version:   "1",
-		},
 	}
 }
