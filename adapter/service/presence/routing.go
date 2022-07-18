@@ -13,7 +13,7 @@ const (
 	CmdPresenceGetReport = "cmd.presence.get_report"
 	EvtPresenceReport    = "evt.presence.report"
 
-	Presence = "sensor_presence"
+	SensorPresence = "sensor_presence"
 )
 
 // RouteService returns routing for service specific commands.
@@ -27,7 +27,7 @@ func RouteService(adapter adapter.Adapter) []*router.Routing {
 func RouteCmdPresenceGetReport(adapter adapter.Adapter) *router.Routing {
 	return router.NewRouting(
 		HandleCmdPresenceGetReport(adapter),
-		router.ForService(Presence),
+		router.ForService(SensorPresence),
 		router.ForType(CmdPresenceGetReport),
 	)
 }

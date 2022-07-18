@@ -17,8 +17,8 @@ var DefaultReportingStrategy = cache.ReportOnChangeOnly()
 // Controller is an interface representing an actual device.
 // In a polling scenario implementation might require some safeguards against excessive polling.
 type Controller interface {
-	// PresencePresenceReport returns a current presence value.
-	PresencePresenceReport() (bool, error)
+	// SensorPresenceReport returns a current presence value. Returns true if presence is active.
+	SensorPresenceReport() (bool, error)
 }
 
 // Service is an interface representing a presence FIMP service.
@@ -75,7 +75,7 @@ func (s *service) SendPresenceReport(force bool) (bool, error) {
 	s.lock.Lock()
 	defer s.lock.Unlock()
 
-	value, err := s.controller.PresencePresenceReport()
+	value, err := s.controller.SensorPresenceReport()
 	if err != nil {
 		return false, fmt.Errorf("%s: failed to get presence reeport: %w", s.Name(), err)
 	}

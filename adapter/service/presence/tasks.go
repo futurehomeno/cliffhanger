@@ -17,7 +17,7 @@ func TaskReporting(adapter adapter.Adapter, frequency time.Duration, voters ...t
 // HandleReporting creates handler of a reporting task.
 func HandleReporting(adapter adapter.Adapter) func() {
 	return func() {
-		for _, s := range adapter.Services(Presence) {
+		for _, s := range adapter.Services(SensorPresence) {
 			presence, ok := s.(Service)
 			if !ok {
 				continue

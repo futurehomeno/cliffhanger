@@ -23,7 +23,7 @@ func TestRoutePresence(t *testing.T) { //nolint:paralleltest
 				Name: "successful get report",
 				Setup: routePresence(
 					mockedpresence.NewController(t).
-						MockPresencePresenceReport(true, nil, true),
+						MockSensorPresenceReport(true, nil, true),
 				),
 				Nodes: []*suite.Node{
 					{
@@ -41,7 +41,7 @@ func TestRoutePresence(t *testing.T) { //nolint:paralleltest
 				Name: "failed get report",
 				Setup: routePresence(
 					mockedpresence.NewController(t).
-						MockPresencePresenceReport(false, errors.New("error"), true),
+						MockSensorPresenceReport(false, errors.New("error"), true),
 				),
 				Nodes: []*suite.Node{
 					{
@@ -77,10 +77,10 @@ func TestTaskPresence(t *testing.T) { //nolint:paralleltest
 				Name: "Presence thing tasks",
 				Setup: taskPresence(
 					mockedpresence.NewController(t).
-						MockPresencePresenceReport(true, nil, true).
-						MockPresencePresenceReport(true, errors.New("task error"), true).
-						MockPresencePresenceReport(false, nil, true).
-						MockPresencePresenceReport(false, nil, false),
+						MockSensorPresenceReport(true, nil, true).
+						MockSensorPresenceReport(true, errors.New("task error"), true).
+						MockSensorPresenceReport(false, nil, true).
+						MockSensorPresenceReport(false, nil, false),
 					100*time.Millisecond,
 				),
 				Nodes: []*suite.Node{

@@ -15,8 +15,8 @@ func Specification(
 	groups []string,
 ) *fimptype.Service {
 	return &fimptype.Service{
-		Address: fmt.Sprintf("/rt:dev/rn:%s/ad:%s/sv:%s/ad:%s", resourceName, resourceAddress, Presence, address),
-		Name:    Presence,
+		Address: fmt.Sprintf("/rt:dev/rn:%s/ad:%s/sv:%s/ad:%s", resourceName, resourceAddress, SensorPresence, address),
+		Name:    SensorPresence,
 
 		Groups:     groups,
 		Enabled:    true,

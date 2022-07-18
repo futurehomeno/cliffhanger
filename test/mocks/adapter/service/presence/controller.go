@@ -9,8 +9,8 @@ type Controller struct {
 	mock.Mock
 }
 
-// PresencePresenceReport provides a mock function with given fields:
-func (_m *Controller) PresencePresenceReport() (bool, error) {
+// SensorPresenceReport provides a mock function with given fields:
+func (_m *Controller) SensorPresenceReport() (bool, error) {
 	ret := _m.Called()
 
 	var r0 bool
