@@ -15,7 +15,7 @@ const (
 	CmdColorGetReport = "cmd.color.get_report"
 	EvtColorReport    = "evt.color.report"
 
-	Colorctrl = "color_ctrl"
+	ColorCtrl = "color_ctrl"
 )
 
 // RouteService returns routing for service specific commands.
@@ -30,7 +30,7 @@ func RouteService(adapter adapter.Adapter) []*router.Routing {
 func RouteCmdColorSet(adapter adapter.Adapter) *router.Routing {
 	return router.NewRouting(
 		HandleCmdColorSet(adapter),
-		router.ForService(Colorctrl),
+		router.ForService(ColorCtrl),
 		router.ForType(CmdColorSet),
 	)
 }
@@ -73,7 +73,7 @@ func HandleCmdColorSet(adapter adapter.Adapter) router.MessageHandler {
 func RouteCmdColorGetReport(adapter adapter.Adapter) *router.Routing {
 	return router.NewRouting(
 		HandleCmdColorGetReport(adapter),
-		router.ForService(Colorctrl),
+		router.ForService(ColorCtrl),
 		router.ForType(CmdColorGetReport),
 	)
 }
@@ -92,7 +92,7 @@ func HandleCmdColorGetReport(adapter adapter.Adapter) router.MessageHandler {
 				return nil, fmt.Errorf("adapter: incorrect service found under the provided address: %s", message.Addr.ServiceAddress)
 			}
 
-			_, err := colorctrl.SendColorReport(false)
+			_, err := colorctrl.SendColorReport(true)
 			if err != nil {
 				return nil, fmt.Errorf("adapter: failed to send color report: %w", err)
 			}

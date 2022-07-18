@@ -56,7 +56,7 @@ func NewService(
 	mqtt *fimpgo.MqttTransport,
 	cfg *Config,
 ) Service {
-	cfg.Specification.Name = Colorctrl
+	cfg.Specification.Name = ColorCtrl
 
 	cfg.Specification.EnsureInterfaces(requiredInterfaces()...)
 

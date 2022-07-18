@@ -17,8 +17,8 @@ func Specification(
 	supportedDurations map[string]int64,
 ) *fimptype.Service {
 	s := &fimptype.Service{
-		Address: fmt.Sprintf("/rt:dev/rn:%s/ad:%s/sv:%s/ad:%s", resourceName, resourceAddress, Colorctrl, address),
-		Name:    Colorctrl,
+		Address: fmt.Sprintf("/rt:dev/rn:%s/ad:%s/sv:%s/ad:%s", resourceName, resourceAddress, ColorCtrl, address),
+		Name:    ColorCtrl,
 		Groups:  groups,
 		Enabled: true,
 		Props: map[string]interface{}{

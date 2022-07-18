@@ -190,6 +190,12 @@ func (b *MessageBuilder) FloatMapMessage(topic, messageType, service string, val
 	return b
 }
 
+func (b *MessageBuilder) IntMapMessage(topic, messageType, service string, value map[string]int64) *MessageBuilder {
+	b.msg = IntMapMessage(topic, messageType, service, value)
+
+	return b
+}
+
 func (b *MessageBuilder) AddProperty(key, value string) *MessageBuilder {
 	b.props[key] = value
 
