@@ -1,6 +1,7 @@
 package battery
 
 import (
+	"encoding/json"
 	"fmt"
 	"sync"
 
@@ -14,19 +15,33 @@ import (
 // DefaultReportingStrategy is the default state reporting strategy used by the service for periodic reports of state changes.
 var DefaultReportingStrategy = cache.ReportOnChangeOnly()
 
+// AlarmReport represents value structure of a battery alarm report.
+type AlarmReport struct {
+	Event  string `json:"event"`
+	Status string `json:"status"`
+}
+
+// FullReport represents value structure of a battery full report.
+type FullReport struct {
+	Level  float64 `json:"lvl"`
+	Health float64 `json:"health"`
+	State  string  `json:"state"`
+	Temp   float64 `json:"temp_sensor"`
+}
+
 // Reporter is an interface representing an actual car charger device.
 // In a polling scenario implementation might require some safeguards against excessive polling.
 type Reporter interface {
 	// BatteryLevelReport returns a current battery level.
-	BatteryLevelReport() (int64, error)
+	BatteryLevelReport() (level int64, state string, err error)
 	// BatteryAlarmReport returns a current battery alarm state.
-	BatteryAlarmReport() (map[string]string, error)
+	BatteryAlarmReport() (AlarmReport, error)
 	// BatteryHealthReport returns a current battery health state.
 	BatteryHealthReport() (int64, error)
 	// BatterySensorReport returns a current battery sensor state.
-	BatterySensorReport() (float64, error)
+	BatterySensorReport() (sensorValue float64, unit string, err error)
 	// BatteryFullReport returns a current battery state.
-	BatteryFullReport() (interface{}, error)
+	BatteryFullReport() (FullReport, error)
 }
 
 // Service is an interface representing a battery FIMP service.
@@ -103,9 +118,13 @@ func (s *service) SendBatteryLevelReport(force bool) (bool, error) {
 	s.lock.Lock()
 	defer s.lock.Unlock()
 
-	level, err := s.reporter.BatteryLevelReport()
+	level, state, err := s.reporter.BatteryLevelReport()
 	if err != nil {
-		return false, fmt.Errorf("failed to get battery level: %w", err)
+		return false, fmt.Errorf("failed to get battery level report: %w", err)
+	}
+
+	props := fimpgo.Props{
+		"state": state,
 	}
 
 	if !force && !s.reportingCache.ReportRequired(s.reportingStrategy, EvtLevelReport, "", level) {
@@ -116,7 +135,7 @@ func (s *service) SendBatteryLevelReport(force bool) (bool, error) {
 		EvtLevelReport,
 		s.Name(),
 		level,
-		nil,
+		props,
 		nil,
 		nil,
 	)
@@ -140,17 +159,22 @@ func (s *service) SendBatteryAlarmReport(force bool) (bool, error) {
 
 	alarm, err := s.reporter.BatteryAlarmReport()
 	if err != nil {
-		return false, fmt.Errorf("failed to get battery alarm: %w", err)
+		return false, fmt.Errorf("failed to get battery alarm report: %w", err)
 	}
 
 	if !force && !s.reportingCache.ReportRequired(s.reportingStrategy, EvtAlarmReport, "", alarm) {
 		return false, nil
 	}
 
+	alarmValue, err := alarm.StructToStrMap()
+	if err != nil {
+		return false, fmt.Errorf("failed to map alarm value to map of strings: %w", err)
+	}
+
 	message := fimpgo.NewStrMapMessage(
 		EvtAlarmReport,
 		s.Name(),
-		alarm,
+		alarmValue,
 		nil,
 		nil,
 		nil,
@@ -175,7 +199,7 @@ func (s *service) SendBatteryHealthReport(force bool) (bool, error) {
 
 	health, err := s.reporter.BatteryHealthReport()
 	if err != nil {
-		return false, fmt.Errorf("failed to get battery health: %w", err)
+		return false, fmt.Errorf("failed to get battery health report: %w", err)
 	}
 
 	if !force && !s.reportingCache.ReportRequired(s.reportingStrategy, EvtHealthReport, "", health) {
@@ -208,9 +232,13 @@ func (s *service) SendBatterySensorReport(force bool) (bool, error) {
 	s.lock.Lock()
 	defer s.lock.Unlock()
 
-	sensor, err := s.reporter.BatterySensorReport()
+	sensor, unit, err := s.reporter.BatterySensorReport()
 	if err != nil {
-		return false, fmt.Errorf("failed to get battery sensor: %w", err)
+		return false, fmt.Errorf("failed to get battery sensor report: %w", err)
+	}
+
+	props := fimpgo.Props{
+		"unit": unit,
 	}
 
 	if !force && !s.reportingCache.ReportRequired(s.reportingStrategy, EvtSensorReport, "", sensor) {
@@ -221,7 +249,7 @@ func (s *service) SendBatterySensorReport(force bool) (bool, error) {
 		EvtSensorReport,
 		s.Name(),
 		sensor,
-		nil,
+		props,
 		nil,
 		nil,
 	)
@@ -245,7 +273,7 @@ func (s *service) SendBatteryFullReport(force bool) (bool, error) {
 
 	full, err := s.reporter.BatteryFullReport()
 	if err != nil {
-		return false, fmt.Errorf("failed to get battery full: %w", err)
+		return false, fmt.Errorf("failed to get battery full report: %w", err)
 	}
 
 	if !force && !s.reportingCache.ReportRequired(s.reportingStrategy, EvtBatteryReport, "", full) {
@@ -269,4 +297,18 @@ func (s *service) SendBatteryFullReport(force bool) (bool, error) {
 	s.reportingCache.Reported(EvtBatteryReport, "", full)
 
 	return true, nil
+}
+
+func (bar *AlarmReport) StructToStrMap() (strMap map[string]string, err error) {
+	marshal, err := json.Marshal(bar)
+	if err != nil {
+		return nil, err
+	}
+
+	err = json.Unmarshal(marshal, &strMap)
+	if err != nil {
+		return nil, err
+	}
+
+	return strMap, nil
 }

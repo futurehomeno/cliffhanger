@@ -17,11 +17,11 @@ import (
 )
 
 func TestRouteBattery(t *testing.T) { // nolint:paralleltest
-	fullValue := map[string]interface{}{
-		"lvl":         90,
-		"health":      70,
-		"state":       "charging",
-		"temp_sensor": 40,
+	fullValue := battery.FullReport{
+		Level:  90,
+		Health: 70,
+		State:  "charging",
+		Temp:   40,
 	}
 
 	s := &suite.Suite{
@@ -30,9 +30,9 @@ func TestRouteBattery(t *testing.T) { // nolint:paralleltest
 				Name: "successful get reports",
 				Setup: routeBattery(
 					mockedbattery.NewReporter(t).
-						MockBatteryLevelReport(80, nil, true).
+						MockBatteryLevelReport(80, "charging", nil, true).
 						MockBatteryHealthReport(70, nil, true).
-						MockBatterySensorReport(20.1, nil, true).
+						MockBatterySensorReport(20.1, "c", nil, true).
 						MockBatteryFullReport(fullValue, nil, true),
 				),
 				Nodes: []*suite.Node{
@@ -78,9 +78,9 @@ func TestRouteBattery(t *testing.T) { // nolint:paralleltest
 				Name: "failed get reports",
 				Setup: routeBattery(
 					mockedbattery.NewReporter(t).
-						MockBatteryLevelReport(80, errors.New("fail level report"), true).
+						MockBatteryLevelReport(80, "charging", errors.New("fail level report"), true).
 						MockBatteryHealthReport(70, errors.New("fail health report"), true).
-						MockBatterySensorReport(20.1, errors.New("fail sensor report"), true).
+						MockBatterySensorReport(20.1, "c", errors.New("fail sensor report"), true).
 						MockBatteryFullReport(fullValue, errors.New("fail full report"), true),
 				),
 				Nodes: []*suite.Node{
@@ -210,28 +210,52 @@ func TestRouteBattery(t *testing.T) { // nolint:paralleltest
 }
 
 func TestTaskBattery(t *testing.T) { // nolint:paralleltest
-	fullValue1 := map[string]interface{}{
-		"lvl":         90,
-		"health":      60,
+	fullValue1Interface := map[string]interface{}{
+		"lvl":         90.0,
+		"health":      60.0,
 		"state":       "charging",
 		"temp_sensor": 40.5,
 	}
 
-	fullValue2 := map[string]interface{}{
-		"lvl":         80,
-		"health":      50,
+	fullValue2Interface := map[string]interface{}{
+		"lvl":         80.0,
+		"health":      50.0,
 		"state":       "charging",
 		"temp_sensor": 30.5,
 	}
 
-	alarmValue1 := map[string]string{
+	fullValue1Struct := battery.FullReport{
+		Level:  90.0,
+		Health: 60.0,
+		State:  "charging",
+		Temp:   40.5,
+	}
+
+	fullValue2Struct := battery.FullReport{
+		Level:  80.0,
+		Health: 50.0,
+		State:  "charging",
+		Temp:   30.5,
+	}
+
+	alarmValue1StrMap := map[string]string{
 		"event":  "low_battery",
 		"status": "activ",
 	}
 
-	alarmValue2 := map[string]string{
+	alarmValue2StrMap := map[string]string{
 		"event":  "low_battery",
 		"status": "deactiv",
+	}
+
+	alarmValue1Struct := battery.AlarmReport{
+		Event:  "low_battery",
+		Status: "activ",
+	}
+
+	alarmValue2Struct := battery.AlarmReport{
+		Event:  "low_battery",
+		Status: "deactiv",
 	}
 
 	s := &suite.Suite{
@@ -240,21 +264,21 @@ func TestTaskBattery(t *testing.T) { // nolint:paralleltest
 				Name: "Battery thing tasks",
 				Setup: taskBattery(
 					mockedbattery.NewReporter(t).
-						MockBatteryLevelReport(80, nil, true).
-						MockBatteryLevelReport(70, nil, true).
-						MockBatteryLevelReport(0, errors.New("error"), false).
-						MockBatteryAlarmReport(alarmValue1, nil, true).
-						MockBatteryAlarmReport(alarmValue2, nil, true).
-						MockBatteryAlarmReport(nil, errors.New("error"), false).
+						MockBatteryLevelReport(80, "charging", nil, true).
+						MockBatteryLevelReport(70, "charging", nil, true).
+						MockBatteryLevelReport(0, "charging", errors.New("error"), false).
+						MockBatteryAlarmReport(alarmValue1Struct, nil, true).
+						MockBatteryAlarmReport(alarmValue2Struct, nil, true).
+						MockBatteryAlarmReport(battery.AlarmReport{}, errors.New("error"), false).
 						MockBatteryHealthReport(70, nil, true).
 						MockBatteryHealthReport(60, nil, true).
 						MockBatteryHealthReport(0, errors.New("error"), false).
-						MockBatterySensorReport(20.1, nil, true).
-						MockBatterySensorReport(20.2, nil, true).
-						MockBatterySensorReport(0, errors.New("error"), false).
-						MockBatteryFullReport(fullValue1, nil, true).
-						MockBatteryFullReport(fullValue2, nil, true).
-						MockBatteryFullReport(nil, errors.New("error"), false),
+						MockBatterySensorReport(20.1, "c", nil, true).
+						MockBatterySensorReport(20.2, "c", nil, true).
+						MockBatterySensorReport(0, "c", errors.New("error"), false).
+						MockBatteryFullReport(fullValue1Struct, nil, true).
+						MockBatteryFullReport(fullValue2Struct, nil, true).
+						MockBatteryFullReport(battery.FullReport{}, errors.New("error"), false),
 					10*time.Millisecond,
 				),
 				Nodes: []*suite.Node{
@@ -263,14 +287,14 @@ func TestTaskBattery(t *testing.T) { // nolint:paralleltest
 						Expectations: []*suite.Expectation{
 							suite.ExpectInt("pt:j1/mt:evt/rt:dev/rn:test_adapter/ad:1/sv:battery/ad:2", "evt.lvl.report", "battery", 80),
 							suite.ExpectInt("pt:j1/mt:evt/rt:dev/rn:test_adapter/ad:1/sv:battery/ad:2", "evt.lvl.report", "battery", 70),
-							suite.ExpectStringMap("pt:j1/mt:evt/rt:dev/rn:test_adapter/ad:1/sv:battery/ad:2", "evt.alarm.report", "battery", alarmValue1),
-							suite.ExpectStringMap("pt:j1/mt:evt/rt:dev/rn:test_adapter/ad:1/sv:battery/ad:2", "evt.alarm.report", "battery", alarmValue2),
+							suite.ExpectStringMap("pt:j1/mt:evt/rt:dev/rn:test_adapter/ad:1/sv:battery/ad:2", "evt.alarm.report", "battery", alarmValue1StrMap),
+							suite.ExpectStringMap("pt:j1/mt:evt/rt:dev/rn:test_adapter/ad:1/sv:battery/ad:2", "evt.alarm.report", "battery", alarmValue2StrMap),
 							suite.ExpectInt("pt:j1/mt:evt/rt:dev/rn:test_adapter/ad:1/sv:battery/ad:2", "evt.health.report", "battery", 70),
 							suite.ExpectInt("pt:j1/mt:evt/rt:dev/rn:test_adapter/ad:1/sv:battery/ad:2", "evt.health.report", "battery", 60),
 							suite.ExpectFloat("pt:j1/mt:evt/rt:dev/rn:test_adapter/ad:1/sv:battery/ad:2", "evt.sensor.report", "battery", 20.1),
 							suite.ExpectFloat("pt:j1/mt:evt/rt:dev/rn:test_adapter/ad:1/sv:battery/ad:2", "evt.sensor.report", "battery", 20.2),
-							suite.ExpectObject("pt:j1/mt:evt/rt:dev/rn:test_adapter/ad:1/sv:battery/ad:2", "evt.battery.report", "battery", fullValue1),
-							suite.ExpectObject("pt:j1/mt:evt/rt:dev/rn:test_adapter/ad:1/sv:battery/ad:2", "evt.battery.report", "battery", fullValue2),
+							suite.ExpectObject("pt:j1/mt:evt/rt:dev/rn:test_adapter/ad:1/sv:battery/ad:2", "evt.battery.report", "battery", fullValue1Interface),
+							suite.ExpectObject("pt:j1/mt:evt/rt:dev/rn:test_adapter/ad:1/sv:battery/ad:2", "evt.battery.report", "battery", fullValue2Interface),
 						},
 					},
 				},
