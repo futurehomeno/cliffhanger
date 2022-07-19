@@ -210,30 +210,16 @@ func TestRouteBattery(t *testing.T) { // nolint:paralleltest
 }
 
 func TestTaskBattery(t *testing.T) { // nolint:paralleltest
-	fullValue1Interface := map[string]interface{}{
-		"lvl":         90.0,
-		"health":      60.0,
-		"state":       "charging",
-		"temp_sensor": 40.5,
-	}
-
-	fullValue2Interface := map[string]interface{}{
-		"lvl":         80.0,
-		"health":      50.0,
-		"state":       "charging",
-		"temp_sensor": 30.5,
-	}
-
 	fullValue1Struct := battery.FullReport{
-		Level:  90.0,
-		Health: 60.0,
+		Level:  90,
+		Health: 60,
 		State:  "charging",
 		Temp:   40.5,
 	}
 
 	fullValue2Struct := battery.FullReport{
-		Level:  80.0,
-		Health: 50.0,
+		Level:  80,
+		Health: 50,
 		State:  "charging",
 		Temp:   30.5,
 	}
@@ -293,8 +279,8 @@ func TestTaskBattery(t *testing.T) { // nolint:paralleltest
 							suite.ExpectInt("pt:j1/mt:evt/rt:dev/rn:test_adapter/ad:1/sv:battery/ad:2", "evt.health.report", "battery", 60),
 							suite.ExpectFloat("pt:j1/mt:evt/rt:dev/rn:test_adapter/ad:1/sv:battery/ad:2", "evt.sensor.report", "battery", 20.1),
 							suite.ExpectFloat("pt:j1/mt:evt/rt:dev/rn:test_adapter/ad:1/sv:battery/ad:2", "evt.sensor.report", "battery", 20.2),
-							suite.ExpectObject("pt:j1/mt:evt/rt:dev/rn:test_adapter/ad:1/sv:battery/ad:2", "evt.battery.report", "battery", fullValue1Interface),
-							suite.ExpectObject("pt:j1/mt:evt/rt:dev/rn:test_adapter/ad:1/sv:battery/ad:2", "evt.battery.report", "battery", fullValue2Interface),
+							suite.ExpectObject("pt:j1/mt:evt/rt:dev/rn:test_adapter/ad:1/sv:battery/ad:2", "evt.battery.report", "battery", fullValue1Struct),
+							suite.ExpectObject("pt:j1/mt:evt/rt:dev/rn:test_adapter/ad:1/sv:battery/ad:2", "evt.battery.report", "battery", fullValue2Struct),
 						},
 					},
 				},

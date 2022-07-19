@@ -23,8 +23,8 @@ type AlarmReport struct {
 
 // FullReport represents value structure of a battery full report.
 type FullReport struct {
-	Level  float64 `json:"lvl"`
-	Health float64 `json:"health"`
+	Level  int     `json:"lvl"`
+	Health int     `json:"health"`
 	State  string  `json:"state"`
 	Temp   float64 `json:"temp_sensor"`
 }
