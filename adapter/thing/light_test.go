@@ -27,9 +27,7 @@ func TestRouteLight(t *testing.T) { //nolint:paralleltest
 						MockSetLevelSwitchLevel(99, time.Duration(1)*time.Second, nil, true).
 						MockLevelSwitchLevelReport(99, nil, true).
 						MockSetLevelSwitchLevel(98, time.Duration(0), nil, true).
-						MockLevelSwitchLevelReport(98, nil, true).
-						MockSetLevelSwitchLevel(97, time.Duration(0), nil, true).
-						MockLevelSwitchLevelReport(97, nil, true),
+						MockLevelSwitchLevelReport(98, nil, true),
 				),
 				Nodes: []*suite.Node{
 					{
@@ -47,16 +45,6 @@ func TestRouteLight(t *testing.T) { //nolint:paralleltest
 						Command: suite.IntMessage("pt:j1/mt:cmd/rt:dev/rn:test_adapter/ad:1/sv:out_lvl_switch/ad:2", "cmd.lvl.set", "out_lvl_switch", 98),
 						Expectations: []*suite.Expectation{
 							suite.ExpectInt("pt:j1/mt:evt/rt:dev/rn:test_adapter/ad:1/sv:out_lvl_switch/ad:2", "evt.lvl.report", "out_lvl_switch", 98),
-						},
-					},
-					{
-						Name: "set level with wrong format of duration",
-						Command: suite.NewMessageBuilder().
-							IntMessage("pt:j1/mt:cmd/rt:dev/rn:test_adapter/ad:1/sv:out_lvl_switch/ad:2", "cmd.lvl.set", "out_lvl_switch", 97).
-							AddProperty("duration", "1s").
-							Build(),
-						Expectations: []*suite.Expectation{
-							suite.ExpectInt("pt:j1/mt:evt/rt:dev/rn:test_adapter/ad:1/sv:out_lvl_switch/ad:2", "evt.lvl.report", "out_lvl_switch", 97),
 						},
 					},
 				},
@@ -114,6 +102,16 @@ func TestRouteLight(t *testing.T) { //nolint:paralleltest
 							Build(),
 						Expectations: []*suite.Expectation{
 							suite.ExpectError("pt:j1/mt:evt/rt:dev/rn:test_adapter/ad:1/sv:out_lvl_switch/ad:3", "out_lvl_switch"),
+						},
+					},
+					{
+						Name: "set level with wrong format of duration",
+						Command: suite.NewMessageBuilder().
+							IntMessage("pt:j1/mt:cmd/rt:dev/rn:test_adapter/ad:1/sv:out_lvl_switch/ad:2", "cmd.lvl.set", "out_lvl_switch", 99).
+							AddProperty("duration", "1s").
+							Build(),
+						Expectations: []*suite.Expectation{
+							suite.ExpectError("pt:j1/mt:evt/rt:dev/rn:test_adapter/ad:1/sv:out_lvl_switch/ad:2", "out_lvl_switch"),
 						},
 					},
 				},

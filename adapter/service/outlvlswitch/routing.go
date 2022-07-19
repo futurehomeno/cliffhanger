@@ -60,9 +60,9 @@ func HandleCmdLvlSet(adapter adapter.Adapter) router.MessageHandler {
 				return nil, fmt.Errorf("adapter: error while getting level value from message: %w", err)
 			}
 
-			duration, err := getDuration(message)
+			duration, err := getDurationInSeconds(message)
 			if err != nil {
-				log.Error(fmt.Errorf("adapter: error while getting duration value from message: %w. Setting level without duration", err))
+				return nil, fmt.Errorf("adapter: error while getting duration value from message: %w", err)
 			}
 
 			err = outLvlSwitch.SetLevel(lvl, duration)
@@ -80,16 +80,13 @@ func HandleCmdLvlSet(adapter adapter.Adapter) router.MessageHandler {
 	)
 }
 
-func getDuration(message *fimpgo.Message) (time.Duration, error) {
+func getDurationInSeconds(message *fimpgo.Message) (time.Duration, error) {
 	switch d, ok, err := message.Payload.Properties.GetIntValue(Duration); {
 	case !ok:
 		log.Info("adapter: duration not found in message properties")
 
 		return time.Duration(0), nil
-
 	case err != nil:
-		log.Errorf("adapter: error while getting duration value from message: %s.", err)
-
 		return time.Duration(0), err
 	default:
 		return time.Duration(d) * time.Second, nil
