@@ -3,7 +3,7 @@ module github.com/futurehomeno/cliffhanger
 go 1.18
 
 require (
-	github.com/futurehomeno/fimpgo v1.9.1-0.20220627073514-326856a6037f
+	github.com/futurehomeno/fimpgo v1.10.0
 	github.com/google/go-cmp v0.5.7
 	github.com/google/uuid v1.1.1
 	github.com/sirupsen/logrus v1.3.0
