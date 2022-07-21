@@ -1,7 +1,6 @@
 package battery
 
 import (
-	"encoding/json"
 	"fmt"
 	"sync"
 
@@ -26,6 +25,15 @@ const (
 type AlarmReport struct {
 	Event  string `json:"event"`
 	Status string `json:"status"`
+}
+
+func (bar *AlarmReport) ToStrMap() (strMap map[string]string, err error) {
+	strMap = map[string]string{
+		"event":  bar.Event,
+		"status": bar.Status,
+	}
+
+	return strMap, nil
 }
 
 // FullReport represents value structure of a battery full report.
@@ -130,12 +138,12 @@ func (s *service) SendBatteryLevelReport(force bool) (bool, error) {
 		return false, fmt.Errorf("failed to get battery level report: %w", err)
 	}
 
-	props := fimpgo.Props{
-		"state": state,
-	}
-
 	if !force && !s.reportingCache.ReportRequired(s.reportingStrategy, EvtLevelReport, "", level) {
 		return false, nil
+	}
+
+	props := fimpgo.Props{
+		"state": state,
 	}
 
 	message := fimpgo.NewIntMessage(
@@ -173,7 +181,7 @@ func (s *service) SendBatteryAlarmReport(force bool) (bool, error) {
 		return false, nil
 	}
 
-	alarmValue, err := alarm.StructToStrMap()
+	alarmValue, err := alarm.ToStrMap()
 	if err != nil {
 		return false, fmt.Errorf("failed to map alarm value to map of strings: %w", err)
 	}
@@ -244,12 +252,12 @@ func (s *service) SendBatterySensorReport(force bool) (bool, error) {
 		return false, fmt.Errorf("failed to get battery sensor report: %w", err)
 	}
 
-	props := fimpgo.Props{
-		"unit": unit,
-	}
-
 	if !force && !s.reportingCache.ReportRequired(s.reportingStrategy, EvtSensorReport, "", sensor) {
 		return false, nil
+	}
+
+	props := fimpgo.Props{
+		"unit": unit,
 	}
 
 	message := fimpgo.NewFloatMessage(
@@ -304,18 +312,4 @@ func (s *service) SendBatteryFullReport(force bool) (bool, error) {
 	s.reportingCache.Reported(EvtBatteryReport, "", full)
 
 	return true, nil
-}
-
-func (bar *AlarmReport) StructToStrMap() (strMap map[string]string, err error) {
-	marshal, err := json.Marshal(bar)
-	if err != nil {
-		return nil, err
-	}
-
-	err = json.Unmarshal(marshal, &strMap)
-	if err != nil {
-		return nil, err
-	}
-
-	return strMap, nil
 }
