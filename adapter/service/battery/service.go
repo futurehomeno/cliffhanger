@@ -15,6 +15,13 @@ import (
 // DefaultReportingStrategy is the default state reporting strategy used by the service for periodic reports of state changes.
 var DefaultReportingStrategy = cache.ReportOnChangeOnly()
 
+// Constants defining important properties specific for the service.
+const (
+	AlarmLowBatteryEvent  = "low_battery"
+	AlarmStatusActivate   = "activ"
+	AlarmStatusDeactivate = "deactiv"
+)
+
 // AlarmReport represents value structure of a battery alarm report.
 type AlarmReport struct {
 	Event  string `json:"event"`

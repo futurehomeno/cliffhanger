@@ -225,23 +225,23 @@ func TestTaskBattery(t *testing.T) { // nolint:paralleltest
 	}
 
 	alarmValue1StrMap := map[string]string{
-		"event":  "low_battery",
-		"status": "activ",
+		"event":  battery.AlarmLowBatteryEvent,
+		"status": battery.AlarmStatusActivate,
 	}
 
 	alarmValue2StrMap := map[string]string{
-		"event":  "low_battery",
-		"status": "deactiv",
+		"event":  battery.AlarmLowBatteryEvent,
+		"status": battery.AlarmStatusDeactivate,
 	}
 
 	alarmValue1Struct := battery.AlarmReport{
-		Event:  "low_battery",
-		Status: "activ",
+		Event:  battery.AlarmLowBatteryEvent,
+		Status: battery.AlarmStatusActivate,
 	}
 
 	alarmValue2Struct := battery.AlarmReport{
-		Event:  "low_battery",
-		Status: "deactiv",
+		Event:  battery.AlarmLowBatteryEvent,
+		Status: battery.AlarmStatusDeactivate,
 	}
 
 	s := &suite.Suite{
