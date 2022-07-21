@@ -27,13 +27,11 @@ type AlarmReport struct {
 	Status string `json:"status"`
 }
 
-func (bar *AlarmReport) ToStrMap() (strMap map[string]string, err error) {
-	strMap = map[string]string{
-		"event":  bar.Event,
-		"status": bar.Status,
+func (r *AlarmReport) ToStrMap() map[string]string {
+	return map[string]string{
+		"event":  r.Event,
+		"status": r.Status,
 	}
-
-	return strMap, nil
 }
 
 // FullReport represents value structure of a battery full report.
@@ -181,15 +179,10 @@ func (s *service) SendBatteryAlarmReport(force bool) (bool, error) {
 		return false, nil
 	}
 
-	alarmValue, err := alarm.ToStrMap()
-	if err != nil {
-		return false, fmt.Errorf("failed to map alarm value to map of strings: %w", err)
-	}
-
 	message := fimpgo.NewStrMapMessage(
 		EvtAlarmReport,
 		s.Name(),
-		alarmValue,
+		alarm.ToStrMap(),
 		nil,
 		nil,
 		nil,
