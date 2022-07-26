@@ -3,6 +3,7 @@ package observer
 import (
 	"fmt"
 	"sync"
+	"time"
 
 	"github.com/futurehomeno/cliffhanger/event"
 	"github.com/futurehomeno/cliffhanger/prime"
@@ -17,13 +18,19 @@ type Observer interface {
 	GetAreas() ([]*prime.Area, error)
 }
 
-func New(client prime.Client, eventManager event.Manager, components ...string) (Observer, error) {
+func New(
+	client prime.Client,
+	eventManager event.Manager,
+	refreshInterval time.Duration,
+	components ...string,
+) (Observer, error) {
 	o := &observer{
-		client:       client,
-		eventManager: eventManager,
-		components:   make(map[string]func(notification *prime.Notify) error),
-		lock:         &sync.RWMutex{},
-		refreshed:    false,
+		client:          client,
+		eventManager:    eventManager,
+		components:      make(map[string]func(notification *prime.Notify) error),
+		lock:            &sync.RWMutex{},
+		refreshed:       false,
+		refreshInterval: refreshInterval,
 	}
 
 	for _, component := range components {
@@ -48,10 +55,12 @@ type observer struct {
 	client       prime.Client
 	eventManager event.Manager
 
-	components map[string]func(notification *prime.Notify) error
-	lock       *sync.RWMutex
-	refreshed  bool
-	set        *set
+	components      map[string]func(notification *prime.Notify) error
+	lock            *sync.RWMutex
+	refreshInterval time.Duration
+	refreshed       bool
+	lastRefresh     time.Time
+	set             *set
 }
 
 func (o *observer) Update(notification *prime.Notify) error {
@@ -66,7 +75,7 @@ func (o *observer) Update(notification *prime.Notify) error {
 	if err != nil {
 		o.refreshed = false
 
-		return fmt.Errorf("prime observer: failed process update for component %s: %w", notification.Component, err)
+		return fmt.Errorf("prime observer: failed to process update for component %s: %w", notification.Component, err)
 	}
 
 	return nil
@@ -98,7 +107,7 @@ func (o *observer) updateDevice(notification *prime.Notify) error {
 		}
 
 		o.set.addDevice(device)
-		o.eventManager.Publish(newEvent(notification.Component, notification.Cmd, device.ID))
+		o.eventManager.Publish(newComponentEvent(notification.Component, notification.Cmd, device.ID))
 
 	case prime.CmdEdit:
 		device, err := notification.GetDevice()
@@ -107,7 +116,7 @@ func (o *observer) updateDevice(notification *prime.Notify) error {
 		}
 
 		o.set.updateDevice(device)
-		o.eventManager.Publish(newEvent(notification.Component, notification.Cmd, device.ID))
+		o.eventManager.Publish(newComponentEvent(notification.Component, notification.Cmd, device.ID))
 
 	case prime.CmdDelete:
 		id, err := notification.ParseIntegerID()
@@ -116,7 +125,7 @@ func (o *observer) updateDevice(notification *prime.Notify) error {
 		}
 
 		o.set.deleteDevice(id)
-		o.eventManager.Publish(newEvent(notification.Component, notification.Cmd, id))
+		o.eventManager.Publish(newComponentEvent(notification.Component, notification.Cmd, id))
 	}
 
 	return nil
@@ -132,7 +141,7 @@ func (o *observer) updateThing(notification *prime.Notify) error {
 		}
 
 		o.set.addThing(thing)
-		o.eventManager.Publish(newEvent(notification.Component, notification.Cmd, thing.ID))
+		o.eventManager.Publish(newComponentEvent(notification.Component, notification.Cmd, thing.ID))
 
 	case prime.CmdEdit:
 		thing, err := notification.GetThing()
@@ -141,7 +150,7 @@ func (o *observer) updateThing(notification *prime.Notify) error {
 		}
 
 		o.set.updateThing(thing)
-		o.eventManager.Publish(newEvent(notification.Component, notification.Cmd, thing.ID))
+		o.eventManager.Publish(newComponentEvent(notification.Component, notification.Cmd, thing.ID))
 
 	case prime.CmdDelete:
 		id, err := notification.ParseIntegerID()
@@ -150,7 +159,7 @@ func (o *observer) updateThing(notification *prime.Notify) error {
 		}
 
 		o.set.deleteThing(id)
-		o.eventManager.Publish(newEvent(notification.Component, notification.Cmd, id))
+		o.eventManager.Publish(newComponentEvent(notification.Component, notification.Cmd, id))
 	}
 
 	return nil
@@ -166,7 +175,7 @@ func (o *observer) updateRoom(notification *prime.Notify) error {
 		}
 
 		o.set.addRoom(room)
-		o.eventManager.Publish(newEvent(notification.Component, notification.Cmd, room.ID))
+		o.eventManager.Publish(newComponentEvent(notification.Component, notification.Cmd, room.ID))
 
 	case prime.CmdEdit:
 		room, err := notification.GetRoom()
@@ -175,7 +184,7 @@ func (o *observer) updateRoom(notification *prime.Notify) error {
 		}
 
 		o.set.updateRoom(room)
-		o.eventManager.Publish(newEvent(notification.Component, notification.Cmd, room.ID))
+		o.eventManager.Publish(newComponentEvent(notification.Component, notification.Cmd, room.ID))
 
 	case prime.CmdDelete:
 		id, err := notification.ParseIntegerID()
@@ -184,7 +193,7 @@ func (o *observer) updateRoom(notification *prime.Notify) error {
 		}
 
 		o.set.deleteRoom(id)
-		o.eventManager.Publish(newEvent(notification.Component, notification.Cmd, id))
+		o.eventManager.Publish(newComponentEvent(notification.Component, notification.Cmd, id))
 	}
 
 	return nil
@@ -200,7 +209,7 @@ func (o *observer) updateArea(notification *prime.Notify) error {
 		}
 
 		o.set.addArea(area)
-		o.eventManager.Publish(newEvent(notification.Component, notification.Cmd, area.ID))
+		o.eventManager.Publish(newComponentEvent(notification.Component, notification.Cmd, area.ID))
 
 	case prime.CmdEdit:
 		area, err := notification.GetArea()
@@ -209,7 +218,7 @@ func (o *observer) updateArea(notification *prime.Notify) error {
 		}
 
 		o.set.updateArea(area)
-		o.eventManager.Publish(newEvent(notification.Component, notification.Cmd, area.ID))
+		o.eventManager.Publish(newComponentEvent(notification.Component, notification.Cmd, area.ID))
 
 	case prime.CmdDelete:
 		id, err := notification.ParseIntegerID()
@@ -218,7 +227,7 @@ func (o *observer) updateArea(notification *prime.Notify) error {
 		}
 
 		o.set.deleteArea(id)
-		o.eventManager.Publish(newEvent(notification.Component, notification.Cmd, id))
+		o.eventManager.Publish(newComponentEvent(notification.Component, notification.Cmd, id))
 	}
 
 	return nil
@@ -232,7 +241,7 @@ func (o *observer) Refresh(force bool) error {
 }
 
 func (o *observer) doRefresh(force bool) error {
-	if !force && o.refreshed {
+	if !force && !o.isRefreshRequired() {
 		return nil
 	}
 
@@ -243,8 +252,19 @@ func (o *observer) doRefresh(force bool) error {
 
 	o.set = &set{ComponentSet: componentSet}
 	o.refreshed = true
+	o.lastRefresh = time.Now()
+
+	o.eventManager.Publish(newRefreshEvent(o.observedComponents()))
 
 	return nil
+}
+
+func (o *observer) isRefreshRequired() bool {
+	if !o.refreshed || o.lastRefresh.IsZero() {
+		return true
+	}
+
+	return time.Since(o.lastRefresh) > o.refreshInterval
 }
 
 func (o *observer) GetDevices() ([]*prime.Device, error) {
