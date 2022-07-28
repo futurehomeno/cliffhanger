@@ -1,4 +1,5 @@
 .idea
 .DS_Store
+/temp/*
 testdata/config/save/*
 !testdata/config/save/.gitkeep
