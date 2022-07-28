@@ -8,8 +8,8 @@ type set struct {
 	*prime.ComponentSet
 }
 
-func (s *set) getDevices() []*prime.Device {
-	devices := make([]*prime.Device, len(s.Devices))
+func (s *set) getDevices() prime.Devices {
+	devices := make(prime.Devices, len(s.Devices))
 	copy(devices, s.Devices)
 
 	return devices
@@ -50,8 +50,8 @@ func (s *set) findDevice(id int) int {
 	return -1
 }
 
-func (s *set) getThings() []*prime.Thing {
-	things := make([]*prime.Thing, len(s.Things))
+func (s *set) getThings() prime.Things {
+	things := make(prime.Things, len(s.Things))
 	copy(things, s.Things)
 
 	return things
@@ -92,8 +92,8 @@ func (s *set) findThing(id int) int {
 	return -1
 }
 
-func (s *set) getRooms() []*prime.Room {
-	rooms := make([]*prime.Room, len(s.Rooms))
+func (s *set) getRooms() prime.Rooms {
+	rooms := make(prime.Rooms, len(s.Rooms))
 	copy(rooms, s.Rooms)
 
 	return rooms
@@ -134,8 +134,8 @@ func (s *set) findRoom(id int) int {
 	return -1
 }
 
-func (s *set) getAreas() []*prime.Area {
-	areas := make([]*prime.Area, len(s.Areas))
+func (s *set) getAreas() prime.Areas {
+	areas := make(prime.Areas, len(s.Areas))
 	copy(areas, s.Areas)
 
 	return areas

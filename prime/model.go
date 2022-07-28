@@ -54,13 +54,13 @@ func ResponseFromMessage(msg *fimpgo.FimpMessage) (*Response, error) {
 	return response, nil
 }
 
-func (r *Response) GetDevices() ([]*Device, error) {
+func (r *Response) GetDevices() (Devices, error) {
 	param, ok := r.ParamRaw[ComponentDevice]
 	if !ok {
 		return nil, nil
 	}
 
-	var result []*Device
+	var result Devices
 
 	if err := json.Unmarshal(param, &result); err != nil {
 		return nil, fmt.Errorf("response: failed to unmarshal component %s: %w", ComponentDevice, err)
@@ -69,13 +69,13 @@ func (r *Response) GetDevices() ([]*Device, error) {
 	return result, nil
 }
 
-func (r *Response) GetThings() ([]*Thing, error) {
+func (r *Response) GetThings() (Things, error) {
 	param, ok := r.ParamRaw[ComponentThing]
 	if !ok {
 		return nil, nil
 	}
 
-	var result []*Thing
+	var result Things
 
 	if err := json.Unmarshal(param, &result); err != nil {
 		return nil, fmt.Errorf("response: failed to unmarshal component %s: %w", ComponentThing, err)
@@ -84,13 +84,13 @@ func (r *Response) GetThings() ([]*Thing, error) {
 	return result, nil
 }
 
-func (r *Response) GetAreas() ([]*Area, error) {
+func (r *Response) GetAreas() (Areas, error) {
 	param, ok := r.ParamRaw[ComponentArea]
 	if !ok {
 		return nil, nil
 	}
 
-	var result []*Area
+	var result Areas
 
 	if err := json.Unmarshal(param, &result); err != nil {
 		return nil, fmt.Errorf("response: failed to unmarshal component %s: %w", ComponentArea, err)
@@ -99,13 +99,13 @@ func (r *Response) GetAreas() ([]*Area, error) {
 	return result, nil
 }
 
-func (r *Response) GetRooms() ([]*Room, error) {
+func (r *Response) GetRooms() (Rooms, error) {
 	param, ok := r.ParamRaw[ComponentRoom]
 	if !ok {
 		return nil, nil
 	}
 
-	var result []*Room
+	var result Rooms
 
 	if err := json.Unmarshal(param, &result); err != nil {
 		return nil, fmt.Errorf("response: failed to unmarshal component %s: %w", ComponentRoom, err)
@@ -144,13 +144,13 @@ func (r *Response) GetHub() (*Hub, error) {
 	return result, nil
 }
 
-func (r *Response) GetShortcuts() ([]*Shortcut, error) {
+func (r *Response) GetShortcuts() (Shortcuts, error) {
 	param, ok := r.ParamRaw[ComponentShortcut]
 	if !ok {
 		return nil, nil
 	}
 
-	var result []*Shortcut
+	var result Shortcuts
 
 	if err := json.Unmarshal(param, &result); err != nil {
 		return nil, fmt.Errorf("response: failed to unmarshal component %s: %w", ComponentShortcut, err)
@@ -159,13 +159,13 @@ func (r *Response) GetShortcuts() ([]*Shortcut, error) {
 	return result, nil
 }
 
-func (r *Response) GetModes() ([]*Mode, error) {
+func (r *Response) GetModes() (Modes, error) {
 	param, ok := r.ParamRaw[ComponentMode]
 	if !ok {
 		return nil, nil
 	}
 
-	var result []*Mode
+	var result Modes
 
 	if err := json.Unmarshal(param, &result); err != nil {
 		return nil, fmt.Errorf("response: failed to unmarshal component %s: %w", ComponentMode, err)
@@ -174,13 +174,13 @@ func (r *Response) GetModes() ([]*Mode, error) {
 	return result, nil
 }
 
-func (r *Response) GetTimers() ([]*Timer, error) {
+func (r *Response) GetTimers() (Timers, error) {
 	param, ok := r.ParamRaw[ComponentTimer]
 	if !ok {
 		return nil, nil
 	}
 
-	var result []*Timer
+	var result Timers
 
 	if err := json.Unmarshal(param, &result); err != nil {
 		return nil, fmt.Errorf("response: failed to unmarshal component %s: %w", ComponentTimer, err)

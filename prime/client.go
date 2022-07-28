@@ -8,15 +8,15 @@ import (
 )
 
 type Client interface {
-	GetDevices() ([]*Device, error)
-	GetThings() ([]*Thing, error)
-	GetRooms() ([]*Room, error)
-	GetAreas() ([]*Area, error)
+	GetDevices() (Devices, error)
+	GetThings() (Things, error)
+	GetRooms() (Rooms, error)
+	GetAreas() (Areas, error)
 	GetHouse() (*House, error)
 	GetHub() (*Hub, error)
-	GetShortcuts() ([]*Shortcut, error)
-	GetModes() ([]*Mode, error)
-	GetTimers() ([]*Timer, error)
+	GetShortcuts() (Shortcuts, error)
+	GetModes() (Modes, error)
+	GetTimers() (Timers, error)
 	GetVinculumServices() (*VinculumServices, error)
 	GetState() (*State, error)
 	GetComponents(components ...string) (*ComponentSet, error)
@@ -84,7 +84,7 @@ type client struct {
 	syncClient      *fimpgo.SyncClient
 }
 
-func (c *client) GetDevices() ([]*Device, error) {
+func (c *client) GetDevices() (Devices, error) {
 	response, err := c.sendGetRequest([]string{ComponentDevice})
 	if err != nil {
 		return nil, err
@@ -93,7 +93,7 @@ func (c *client) GetDevices() ([]*Device, error) {
 	return response.GetDevices()
 }
 
-func (c *client) GetThings() ([]*Thing, error) {
+func (c *client) GetThings() (Things, error) {
 	response, err := c.sendGetRequest([]string{ComponentThing})
 	if err != nil {
 		return nil, err
@@ -102,7 +102,7 @@ func (c *client) GetThings() ([]*Thing, error) {
 	return response.GetThings()
 }
 
-func (c *client) GetRooms() ([]*Room, error) {
+func (c *client) GetRooms() (Rooms, error) {
 	response, err := c.sendGetRequest([]string{ComponentRoom})
 	if err != nil {
 		return nil, err
@@ -111,7 +111,7 @@ func (c *client) GetRooms() ([]*Room, error) {
 	return response.GetRooms()
 }
 
-func (c *client) GetAreas() ([]*Area, error) {
+func (c *client) GetAreas() (Areas, error) {
 	response, err := c.sendGetRequest([]string{ComponentArea})
 	if err != nil {
 		return nil, err
@@ -138,7 +138,7 @@ func (c *client) GetHub() (*Hub, error) {
 	return response.GetHub()
 }
 
-func (c *client) GetShortcuts() ([]*Shortcut, error) {
+func (c *client) GetShortcuts() (Shortcuts, error) {
 	response, err := c.sendGetRequest([]string{ComponentShortcut})
 	if err != nil {
 		return nil, err
@@ -147,7 +147,7 @@ func (c *client) GetShortcuts() ([]*Shortcut, error) {
 	return response.GetShortcuts()
 }
 
-func (c *client) GetModes() ([]*Mode, error) {
+func (c *client) GetModes() (Modes, error) {
 	response, err := c.sendGetRequest([]string{ComponentMode})
 	if err != nil {
 		return nil, err
@@ -156,7 +156,7 @@ func (c *client) GetModes() ([]*Mode, error) {
 	return response.GetModes()
 }
 
-func (c *client) GetTimers() ([]*Timer, error) {
+func (c *client) GetTimers() (Timers, error) {
 	response, err := c.sendGetRequest([]string{ComponentTimer})
 	if err != nil {
 		return nil, err

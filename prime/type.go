@@ -39,29 +39,20 @@ var validComponents = []string{
 }
 
 type ComponentSet struct {
-	Devices   []*Device         `json:"device,omitempty"`
-	Things    []*Thing          `json:"thing,omitempty"`
-	Rooms     []*Room           `json:"room,omitempty"`
-	Areas     []*Area           `json:"area,omitempty"`
+	Devices   Devices           `json:"device,omitempty"`
+	Things    Things            `json:"thing,omitempty"`
+	Rooms     Rooms             `json:"room,omitempty"`
+	Areas     Areas             `json:"area,omitempty"`
 	House     *House            `json:"house,omitempty"`
 	Hub       *Hub              `json:"hub,omitempty"`
-	Shortcuts []*Shortcut       `json:"shortcut,omitempty"`
-	Modes     []*Mode           `json:"mode,omitempty"`
-	Timers    []*Timer          `json:"timer,omitempty"`
+	Shortcuts Shortcuts         `json:"shortcut,omitempty"`
+	Modes     Modes             `json:"mode,omitempty"`
+	Timers    Timers            `json:"timer,omitempty"`
 	Services  *VinculumServices `json:"service,omitempty"`
 	State     *State            `json:"state,omitempty"`
 }
 
-type Fimp struct {
-	Adapter string `json:"adapter"`
-	Address string `json:"address"`
-	Group   string `json:"group"`
-}
-
-type ClientType struct {
-	Name          *string `json:"name,omitempty"`
-	OpenStateType *string `json:"openStateType,omitempty"`
-}
+type Devices []*Device
 
 type Device struct {
 	Fimp          Fimp                   `json:"fimp"`
@@ -80,6 +71,26 @@ type Device struct {
 	Type          map[string]interface{} `json:"type"`
 }
 
+type Service struct {
+	Addr       string                 `json:"addr,omitempty"`
+	Enabled    bool                   `json:"enabled,omitempty"`
+	Interfaces []string               `json:"intf"`
+	Props      map[string]interface{} `json:"props"`
+}
+
+type Fimp struct {
+	Adapter string `json:"adapter"`
+	Address string `json:"address"`
+	Group   string `json:"group"`
+}
+
+type ClientType struct {
+	Name          *string `json:"name,omitempty"`
+	OpenStateType *string `json:"openStateType,omitempty"`
+}
+
+type Things []*Thing
+
 type Thing struct {
 	ID      int               `json:"id"`
 	Address string            `json:"addr"`
@@ -89,11 +100,7 @@ type Thing struct {
 	RoomID  int               `json:"room"`
 }
 
-type House struct {
-	Learning interface{} `json:"learning"`
-	Mode     string      `json:"mode"`
-	Time     time.Time   `json:"time"`
-}
+type Rooms []*Room
 
 type Room struct {
 	Alias   string     `json:"alias"`
@@ -122,21 +129,7 @@ type RoomHeating struct {
 	Power      string  `json:"power"`
 }
 
-type Service struct {
-	Addr       string                 `json:"addr,omitempty"`
-	Enabled    bool                   `json:"enabled,omitempty"`
-	Interfaces []string               `json:"intf"`
-	Props      map[string]interface{} `json:"props"`
-}
-
-type UserInfo struct {
-	UID  string   `json:"uuid,omitempty"`
-	Name UserName `json:"name,omitempty"`
-}
-
-type UserName struct {
-	Fullname string `json:"fullname,omitempty"`
-}
+type Areas []*Area
 
 type Area struct {
 	ID    int       `json:"id"`
@@ -150,19 +143,14 @@ type AreaProps struct {
 	TransNr string `json:"transNr"`
 }
 
-type ActionDevice map[string]interface{}
-
-type ActionRoom map[string]interface{}
-
-type ShortcutAction struct {
-	Device map[int]ActionDevice `json:"device"`
-	Room   map[int]ActionRoom   `json:"room"`
+type House struct {
+	Learning interface{} `json:"learning"`
+	Mode     string      `json:"mode"`
+	Time     time.Time   `json:"time"`
 }
 
-type Shortcut struct {
-	ID     int            `json:"id"`
-	Client ClientType     `json:"client"`
-	Action ShortcutAction `json:"action"`
+type Hub struct {
+	Mode HubMode `json:"mode"`
 }
 
 type HubMode struct {
@@ -170,8 +158,37 @@ type HubMode struct {
 	Previous string `json:"prev"`
 }
 
-type Hub struct {
-	Mode HubMode `json:"mode"`
+type UserInfo struct {
+	UID  string   `json:"uuid,omitempty"`
+	Name UserName `json:"name,omitempty"`
+}
+
+type UserName struct {
+	Fullname string `json:"fullname,omitempty"`
+}
+
+type Shortcuts []*Shortcut
+
+type Shortcut struct {
+	ID     int            `json:"id"`
+	Client ClientType     `json:"client"`
+	Action ShortcutAction `json:"action"`
+}
+
+type ShortcutAction struct {
+	Device map[int]ActionDevice `json:"device"`
+	Room   map[int]ActionRoom   `json:"room"`
+}
+
+type ActionDevice map[string]interface{}
+
+type ActionRoom map[string]interface{}
+
+type Modes []*Mode
+
+type Mode struct {
+	ID     string     `json:"id"`
+	Action ModeAction `json:"action"`
 }
 
 type ModeAction struct {
@@ -179,17 +196,7 @@ type ModeAction struct {
 	Room   ActionRoom   `json:"room"`
 }
 
-type Mode struct {
-	ID     string     `json:"id"`
-	Action ModeAction `json:"action"`
-}
-
-type TimerAction struct {
-	Type     string
-	Shortcut int
-	Mode     string
-	Action   ShortcutAction
-}
+type Timers []*Timer
 
 type Timer struct {
 	Action  TimerAction
@@ -199,32 +206,33 @@ type Timer struct {
 	ID      int                    `json:"id"`
 }
 
+type TimerAction struct {
+	Type     string
+	Shortcut int
+	Mode     string
+	Action   ShortcutAction
+}
+
 type VinculumServices struct {
 	FireAlarm map[string]interface{} `json:"fireAlarm"`
 }
 
-type (
-	State struct {
-		Devices StateDevices `json:"devices"`
-	}
+type State struct {
+	Devices StateDevices `json:"devices"`
+}
 
-	StateDeviceFilter func(*StateDevice) bool
+type StateDevices []*StateDevice
 
-	StateDevice struct {
-		ID       int64           `json:"id"`
-		Services []*StateService `json:"services"`
-	}
+type StateDevice struct {
+	ID       int64           `json:"id"`
+	Services []*StateService `json:"services"`
+}
 
-	StateService struct {
-		Name       string           `json:"name"`
-		Address    string           `json:"addr"`
-		Attributes []StateAttribute `json:"attributes"`
-	}
-
-	StateServiceFilter func(*StateService) bool
-
-	StateDevices []*StateDevice
-)
+type StateService struct {
+	Name       string           `json:"name"`
+	Address    string           `json:"addr"`
+	Attributes []StateAttribute `json:"attributes"`
+}
 
 type StateAttribute struct {
 	Name   string                `json:"name"`

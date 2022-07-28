@@ -12,10 +12,10 @@ import (
 type Observer interface {
 	Refresh(force bool) error
 	Update(notification *prime.Notify) error
-	GetDevices() ([]*prime.Device, error)
-	GetThings() ([]*prime.Thing, error)
-	GetRooms() ([]*prime.Room, error)
-	GetAreas() ([]*prime.Area, error)
+	GetDevices() (prime.Devices, error)
+	GetThings() (prime.Things, error)
+	GetRooms() (prime.Rooms, error)
+	GetAreas() (prime.Areas, error)
 }
 
 func New(
@@ -267,7 +267,7 @@ func (o *observer) isRefreshRequired() bool {
 	return time.Since(o.lastRefresh) > o.refreshInterval
 }
 
-func (o *observer) GetDevices() ([]*prime.Device, error) {
+func (o *observer) GetDevices() (prime.Devices, error) {
 	o.lock.Lock()
 	defer o.lock.Unlock()
 
@@ -278,7 +278,7 @@ func (o *observer) GetDevices() ([]*prime.Device, error) {
 	return o.set.getDevices(), nil
 }
 
-func (o *observer) GetThings() ([]*prime.Thing, error) {
+func (o *observer) GetThings() (prime.Things, error) {
 	o.lock.Lock()
 	defer o.lock.Unlock()
 
@@ -289,7 +289,7 @@ func (o *observer) GetThings() ([]*prime.Thing, error) {
 	return o.set.getThings(), nil
 }
 
-func (o *observer) GetRooms() ([]*prime.Room, error) {
+func (o *observer) GetRooms() (prime.Rooms, error) {
 	o.lock.Lock()
 	defer o.lock.Unlock()
 
@@ -300,7 +300,7 @@ func (o *observer) GetRooms() ([]*prime.Room, error) {
 	return o.set.getRooms(), nil
 }
 
-func (o *observer) GetAreas() ([]*prime.Area, error) {
+func (o *observer) GetAreas() (prime.Areas, error) {
 	o.lock.Lock()
 	defer o.lock.Unlock()
 
