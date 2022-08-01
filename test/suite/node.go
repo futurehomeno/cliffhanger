@@ -26,6 +26,7 @@ type Node struct {
 	Expectations  []*Expectation
 	Timeout       time.Duration
 	InitCallbacks []Callback
+	Callbacks     []Callback
 
 	lock *sync.RWMutex
 	once *sync.Once
@@ -68,6 +69,12 @@ func (n *Node) WithInitCallbacks(callbacks ...Callback) *Node {
 	return n
 }
 
+func (n *Node) WithCallbacks(callbacks ...Callback) *Node {
+	n.Callbacks = append(n.Callbacks, callbacks...)
+
+	return n
+}
+
 func (n *Node) Run(t *testing.T, mqtt *fimpgo.MqttTransport) {
 	t.Helper()
 
@@ -89,6 +96,10 @@ func (n *Node) Run(t *testing.T, mqtt *fimpgo.MqttTransport) {
 	}
 
 	n.publishMessage(t, mqtt, n.Command)
+
+	for _, callback := range n.Callbacks {
+		callback(t)
+	}
 
 	select {
 	case <-time.After(n.Timeout):

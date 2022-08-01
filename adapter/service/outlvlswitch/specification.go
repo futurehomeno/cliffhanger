@@ -12,9 +12,9 @@ func Specification(
 	resourceName,
 	resourceAddress,
 	address,
-	switchType string,
 	maxLvl,
-	minLvl int,
+	minLvl,
+	switchType string,
 	groups []string,
 ) *fimptype.Service {
 	return &fimptype.Service{
