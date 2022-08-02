@@ -639,7 +639,7 @@ func TestObserver(t *testing.T) { //nolint:paralleltest
 func setupObserverTest(testObserver *observer.Observer, testEventManager *event.Manager) suite.BaseSetup {
 	return func(t *testing.T, mqtt *fimpgo.MqttTransport) (routing []*router.Routing, tasks []*task.Task, mocks []suite.Mock) {
 		syncClient := fimpgo.NewSyncClient(mqtt)
-		primeClient := prime.NewClient(syncClient, "testResource")
+		primeClient := prime.NewClient(syncClient, "testResource", 5*time.Second)
 		*testEventManager = event.NewManager()
 
 		var err error

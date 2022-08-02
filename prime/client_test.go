@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"errors"
 	"testing"
+	"time"
 
 	"github.com/futurehomeno/fimpgo"
 	"github.com/stretchr/testify/assert"
@@ -24,7 +25,7 @@ func TestNewClient(t *testing.T) {
 		mock.Anything, mock.Anything, mock.Anything,
 	).Return(nil, errors.New("test error"))
 
-	client := prime.NewClient(m, "test_application")
+	client := prime.NewClient(m, "test_application", 5*time.Second)
 
 	_, err := client.GetAll()
 
@@ -44,7 +45,7 @@ func TestNewCloudClient(t *testing.T) {
 		mock.Anything, mock.Anything, mock.Anything,
 	).Return(nil, errors.New("test error"))
 
-	client := prime.NewCloudClient(m, "test_cloud_service", "test_site_uuid")
+	client := prime.NewCloudClient(m, "test_cloud_service", "test_site_uuid", 5*time.Second)
 
 	_, err := client.GetAll()
 
@@ -560,7 +561,7 @@ func TestClient(t *testing.T) {
 
 		t.Run(tc.name, func(t *testing.T) {
 			t.Parallel()
-			client := prime.NewClient(tc.syncClientMock, "test")
+			client := prime.NewClient(tc.syncClientMock, "test", 5*time.Second)
 
 			got, err := tc.call(client)
 			if tc.wantErr {

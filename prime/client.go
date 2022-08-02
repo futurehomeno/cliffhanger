@@ -3,6 +3,7 @@ package prime
 import (
 	"fmt"
 	"strings"
+	"time"
 
 	"github.com/futurehomeno/fimpgo"
 )
@@ -29,7 +30,7 @@ type Client interface {
 	ChangeMode(mode string) (*Response, error)
 }
 
-func NewClient(syncClient SyncClient, resourceName string) Client {
+func NewClient(syncClient SyncClient, resourceName string, defaultTimeout time.Duration) Client {
 	responseAddress := fimpgo.Address{
 		PayloadType:     fimpgo.DefaultPayload,
 		MsgType:         fimpgo.MsgTypeRsp,
@@ -51,10 +52,11 @@ func NewClient(syncClient SyncClient, resourceName string) Client {
 		requestAddress:  requestAddress,
 		responseAddress: responseAddress,
 		syncClient:      syncClient,
+		defaultTimeout:  int64(defaultTimeout / time.Second),
 	}
 }
 
-func NewCloudClient(syncClient SyncClient, cloudServiceName string, siteUUID string) Client {
+func NewCloudClient(syncClient SyncClient, cloudServiceName string, siteUUID string, defaultTimeout time.Duration) Client {
 	responseAddress := fimpgo.Address{
 		GlobalPrefix:    siteUUID,
 		PayloadType:     fimpgo.DefaultPayload,
@@ -78,6 +80,7 @@ func NewCloudClient(syncClient SyncClient, cloudServiceName string, siteUUID str
 		requestAddress:  requestAddress,
 		responseAddress: responseAddress,
 		syncClient:      syncClient,
+		defaultTimeout:  int64(defaultTimeout / time.Second),
 	}
 }
 
@@ -86,6 +89,7 @@ type client struct {
 	requestAddress  fimpgo.Address
 	responseAddress fimpgo.Address
 	syncClient      SyncClient
+	defaultTimeout  int64
 }
 
 func (c *client) GetDevices() (Devices, error) {
@@ -235,7 +239,7 @@ func (c *client) sendGetRequest(components []string) (*Response, error) {
 	message.ResponseToTopic = c.responseAddress.Serialize()
 	message.Source = c.clientName
 
-	response, err := c.syncClient.SendReqRespFimp(c.requestAddress.Serialize(), c.responseAddress.Serialize(), message, 5, true)
+	response, err := c.syncClient.SendReqRespFimp(c.requestAddress.Serialize(), c.responseAddress.Serialize(), message, c.defaultTimeout, true)
 	if err != nil {
 		return nil, fmt.Errorf("prime client: error while sending get request for components %s: %w", strings.Join(components, ", "), err)
 	}
@@ -259,7 +263,7 @@ func (c *client) sendSetRequest(component string, value interface{}) (*Response,
 	message.ResponseToTopic = c.responseAddress.Serialize()
 	message.Source = c.clientName
 
-	response, err := c.syncClient.SendReqRespFimp(c.requestAddress.Serialize(), c.responseAddress.Serialize(), message, 5, true)
+	response, err := c.syncClient.SendReqRespFimp(c.requestAddress.Serialize(), c.responseAddress.Serialize(), message, c.defaultTimeout, true)
 	if err != nil {
 		return nil, fmt.Errorf("prime client: error while sending set request for component %s: %w", component, err)
 	}
