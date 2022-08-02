@@ -27,7 +27,8 @@ func New(
 	o := &observer{
 		client:          client,
 		eventManager:    eventManager,
-		components:      make(map[string]func(notification *prime.Notify) error),
+		components:      components,
+		strategies:      make(map[string]func(notification *prime.Notify) error),
 		lock:            &sync.RWMutex{},
 		refreshed:       false,
 		refreshInterval: refreshInterval,
@@ -36,13 +37,13 @@ func New(
 	for _, component := range components {
 		switch component {
 		case prime.ComponentDevice:
-			o.components[component] = o.updateDevice
+			o.strategies[component] = o.updateDevice
 		case prime.ComponentThing:
-			o.components[component] = o.updateThing
+			o.strategies[component] = o.updateThing
 		case prime.ComponentRoom:
-			o.components[component] = o.updateRoom
+			o.strategies[component] = o.updateRoom
 		case prime.ComponentArea:
-			o.components[component] = o.updateArea
+			o.strategies[component] = o.updateArea
 		default:
 			return nil, fmt.Errorf("prime observer: unsupported component %s", component)
 		}
@@ -55,7 +56,8 @@ type observer struct {
 	client       prime.Client
 	eventManager event.Manager
 
-	components      map[string]func(notification *prime.Notify) error
+	components      []string
+	strategies      map[string]func(notification *prime.Notify) error
 	lock            *sync.RWMutex
 	refreshInterval time.Duration
 	refreshed       bool
@@ -71,7 +73,7 @@ func (o *observer) Update(notification *prime.Notify) error {
 	o.lock.Lock()
 	defer o.lock.Unlock()
 
-	err := o.components[notification.Component](notification)
+	err := o.strategies[notification.Component](notification)
 	if err != nil {
 		o.refreshed = false
 
@@ -82,19 +84,9 @@ func (o *observer) Update(notification *prime.Notify) error {
 }
 
 func (o *observer) isComponentObserved(component string) bool {
-	_, ok := o.components[component]
+	_, ok := o.strategies[component]
 
 	return ok
-}
-
-func (o *observer) observedComponents() []string {
-	var components []string
-
-	for component := range o.components {
-		components = append(components, component)
-	}
-
-	return components
 }
 
 // nolint:dupl
@@ -103,7 +95,7 @@ func (o *observer) updateDevice(notification *prime.Notify) error {
 	case prime.CmdAdd:
 		device, err := notification.GetDevice()
 		if err != nil {
-			return fmt.Errorf("prime observer: failed to add device with ID %d: %w", device.ID, err)
+			return fmt.Errorf("prime observer: failed to add device: %w", err)
 		}
 
 		o.set.addDevice(device)
@@ -112,7 +104,7 @@ func (o *observer) updateDevice(notification *prime.Notify) error {
 	case prime.CmdEdit:
 		device, err := notification.GetDevice()
 		if err != nil {
-			return fmt.Errorf("prime observer: failed to update device with ID %d: %w", device.ID, err)
+			return fmt.Errorf("prime observer: failed to update device: %w", err)
 		}
 
 		o.set.updateDevice(device)
@@ -137,7 +129,7 @@ func (o *observer) updateThing(notification *prime.Notify) error {
 	case prime.CmdAdd:
 		thing, err := notification.GetThing()
 		if err != nil {
-			return fmt.Errorf("prime observer: failed to add thing with ID %d: %w", thing.ID, err)
+			return fmt.Errorf("prime observer: failed to add thing: %w", err)
 		}
 
 		o.set.addThing(thing)
@@ -146,7 +138,7 @@ func (o *observer) updateThing(notification *prime.Notify) error {
 	case prime.CmdEdit:
 		thing, err := notification.GetThing()
 		if err != nil {
-			return fmt.Errorf("prime observer: failed to update thing with ID %d: %w", thing.ID, err)
+			return fmt.Errorf("prime observer: failed to update thing: %w", err)
 		}
 
 		o.set.updateThing(thing)
@@ -171,7 +163,7 @@ func (o *observer) updateRoom(notification *prime.Notify) error {
 	case prime.CmdAdd:
 		room, err := notification.GetRoom()
 		if err != nil {
-			return fmt.Errorf("prime observer: failed to add room with ID %d: %w", room.ID, err)
+			return fmt.Errorf("prime observer: failed to add room: %w", err)
 		}
 
 		o.set.addRoom(room)
@@ -180,7 +172,7 @@ func (o *observer) updateRoom(notification *prime.Notify) error {
 	case prime.CmdEdit:
 		room, err := notification.GetRoom()
 		if err != nil {
-			return fmt.Errorf("prime observer: failed to update room with ID %d: %w", room.ID, err)
+			return fmt.Errorf("prime observer: failed to update room: %w", err)
 		}
 
 		o.set.updateRoom(room)
@@ -205,7 +197,7 @@ func (o *observer) updateArea(notification *prime.Notify) error {
 	case prime.CmdAdd:
 		area, err := notification.GetArea()
 		if err != nil {
-			return fmt.Errorf("prime observer: failed to add area with ID %d: %w", area.ID, err)
+			return fmt.Errorf("prime observer: failed to add area: %w", err)
 		}
 
 		o.set.addArea(area)
@@ -214,7 +206,7 @@ func (o *observer) updateArea(notification *prime.Notify) error {
 	case prime.CmdEdit:
 		area, err := notification.GetArea()
 		if err != nil {
-			return fmt.Errorf("prime observer: failed to update area with ID %d: %w", area.ID, err)
+			return fmt.Errorf("prime observer: failed to update area: %w", err)
 		}
 
 		o.set.updateArea(area)
@@ -245,7 +237,7 @@ func (o *observer) doRefresh(force bool) error {
 		return nil
 	}
 
-	componentSet, err := o.client.GetComponents(o.observedComponents()...)
+	componentSet, err := o.client.GetComponents(o.components...)
 	if err != nil {
 		return fmt.Errorf("observer: error while refreshing components: %w", err)
 	}
@@ -254,7 +246,7 @@ func (o *observer) doRefresh(force bool) error {
 	o.refreshed = true
 	o.lastRefresh = time.Now()
 
-	o.eventManager.Publish(newRefreshEvent(o.observedComponents()))
+	o.eventManager.Publish(newRefreshEvent(o.components))
 
 	return nil
 }

@@ -235,7 +235,7 @@ func (c *client) sendGetRequest(components []string) (*Response, error) {
 	message.ResponseToTopic = c.responseAddress.Serialize()
 	message.Source = c.clientName
 
-	response, err := c.syncClient.SendReqRespFimp(c.requestAddress.Serialize(), c.responseAddress.Serialize(), message, 10, true)
+	response, err := c.syncClient.SendReqRespFimp(c.requestAddress.Serialize(), c.responseAddress.Serialize(), message, 5, true)
 	if err != nil {
 		return nil, fmt.Errorf("prime client: error while sending get request for components %s: %w", strings.Join(components, ", "), err)
 	}
@@ -259,7 +259,7 @@ func (c *client) sendSetRequest(component string, value interface{}) (*Response,
 	message.ResponseToTopic = c.responseAddress.Serialize()
 	message.Source = c.clientName
 
-	response, err := c.syncClient.SendReqRespFimp(c.requestAddress.Serialize(), c.responseAddress.Serialize(), message, 10, true)
+	response, err := c.syncClient.SendReqRespFimp(c.requestAddress.Serialize(), c.responseAddress.Serialize(), message, 5, true)
 	if err != nil {
 		return nil, fmt.Errorf("prime client: error while sending set request for component %s: %w", component, err)
 	}
