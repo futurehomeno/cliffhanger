@@ -17,6 +17,9 @@ const (
 	PropertySupportedStates        = "sup_states"
 	PropertySupportedChargingModes = "sup_charging_modes"
 	PropertyChargingMode           = "charging_mode"
+
+	StateReadyToCharge = "ready_to_charge"
+	StateCharging      = "charging"
 )
 
 var (
