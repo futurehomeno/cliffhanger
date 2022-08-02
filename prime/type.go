@@ -1,0 +1,610 @@
+package prime
+
+import (
+	"encoding/json"
+	"fmt"
+	"strings"
+	"time"
+)
+
+const (
+	ComponentDevice   = "device"
+	ComponentThing    = "thing"
+	ComponentRoom     = "room"
+	ComponentArea     = "area"
+	ComponentHouse    = "house"
+	ComponentHub      = "hub"
+	ComponentShortcut = "shortcut"
+	ComponentMode     = "mode"
+	ComponentTimer    = "timer"
+	ComponentService  = "service"
+	ComponentState    = "state"
+
+	CmdGet    = "get"
+	CmdSet    = "set"
+	CmdEdit   = "edit"
+	CmdDelete = "delete"
+	CmdAdd    = "add"
+)
+
+var validComponents = []string{
+	ComponentDevice,
+	ComponentThing,
+	ComponentRoom,
+	ComponentArea,
+	ComponentHouse,
+	ComponentHub,
+	ComponentShortcut,
+	ComponentMode,
+	ComponentTimer,
+	ComponentService,
+	ComponentState,
+}
+
+type ComponentSet struct {
+	Devices   Devices           `json:"attribute,omitempty"`
+	Things    Things            `json:"thing,omitempty"`
+	Rooms     Rooms             `json:"room,omitempty"`
+	Areas     Areas             `json:"area,omitempty"`
+	House     *House            `json:"house,omitempty"`
+	Hub       *Hub              `json:"hub,omitempty"`
+	Shortcuts Shortcuts         `json:"shortcut,omitempty"`
+	Modes     Modes             `json:"mode,omitempty"`
+	Timers    Timers            `json:"timer,omitempty"`
+	Services  *VinculumServices `json:"service,omitempty"`
+	State     *State            `json:"state,omitempty"`
+}
+
+type Devices []*Device
+
+type Device struct {
+	FIMP          FIMP                   `json:"fimp"`
+	Client        ClientType             `json:"client"`
+	Functionality *string                `json:"functionality"`
+	Services      map[string]*Service    `json:"services"`
+	ID            int                    `json:"id"`
+	Lrn           bool                   `json:"lrn"`
+	Model         string                 `json:"model"`
+	ModelAlias    string                 `json:"modelAlias"`
+	Param         map[string]interface{} `json:"param"`
+	Problem       bool                   `json:"problem"`
+	Room          *int                   `json:"room"`
+	Changes       map[string]interface{} `json:"changes"`
+	ThingID       *int                   `json:"thing"`
+	Type          map[string]interface{} `json:"type"`
+}
+
+func (d *Device) GetName() string {
+	if d.Client.Name != nil {
+		return *d.Client.Name
+	}
+
+	if d.ModelAlias != "" {
+		return d.ModelAlias
+	}
+
+	return d.Model
+}
+
+func (d *Device) GetType() string {
+	v, ok := d.Type["type"]
+	if !ok {
+		return ""
+	}
+
+	s, ok := v.(string)
+	if !ok {
+		return ""
+	}
+
+	return s
+}
+
+func (d *Device) GetSubType() string {
+	v, ok := d.Type["subtype"]
+	if !ok {
+		return ""
+	}
+
+	s, ok := v.(string)
+	if !ok {
+		return ""
+	}
+
+	return s
+}
+
+func (d *Device) SupportsSubType(mainType, subType string) bool {
+	supportedRaw, ok := d.Type["supported"]
+	if !ok {
+		return false
+	}
+
+	supported, ok := supportedRaw.(map[string]interface{})
+	if !ok {
+		return false
+	}
+
+	subTypesRaw, ok := supported[mainType]
+	if !ok {
+		return false
+	}
+
+	subTypes, ok := subTypesRaw.([]interface{})
+	if !ok {
+		return false
+	}
+
+	for _, v := range subTypes {
+		s, ok := v.(string)
+		if !ok {
+			continue
+		}
+
+		if s == subType {
+			return true
+		}
+	}
+
+	return false
+}
+
+func (d *Device) HasService(serviceName string) bool {
+	return d.GetService(serviceName) != nil
+}
+
+func (d *Device) GetService(serviceName string) *Service {
+	for srvName, srv := range d.Services {
+		if srvName == serviceName {
+			return srv
+		}
+	}
+
+	return nil
+}
+
+func (d *Device) HasInterfaces(serviceName string, interfaceNames ...string) bool {
+	srv := d.GetService(serviceName)
+	if srv == nil {
+		return false
+	}
+
+	for _, interfaceName := range interfaceNames {
+		if !d.containsInterface(interfaceName, srv.Interfaces) {
+			return false
+		}
+	}
+
+	return true
+}
+
+func (d *Device) containsInterface(interfaceName string, interfaces []string) bool {
+	for _, i := range interfaces {
+		if i == interfaceName {
+			return true
+		}
+	}
+
+	return false
+}
+
+func (d *Device) GetServiceProperty(serviceName string, property string) interface{} {
+	srv := d.GetService(serviceName)
+	if srv == nil {
+		return nil
+	}
+
+	value, ok := srv.Props[property]
+	if !ok {
+		return nil
+	}
+
+	return value
+}
+
+func (d *Device) GetServicePropertyString(serviceName string, property string) string {
+	v := d.GetServiceProperty(serviceName, property)
+	if v == nil {
+		return ""
+	}
+
+	s, ok := v.(string)
+	if !ok {
+		return ""
+	}
+
+	return s
+}
+
+func (d *Device) GetServicePropertyStrings(serviceName string, property string) []string {
+	v := d.GetServiceProperty(serviceName, property)
+	if v == nil {
+		return nil
+	}
+
+	values, ok := v.([]interface{})
+	if !ok {
+		return nil
+	}
+
+	var properties []string
+
+	for _, i := range values {
+		v, ok := i.(string)
+		if !ok {
+			return nil
+		}
+
+		properties = append(properties, v)
+	}
+
+	return properties
+}
+
+type Service struct {
+	Addr       string                 `json:"addr,omitempty"`
+	Enabled    bool                   `json:"enabled,omitempty"`
+	Interfaces []string               `json:"intf"`
+	Props      map[string]interface{} `json:"props"`
+}
+
+type FIMP struct {
+	Adapter string `json:"adapter"`
+	Address string `json:"address"`
+	Group   string `json:"group"`
+}
+
+type ClientType struct {
+	Name          *string `json:"name,omitempty"`
+	OpenStateType *string `json:"openStateType,omitempty"`
+}
+
+type Things []*Thing
+
+type Thing struct {
+	ID      int               `json:"id"`
+	Address string            `json:"addr"`
+	Name    string            `json:"name"`
+	Devices []int             `json:"devices,omitempty"`
+	Props   map[string]string `json:"props,omitempty"`
+	RoomID  int               `json:"room"`
+}
+
+type Rooms []*Room
+
+type Room struct {
+	Alias   string     `json:"alias"`
+	ID      int        `json:"id"`
+	Param   RoomParams `json:"param"`
+	Client  ClientType `json:"client"`
+	Type    *string    `json:"type"`
+	Area    *int       `json:"area"`
+	Outside bool       `json:"outside"`
+}
+
+type RoomParams struct {
+	Heating  RoomHeating `json:"heating"`
+	Lighting interface{} `json:"lighting"`
+	Security interface{} `json:"security"`
+	Sensors  []string    `json:"sensors"`
+	Shading  interface{} `json:"shading"`
+	Triggers interface{} `json:"triggers"`
+}
+
+type RoomHeating struct {
+	Desired    float64 `json:"desired"`
+	Target     float64 `json:"target"`
+	Thermostat bool    `json:"thermostat"`
+	Actuator   bool    `json:"actuator"`
+	Power      string  `json:"power"`
+}
+
+type Areas []*Area
+
+type Area struct {
+	ID    int       `json:"id"`
+	Name  string    `json:"name"`
+	Type  string    `json:"type"`
+	Props AreaProps `json:"props"`
+}
+
+type AreaProps struct {
+	HNumber string `json:"hNumber"`
+	TransNr string `json:"transNr"`
+}
+
+type House struct {
+	Learning interface{} `json:"learning"`
+	Mode     string      `json:"mode"`
+	Time     time.Time   `json:"time"`
+}
+
+type Hub struct {
+	Mode HubMode `json:"mode"`
+}
+
+type HubMode struct {
+	Current  string `json:"current"`
+	Previous string `json:"prev"`
+}
+
+type UserInfo struct {
+	UID  string   `json:"uuid,omitempty"`
+	Name UserName `json:"name,omitempty"`
+}
+
+type UserName struct {
+	Fullname string `json:"fullname,omitempty"`
+}
+
+type Shortcuts []*Shortcut
+
+type Shortcut struct {
+	ID     int            `json:"id"`
+	Client ClientType     `json:"client"`
+	Action ShortcutAction `json:"action"`
+}
+
+type ShortcutAction struct {
+	Device map[int]ActionDevice `json:"attribute"`
+	Room   map[int]ActionRoom   `json:"room"`
+}
+
+type ActionDevice map[string]interface{}
+
+type ActionRoom map[string]interface{}
+
+type Modes []*Mode
+
+type Mode struct {
+	ID     string     `json:"id"`
+	Action ModeAction `json:"action"`
+}
+
+type ModeAction struct {
+	Device ActionDevice `json:"attribute"`
+	Room   ActionRoom   `json:"room"`
+}
+
+type Timers []*Timer
+
+type Timer struct {
+	Action  TimerAction
+	Client  ClientType             `json:"client"`
+	Enabled bool                   `json:"enabled"`
+	Time    map[string]interface{} `json:"time"`
+	ID      int                    `json:"id"`
+}
+
+type TimerAction struct {
+	Type     string
+	Shortcut int
+	Mode     string
+	Action   ShortcutAction
+}
+
+type VinculumServices struct {
+	FireAlarm map[string]interface{} `json:"fireAlarm"`
+}
+
+type State struct {
+	Devices StateDevices `json:"devices"`
+}
+
+type StateDevices []*StateDevice
+
+func (d StateDevices) GetDevice(id int) *StateDevice {
+	for _, device := range d {
+		if device.ID == id {
+			return device
+		}
+	}
+
+	return nil
+}
+
+type StateDevice struct {
+	ID       int             `json:"id"`
+	Services []*StateService `json:"services"`
+}
+
+func (d *StateDevice) GetService(name string) *StateService {
+	for _, s := range d.Services {
+		if s.Name == name {
+			return s
+		}
+	}
+
+	return nil
+}
+
+type StateService struct {
+	Name       string            `json:"name"`
+	Address    string            `json:"addr"`
+	Attributes []*StateAttribute `json:"attributes"`
+}
+
+func (s *StateService) GetAttribute(name string) *StateAttribute {
+	segments := strings.Split(name, ".")
+	if len(segments) == 3 {
+		name = segments[1]
+	}
+
+	for _, a := range s.Attributes {
+		if a.Name == name {
+			return a
+		}
+	}
+
+	return nil
+}
+
+type StateAttribute struct {
+	Name   string                 `json:"name"`
+	Values []*StateAttributeValue `json:"values"`
+}
+
+func (a *StateAttribute) GetValue(properties map[string]string) *StateAttributeValue {
+	if len(a.Values) == 0 {
+		return nil
+	}
+
+	for _, v := range a.Values {
+		if v.HasProperties(properties) {
+			return v
+		}
+	}
+
+	return nil
+}
+
+type StateAttributeValue struct {
+	Timestamp string            `json:"ts"`
+	ValueType string            `json:"val_t"`
+	Value     interface{}       `json:"val"`
+	Props     map[string]string `json:"props"`
+}
+
+func (v *StateAttributeValue) GetIntValue() (int64, error) {
+	val, ok := v.Value.(int64)
+	if ok {
+		return val, nil
+	}
+
+	return 0, fmt.Errorf("state: wrong value type, expected %T, got %T", val, v.Value)
+}
+
+func (v *StateAttributeValue) GetStringValue() (string, error) {
+	val, ok := v.Value.(string)
+	if ok {
+		return val, nil
+	}
+
+	return "", fmt.Errorf("state: wrong value type, expected %T, got %T", val, v.Value)
+}
+
+func (v *StateAttributeValue) GetBoolValue() (bool, error) {
+	val, ok := v.Value.(bool)
+	if ok {
+		return val, nil
+	}
+
+	return false, fmt.Errorf("state: wrong value type, expected %T, got %T", val, v.Value)
+}
+
+func (v *StateAttributeValue) GetFloatValue() (float64, error) {
+	val, ok := v.Value.(float64)
+	if ok {
+		return val, nil
+	}
+
+	return 0, fmt.Errorf("state: wrong value type, expected %T, got %T", val, v.Value)
+}
+
+func (v *StateAttributeValue) GetStringArrayValue() ([]string, error) {
+	var val []string
+
+	if err := v.GetObjectValue(&val); err != nil {
+		return nil, err
+	}
+
+	return val, nil
+}
+
+func (v *StateAttributeValue) GetIntArrayValue() ([]int64, error) {
+	var val []int64
+
+	if err := v.GetObjectValue(&val); err != nil {
+		return nil, err
+	}
+
+	return val, nil
+}
+
+func (v *StateAttributeValue) GetFloatArrayValue() ([]float64, error) {
+	var val []float64
+
+	if err := v.GetObjectValue(&val); err != nil {
+		return nil, err
+	}
+
+	return val, nil
+}
+
+func (v *StateAttributeValue) GetBoolArrayValue() ([]bool, error) {
+	var val []bool
+
+	if err := v.GetObjectValue(&val); err != nil {
+		return nil, err
+	}
+
+	return val, nil
+}
+
+func (v *StateAttributeValue) GetStringMapValue() (map[string]string, error) {
+	var val map[string]string
+
+	if err := v.GetObjectValue(&val); err != nil {
+		return nil, err
+	}
+
+	return val, nil
+}
+
+func (v *StateAttributeValue) GetIntMapValue() (map[string]int64, error) {
+	var val map[string]int64
+
+	if err := v.GetObjectValue(&val); err != nil {
+		return nil, err
+	}
+
+	return val, nil
+}
+
+func (v *StateAttributeValue) GetFloatMapValue() (map[string]float64, error) {
+	var val map[string]float64
+
+	if err := v.GetObjectValue(&val); err != nil {
+		return nil, err
+	}
+
+	return val, nil
+}
+
+func (v *StateAttributeValue) GetBoolMapValue() (map[string]bool, error) {
+	var val map[string]bool
+
+	if err := v.GetObjectValue(&val); err != nil {
+		return nil, err
+	}
+
+	return val, nil
+}
+
+func (v *StateAttributeValue) GetObjectValue(object interface{}) error {
+	b, err := json.Marshal(v.Value)
+	if err != nil {
+		return fmt.Errorf("state: failed to marshal value: %w", err)
+	}
+
+	err = json.Unmarshal(b, object)
+	if err != nil {
+		return fmt.Errorf("state: failed to unmarshal value: %w", err)
+	}
+
+	return nil
+}
+
+func (v *StateAttributeValue) HasProperties(properties map[string]string) bool {
+	for property, value := range properties {
+		if !v.HasProperty(property, value) {
+			return false
+		}
+	}
+
+	return true
+}
+
+func (v *StateAttributeValue) HasProperty(property, value string) bool {
+	return v.Props[property] == value
+}

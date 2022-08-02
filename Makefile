@@ -9,3 +9,4 @@ generate-mocks:
 	$(call generate_mocks,"adapter","Adapter|Thing")
 	$(call generate_mocks,"manifest","Loader")
 	$(call generate_mocks,"storage","Storage")
+	$(call generate_mocks,"prime","SyncClient")
