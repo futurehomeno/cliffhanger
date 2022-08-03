@@ -35,7 +35,7 @@ func TestRouteBattery(t *testing.T) { // nolint:paralleltest
 				),
 				Nodes: []*suite.Node{
 					{
-						Name: "successfull get level report",
+						Name: "successful get level report",
 						Command: suite.NewMessageBuilder().
 							NullMessage("pt:j1/mt:cmd/rt:dev/rn:test_adapter/ad:1/sv:battery/ad:2", "cmd.lvl.get_report", "battery").
 							Build(),
@@ -64,7 +64,7 @@ func TestRouteBattery(t *testing.T) { // nolint:paralleltest
 				),
 				Nodes: []*suite.Node{
 					{
-						Name: "successfull get level report",
+						Name: "successful get level report",
 						Command: suite.NewMessageBuilder().
 							NullMessage("pt:j1/mt:cmd/rt:dev/rn:test_adapter/ad:1/sv:battery/ad:2", "cmd.lvl.get_report", "battery").
 							Build(),
@@ -102,7 +102,7 @@ func TestRouteBattery(t *testing.T) { // nolint:paralleltest
 				),
 				Nodes: []*suite.Node{
 					{
-						Name: "successfull get level report",
+						Name: "successful get level report",
 						Command: suite.NewMessageBuilder().
 							NullMessage("pt:j1/mt:cmd/rt:dev/rn:test_adapter/ad:1/sv:battery/ad:2", "cmd.lvl.get_report", "battery").
 							Build(),
@@ -438,7 +438,6 @@ type mockedBattery interface {
 
 func routeBattery[T mockedBattery](
 	batteryReporter T,
-
 ) suite.BaseSetup {
 	return func(t *testing.T, mqtt *fimpgo.MqttTransport) ([]*router.Routing, []*task.Task, []suite.Mock) {
 		t.Helper()

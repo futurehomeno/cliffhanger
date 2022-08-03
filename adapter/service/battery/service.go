@@ -351,11 +351,13 @@ func (s *service) SendBatteryFullReport(force bool) (bool, error) {
 // SupportsHealthReport returns true if the battery supports health reports.
 func (s *service) SupportsHealthReport() bool {
 	_, ok := s.reporter.(HealthReporter)
+
 	return ok
 }
 
 // SupportsSensorReport returns true if the battery supports sensor reports.
 func (s *service) SupportsSensorReport() bool {
 	_, ok := s.reporter.(SensorReporter)
+
 	return ok
 }
