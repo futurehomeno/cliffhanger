@@ -96,6 +96,24 @@ type ComponentSet struct {
 
 type Devices []*Device
 
+func (d Devices) FilterByThingID(thingID int) Devices {
+	if thingID == 0 {
+		return nil
+	}
+
+	var devices Devices
+
+	for _, device := range d {
+		if device.GetThingID() != thingID {
+			continue
+		}
+
+		devices = append(devices, device)
+	}
+
+	return devices
+}
+
 type Device struct {
 	FIMP          FIMP                   `json:"fimp"`
 	Client        ClientType             `json:"client"`
@@ -123,6 +141,14 @@ func (d *Device) GetName() string {
 	}
 
 	return d.Model
+}
+
+func (d *Device) GetThingID() int {
+	if d.ThingID == nil {
+		return 0
+	}
+
+	return *d.ThingID
 }
 
 func (d *Device) GetType() string {

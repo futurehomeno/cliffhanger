@@ -9,12 +9,50 @@ import (
 	"github.com/futurehomeno/cliffhanger/prime"
 )
 
-func TestDevice(t *testing.T) {
+func TestDevices(t *testing.T) {
 	t.Parallel()
 
-	makeString := func(s string) *string {
-		return &s
+	tt := []struct {
+		name    string
+		devices prime.Devices
+		call    func(devices prime.Devices) interface{}
+		want    interface{}
+	}{
+		{
+			name:    "filter by thing id",
+			devices: prime.Devices{{ID: 1, ThingID: makeInt(1)}, {ID: 2, ThingID: makeInt(1)}, {ID: 3, ThingID: makeInt(2)}},
+			call:    func(devices prime.Devices) interface{} { return devices.FilterByThingID(1) },
+			want:    prime.Devices{{ID: 1, ThingID: makeInt(1)}, {ID: 2, ThingID: makeInt(1)}},
+		},
+		{
+			name:    "filter by thing id - no matches",
+			devices: prime.Devices{{ID: 1, ThingID: makeInt(1)}, {ID: 2, ThingID: makeInt(1)}, {ID: 3, ThingID: makeInt(2)}},
+			call:    func(devices prime.Devices) interface{} { return devices.FilterByThingID(3) },
+			want:    (prime.Devices)(nil),
+		},
+		{
+			name:    "filter by thing id - requested 0",
+			devices: prime.Devices{{ID: 1, ThingID: makeInt(1)}, {ID: 2, ThingID: makeInt(1)}, {ID: 3, ThingID: makeInt(2)}},
+			call:    func(devices prime.Devices) interface{} { return devices.FilterByThingID(0) },
+			want:    (prime.Devices)(nil),
+		},
 	}
+
+	for _, tc := range tt {
+		tc := tc
+
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+
+			got := tc.call(tc.devices)
+
+			assert.Equal(t, tc.want, got)
+		})
+	}
+}
+
+func TestDevice(t *testing.T) {
+	t.Parallel()
 
 	tt := []struct {
 		name   string
@@ -39,6 +77,18 @@ func TestDevice(t *testing.T) {
 			device: &prime.Device{Model: "model"},
 			call:   func(d *prime.Device) interface{} { return d.GetName() },
 			want:   "model",
+		},
+		{
+			name:   "get thing id",
+			device: &prime.Device{ID: 1, ThingID: makeInt(1)},
+			call:   func(d *prime.Device) interface{} { return d.GetThingID() },
+			want:   1,
+		},
+		{
+			name:   "get thing id - nil value",
+			device: &prime.Device{ID: 1},
+			call:   func(d *prime.Device) interface{} { return d.GetThingID() },
+			want:   0,
 		},
 		{
 			name:   "get type",
@@ -609,4 +659,12 @@ func TestStateAttributeValue_GetValue(t *testing.T) {
 			assert.Equal(t, tc.want, got)
 		})
 	}
+}
+
+func makeInt(v int) *int {
+	return &v
+}
+
+func makeString(v string) *string {
+	return &v
 }
