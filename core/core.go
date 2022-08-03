@@ -9,7 +9,7 @@ import (
 	"github.com/futurehomeno/cliffhanger/task"
 )
 
-// Core is an interface representing an core application service.
+// Core is an interface representing a core application service.
 type Core interface {
 	// Start starts the core application.
 	Start() error
@@ -17,19 +17,12 @@ type Core interface {
 	Stop() error
 }
 
-// New creates a new core application instance.
-func New(
-	mqtt *fimpgo.MqttTransport,
-	topicSubscriptions []string,
-	router router.Router,
-	taskManager task.Manager,
-) Core {
-	return &core{
-		mqtt:               mqtt,
-		topicSubscriptions: topicSubscriptions,
-		messageRouter:      router,
-		taskManager:        taskManager,
-	}
+// Service is an interface representing an application service.
+type Service interface {
+	// Start starts the application service.
+	Start() error
+	// Stop stops the application service maintaining a graceful shutdown.
+	Stop() error
 }
 
 // core is an implementation of core application interface.
@@ -38,6 +31,7 @@ type core struct {
 	topicSubscriptions []string
 	messageRouter      router.Router
 	taskManager        task.Manager
+	services           []Service
 }
 
 // Start starts the core application.
@@ -45,6 +39,13 @@ func (e *core) Start() error {
 	err := e.mqtt.Start()
 	if err != nil {
 		return fmt.Errorf("core: failed to start MQTT broker: %w", err)
+	}
+
+	for _, service := range e.services {
+		err = service.Start()
+		if err != nil {
+			return fmt.Errorf("core: failed to start service: %w", err)
+		}
 	}
 
 	err = e.messageRouter.Start()
@@ -84,6 +85,13 @@ func (e *core) Stop() error {
 	err = e.messageRouter.Stop()
 	if err != nil {
 		return fmt.Errorf("core: failed to stop message router: %w", err)
+	}
+
+	for _, service := range e.services {
+		err = service.Stop()
+		if err != nil {
+			return fmt.Errorf("core: failed to stop service: %w", err)
+		}
 	}
 
 	e.mqtt.Stop()

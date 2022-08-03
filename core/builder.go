@@ -22,6 +22,7 @@ type Builder struct {
 	topicSubscriptions []string
 	routing            []*router.Routing
 	tasks              []*task.Task
+	services           []Service
 }
 
 // WithMQTT sets the MQTT broker.
@@ -59,6 +60,13 @@ func (b *Builder) WithServiceDiscovery(resource *discovery.Resource) *Builder {
 	return b
 }
 
+// WithServices sets the application services.
+func (b *Builder) WithServices(services ...Service) *Builder {
+	b.services = append(b.services, services...)
+
+	return b
+}
+
 // Build builds the core application.
 func (b *Builder) Build() (Core, error) {
 	if err := b.check(); err != nil {
@@ -74,15 +82,16 @@ func (b *Builder) Build() (Core, error) {
 
 	taskManager := task.NewManager(b.tasks...)
 
-	return New(
-		b.mqtt,
-		b.topicSubscriptions,
-		messageRouter,
-		taskManager,
-	), nil
+	return &core{
+		mqtt:               b.mqtt,
+		topicSubscriptions: b.topicSubscriptions,
+		messageRouter:      messageRouter,
+		taskManager:        taskManager,
+		services:           b.services,
+	}, nil
 }
 
-// check checks if all required components have been provided to the builder.
+// check performs checks if all required components have been provided to the builder.
 func (b *Builder) check() error {
 	if b.mqtt == nil {
 		return errors.New("core app builder: it is required to provide MQTT broker instance")

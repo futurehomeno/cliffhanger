@@ -24,6 +24,7 @@ type Builder struct {
 	topicSubscriptions []string
 	routing            []*router.Routing
 	tasks              []*task.Task
+	services           []Service
 }
 
 // WithMQTT sets the MQTT broker.
@@ -68,6 +69,13 @@ func (b *Builder) WithTask(tasks ...*task.Task) *Builder {
 	return b
 }
 
+// WithServices sets the application services.
+func (b *Builder) WithServices(services ...Service) *Builder {
+	b.services = append(b.services, services...)
+
+	return b
+}
+
 // Build builds the edge application.
 func (b *Builder) Build() (Edge, error) {
 	if err := b.check(); err != nil {
@@ -81,16 +89,17 @@ func (b *Builder) Build() (Edge, error) {
 
 	taskManager := task.NewManager(b.tasks...)
 
-	return New(
-		b.mqtt,
-		b.lifecycle,
-		b.topicSubscriptions,
-		messageRouter,
-		taskManager,
-	), nil
+	return &edge{
+		mqtt:               b.mqtt,
+		lifecycle:          b.lifecycle,
+		topicSubscriptions: b.topicSubscriptions,
+		messageRouter:      messageRouter,
+		taskManager:        taskManager,
+		services:           b.services,
+	}, nil
 }
 
-// check checks if all required components have been provided to the builder.
+// check performs checks if all required components have been provided to the builder.
 func (b *Builder) check() error {
 	if b.mqtt == nil {
 		return errors.New("edge app builder: it is required to provide MQTT broker instance")

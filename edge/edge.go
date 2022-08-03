@@ -18,21 +18,12 @@ type Edge interface {
 	Stop() error
 }
 
-// New creates a new edge application instance.
-func New(
-	mqtt *fimpgo.MqttTransport,
-	lifecycle *lifecycle.Lifecycle,
-	topicSubscriptions []string,
-	router router.Router,
-	taskManager task.Manager,
-) Edge {
-	return &edge{
-		mqtt:               mqtt,
-		lifecycle:          lifecycle,
-		topicSubscriptions: topicSubscriptions,
-		messageRouter:      router,
-		taskManager:        taskManager,
-	}
+// Service is an interface representing an application service.
+type Service interface {
+	// Start starts the application service.
+	Start() error
+	// Stop stops the application service maintaining a graceful shutdown.
+	Stop() error
 }
 
 // edge is an implementation of edge application interface.
@@ -42,6 +33,7 @@ type edge struct {
 	topicSubscriptions []string
 	messageRouter      router.Router
 	taskManager        task.Manager
+	services           []Service
 }
 
 // Start starts the edge application.
@@ -49,6 +41,13 @@ func (e *edge) Start() error {
 	err := e.mqtt.Start()
 	if err != nil {
 		return fmt.Errorf("edge: failed to start MQTT broker: %w", err)
+	}
+
+	for _, service := range e.services {
+		err = service.Start()
+		if err != nil {
+			return fmt.Errorf("edge: failed to start service: %w", err)
+		}
 	}
 
 	err = e.messageRouter.Start()
@@ -90,6 +89,13 @@ func (e *edge) Stop() error {
 	err = e.messageRouter.Stop()
 	if err != nil {
 		return fmt.Errorf("edge: failed to stop message router: %w", err)
+	}
+
+	for _, service := range e.services {
+		err = service.Stop()
+		if err != nil {
+			return fmt.Errorf("edge: failed to stop service: %w", err)
+		}
 	}
 
 	e.mqtt.Stop()
