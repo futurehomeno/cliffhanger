@@ -49,12 +49,22 @@ type Reporter interface {
 	BatteryLevelReport() (level int64, state string, err error)
 	// BatteryAlarmReport returns a current battery alarm state.
 	BatteryAlarmReport() (AlarmReport, error)
-	// BatteryHealthReport returns a current battery health state.
-	BatteryHealthReport() (int64, error)
-	// BatterySensorReport returns a current battery sensor state.
-	BatterySensorReport() (sensorValue float64, unit string, err error)
 	// BatteryFullReport returns a current battery state.
 	BatteryFullReport() (FullReport, error)
+}
+
+type HealthReporter interface {
+	Reporter
+
+	// BatteryHealthReport returns a current battery health state.
+	BatteryHealthReport() (int64, error)
+}
+
+type SensorReporter interface {
+	Reporter
+
+	// BatterySensorReport returns a current battery sensor state.
+	BatterySensorReport() (sensorValue float64, unit string, err error)
 }
 
 // Service is an interface representing a battery FIMP service.
@@ -81,6 +91,11 @@ type Service interface {
 	// Depending on a caching and reporting configuration the service might decide to skip a report.
 	// To make sure report is being sent regardless of circumstances set the force argument to true.
 	SendBatteryFullReport(force bool) (bool, error)
+
+	// SupportsHealthReport returns true if the service supports battery health reports.
+	SupportsHealthReport() bool
+	// SupportsSensorReport returns true if the service supports battery sensor reports.
+	SupportsSensorReport() bool
 }
 
 // Config represents a service configuration.
@@ -109,6 +124,14 @@ func NewService(
 		lock:              &sync.Mutex{},
 		reportingCache:    cache.NewReportingCache(),
 		reportingStrategy: cfg.ReportingStrategy,
+	}
+
+	if s.SupportsHealthReport() {
+		cfg.Specification.EnsureInterfaces(healthInterfaces()...)
+	}
+
+	if s.SupportsSensorReport() {
+		cfg.Specification.EnsureInterfaces(sensorInterfaces()...)
 	}
 
 	return s
@@ -205,7 +228,16 @@ func (s *service) SendBatteryHealthReport(force bool) (bool, error) {
 	s.lock.Lock()
 	defer s.lock.Unlock()
 
-	health, err := s.reporter.BatteryHealthReport()
+	if !s.SupportsHealthReport() {
+		return false, fmt.Errorf("%s: battery health reports are not supported", s.Name())
+	}
+
+	healthReporter, ok := s.reporter.(HealthReporter)
+	if !ok {
+		return false, fmt.Errorf("%s: battery health reports are not supported", s.Name())
+	}
+
+	health, err := healthReporter.BatteryHealthReport()
 	if err != nil {
 		return false, fmt.Errorf("failed to get battery health report: %w", err)
 	}
@@ -240,7 +272,16 @@ func (s *service) SendBatterySensorReport(force bool) (bool, error) {
 	s.lock.Lock()
 	defer s.lock.Unlock()
 
-	sensor, unit, err := s.reporter.BatterySensorReport()
+	if !s.SupportsSensorReport() {
+		return false, fmt.Errorf("%s: battery sensor reports are not supported", s.Name())
+	}
+
+	sensorReporter, ok := s.reporter.(SensorReporter)
+	if !ok {
+		return false, fmt.Errorf("%s: battery sensor reports are not supported", s.Name())
+	}
+
+	sensor, unit, err := sensorReporter.BatterySensorReport()
 	if err != nil {
 		return false, fmt.Errorf("failed to get battery sensor report: %w", err)
 	}
@@ -305,4 +346,16 @@ func (s *service) SendBatteryFullReport(force bool) (bool, error) {
 	s.reportingCache.Reported(EvtBatteryReport, "", full)
 
 	return true, nil
+}
+
+// SupportsHealthReport returns true if the battery supports health reports.
+func (s *service) SupportsHealthReport() bool {
+	_, ok := s.reporter.(HealthReporter)
+	return ok
+}
+
+// SupportsSensorReport returns true if the battery supports sensor reports.
+func (s *service) SupportsSensorReport() bool {
+	_, ok := s.reporter.(SensorReporter)
+	return ok
 }
