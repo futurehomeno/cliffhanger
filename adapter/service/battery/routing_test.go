@@ -333,7 +333,7 @@ func TestTaskBattery(t *testing.T) { // nolint:paralleltest
 					mockedbattery.NewReporter(t).
 						MockBatteryLevelReport(80, "charging", nil, true).
 						MockBatteryLevelReport(70, "charging", nil, true).
-						MockBatteryLevelReport(0, "charging", errors.New("error"), false).
+						MockBatteryLevelReport(0, "", errors.New("error"), false).
 						MockBatteryAlarmReport(alarm1, nil, true).
 						MockBatteryAlarmReport(alarm2, nil, true).
 						MockBatteryAlarmReport(battery.AlarmReport{}, errors.New("error"), false).
