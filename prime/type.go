@@ -25,6 +25,45 @@ const (
 	CmdEdit   = "edit"
 	CmdDelete = "delete"
 	CmdAdd    = "add"
+
+	TypeChargepoint   = "chargepoint"
+	TypeInverter      = "inverter"
+	TypeEnergyStorage = "energy_storage"
+	TypeBoiler        = "boiler"
+	TypeHeatPump      = "heat_pump"
+	TypeThermostat    = "thermostat"
+	TypeFan           = "fan"
+	TypeDoorLock      = "door_lock"
+	TypeMediaPlayer   = "media_player"
+	TypeLight         = "light"
+	TypeBlinds        = "blinds"
+	TypeGarageDoor    = "garage_door"
+	TypeGate          = "gate"
+	TypeFireDetector  = "fire_detector"
+	TypeGasDetector   = "gas_detector"
+	TypeWaterValve    = "water_valve"
+	TypeLeakDetector  = "leak_detector"
+	TypeSiren         = "siren"
+	TypeAppliance     = "appliance"
+	TypeHeater        = "heater"
+	TypeMeter         = "meter"
+	TypeSensor        = "sensor"
+	TypeHeatDetector  = "heat_detector"
+	TypeInput         = "input"
+	TypeBattery       = "battery"
+
+	SubTypeCarCharger = "car_charger"
+	SubTypeInverter   = "inverter"
+	SubTypeMainElec   = "main_elec"
+	SubTypeDoor       = "door"
+	SubTypeDoorLock   = "door_lock"
+	SubTypeGarage     = "garage"
+	SubTypeLock       = "lock"
+	SubTypeOther      = "other"
+	SubTypeWindow     = "window"
+	SubTypeWindowLock = "window_lock"
+	SubTypePresence   = "presence"
+	SubTypeScene      = "scene"
 )
 
 var validComponents = []string{
@@ -57,6 +96,24 @@ type ComponentSet struct {
 
 type Devices []*Device
 
+func (d Devices) FilterByThingID(thingID int) Devices {
+	if thingID == 0 {
+		return nil
+	}
+
+	var devices Devices
+
+	for _, device := range d {
+		if device.GetThingID() != thingID {
+			continue
+		}
+
+		devices = append(devices, device)
+	}
+
+	return devices
+}
+
 type Device struct {
 	FIMP          FIMP                   `json:"fimp"`
 	Client        ClientType             `json:"client"`
@@ -84,6 +141,14 @@ func (d *Device) GetName() string {
 	}
 
 	return d.Model
+}
+
+func (d *Device) GetThingID() int {
+	if d.ThingID == nil {
+		return 0
+	}
+
+	return *d.ThingID
 }
 
 func (d *Device) GetType() string {
