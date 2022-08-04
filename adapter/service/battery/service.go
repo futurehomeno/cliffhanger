@@ -53,6 +53,8 @@ type Reporter interface {
 	BatteryFullReport() (FullReport, error)
 }
 
+// HealthReporter is an interface representing an actual device supporting health reports.
+// In a polling scenario implementation might require some safeguards against excessive polling.
 type HealthReporter interface {
 	Reporter
 
@@ -60,6 +62,8 @@ type HealthReporter interface {
 	BatteryHealthReport() (int64, error)
 }
 
+// SensorReporter is an interface representing an actual device supporting sensor reports.
+// In a polling scenario implementation might require some safeguards against excessive polling.
 type SensorReporter interface {
 	Reporter
 
