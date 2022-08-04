@@ -49,6 +49,24 @@ func requiredInterfaces() []fimptype.Interface {
 		},
 		{
 			Type:      fimptype.TypeIn,
+			MsgType:   CmdBatteryGetReport,
+			ValueType: fimpgo.VTypeNull,
+			Version:   "1",
+		},
+		{
+			Type:      fimptype.TypeOut,
+			MsgType:   EvtBatteryReport,
+			ValueType: fimpgo.VTypeObject,
+			Version:   "1",
+		},
+	}
+}
+
+// healthInterfaces returns interfaces supported by the health service.
+func healthInterfaces() []fimptype.Interface {
+	return []fimptype.Interface{
+		{
+			Type:      fimptype.TypeIn,
 			MsgType:   CmdHealthGetReport,
 			ValueType: fimpgo.VTypeNull,
 			Version:   "1",
@@ -59,6 +77,12 @@ func requiredInterfaces() []fimptype.Interface {
 			ValueType: fimpgo.VTypeInt,
 			Version:   "1",
 		},
+	}
+}
+
+// sensorInterfaces returns interfaces supported by the sensor service.
+func sensorInterfaces() []fimptype.Interface {
+	return []fimptype.Interface{
 		{
 			Type:      fimptype.TypeIn,
 			MsgType:   CmdSensorGetReport,
@@ -69,18 +93,6 @@ func requiredInterfaces() []fimptype.Interface {
 			Type:      fimptype.TypeOut,
 			MsgType:   EvtSensorReport,
 			ValueType: fimpgo.VTypeFloat,
-			Version:   "1",
-		},
-		{
-			Type:      fimptype.TypeIn,
-			MsgType:   CmdBatteryGetReport,
-			ValueType: fimpgo.VTypeNull,
-			Version:   "1",
-		},
-		{
-			Type:      fimptype.TypeOut,
-			MsgType:   EvtBatteryReport,
-			ValueType: fimpgo.VTypeObject,
 			Version:   "1",
 		},
 	}

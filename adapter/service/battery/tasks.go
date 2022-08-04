@@ -33,19 +33,23 @@ func HandleReporting(adapter adapter.Adapter) func() {
 				log.WithError(err).Errorf("adapter: failed to send battery alarm report")
 			}
 
-			_, err = battery.SendBatteryHealthReport(false)
-			if err != nil {
-				log.WithError(err).Errorf("adapter: failed to send battery health report")
-			}
-
-			_, err = battery.SendBatterySensorReport(false)
-			if err != nil {
-				log.WithError(err).Errorf("adapter: failed to send battery sensor report")
-			}
-
 			_, err = battery.SendBatteryFullReport(false)
 			if err != nil {
 				log.WithError(err).Errorf("adapter: failed to send battery full report")
+			}
+
+			if battery.SupportsHealthReport() {
+				_, err = battery.SendBatteryHealthReport(false)
+				if err != nil {
+					log.WithError(err).Errorf("adapter: failed to send battery health report")
+				}
+			}
+
+			if battery.SupportsSensorReport() {
+				_, err = battery.SendBatterySensorReport(false)
+				if err != nil {
+					log.WithError(err).Errorf("adapter: failed to send battery sensor report")
+				}
 			}
 		}
 	}
