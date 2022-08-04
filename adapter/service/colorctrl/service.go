@@ -24,7 +24,7 @@ var DefaultReportingStrategy = cache.ReportOnChangeOnly()
 type Controller interface {
 	// SetColorCtrlColor sets the color of the device.
 	SetColorCtrlColor(color map[string]int64) error
-	// ColorCtrlColorReport returns a current collor of the device.
+	// ColorCtrlColorReport returns a current color of the device.
 	ColorCtrlColorReport() (map[string]int64, error)
 }
 
