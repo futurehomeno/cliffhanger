@@ -10,6 +10,8 @@ import (
 )
 
 func TestListener(t *testing.T) {
+	t.Parallel()
+
 	finishCh := make(chan struct{})
 
 	processor := event.ProcessorFn(func(e *event.Event) {
