@@ -16,9 +16,13 @@ import (
 	"github.com/futurehomeno/cliffhanger/test/suite"
 )
 
-func TestRouteSceneCtrl(t *testing.T) { // nolint:paralleltest
-	sceneColorloop := "colorloop"
+const (
+	sceneNone        = "none"
+	sceneColorloop   = "colorloop"
+	sceneUnsupported = "movietime"
+)
 
+func TestRouteSceneCtrl(t *testing.T) { // nolint:paralleltest
 	s := &suite.Suite{
 		Cases: []*suite.Case{
 			{
@@ -80,6 +84,13 @@ func TestRouteSceneCtrl(t *testing.T) { // nolint:paralleltest
 						Command: suite.StringMessage("pt:j1/mt:cmd/rt:dev/rn:test_adapter/ad:1/sv:scene_ctrl/ad:3", "cmd.scene.set", "scene_ctrl", sceneColorloop),
 						Expectations: []*suite.Expectation{
 							suite.ExpectError("pt:j1/mt:evt/rt:dev/rn:test_adapter/ad:1/sv:scene_ctrl/ad:3", "scene_ctrl"),
+						},
+					},
+					{
+						Name:    "unsupported scene",
+						Command: suite.StringMessage("pt:j1/mt:cmd/rt:dev/rn:test_adapter/ad:1/sv:scene_ctrl/ad:2", "cmd.scene.set", "scene_ctrl", sceneUnsupported),
+						Expectations: []*suite.Expectation{
+							suite.ExpectError("pt:j1/mt:evt/rt:dev/rn:test_adapter/ad:1/sv:scene_ctrl/ad:2", "scene_ctrl"),
 						},
 					},
 				},
@@ -182,7 +193,7 @@ func setupSceneCtrl(
 				"test_adapter",
 				"1",
 				"2",
-				[]string{"none", "colorloop"},
+				[]string{sceneNone, sceneColorloop},
 				nil,
 			),
 			Controller: sceneCtrlController,

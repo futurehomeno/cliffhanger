@@ -81,11 +81,26 @@ func (s *service) SetScene(scene string) error {
 	s.lock.Lock()
 	defer s.lock.Unlock()
 
+	if !s.isSceneSupported(scene) {
+		return fmt.Errorf("scene %s is not supported", scene)
+	}
+
 	if err := s.controller.SetSceneCtrlScene(scene); err != nil {
 		return fmt.Errorf("failed to set scene: %w", err)
 	}
 
 	return nil
+}
+
+func (s *service) isSceneSupported(scene string) bool {
+	supportedScenes := s.Service.Specification().PropertyStrings(PropertySupportedScenes)
+	for _, s := range supportedScenes {
+		if s == scene {
+			return true
+		}
+	}
+
+	return false
 }
 
 // SendSceneReport sends a scene report. Returns true if a report was sent.
