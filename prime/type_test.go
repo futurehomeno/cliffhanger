@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"testing"
 
+	"github.com/futurehomeno/fimpgo"
 	"github.com/stretchr/testify/assert"
 
 	"github.com/futurehomeno/cliffhanger/prime"
@@ -314,6 +315,110 @@ func TestStateDevices_GetDevice(t *testing.T) {
 			t.Parallel()
 
 			got := tc.devices.GetDevice(tc.id)
+
+			assert.Equal(t, tc.want, got)
+		})
+	}
+}
+
+func TestStateDevice_GetAttributeValue(t *testing.T) {
+	t.Parallel()
+
+	tt := []struct {
+		name          string
+		service       *prime.StateDevice
+		serviceName   string
+		attributeName string
+		properties    map[string]string
+		want          *prime.StateAttributeValue
+	}{
+		{
+			name: "success",
+			service: &prime.StateDevice{
+				Services: []*prime.StateService{
+					{
+						Name: "meter_elec",
+						Attributes: []*prime.StateAttribute{
+							{
+								Name: "meter",
+								Values: []*prime.StateAttributeValue{
+									{
+										ValueType: fimpgo.VTypeFloat,
+										Value:     float64(10),
+										Props:     map[string]string{"unit": "W"},
+									},
+								},
+							},
+						},
+					},
+				},
+			},
+			serviceName:   "meter_elec",
+			attributeName: "meter",
+			properties:    map[string]string{"unit": "W"},
+			want: &prime.StateAttributeValue{
+				ValueType: fimpgo.VTypeFloat,
+				Value:     float64(10),
+				Props:     map[string]string{"unit": "W"},
+			},
+		},
+		{
+			name: "missing value",
+			service: &prime.StateDevice{
+				Services: []*prime.StateService{
+					{
+						Name: "meter_elec",
+						Attributes: []*prime.StateAttribute{
+							{
+								Name: "meter",
+								Values: []*prime.StateAttributeValue{
+									{
+										ValueType: fimpgo.VTypeFloat,
+										Value:     float64(10),
+										Props:     map[string]string{"unit": "W"},
+									},
+								},
+							},
+						},
+					},
+				},
+			},
+			serviceName:   "meter_elec",
+			attributeName: "meter",
+			properties:    map[string]string{"unit": "kWh"},
+			want:          nil,
+		},
+		{
+			name: "missing attribute",
+			service: &prime.StateDevice{
+				Services: []*prime.StateService{
+					{
+						Name: "meter_elec",
+					},
+				},
+			},
+			serviceName:   "meter_elec",
+			attributeName: "meter",
+			properties:    map[string]string{"unit": "kWh"},
+			want:          nil,
+		},
+		{
+			name:          "missing service",
+			service:       &prime.StateDevice{},
+			serviceName:   "meter_elec",
+			attributeName: "meter",
+			properties:    map[string]string{"unit": "kWh"},
+			want:          nil,
+		},
+	}
+
+	for _, tc := range tt {
+		tc := tc
+
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+
+			got := tc.service.GetAttributeValue(tc.serviceName, tc.attributeName, tc.properties)
 
 			assert.Equal(t, tc.want, got)
 		})

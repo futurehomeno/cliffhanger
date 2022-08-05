@@ -20,8 +20,7 @@ const (
 	UnitA   = "A"
 	UnitV   = "V"
 
-	PropertyUnit = "unit"
-
+	PropertyUnit                    = "unit"
 	PropertySupportedUnits          = "sup_units"
 	PropertySupportedExtendedValues = "sup_extended_vals"
 )

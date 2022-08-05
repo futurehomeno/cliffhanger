@@ -473,6 +473,20 @@ type StateDevice struct {
 	Services []*StateService `json:"services"`
 }
 
+func (d *StateDevice) GetAttributeValue(serviceName, attributeName string, properties map[string]string) *StateAttributeValue {
+	service := d.GetService(serviceName)
+	if service == nil {
+		return nil
+	}
+
+	attribute := service.GetAttribute(attributeName)
+	if attribute == nil {
+		return nil
+	}
+
+	return attribute.GetValue(properties)
+}
+
 func (d *StateDevice) GetService(name string) *StateService {
 	for _, s := range d.Services {
 		if s.Name == name {
