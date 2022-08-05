@@ -5,7 +5,6 @@ import (
 	"testing"
 	"time"
 
-	"github.com/futurehomeno/fimpgo"
 	"github.com/stretchr/testify/assert"
 
 	"github.com/futurehomeno/cliffhanger/prime"
@@ -286,7 +285,7 @@ func TestDevice(t *testing.T) {
 	}
 }
 
-func TestStateDevices_GetDevice(t *testing.T) {
+func TestStateDevices_FindDevice(t *testing.T) {
 	t.Parallel()
 
 	tt := []struct {
@@ -315,7 +314,7 @@ func TestStateDevices_GetDevice(t *testing.T) {
 		t.Run(tc.name, func(t *testing.T) {
 			t.Parallel()
 
-			got := tc.devices.GetDevice(tc.id)
+			got := tc.devices.FindDevice(tc.id)
 
 			assert.Equal(t, tc.want, got)
 		})
@@ -325,9 +324,191 @@ func TestStateDevices_GetDevice(t *testing.T) {
 func TestStateDevice_GetAttributeValue(t *testing.T) {
 	t.Parallel()
 
+	makeDevice := func(service, attribute string, value interface{}, timestamp string) *prime.StateDevice {
+		return &prime.StateDevice{
+			Services: []*prime.StateService{
+				{
+					Name: service,
+					Attributes: []*prime.StateAttribute{
+						{
+							Name: attribute,
+							Values: []*prime.StateAttributeValue{
+								{
+									Value:     value,
+									Timestamp: timestamp,
+								},
+							},
+						},
+					},
+				},
+			},
+		}
+	}
+
+	tt := []struct {
+		name      string
+		device    *prime.StateDevice
+		call      func(d *prime.StateDevice) (interface{}, time.Time)
+		wantValue interface{}
+		wantTime  time.Time
+	}{
+		{
+			name:   "get attribute string value",
+			device: makeDevice("test_service", "test_attribute", "test_value", "2022-08-15 12:15:30 +0100"),
+			call: func(d *prime.StateDevice) (interface{}, time.Time) {
+				return d.GetAttributeStringValue("test_service", "test_attribute", nil)
+			},
+			wantValue: "test_value",
+			wantTime:  time.Date(2022, 8, 15, 12, 15, 30, 0, time.FixedZone("", 1*60*60)),
+		},
+		{
+			name:   "get attribute string value - missing value",
+			device: &prime.StateDevice{},
+			call: func(d *prime.StateDevice) (interface{}, time.Time) {
+				return d.GetAttributeStringValue("test_service", "test_attribute", nil)
+			},
+			wantValue: "",
+			wantTime:  time.Time{},
+		},
+		{
+			name:   "get attribute string value - incorrect value type",
+			device: makeDevice("test_service", "test_attribute", 1, "2022-08-15 12:15:30 +0100"),
+			call: func(d *prime.StateDevice) (interface{}, time.Time) {
+				return d.GetAttributeStringValue("test_service", "test_attribute", nil)
+			},
+			wantValue: "",
+			wantTime:  time.Time{},
+		},
+		{
+			name:   "get attribute string value - incorrect timestamp",
+			device: makeDevice("test_service", "test_attribute", "test_value", "wrong timestamp"),
+			call: func(d *prime.StateDevice) (interface{}, time.Time) {
+				return d.GetAttributeStringValue("test_service", "test_attribute", nil)
+			},
+			wantValue: "",
+			wantTime:  time.Time{},
+		},
+		{
+			name:   "get attribute int value",
+			device: makeDevice("test_service", "test_attribute", int64(1), "2022-08-15 12:15:30 +0100"),
+			call: func(d *prime.StateDevice) (interface{}, time.Time) {
+				return d.GetAttributeIntValue("test_service", "test_attribute", nil)
+			},
+			wantValue: int64(1),
+			wantTime:  time.Date(2022, 8, 15, 12, 15, 30, 0, time.FixedZone("", 1*60*60)),
+		},
+		{
+			name:   "get attribute float value",
+			device: makeDevice("test_service", "test_attribute", float64(1), "2022-08-15 12:15:30 +0100"),
+			call: func(d *prime.StateDevice) (interface{}, time.Time) {
+				return d.GetAttributeFloatValue("test_service", "test_attribute", nil)
+			},
+			wantValue: float64(1),
+			wantTime:  time.Date(2022, 8, 15, 12, 15, 30, 0, time.FixedZone("", 1*60*60)),
+		},
+		{
+			name:   "get attribute bool value",
+			device: makeDevice("test_service", "test_attribute", true, "2022-08-15 12:15:30 +0100"),
+			call: func(d *prime.StateDevice) (interface{}, time.Time) {
+				return d.GetAttributeBoolValue("test_service", "test_attribute", nil)
+			},
+			wantValue: true,
+			wantTime:  time.Date(2022, 8, 15, 12, 15, 30, 0, time.FixedZone("", 1*60*60)),
+		},
+		{
+			name:   "get attribute string array value",
+			device: makeDevice("test_service", "test_attribute", []string{"test_value"}, "2022-08-15 12:15:30 +0100"),
+			call: func(d *prime.StateDevice) (interface{}, time.Time) {
+				return d.GetAttributeStringArrayValue("test_service", "test_attribute", nil)
+			},
+			wantValue: []string{"test_value"},
+			wantTime:  time.Date(2022, 8, 15, 12, 15, 30, 0, time.FixedZone("", 1*60*60)),
+		},
+		{
+			name:   "get attribute int array value",
+			device: makeDevice("test_service", "test_attribute", []int64{1}, "2022-08-15 12:15:30 +0100"),
+			call: func(d *prime.StateDevice) (interface{}, time.Time) {
+				return d.GetAttributeIntArrayValue("test_service", "test_attribute", nil)
+			},
+			wantValue: []int64{1},
+			wantTime:  time.Date(2022, 8, 15, 12, 15, 30, 0, time.FixedZone("", 1*60*60)),
+		},
+		{
+			name:   "get attribute float array value",
+			device: makeDevice("test_service", "test_attribute", []float64{1}, "2022-08-15 12:15:30 +0100"),
+			call: func(d *prime.StateDevice) (interface{}, time.Time) {
+				return d.GetAttributeFloatArrayValue("test_service", "test_attribute", nil)
+			},
+			wantValue: []float64{1},
+			wantTime:  time.Date(2022, 8, 15, 12, 15, 30, 0, time.FixedZone("", 1*60*60)),
+		},
+		{
+			name:   "get attribute bool array value",
+			device: makeDevice("test_service", "test_attribute", []bool{true}, "2022-08-15 12:15:30 +0100"),
+			call: func(d *prime.StateDevice) (interface{}, time.Time) {
+				return d.GetAttributeBoolArrayValue("test_service", "test_attribute", nil)
+			},
+			wantValue: []bool{true},
+			wantTime:  time.Date(2022, 8, 15, 12, 15, 30, 0, time.FixedZone("", 1*60*60)),
+		},
+		{
+			name:   "get attribute string map value",
+			device: makeDevice("test_service", "test_attribute", map[string]string{"key": "test_value"}, "2022-08-15 12:15:30 +0100"),
+			call: func(d *prime.StateDevice) (interface{}, time.Time) {
+				return d.GetAttributeStringMapValue("test_service", "test_attribute", nil)
+			},
+			wantValue: map[string]string{"key": "test_value"},
+			wantTime:  time.Date(2022, 8, 15, 12, 15, 30, 0, time.FixedZone("", 1*60*60)),
+		},
+		{
+			name:   "get attribute int map value",
+			device: makeDevice("test_service", "test_attribute", map[string]int64{"key": 1}, "2022-08-15 12:15:30 +0100"),
+			call: func(d *prime.StateDevice) (interface{}, time.Time) {
+				return d.GetAttributeIntMapValue("test_service", "test_attribute", nil)
+			},
+			wantValue: map[string]int64{"key": 1},
+			wantTime:  time.Date(2022, 8, 15, 12, 15, 30, 0, time.FixedZone("", 1*60*60)),
+		},
+		{
+			name:   "get attribute float map value",
+			device: makeDevice("test_service", "test_attribute", map[string]float64{"key": 1}, "2022-08-15 12:15:30 +0100"),
+			call: func(d *prime.StateDevice) (interface{}, time.Time) {
+				return d.GetAttributeFloatMapValue("test_service", "test_attribute", nil)
+			},
+			wantValue: map[string]float64{"key": 1},
+			wantTime:  time.Date(2022, 8, 15, 12, 15, 30, 0, time.FixedZone("", 1*60*60)),
+		},
+		{
+			name:   "get attribute bool map value",
+			device: makeDevice("test_service", "test_attribute", map[string]bool{"key": true}, "2022-08-15 12:15:30 +0100"),
+			call: func(d *prime.StateDevice) (interface{}, time.Time) {
+				return d.GetAttributeBoolMapValue("test_service", "test_attribute", nil)
+			},
+			wantValue: map[string]bool{"key": true},
+			wantTime:  time.Date(2022, 8, 15, 12, 15, 30, 0, time.FixedZone("", 1*60*60)),
+		},
+	}
+
+	for _, tc := range tt {
+		tc := tc
+
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+
+			gotValue, gotTime := tc.call(tc.device)
+
+			assert.Equal(t, tc.wantValue, gotValue)
+			assert.Equal(t, tc.wantTime, gotTime)
+		})
+	}
+}
+
+func TestStateDevice_FindAttributeValue(t *testing.T) {
+	t.Parallel()
+
 	tt := []struct {
 		name          string
-		service       *prime.StateDevice
+		device        *prime.StateDevice
 		serviceName   string
 		attributeName string
 		properties    map[string]string
@@ -335,7 +516,7 @@ func TestStateDevice_GetAttributeValue(t *testing.T) {
 	}{
 		{
 			name: "success",
-			service: &prime.StateDevice{
+			device: &prime.StateDevice{
 				Services: []*prime.StateService{
 					{
 						Name: "meter_elec",
@@ -344,9 +525,7 @@ func TestStateDevice_GetAttributeValue(t *testing.T) {
 								Name: "meter",
 								Values: []*prime.StateAttributeValue{
 									{
-										ValueType: fimpgo.VTypeFloat,
-										Value:     float64(10),
-										Props:     map[string]string{"unit": "W"},
+										Props: map[string]string{"unit": "W"},
 									},
 								},
 							},
@@ -358,14 +537,12 @@ func TestStateDevice_GetAttributeValue(t *testing.T) {
 			attributeName: "meter",
 			properties:    map[string]string{"unit": "W"},
 			want: &prime.StateAttributeValue{
-				ValueType: fimpgo.VTypeFloat,
-				Value:     float64(10),
-				Props:     map[string]string{"unit": "W"},
+				Props: map[string]string{"unit": "W"},
 			},
 		},
 		{
 			name: "missing value",
-			service: &prime.StateDevice{
+			device: &prime.StateDevice{
 				Services: []*prime.StateService{
 					{
 						Name: "meter_elec",
@@ -374,9 +551,7 @@ func TestStateDevice_GetAttributeValue(t *testing.T) {
 								Name: "meter",
 								Values: []*prime.StateAttributeValue{
 									{
-										ValueType: fimpgo.VTypeFloat,
-										Value:     float64(10),
-										Props:     map[string]string{"unit": "W"},
+										Props: map[string]string{"unit": "W"},
 									},
 								},
 							},
@@ -391,7 +566,7 @@ func TestStateDevice_GetAttributeValue(t *testing.T) {
 		},
 		{
 			name: "missing attribute",
-			service: &prime.StateDevice{
+			device: &prime.StateDevice{
 				Services: []*prime.StateService{
 					{
 						Name: "meter_elec",
@@ -405,7 +580,7 @@ func TestStateDevice_GetAttributeValue(t *testing.T) {
 		},
 		{
 			name:          "missing service",
-			service:       &prime.StateDevice{},
+			device:        &prime.StateDevice{},
 			serviceName:   "meter_elec",
 			attributeName: "meter",
 			properties:    map[string]string{"unit": "kWh"},
@@ -419,14 +594,14 @@ func TestStateDevice_GetAttributeValue(t *testing.T) {
 		t.Run(tc.name, func(t *testing.T) {
 			t.Parallel()
 
-			got := tc.service.GetAttributeValue(tc.serviceName, tc.attributeName, tc.properties)
+			got := tc.device.FindAttributeValue(tc.serviceName, tc.attributeName, tc.properties)
 
 			assert.Equal(t, tc.want, got)
 		})
 	}
 }
 
-func TestStateDevice_GetService(t *testing.T) {
+func TestStateDevice_FindService(t *testing.T) {
 	t.Parallel()
 
 	tt := []struct {
@@ -459,14 +634,14 @@ func TestStateDevice_GetService(t *testing.T) {
 		t.Run(tc.name, func(t *testing.T) {
 			t.Parallel()
 
-			got := tc.service.GetService(tc.serviceName)
+			got := tc.service.FindService(tc.serviceName)
 
 			assert.Equal(t, tc.want, got)
 		})
 	}
 }
 
-func TestStateService_GetAttribute(t *testing.T) {
+func TestStateService_FindAttribute(t *testing.T) {
 	t.Parallel()
 
 	tt := []struct {
@@ -509,14 +684,14 @@ func TestStateService_GetAttribute(t *testing.T) {
 		t.Run(tc.name, func(t *testing.T) {
 			t.Parallel()
 
-			got := tc.service.GetAttribute(tc.attributeName)
+			got := tc.service.FindAttribute(tc.attributeName)
 
 			assert.Equal(t, tc.want, got)
 		})
 	}
 }
 
-func TestStateAttribute_GetValue(t *testing.T) {
+func TestStateAttribute_FindValue(t *testing.T) {
 	t.Parallel()
 
 	tt := []struct {
@@ -565,14 +740,14 @@ func TestStateAttribute_GetValue(t *testing.T) {
 		t.Run(tc.name, func(t *testing.T) {
 			t.Parallel()
 
-			got := tc.attribute.GetValue(tc.properties)
+			got := tc.attribute.FindValue(tc.properties)
 
 			assert.Equal(t, tc.want, got)
 		})
 	}
 }
 
-func TestStateAttributeValue_GetValue(t *testing.T) {
+func TestStateAttributeValue_Get(t *testing.T) {
 	t.Parallel()
 
 	tt := []struct {
@@ -740,7 +915,7 @@ func TestStateAttributeValue_GetValue(t *testing.T) {
 			wantErr:   true,
 		},
 		{
-			name:      "get bool map value - invalid payload",
+			name:      "get bool map value - corrupted",
 			attribute: &prime.StateAttributeValue{Value: json.RawMessage(`"`)},
 			call:      func(a *prime.StateAttributeValue) (interface{}, error) { return a.GetBoolMapValue() },
 			want:      (map[string]bool)(nil),
@@ -754,7 +929,7 @@ func TestStateAttributeValue_GetValue(t *testing.T) {
 			wantErr:   false,
 		},
 		{
-			name:      "get time - invalid payload",
+			name:      "get time - error",
 			attribute: &prime.StateAttributeValue{Timestamp: "unparsable string"},
 			call:      func(a *prime.StateAttributeValue) (interface{}, error) { return a.GetTime() },
 			want:      time.Time{},

@@ -458,7 +458,7 @@ type State struct {
 
 type StateDevices []*StateDevice
 
-func (d StateDevices) GetDevice(id int) *StateDevice {
+func (d StateDevices) FindDevice(id int) *StateDevice {
 	for _, device := range d {
 		if device.ID == id {
 			return device
@@ -473,21 +473,112 @@ type StateDevice struct {
 	Services []*StateService `json:"services"`
 }
 
-func (d *StateDevice) GetAttributeValue(serviceName, attributeName string, properties map[string]string) *StateAttributeValue {
-	service := d.GetService(serviceName)
+func (d *StateDevice) GetAttributeStringValue(serviceName, attributeName string, properties map[string]string) (string, time.Time) {
+	var val string
+
+	return val, d.GetAttributeObjectValue(serviceName, attributeName, properties, &val)
+}
+
+func (d *StateDevice) GetAttributeIntValue(serviceName, attributeName string, properties map[string]string) (int64, time.Time) {
+	var val int64
+
+	return val, d.GetAttributeObjectValue(serviceName, attributeName, properties, &val)
+}
+
+func (d *StateDevice) GetAttributeFloatValue(serviceName, attributeName string, properties map[string]string) (float64, time.Time) {
+	var val float64
+
+	return val, d.GetAttributeObjectValue(serviceName, attributeName, properties, &val)
+}
+
+func (d *StateDevice) GetAttributeBoolValue(serviceName, attributeName string, properties map[string]string) (bool, time.Time) {
+	var val bool
+
+	return val, d.GetAttributeObjectValue(serviceName, attributeName, properties, &val)
+}
+
+func (d *StateDevice) GetAttributeStringArrayValue(serviceName, attributeName string, properties map[string]string) ([]string, time.Time) {
+	var val []string
+
+	return val, d.GetAttributeObjectValue(serviceName, attributeName, properties, &val)
+}
+
+func (d *StateDevice) GetAttributeIntArrayValue(serviceName, attributeName string, properties map[string]string) ([]int64, time.Time) {
+	var val []int64
+
+	return val, d.GetAttributeObjectValue(serviceName, attributeName, properties, &val)
+}
+
+func (d *StateDevice) GetAttributeFloatArrayValue(serviceName, attributeName string, properties map[string]string) ([]float64, time.Time) {
+	var val []float64
+
+	return val, d.GetAttributeObjectValue(serviceName, attributeName, properties, &val)
+}
+
+func (d *StateDevice) GetAttributeBoolArrayValue(serviceName, attributeName string, properties map[string]string) ([]bool, time.Time) {
+	var val []bool
+
+	return val, d.GetAttributeObjectValue(serviceName, attributeName, properties, &val)
+}
+
+func (d *StateDevice) GetAttributeStringMapValue(serviceName, attributeName string, properties map[string]string) (map[string]string, time.Time) {
+	var val map[string]string
+
+	return val, d.GetAttributeObjectValue(serviceName, attributeName, properties, &val)
+}
+
+func (d *StateDevice) GetAttributeIntMapValue(serviceName, attributeName string, properties map[string]string) (map[string]int64, time.Time) {
+	var val map[string]int64
+
+	return val, d.GetAttributeObjectValue(serviceName, attributeName, properties, &val)
+}
+
+func (d *StateDevice) GetAttributeFloatMapValue(serviceName, attributeName string, properties map[string]string) (map[string]float64, time.Time) {
+	var val map[string]float64
+
+	return val, d.GetAttributeObjectValue(serviceName, attributeName, properties, &val)
+}
+
+func (d *StateDevice) GetAttributeBoolMapValue(serviceName, attributeName string, properties map[string]string) (map[string]bool, time.Time) {
+	var val map[string]bool
+
+	return val, d.GetAttributeObjectValue(serviceName, attributeName, properties, &val)
+}
+
+func (d *StateDevice) GetAttributeObjectValue(serviceName, attributeName string, properties map[string]string, object interface{}) time.Time {
+	value := d.FindAttributeValue(serviceName, attributeName, properties)
+	if value == nil {
+		return time.Time{}
+	}
+
+	err := value.GetObjectValue(object)
+	if err != nil {
+		return time.Time{}
+	}
+
+	t, err := value.GetTime()
+	if err != nil {
+		return time.Time{}
+	}
+
+	return t
+}
+
+func (d *StateDevice) FindAttributeValue(serviceName, attributeName string, properties map[string]string) *StateAttributeValue {
+	service := d.FindService(serviceName)
 	if service == nil {
 		return nil
 	}
 
-	attribute := service.GetAttribute(attributeName)
+	attribute := service.FindAttribute(attributeName)
 	if attribute == nil {
 		return nil
 	}
 
-	return attribute.GetValue(properties)
+	return attribute.FindValue(properties)
 }
 
-func (d *StateDevice) GetService(name string) *StateService {
+func (d *StateDevice) FindService(name string) *StateService {
 	for _, s := range d.Services {
 		if s.Name == name {
 			return s
@@ -503,7 +594,7 @@ type StateService struct {
 	Attributes []*StateAttribute `json:"attributes"`
 }
 
-func (s *StateService) GetAttribute(name string) *StateAttribute {
+func (s *StateService) FindAttribute(name string) *StateAttribute {
 	segments := strings.Split(name, ".")
 	if len(segments) == 3 {
 		name = segments[1]
@@ -523,7 +614,7 @@ type StateAttribute struct {
 	Values []*StateAttributeValue `json:"values"`
 }
 
-func (a *StateAttribute) GetValue(properties map[string]string) *StateAttributeValue {
+func (a *StateAttribute) FindValue(properties map[string]string) *StateAttributeValue {
 	if len(a.Values) == 0 {
 		return nil
 	}
@@ -544,120 +635,76 @@ type StateAttributeValue struct {
 	Props     map[string]string `json:"props"`
 }
 
-func (v *StateAttributeValue) GetIntValue() (int64, error) {
-	val, ok := v.Value.(int64)
-	if ok {
-		return val, nil
-	}
-
-	return 0, fmt.Errorf("state: wrong value type, expected %T, got %T", val, v.Value)
-}
-
 func (v *StateAttributeValue) GetStringValue() (string, error) {
-	val, ok := v.Value.(string)
-	if ok {
-		return val, nil
-	}
+	var val string
 
-	return "", fmt.Errorf("state: wrong value type, expected %T, got %T", val, v.Value)
+	return val, v.GetObjectValue(&val)
 }
 
-func (v *StateAttributeValue) GetBoolValue() (bool, error) {
-	val, ok := v.Value.(bool)
-	if ok {
-		return val, nil
-	}
+func (v *StateAttributeValue) GetIntValue() (int64, error) {
+	var val int64
 
-	return false, fmt.Errorf("state: wrong value type, expected %T, got %T", val, v.Value)
+	return val, v.GetObjectValue(&val)
 }
 
 func (v *StateAttributeValue) GetFloatValue() (float64, error) {
-	val, ok := v.Value.(float64)
-	if ok {
-		return val, nil
-	}
+	var val float64
 
-	return 0, fmt.Errorf("state: wrong value type, expected %T, got %T", val, v.Value)
+	return val, v.GetObjectValue(&val)
+}
+
+func (v *StateAttributeValue) GetBoolValue() (bool, error) {
+	var val bool
+
+	return val, v.GetObjectValue(&val)
 }
 
 func (v *StateAttributeValue) GetStringArrayValue() ([]string, error) {
 	var val []string
 
-	if err := v.GetObjectValue(&val); err != nil {
-		return nil, fmt.Errorf("state: failed to parse string array: %w", err)
-	}
-
-	return val, nil
+	return val, v.GetObjectValue(&val)
 }
 
 func (v *StateAttributeValue) GetIntArrayValue() ([]int64, error) {
 	var val []int64
 
-	if err := v.GetObjectValue(&val); err != nil {
-		return nil, fmt.Errorf("state: failed to parse int array: %w", err)
-	}
-
-	return val, nil
+	return val, v.GetObjectValue(&val)
 }
 
 func (v *StateAttributeValue) GetFloatArrayValue() ([]float64, error) {
 	var val []float64
 
-	if err := v.GetObjectValue(&val); err != nil {
-		return nil, fmt.Errorf("state: failed to parse float array: %w", err)
-	}
-
-	return val, nil
+	return val, v.GetObjectValue(&val)
 }
 
 func (v *StateAttributeValue) GetBoolArrayValue() ([]bool, error) {
 	var val []bool
 
-	if err := v.GetObjectValue(&val); err != nil {
-		return nil, fmt.Errorf("state: failed to parse bool array: %w", err)
-	}
-
-	return val, nil
+	return val, v.GetObjectValue(&val)
 }
 
 func (v *StateAttributeValue) GetStringMapValue() (map[string]string, error) {
 	var val map[string]string
 
-	if err := v.GetObjectValue(&val); err != nil {
-		return nil, fmt.Errorf("state: failed to parse string map: %w", err)
-	}
-
-	return val, nil
+	return val, v.GetObjectValue(&val)
 }
 
 func (v *StateAttributeValue) GetIntMapValue() (map[string]int64, error) {
 	var val map[string]int64
 
-	if err := v.GetObjectValue(&val); err != nil {
-		return nil, fmt.Errorf("state: failed to parse int map: %w", err)
-	}
-
-	return val, nil
+	return val, v.GetObjectValue(&val)
 }
 
 func (v *StateAttributeValue) GetFloatMapValue() (map[string]float64, error) {
 	var val map[string]float64
 
-	if err := v.GetObjectValue(&val); err != nil {
-		return nil, fmt.Errorf("state: failed to parse float map: %w", err)
-	}
-
-	return val, nil
+	return val, v.GetObjectValue(&val)
 }
 
 func (v *StateAttributeValue) GetBoolMapValue() (map[string]bool, error) {
 	var val map[string]bool
 
-	if err := v.GetObjectValue(&val); err != nil {
-		return nil, fmt.Errorf("state: failed to parse bool map: %w", err)
-	}
-
-	return val, nil
+	return val, v.GetObjectValue(&val)
 }
 
 func (v *StateAttributeValue) GetObjectValue(object interface{}) error {
