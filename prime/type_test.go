@@ -3,6 +3,7 @@ package prime_test
 import (
 	"encoding/json"
 	"testing"
+	"time"
 
 	"github.com/futurehomeno/fimpgo"
 	"github.com/stretchr/testify/assert"
@@ -743,6 +744,20 @@ func TestStateAttributeValue_GetValue(t *testing.T) {
 			attribute: &prime.StateAttributeValue{Value: json.RawMessage(`"`)},
 			call:      func(a *prime.StateAttributeValue) (interface{}, error) { return a.GetBoolMapValue() },
 			want:      (map[string]bool)(nil),
+			wantErr:   true,
+		},
+		{
+			name:      "get time",
+			attribute: &prime.StateAttributeValue{Timestamp: "2022-08-15 12:30:10 +0100"},
+			call:      func(a *prime.StateAttributeValue) (interface{}, error) { return a.GetTime() },
+			want:      time.Date(2022, 8, 15, 12, 30, 10, 0, time.FixedZone("", 1*60*60)),
+			wantErr:   false,
+		},
+		{
+			name:      "get time - invalid payload",
+			attribute: &prime.StateAttributeValue{Timestamp: "unparsable string"},
+			call:      func(a *prime.StateAttributeValue) (interface{}, error) { return a.GetTime() },
+			want:      time.Time{},
 			wantErr:   true,
 		},
 	}

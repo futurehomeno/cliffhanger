@@ -584,7 +584,7 @@ func (v *StateAttributeValue) GetStringArrayValue() ([]string, error) {
 	var val []string
 
 	if err := v.GetObjectValue(&val); err != nil {
-		return nil, err
+		return nil, fmt.Errorf("state: failed to parse string array: %w", err)
 	}
 
 	return val, nil
@@ -594,7 +594,7 @@ func (v *StateAttributeValue) GetIntArrayValue() ([]int64, error) {
 	var val []int64
 
 	if err := v.GetObjectValue(&val); err != nil {
-		return nil, err
+		return nil, fmt.Errorf("state: failed to parse int array: %w", err)
 	}
 
 	return val, nil
@@ -604,7 +604,7 @@ func (v *StateAttributeValue) GetFloatArrayValue() ([]float64, error) {
 	var val []float64
 
 	if err := v.GetObjectValue(&val); err != nil {
-		return nil, err
+		return nil, fmt.Errorf("state: failed to parse float array: %w", err)
 	}
 
 	return val, nil
@@ -614,7 +614,7 @@ func (v *StateAttributeValue) GetBoolArrayValue() ([]bool, error) {
 	var val []bool
 
 	if err := v.GetObjectValue(&val); err != nil {
-		return nil, err
+		return nil, fmt.Errorf("state: failed to parse bool array: %w", err)
 	}
 
 	return val, nil
@@ -624,7 +624,7 @@ func (v *StateAttributeValue) GetStringMapValue() (map[string]string, error) {
 	var val map[string]string
 
 	if err := v.GetObjectValue(&val); err != nil {
-		return nil, err
+		return nil, fmt.Errorf("state: failed to parse string map: %w", err)
 	}
 
 	return val, nil
@@ -634,7 +634,7 @@ func (v *StateAttributeValue) GetIntMapValue() (map[string]int64, error) {
 	var val map[string]int64
 
 	if err := v.GetObjectValue(&val); err != nil {
-		return nil, err
+		return nil, fmt.Errorf("state: failed to parse int map: %w", err)
 	}
 
 	return val, nil
@@ -644,7 +644,7 @@ func (v *StateAttributeValue) GetFloatMapValue() (map[string]float64, error) {
 	var val map[string]float64
 
 	if err := v.GetObjectValue(&val); err != nil {
-		return nil, err
+		return nil, fmt.Errorf("state: failed to parse float map: %w", err)
 	}
 
 	return val, nil
@@ -654,7 +654,7 @@ func (v *StateAttributeValue) GetBoolMapValue() (map[string]bool, error) {
 	var val map[string]bool
 
 	if err := v.GetObjectValue(&val); err != nil {
-		return nil, err
+		return nil, fmt.Errorf("state: failed to parse bool map: %w", err)
 	}
 
 	return val, nil
@@ -672,6 +672,15 @@ func (v *StateAttributeValue) GetObjectValue(object interface{}) error {
 	}
 
 	return nil
+}
+
+func (v *StateAttributeValue) GetTime() (time.Time, error) {
+	t, err := time.Parse("2006-01-02 15:04:05 -0700", v.Timestamp)
+	if err != nil {
+		return time.Time{}, fmt.Errorf("state: failed to parse timestamp: %w", err)
+	}
+
+	return t, nil
 }
 
 func (v *StateAttributeValue) HasProperties(properties map[string]string) bool {
