@@ -20,6 +20,8 @@ const (
 	UnitA   = "A"
 	UnitV   = "V"
 
+	PropertyUnit = "unit"
+
 	PropertySupportedUnits          = "sup_units"
 	PropertySupportedExtendedValues = "sup_extended_vals"
 )
@@ -134,7 +136,7 @@ func (s *service) SendMeterReport(unit string, force bool) (bool, error) {
 		MeterElec,
 		value,
 		map[string]string{
-			"unit": normalizedUnit,
+			PropertyUnit: normalizedUnit,
 		},
 		nil,
 		nil,
