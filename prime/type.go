@@ -3,6 +3,7 @@ package prime
 import (
 	"encoding/json"
 	"fmt"
+	"sort"
 	"strings"
 	"time"
 )
@@ -304,6 +305,18 @@ func (d *Device) GetServicePropertyStrings(serviceName string, property string) 
 	}
 
 	return properties
+}
+
+func (d *Device) GetAddresses() []string {
+	var addresses []string
+
+	for _, srv := range d.Services {
+		addresses = append(addresses, srv.Addr)
+	}
+
+	sort.Strings(addresses)
+
+	return addresses
 }
 
 type Service struct {

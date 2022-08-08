@@ -270,6 +270,15 @@ func TestDevice(t *testing.T) {
 			},
 			want: "",
 		},
+
+		{
+			name:   "get addresses",
+			device: &prime.Device{Services: map[string]*prime.Service{"s1": {Addr: "address1"}, "s2": {Addr: "address2"}}},
+			call: func(d *prime.Device) interface{} {
+				return d.GetAddresses()
+			},
+			want: []string{"address1", "address2"},
+		},
 	}
 
 	for _, tc := range tt {
