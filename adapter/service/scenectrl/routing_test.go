@@ -22,12 +22,12 @@ const (
 	sceneUnsupported = "movietime"
 )
 
-var sceneReportColorloop = scenectrl.SceneReport{
-	Scene:     sceneColorloop,
-	Timestamp: time.Now(),
-}
-
 func TestRouteSceneCtrl(t *testing.T) { // nolint:paralleltest
+	sceneReportColorloop := scenectrl.SceneReport{
+		Scene:     sceneColorloop,
+		Timestamp: time.Now(),
+	}
+
 	s := &suite.Suite{
 		Cases: []*suite.Case{
 			{
@@ -126,17 +126,17 @@ func TestRouteSceneCtrl(t *testing.T) { // nolint:paralleltest
 func TestTaskSceneCtrl(t *testing.T) { // nolint:paralleltest
 	sceneReport1 := scenectrl.SceneReport{
 		Scene:     sceneColorloop,
-		Timestamp: time.Now().Add(-1 * time.Hour),
+		Timestamp: time.Date(2022, time.January, 1, 1, 1, 1, 1, time.UTC),
 	}
 
 	sceneReport2 := scenectrl.SceneReport{
 		Scene:     sceneColorloop,
-		Timestamp: time.Now(),
+		Timestamp: time.Date(2022, time.January, 2, 2, 2, 2, 2, time.UTC),
 	}
 
 	sceneReport3 := scenectrl.SceneReport{
 		Scene:     sceneNone,
-		Timestamp: time.Now(),
+		Timestamp: time.Date(2022, time.January, 2, 2, 2, 2, 2, time.UTC),
 	}
 
 	s := &suite.Suite{
