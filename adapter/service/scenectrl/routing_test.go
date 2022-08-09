@@ -22,6 +22,11 @@ const (
 	sceneUnsupported = "movietime"
 )
 
+var sceneReportColorloop = scenectrl.SceneReport{
+	Scene:     sceneColorloop,
+	Timestamp: time.Now(),
+}
+
 func TestRouteSceneCtrl(t *testing.T) { // nolint:paralleltest
 	s := &suite.Suite{
 		Cases: []*suite.Case{
@@ -30,7 +35,7 @@ func TestRouteSceneCtrl(t *testing.T) { // nolint:paralleltest
 				Setup: routeSceneCtrl(
 					mockedscenectrl.NewController(t).
 						MockSetSceneCtrlScene(sceneColorloop, nil, true).
-						MockSceneCtrlSceneReport(sceneColorloop, nil, true),
+						MockSceneCtrlSceneReport(sceneReportColorloop, nil, true),
 				),
 				Nodes: []*suite.Node{
 					{
@@ -46,7 +51,7 @@ func TestRouteSceneCtrl(t *testing.T) { // nolint:paralleltest
 				Name: "successful get scene",
 				Setup: routeSceneCtrl(
 					mockedscenectrl.NewController(t).
-						MockSceneCtrlSceneReport(sceneColorloop, nil, true),
+						MockSceneCtrlSceneReport(sceneReportColorloop, nil, true),
 				),
 				Nodes: []*suite.Node{
 					{
@@ -100,7 +105,7 @@ func TestRouteSceneCtrl(t *testing.T) { // nolint:paralleltest
 				Setup: routeSceneCtrl(
 					mockedscenectrl.NewController(t).
 						MockSetSceneCtrlScene(sceneColorloop, nil, true).
-						MockSceneCtrlSceneReport(sceneColorloop, errors.New("error"), true),
+						MockSceneCtrlSceneReport(sceneReportColorloop, errors.New("error"), true),
 				),
 				Nodes: []*suite.Node{
 					{
@@ -119,8 +124,20 @@ func TestRouteSceneCtrl(t *testing.T) { // nolint:paralleltest
 }
 
 func TestTaskSceneCtrl(t *testing.T) { // nolint:paralleltest
-	sceneColorLoop := "colorloop"
-	sceneNone := "none"
+	sceneReport1 := scenectrl.SceneReport{
+		Scene:     sceneColorloop,
+		Timestamp: time.Now().Add(-1 * time.Hour),
+	}
+
+	sceneReport2 := scenectrl.SceneReport{
+		Scene:     sceneColorloop,
+		Timestamp: time.Now(),
+	}
+
+	sceneReport3 := scenectrl.SceneReport{
+		Scene:     sceneNone,
+		Timestamp: time.Now(),
+	}
 
 	s := &suite.Suite{
 		Cases: []*suite.Case{
@@ -128,16 +145,18 @@ func TestTaskSceneCtrl(t *testing.T) { // nolint:paralleltest
 				Name: "SceneCtrl Tasks",
 				Setup: taskSceneCtrl(
 					mockedscenectrl.NewController(t).
-						MockSceneCtrlSceneReport(sceneColorLoop, nil, true).
-						MockSceneCtrlSceneReport(sceneNone, nil, false).
-						MockSceneCtrlSceneReport("", errors.New("task error"), false),
+						MockSceneCtrlSceneReport(sceneReport1, nil, true).
+						MockSceneCtrlSceneReport(sceneReport2, nil, false).
+						MockSceneCtrlSceneReport(sceneReport3, nil, false).
+						MockSceneCtrlSceneReport(scenectrl.SceneReport{}, errors.New("task error"), false),
 					100*time.Millisecond,
 				),
 				Nodes: []*suite.Node{
 					{
 						Name: "Tasks",
 						Expectations: []*suite.Expectation{
-							suite.ExpectString("pt:j1/mt:evt/rt:dev/rn:test_adapter/ad:1/sv:scene_ctrl/ad:2", "evt.scene.report", "scene_ctrl", sceneColorLoop),
+							suite.ExpectString("pt:j1/mt:evt/rt:dev/rn:test_adapter/ad:1/sv:scene_ctrl/ad:2", "evt.scene.report", "scene_ctrl", sceneColorloop),
+							suite.ExpectString("pt:j1/mt:evt/rt:dev/rn:test_adapter/ad:1/sv:scene_ctrl/ad:2", "evt.scene.report", "scene_ctrl", sceneColorloop),
 							suite.ExpectString("pt:j1/mt:evt/rt:dev/rn:test_adapter/ad:1/sv:scene_ctrl/ad:2", "evt.scene.report", "scene_ctrl", sceneNone),
 						},
 					},

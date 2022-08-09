@@ -1,6 +1,8 @@
 package mockedscenectrl
 
-func (_m *Controller) MockSceneCtrlSceneReport(value string, err error, once bool) *Controller {
+import "github.com/futurehomeno/cliffhanger/adapter/service/scenectrl"
+
+func (_m *Controller) MockSceneCtrlSceneReport(value scenectrl.SceneReport, err error, once bool) *Controller {
 	c := _m.On("SceneCtrlSceneReport").Return(value, err)
 
 	if once {
