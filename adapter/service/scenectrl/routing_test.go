@@ -146,8 +146,8 @@ func TestTaskSceneCtrl(t *testing.T) { // nolint:paralleltest
 				Setup: taskSceneCtrl(
 					mockedscenectrl.NewController(t).
 						MockSceneCtrlSceneReport(sceneReport1, nil, true).
-						MockSceneCtrlSceneReport(sceneReport2, nil, false).
-						MockSceneCtrlSceneReport(sceneReport3, nil, false).
+						MockSceneCtrlSceneReport(sceneReport2, nil, true).
+						MockSceneCtrlSceneReport(sceneReport3, nil, true).
 						MockSceneCtrlSceneReport(scenectrl.SceneReport{}, errors.New("task error"), false),
 					100*time.Millisecond,
 				),
@@ -155,7 +155,6 @@ func TestTaskSceneCtrl(t *testing.T) { // nolint:paralleltest
 					{
 						Name: "Tasks",
 						Expectations: []*suite.Expectation{
-							suite.ExpectString("pt:j1/mt:evt/rt:dev/rn:test_adapter/ad:1/sv:scene_ctrl/ad:2", "evt.scene.report", "scene_ctrl", sceneColorloop),
 							suite.ExpectString("pt:j1/mt:evt/rt:dev/rn:test_adapter/ad:1/sv:scene_ctrl/ad:2", "evt.scene.report", "scene_ctrl", sceneColorloop),
 							suite.ExpectString("pt:j1/mt:evt/rt:dev/rn:test_adapter/ad:1/sv:scene_ctrl/ad:2", "evt.scene.report", "scene_ctrl", sceneNone),
 						},
