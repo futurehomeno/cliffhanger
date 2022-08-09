@@ -3,6 +3,7 @@ package scenectrl
 import (
 	"fmt"
 	"sync"
+	"time"
 
 	"github.com/futurehomeno/fimpgo"
 	"github.com/futurehomeno/fimpgo/fimptype"
@@ -24,7 +25,12 @@ type Controller interface {
 	// SetSceneCtrlScene sets the scene of the device.
 	SetSceneCtrlScene(scene string) error
 	// SceneCtrlReport returns a current scene value.
-	SceneCtrlSceneReport() (string, error)
+	SceneCtrlSceneReport() (SceneReport, error)
+}
+
+type SceneReport struct {
+	Scene     string
+	Timestamp time.Time
 }
 
 // Service is an interface representing a presence FIMP service.
@@ -122,7 +128,7 @@ func (s *service) SendSceneReport(force bool) (bool, error) {
 	message := fimpgo.NewStringMessage(
 		EvtSceneReport,
 		s.Name(),
-		value,
+		value.Scene,
 		nil,
 		nil,
 		nil,
