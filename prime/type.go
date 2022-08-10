@@ -115,6 +115,30 @@ func (d Devices) FilterByThingID(thingID int) Devices {
 	return devices
 }
 
+func (d Devices) FilterByIDs(id ...int) Devices {
+	var devices Devices
+
+	for _, device := range d {
+		for _, i := range id {
+			if device.ID == i {
+				devices = append(devices, device)
+			}
+		}
+	}
+
+	return devices
+}
+
+func (d Devices) FindByID(id int) *Device {
+	for _, device := range d {
+		if device.ID == id {
+			return device
+		}
+	}
+
+	return nil
+}
+
 type Device struct {
 	FIMP          FIMP                   `json:"fimp"`
 	Client        ClientType             `json:"client"`
