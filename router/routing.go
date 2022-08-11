@@ -21,22 +21,12 @@ func TopicPatternApplication(serviceName string) string {
 	return fmt.Sprintf("pt:j1/+/rt:app/rn:%s/ad:1", serviceName)
 }
 
-// CombineTopicPatterns is a helper to easily combine multiple slices of topic patterns into one.
-func CombineTopicPatterns[T string | []string](patterns ...T) []string {
+// CombineTopicPatterns is a helper to easily combine multiple topic pattern slices into one slice.
+func CombineTopicPatterns(patterns ...[]string) []string {
 	var combined []string
 
 	for _, p := range patterns {
-		ss, ok := any(p).([]string)
-		if ok {
-			combined = append(combined, ss...)
-
-			continue
-		}
-
-		s, ok := any(p).(string)
-		if ok {
-			combined = append(combined, s)
-		}
+		combined = append(combined, p...)
 	}
 
 	return combined
