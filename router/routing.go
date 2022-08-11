@@ -22,11 +22,21 @@ func TopicPatternApplication(serviceName string) string {
 }
 
 // CombineTopicPatterns is a helper to easily combine multiple slices of topic patterns into one.
-func CombineTopicPatterns(patterns ...[]string) []string {
+func CombineTopicPatterns[T string | []string](patterns ...T) []string {
 	var combined []string
 
 	for _, p := range patterns {
-		combined = append(combined, p...)
+		ss, ok := any(p).([]string)
+		if ok {
+			combined = append(combined, ss...)
+
+			continue
+		}
+
+		s, ok := any(p).(string)
+		if ok {
+			combined = append(combined, s)
+		}
 	}
 
 	return combined
