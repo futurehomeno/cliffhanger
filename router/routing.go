@@ -21,6 +21,17 @@ func TopicPatternApplication(serviceName string) string {
 	return fmt.Sprintf("pt:j1/+/rt:app/rn:%s/ad:1", serviceName)
 }
 
+// CombineTopicPatterns is a helper to easily combine multiple slices of topic patterns into one.
+func CombineTopicPatterns(patterns ...[]string) []string {
+	var combined []string
+
+	for _, p := range patterns {
+		combined = append(combined, p...)
+	}
+
+	return combined
+}
+
 // EvtErrorReport is a type of message for error responses.
 const EvtErrorReport = "evt.error.report"
 
