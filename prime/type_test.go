@@ -37,6 +37,24 @@ func TestDevices(t *testing.T) {
 			call:    func(devices prime.Devices) interface{} { return devices.FilterByThingID(0) },
 			want:    (prime.Devices)(nil),
 		},
+		{
+			name:    "filter by ids",
+			devices: prime.Devices{{ID: 1}, {ID: 2}, {ID: 3}},
+			call:    func(devices prime.Devices) interface{} { return devices.FilterByIDs(1, 2) },
+			want:    prime.Devices{{ID: 1}, {ID: 2}},
+		},
+		{
+			name:    "filter by id",
+			devices: prime.Devices{{ID: 1}, {ID: 2}, {ID: 3}},
+			call:    func(devices prime.Devices) interface{} { return devices.FindByID(1) },
+			want:    &prime.Device{ID: 1},
+		},
+		{
+			name:    "filter by id - no matches",
+			devices: prime.Devices{{ID: 1}, {ID: 2}, {ID: 3}},
+			call:    func(devices prime.Devices) interface{} { return devices.FindByID(4) },
+			want:    (*prime.Device)(nil),
+		},
 	}
 
 	for _, tc := range tt {
@@ -394,7 +412,7 @@ func TestStateDevice_GetAttributeValue(t *testing.T) {
 			call: func(d *prime.StateDevice) (interface{}, time.Time) {
 				return d.GetAttributeStringValue("test_service", "test_attribute", nil)
 			},
-			wantValue: "",
+			wantValue: "test_value",
 			wantTime:  time.Time{},
 		},
 		{
