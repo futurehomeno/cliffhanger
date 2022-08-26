@@ -7,18 +7,23 @@ import (
 )
 
 // TopicPatternAdapter returns a topic pattern for an adapter useful for subscriptions.
-func TopicPatternAdapter(serviceName string) string {
-	return fmt.Sprintf("pt:j1/+/rt:ad/rn:%s/ad:1", serviceName)
+func TopicPatternAdapter(resourceName string) string {
+	return fmt.Sprintf("pt:j1/+/rt:ad/rn:%s/ad:1", resourceName)
 }
 
 // TopicPatternDevices returns a topic pattern for devices useful for subscriptions.
-func TopicPatternDevices(serviceName string) string {
-	return fmt.Sprintf("pt:j1/+/rt:dev/rn:%s/ad:1/#", serviceName)
+func TopicPatternDevices(resourceName string) string {
+	return fmt.Sprintf("pt:j1/+/rt:dev/rn:%s/ad:1/#", resourceName)
 }
 
 // TopicPatternApplication returns a topic pattern for application useful for subscriptions.
-func TopicPatternApplication(serviceName string) string {
-	return fmt.Sprintf("pt:j1/+/rt:app/rn:%s/ad:1", serviceName)
+func TopicPatternApplication(resourceName string) string {
+	return fmt.Sprintf("pt:j1/+/rt:app/rn:%s/ad:1", resourceName)
+}
+
+// TopicPatterDeviceService returns a topic pattern for all device services of the provided type.
+func TopicPatterDeviceService(serviceName string) string {
+	return fmt.Sprintf("+/+/rt:dev/+/+/sv:%s/#", serviceName)
 }
 
 // CombineTopicPatterns is a helper to easily combine multiple topic pattern slices into one slice.
