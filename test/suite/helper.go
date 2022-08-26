@@ -129,6 +129,76 @@ func IntMapMessage(topic, messageType, service string, value map[string]int64) *
 	}
 }
 
+func BoolMapMessage(topic, messageType, service string, value map[string]bool) *fimpgo.Message {
+	return &fimpgo.Message{
+		Topic: topic,
+		Payload: fimpgo.NewBoolMapMessage(
+			messageType,
+			service,
+			value,
+			nil,
+			nil,
+			nil,
+		),
+	}
+}
+
+func StringArrayMessage(topic, messageType, service string, value []string) *fimpgo.Message {
+	return &fimpgo.Message{
+		Topic: topic,
+		Payload: fimpgo.NewStrArrayMessage(
+			messageType,
+			service,
+			value,
+			nil,
+			nil,
+			nil,
+		),
+	}
+}
+
+func FloatArrayMessage(topic, messageType, service string, value []float64) *fimpgo.Message {
+	return &fimpgo.Message{
+		Topic: topic,
+		Payload: fimpgo.NewFloatArrayMessage(
+			messageType,
+			service,
+			value,
+			nil,
+			nil,
+			nil,
+		),
+	}
+}
+
+func IntArrayMessage(topic, messageType, service string, value []int64) *fimpgo.Message {
+	return &fimpgo.Message{
+		Topic: topic,
+		Payload: fimpgo.NewIntArrayMessage(
+			messageType,
+			service,
+			value,
+			nil,
+			nil,
+			nil,
+		),
+	}
+}
+
+func BoolArrayMessage(topic, messageType, service string, value []bool) *fimpgo.Message {
+	return &fimpgo.Message{
+		Topic: topic,
+		Payload: fimpgo.NewBoolArrayMessage(
+			messageType,
+			service,
+			value,
+			nil,
+			nil,
+			nil,
+		),
+	}
+}
+
 func NewMessageBuilder() *MessageBuilder {
 	return &MessageBuilder{
 		props: make(fimpgo.Props),
@@ -192,6 +262,36 @@ func (b *MessageBuilder) FloatMapMessage(topic, messageType, service string, val
 
 func (b *MessageBuilder) IntMapMessage(topic, messageType, service string, value map[string]int64) *MessageBuilder {
 	b.msg = IntMapMessage(topic, messageType, service, value)
+
+	return b
+}
+
+func (b *MessageBuilder) BoolMapMessage(topic, messageType, service string, value map[string]bool) *MessageBuilder {
+	b.msg = BoolMapMessage(topic, messageType, service, value)
+
+	return b
+}
+
+func (b *MessageBuilder) StringArrayMessage(topic, messageType, service string, value []string) *MessageBuilder {
+	b.msg = StringArrayMessage(topic, messageType, service, value)
+
+	return b
+}
+
+func (b *MessageBuilder) FloatArrayMessage(topic, messageType, service string, value []float64) *MessageBuilder {
+	b.msg = FloatArrayMessage(topic, messageType, service, value)
+
+	return b
+}
+
+func (b *MessageBuilder) IntArrayMessage(topic, messageType, service string, value []int64) *MessageBuilder {
+	b.msg = IntArrayMessage(topic, messageType, service, value)
+
+	return b
+}
+
+func (b *MessageBuilder) BoolArrayMessage(topic, messageType, service string, value []bool) *MessageBuilder {
+	b.msg = BoolArrayMessage(topic, messageType, service, value)
 
 	return b
 }
