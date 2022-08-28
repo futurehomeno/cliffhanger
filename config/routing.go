@@ -173,8 +173,8 @@ func RouteCmdConfigSetStringMap[K ~string, V ~string](serviceName, setting strin
 }
 
 // RouteCmdConfigGetIntMap returns a routing responsible for handling the command.
-func RouteCmdConfigGetIntMap[K ~string, V ~int | ~int8 | ~int16 | ~int32 | ~int64 | ~uint | ~uint8 | ~uint16 | ~uint32 | ~uint64](
-	serviceName, setting string, getter func() map[K]V,
+func RouteCmdConfigGetIntMap[M ~map[K]V, K ~string, V ~int | ~int8 | ~int16 | ~int32 | ~int64 | ~uint | ~uint8 | ~uint16 | ~uint32 | ~uint64](
+	serviceName, setting string, getter func() M,
 ) *router.Routing {
 	return routeCmdConfigGet(serviceName, setting, fimpgo.VTypeIntMap, getter)
 }
