@@ -163,12 +163,12 @@ func RouteCmdConfigSetDuration(serviceName, setting string, rawSetter func(time.
 }
 
 // RouteCmdConfigGetStringMap returns a routing responsible for handling the command.
-func RouteCmdConfigGetStringMap[K ~string, V ~string](serviceName, setting string, getter func() map[K]V) *router.Routing {
+func RouteCmdConfigGetStringMap[M ~map[K]V, K ~string, V ~string](serviceName, setting string, getter func() M) *router.Routing {
 	return routeCmdConfigGet(serviceName, setting, fimpgo.VTypeStrMap, getter)
 }
 
 // RouteCmdConfigSetStringMap returns a routing responsible for handling the command.
-func RouteCmdConfigSetStringMap[K ~string, V ~string](serviceName, setting string, setter func(map[K]V) error) *router.Routing {
+func RouteCmdConfigSetStringMap[M ~map[K]V, K ~string, V ~string](serviceName, setting string, setter func(M) error) *router.Routing {
 	return routeCmdConfigSet(serviceName, setting, fimpgo.VTypeStrMap, setter)
 }
 
@@ -180,29 +180,29 @@ func RouteCmdConfigGetIntMap[M ~map[K]V, K ~string, V ~int | ~int8 | ~int16 | ~i
 }
 
 // RouteCmdConfigSetIntMap returns a routing responsible for handling the command.
-func RouteCmdConfigSetIntMap[K ~string, V ~int | ~int8 | ~int16 | ~int32 | ~int64 | ~uint | ~uint8 | ~uint16 | ~uint32 | ~uint64](
-	serviceName, setting string, setter func(map[K]V) error,
+func RouteCmdConfigSetIntMap[M ~map[K]V, K ~string, V ~int | ~int8 | ~int16 | ~int32 | ~int64 | ~uint | ~uint8 | ~uint16 | ~uint32 | ~uint64](
+	serviceName, setting string, setter func(M) error,
 ) *router.Routing {
 	return routeCmdConfigSet(serviceName, setting, fimpgo.VTypeIntMap, setter)
 }
 
 // RouteCmdConfigGetFloatMap returns a routing responsible for handling the command.
-func RouteCmdConfigGetFloatMap[K ~string, V ~float32 | ~float64](serviceName, setting string, getter func() map[K]V) *router.Routing {
+func RouteCmdConfigGetFloatMap[M ~map[K]V, K ~string, V ~float32 | ~float64](serviceName, setting string, getter func() M) *router.Routing {
 	return routeCmdConfigGet(serviceName, setting, fimpgo.VTypeFloatMap, getter)
 }
 
 // RouteCmdConfigSetFloatMap returns a routing responsible for handling the command.
-func RouteCmdConfigSetFloatMap[K ~string, V ~float32 | ~float64](serviceName, setting string, setter func(map[K]V) error) *router.Routing {
+func RouteCmdConfigSetFloatMap[M ~map[K]V, K ~string, V ~float32 | ~float64](serviceName, setting string, setter func(M) error) *router.Routing {
 	return routeCmdConfigSet(serviceName, setting, fimpgo.VTypeFloatMap, setter)
 }
 
 // RouteCmdConfigGetBoolMap returns a routing responsible for handling the command.
-func RouteCmdConfigGetBoolMap[K ~string, V ~bool](serviceName, setting string, getter func() map[K]V) *router.Routing {
+func RouteCmdConfigGetBoolMap[M ~map[K]V, K ~string, V ~bool](serviceName, setting string, getter func() M) *router.Routing {
 	return routeCmdConfigGet(serviceName, setting, fimpgo.VTypeBoolMap, getter)
 }
 
 // RouteCmdConfigSetBoolMap returns a routing responsible for handling the command.
-func RouteCmdConfigSetBoolMap[K ~string, V ~bool](serviceName, setting string, setter func(map[K]V) error) *router.Routing {
+func RouteCmdConfigSetBoolMap[M ~map[K]V, K ~string, V ~bool](serviceName, setting string, setter func(M) error) *router.Routing {
 	return routeCmdConfigSet(serviceName, setting, fimpgo.VTypeBoolMap, setter)
 }
 
