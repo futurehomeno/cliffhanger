@@ -79,9 +79,14 @@ func TestValidate(t *testing.T) {
 func TestWithin(t *testing.T) {
 	t.Parallel()
 
-	validator := config.Within([]string{"a", "b", "c"})
+	validator := config.Within([]string{"a", "b", "c"}, false)
 
 	assert.NoError(t, validator("a"))
-
 	assert.Error(t, validator("d"))
+	assert.Error(t, validator(""))
+
+	optionalValidator := config.Within([]string{"a", "b", "c"}, true)
+	assert.NoError(t, optionalValidator("a"))
+	assert.Error(t, optionalValidator("d"))
+	assert.NoError(t, optionalValidator(""))
 }

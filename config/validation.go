@@ -2,6 +2,7 @@ package config
 
 import (
 	"fmt"
+	"reflect"
 	"strings"
 )
 
@@ -20,8 +21,12 @@ func Validate[T any](setter func(T) error, validators ...func(T) error) func(T) 
 }
 
 // Within is a setting validator comparing a setting value against a set of allowed values.
-func Within[T comparable](values []T) func(T) error {
+func Within[T comparable](values []T, optional bool) func(T) error {
 	return func(val T) error {
+		if optional && reflect.ValueOf(val).IsZero() {
+			return nil
+		}
+
 		for _, v := range values {
 			if v == val {
 				return nil
