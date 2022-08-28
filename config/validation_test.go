@@ -90,3 +90,15 @@ func TestWithin(t *testing.T) {
 	assert.Error(t, optionalValidator("d"))
 	assert.NoError(t, optionalValidator(""))
 }
+
+func TestBetween(t *testing.T) {
+	t.Parallel()
+
+	validator := config.Between(float64(5), float64(10))
+
+	assert.NoError(t, validator(5))
+	assert.NoError(t, validator(7))
+	assert.NoError(t, validator(10))
+	assert.Error(t, validator(0))
+	assert.Error(t, validator(15))
+}
