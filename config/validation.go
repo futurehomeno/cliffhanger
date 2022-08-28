@@ -5,8 +5,8 @@ import (
 	"strings"
 )
 
-// ValidateSetting is a helper that perform validation of a setting before passing it to a dedicated setter.
-func ValidateSetting[T any](setter func(T) error, validators ...func(T) error) func(T) error {
+// Validate is a helper that perform validation of a setting before passing it to a dedicated setter.
+func Validate[T any](setter func(T) error, validators ...func(T) error) func(T) error {
 	return func(val T) error {
 		for _, v := range validators {
 			err := v(val)
@@ -19,17 +19,17 @@ func ValidateSetting[T any](setter func(T) error, validators ...func(T) error) f
 	}
 }
 
-// SettingWithin is a setting validator comparing a setting value against a set of allowed values.
-func SettingWithin[T comparable](list []T) func(T) error {
+// Within is a setting validator comparing a setting value against a set of allowed values.
+func Within[T comparable](values []T) func(T) error {
 	return func(val T) error {
-		for _, v := range list {
+		for _, v := range values {
 			if v == val {
 				return nil
 			}
 		}
 
-		allowed := make([]string, len(list))
-		for i, v := range list {
+		allowed := make([]string, len(values))
+		for i, v := range values {
 			allowed[i] = fmt.Sprintf("%+v", v)
 		}
 

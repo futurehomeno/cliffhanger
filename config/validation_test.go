@@ -9,7 +9,7 @@ import (
 	"github.com/futurehomeno/cliffhanger/config"
 )
 
-func TestValidateSetting(t *testing.T) {
+func TestValidate(t *testing.T) {
 	t.Parallel()
 
 	success := func(s string) error {
@@ -64,7 +64,7 @@ func TestValidateSetting(t *testing.T) {
 		t.Run(tc.name, func(t *testing.T) {
 			t.Parallel()
 
-			validate := config.ValidateSetting(tc.setter, tc.validator)
+			validate := config.Validate(tc.setter, tc.validator)
 
 			err := validate(tc.argument)
 			if tc.wantErr {
@@ -76,10 +76,10 @@ func TestValidateSetting(t *testing.T) {
 	}
 }
 
-func TestSettingWithin(t *testing.T) {
+func TestWithin(t *testing.T) {
 	t.Parallel()
 
-	validator := config.SettingWithin([]string{"a", "b", "c"})
+	validator := config.Within([]string{"a", "b", "c"})
 
 	assert.NoError(t, validator("a"))
 
