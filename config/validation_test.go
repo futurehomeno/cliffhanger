@@ -102,3 +102,23 @@ func TestBetween(t *testing.T) {
 	assert.Error(t, validator(0))
 	assert.Error(t, validator(15))
 }
+
+func TestGreater(t *testing.T) {
+	t.Parallel()
+
+	validator := config.Greater(float64(5))
+
+	assert.NoError(t, validator(6))
+	assert.Error(t, validator(5))
+	assert.Error(t, validator(4))
+}
+
+func TestLesser(t *testing.T) {
+	t.Parallel()
+
+	validator := config.Lesser(float64(5))
+
+	assert.NoError(t, validator(4))
+	assert.Error(t, validator(5))
+	assert.Error(t, validator(6))
+}
