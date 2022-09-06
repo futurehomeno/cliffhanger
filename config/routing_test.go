@@ -352,12 +352,14 @@ func TestRouteConfig(t *testing.T) { //nolint:paralleltest
 
 					mDuration := newConfigMock[time.Duration]().mockSetter(time.Second, errors.New("test"))
 					mObject := newConfigMock[*TestObject]()
+					mIntArray := newConfigMock[[]int]().mockSetter([]int{}, nil)
 
 					mocks = append(mocks, mDuration, mObject)
 
 					routing = append(routing,
 						config.RouteCmdConfigSetDuration("test_service", "test_setting_duration", mDuration.setter),
 						config.RouteCmdConfigSetObject("test_service", "test_setting_object", mObject.setter),
+						config.RouteCmdConfigSetIntArray("test_service", "test_setting_int_array", mIntArray.setter),
 					)
 
 					return
@@ -389,6 +391,13 @@ func TestRouteConfig(t *testing.T) { //nolint:paralleltest
 						Command: suite.ObjectMessage("pt:j1/mt:cmd/rt:app/rn:test/ad:1", "cmd.config.set_test_setting_object", "test_service", json.RawMessage(`{"a": 1}`)),
 						Expectations: []*suite.Expectation{
 							suite.ExpectError("pt:j1/mt:evt/rt:app/rn:test/ad:1", "test_service"),
+						},
+					},
+					{
+						Name:    "Properly handle an empty slice",
+						Command: suite.IntArrayMessage("pt:j1/mt:cmd/rt:app/rn:test/ad:1", "cmd.config.set_test_setting_int_array", "test_service", []int64{}),
+						Expectations: []*suite.Expectation{
+							suite.ExpectIntArray("pt:j1/mt:evt/rt:app/rn:test/ad:1", "evt.config.test_setting_int_array_report", "test_service", []int64{}),
 						},
 					},
 				},
