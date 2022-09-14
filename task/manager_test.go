@@ -138,6 +138,8 @@ func TestManager_Stop(t *testing.T) {
 }
 
 func TestManager(t *testing.T) {
+	t.Parallel()
+
 	s := &suite.Suite{
 		Cases: []*suite.Case{
 			{

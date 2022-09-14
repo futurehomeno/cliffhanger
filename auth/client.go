@@ -5,7 +5,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
-	"io/ioutil"
+	"io"
 	"net/http"
 	"time"
 
@@ -121,7 +121,7 @@ func (c *proxyClient) requestToken(r *http.Request) (*OAuth2TokenResponse, error
 		return nil, fmt.Errorf("proxy proxyClient: failed to retrieve token from partner API, received status code: %d", response.StatusCode)
 	}
 
-	responseData, err := ioutil.ReadAll(response.Body)
+	responseData, err := io.ReadAll(response.Body)
 	if err != nil {
 		return nil, fmt.Errorf("proxy proxyClient: failed to read response: %w", err)
 	}

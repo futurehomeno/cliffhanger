@@ -53,7 +53,8 @@ func (m *manager) Notification(notificationType string, notificationContent stri
 }
 
 // Timeline sends a timeline event. Example usage:
-// 	m.Timeline("My Service", "en", "Timeline in English", "no", "Tidslinje på norsk")
+//
+//	m.Timeline("My Service", "en", "Timeline in English", "no", "Tidslinje på norsk")
 func (m *manager) Timeline(sender string, languageAndMessage ...string) error {
 	if len(languageAndMessage)%2 > 0 {
 		return fmt.Errorf("odd number of languages and messages")

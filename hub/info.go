@@ -3,7 +3,7 @@ package hub
 import (
 	"encoding/json"
 	"fmt"
-	"io/ioutil"
+	"os"
 )
 
 // Environment is a type representing environment within which the hub is registered.
@@ -33,7 +33,7 @@ func LoadInfo(path string) (*Info, error) {
 
 	info := &Info{}
 
-	body, err := ioutil.ReadFile(path)
+	body, err := os.ReadFile(path)
 	if err != nil {
 		return nil, fmt.Errorf("info loader: failed to load info file at path %s: %w", path, err)
 	}

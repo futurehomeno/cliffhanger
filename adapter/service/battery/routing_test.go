@@ -16,7 +16,7 @@ import (
 	"github.com/futurehomeno/cliffhanger/test/suite"
 )
 
-func TestRouteBattery(t *testing.T) { // nolint:paralleltest
+func TestRouteBattery(t *testing.T) { //nolint:paralleltest
 	report := battery.FullReport{
 		Level:  90,
 		Health: 0,
@@ -300,7 +300,7 @@ func TestRouteBattery(t *testing.T) { // nolint:paralleltest
 	s.Run(t)
 }
 
-func TestTaskBattery(t *testing.T) { // nolint:paralleltest
+func TestTaskBattery(t *testing.T) { //nolint:paralleltest
 	report1 := battery.FullReport{
 		Level:  90,
 		Health: 60,

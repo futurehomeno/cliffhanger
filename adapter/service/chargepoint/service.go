@@ -275,9 +275,11 @@ func (s *service) SupportedStates() []string {
 }
 
 // normalizeChargingMode normalizes provided charging mode. Returns true, when everything is fine.
-// nolint:godox
 // TODO: consider introducing mode capable controller (which will contain start function with mode,
-//       where the classic one will not take any parameters) and allow service to decide, which one should be used.
+//
+//	where the classic one will not take any parameters) and allow service to decide, which one should be used.
+//
+//nolint:godox
 func (s *service) normalizeChargingMode(mode string) (string, error) {
 	if mode == "" {
 		return "", nil

@@ -29,7 +29,7 @@ const (
 	EvtAppConfigActionReport   = "evt.app.config_action_report"
 	CmdAuthLogin               = "cmd.auth.login"
 	CmdAuthLogout              = "cmd.auth.logout"
-	CmdAuthSetTokens           = "cmd.auth.set_tokens" // nolint:gosec
+	CmdAuthSetTokens           = "cmd.auth.set_tokens" //nolint:gosec
 	EvtAuthStatusReport        = "evt.auth.status_report"
 )
 

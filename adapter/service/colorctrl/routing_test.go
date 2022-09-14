@@ -16,7 +16,7 @@ import (
 	"github.com/futurehomeno/cliffhanger/test/suite"
 )
 
-func TestRouteColorCtrl(t *testing.T) { // nolint:paralleltest
+func TestRouteColorCtrl(t *testing.T) { //nolint:paralleltest
 	validColor := map[string]int64{"red": 255, "green": 55, "blue": 100}
 
 	invalidColor := map[string]float64{"red": 255.0, "green": 55.0, "blue": 100.0}
@@ -108,7 +108,7 @@ func TestRouteColorCtrl(t *testing.T) { // nolint:paralleltest
 	s.Run(t)
 }
 
-func TestTaskColorCtrl(t *testing.T) { // nolint:paralleltest
+func TestTaskColorCtrl(t *testing.T) { //nolint:paralleltest
 	val1 := make(map[string]int64)
 	val1["red"] = 255
 	val1["green"] = 55

@@ -10,7 +10,7 @@ import (
 	"github.com/futurehomeno/cliffhanger/test/suite"
 )
 
-func Test_Router(t *testing.T) {
+func Test_Router(t *testing.T) { //nolint:paralleltest
 	panicRouting := router.NewRouting(router.NewMessageHandler(
 		router.MessageProcessorFn(
 			func(message *fimpgo.Message) (reply *fimpgo.FimpMessage, err error) {
