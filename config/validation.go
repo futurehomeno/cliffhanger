@@ -27,10 +27,8 @@ func Within[T comparable](values []T, optional bool) func(T) error {
 			return nil
 		}
 
-		for _, v := range values {
-			if v == val {
-				return nil
-			}
+		if Contains(val, values) {
+			return nil
 		}
 
 		allowed := make([]string, len(values))
@@ -55,4 +53,37 @@ func Between[T ~int | ~int8 | ~int16 | ~int32 | ~int64 | ~uint | ~uint8 | ~uint1
 
 		return nil
 	}
+}
+
+// Lesser is a setting validator comparing a setting value against a maximum allowed value.
+func Lesser[T ~int | ~int8 | ~int16 | ~int32 | ~int64 | ~uint | ~uint8 | ~uint16 | ~uint32 | ~uint64 | ~float32 | ~float64](than T) func(T) error {
+	return func(val T) error {
+		if val >= than {
+			return fmt.Errorf("config: provided value %v must be lesser than than the maximum allowed value: %v", val, than)
+		}
+
+		return nil
+	}
+}
+
+// Greater is a setting validator comparing a setting value against a minimum allowed value.
+func Greater[T ~int | ~int8 | ~int16 | ~int32 | ~int64 | ~uint | ~uint8 | ~uint16 | ~uint32 | ~uint64 | ~float32 | ~float64](than T) func(T) error {
+	return func(val T) error {
+		if val <= than {
+			return fmt.Errorf("config: provided value %v must be greater than the minimum allowed value: %v", val, than)
+		}
+
+		return nil
+	}
+}
+
+// Contains is a helper that checks if a value is present in a slice.
+func Contains[T comparable](needle T, haystack []T) bool {
+	for _, h := range haystack {
+		if h == needle {
+			return true
+		}
+	}
+
+	return false
 }

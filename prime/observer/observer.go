@@ -89,7 +89,7 @@ func (o *observer) isComponentObserved(component string) bool {
 	return ok
 }
 
-// nolint:dupl
+//nolint:dupl
 func (o *observer) updateDevice(notification *prime.Notify) error {
 	switch notification.Cmd {
 	case prime.CmdAdd:
@@ -123,7 +123,7 @@ func (o *observer) updateDevice(notification *prime.Notify) error {
 	return nil
 }
 
-// nolint:dupl
+//nolint:dupl
 func (o *observer) updateThing(notification *prime.Notify) error {
 	switch notification.Cmd {
 	case prime.CmdAdd:
@@ -157,7 +157,7 @@ func (o *observer) updateThing(notification *prime.Notify) error {
 	return nil
 }
 
-// nolint:dupl
+//nolint:dupl
 func (o *observer) updateRoom(notification *prime.Notify) error {
 	switch notification.Cmd {
 	case prime.CmdAdd:
@@ -191,7 +191,7 @@ func (o *observer) updateRoom(notification *prime.Notify) error {
 	return nil
 }
 
-// nolint:dupl
+//nolint:dupl
 func (o *observer) updateArea(notification *prime.Notify) error {
 	switch notification.Cmd {
 	case prime.CmdAdd:

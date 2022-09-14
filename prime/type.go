@@ -583,6 +583,10 @@ func (d *StateDevice) GetAttributeBoolMapValue(serviceName, attributeName string
 }
 
 func (d *StateDevice) GetAttributeObjectValue(serviceName, attributeName string, properties map[string]string, object interface{}) time.Time {
+	if d == nil {
+		return time.Time{}
+	}
+
 	value := d.FindAttributeValue(serviceName, attributeName, properties)
 	if value == nil {
 		return time.Time{}
@@ -602,6 +606,10 @@ func (d *StateDevice) GetAttributeObjectValue(serviceName, attributeName string,
 }
 
 func (d *StateDevice) FindAttributeValue(serviceName, attributeName string, properties map[string]string) *StateAttributeValue {
+	if d == nil {
+		return nil
+	}
+
 	service := d.FindService(serviceName)
 	if service == nil {
 		return nil
@@ -616,6 +624,10 @@ func (d *StateDevice) FindAttributeValue(serviceName, attributeName string, prop
 }
 
 func (d *StateDevice) FindService(name string) *StateService {
+	if d == nil {
+		return nil
+	}
+
 	for _, s := range d.Services {
 		if s.Name == name {
 			return s
@@ -632,6 +644,10 @@ type StateService struct {
 }
 
 func (s *StateService) FindAttribute(name string) *StateAttribute {
+	if s == nil {
+		return nil
+	}
+
 	segments := strings.Split(name, ".")
 	if len(segments) == 3 {
 		name = segments[1]
@@ -652,7 +668,7 @@ type StateAttribute struct {
 }
 
 func (a *StateAttribute) FindValue(properties map[string]string) *StateAttributeValue {
-	if len(a.Values) == 0 {
+	if a == nil || len(a.Values) == 0 {
 		return nil
 	}
 
@@ -745,6 +761,10 @@ func (v *StateAttributeValue) GetBoolMapValue() (map[string]bool, error) {
 }
 
 func (v *StateAttributeValue) GetObjectValue(object interface{}) error {
+	if v == nil {
+		return nil
+	}
+
 	b, err := json.Marshal(v.Value)
 	if err != nil {
 		return fmt.Errorf("state: failed to marshal value: %w", err)
@@ -759,6 +779,10 @@ func (v *StateAttributeValue) GetObjectValue(object interface{}) error {
 }
 
 func (v *StateAttributeValue) GetTime() (time.Time, error) {
+	if v == nil {
+		return time.Time{}, nil
+	}
+
 	t, err := time.Parse("2006-01-02 15:04:05 -0700", v.Timestamp)
 	if err != nil {
 		return time.Time{}, fmt.Errorf("state: failed to parse timestamp: %w", err)
@@ -778,5 +802,9 @@ func (v *StateAttributeValue) HasProperties(properties map[string]string) bool {
 }
 
 func (v *StateAttributeValue) HasProperty(property, value string) bool {
+	if v == nil {
+		return false
+	}
+
 	return v.Props[property] == value
 }

@@ -416,6 +416,15 @@ func TestStateDevice_GetAttributeValue(t *testing.T) {
 			wantTime:  time.Time{},
 		},
 		{
+			name:   "get attribute string value - nil device",
+			device: nil,
+			call: func(d *prime.StateDevice) (interface{}, time.Time) {
+				return d.GetAttributeStringValue("test_service", "test_attribute", nil)
+			},
+			wantValue: "",
+			wantTime:  time.Time{},
+		},
+		{
 			name:   "get attribute int value",
 			device: makeDevice("test_service", "test_attribute", int64(1), "2022-08-15 12:15:30 +0100"),
 			call: func(d *prime.StateDevice) (interface{}, time.Time) {
@@ -613,6 +622,14 @@ func TestStateDevice_FindAttributeValue(t *testing.T) {
 			properties:    map[string]string{"unit": "kWh"},
 			want:          nil,
 		},
+		{
+			name:          "nil device",
+			device:        nil,
+			serviceName:   "meter_elec",
+			attributeName: "meter",
+			properties:    map[string]string{"unit": "kWh"},
+			want:          nil,
+		},
 	}
 
 	for _, tc := range tt {
@@ -650,6 +667,12 @@ func TestStateDevice_FindService(t *testing.T) {
 		{
 			name:        "missing service",
 			service:     &prime.StateDevice{},
+			serviceName: "meter_elec",
+			want:        nil,
+		},
+		{
+			name:        "nil device",
+			service:     nil,
 			serviceName: "meter_elec",
 			want:        nil,
 		},
@@ -700,6 +723,12 @@ func TestStateService_FindAttribute(t *testing.T) {
 		{
 			name:          "missing attribute",
 			service:       &prime.StateService{},
+			attributeName: "meter",
+			want:          nil,
+		},
+		{
+			name:          "nil service",
+			service:       nil,
 			attributeName: "meter",
 			want:          nil,
 		},
@@ -796,6 +825,13 @@ func TestStateAttributeValue_Get(t *testing.T) {
 			call:      func(a *prime.StateAttributeValue) (interface{}, error) { return a.GetStringValue() },
 			want:      "",
 			wantErr:   true,
+		},
+		{
+			name:      "get string value - nil value",
+			attribute: nil,
+			call:      func(a *prime.StateAttributeValue) (interface{}, error) { return a.GetStringValue() },
+			want:      "",
+			wantErr:   false,
 		},
 		{
 			name:      "get int value",
@@ -961,6 +997,41 @@ func TestStateAttributeValue_Get(t *testing.T) {
 			call:      func(a *prime.StateAttributeValue) (interface{}, error) { return a.GetTime() },
 			want:      time.Time{},
 			wantErr:   true,
+		},
+		{
+			name:      "get time - nil value",
+			attribute: nil,
+			call:      func(a *prime.StateAttributeValue) (interface{}, error) { return a.GetTime() },
+			want:      time.Time{},
+			wantErr:   false,
+		},
+
+		{
+			name:      "has property - true",
+			attribute: &prime.StateAttributeValue{Props: map[string]string{"a": "1", "b": "2"}},
+			call: func(a *prime.StateAttributeValue) (interface{}, error) {
+				return a.HasProperties(map[string]string{"a": "1", "b": "2"}), nil
+			},
+			want:    true,
+			wantErr: false,
+		},
+		{
+			name:      "has property - false",
+			attribute: &prime.StateAttributeValue{Props: map[string]string{"a": "1", "b": "2"}},
+			call: func(a *prime.StateAttributeValue) (interface{}, error) {
+				return a.HasProperties(map[string]string{"a": "3", "b": "4"}), nil
+			},
+			want:    false,
+			wantErr: false,
+		},
+		{
+			name:      "has property - nil value",
+			attribute: nil,
+			call: func(a *prime.StateAttributeValue) (interface{}, error) {
+				return a.HasProperties(map[string]string{"a": "3", "b": "4"}), nil
+			},
+			want:    false,
+			wantErr: false,
 		},
 	}
 

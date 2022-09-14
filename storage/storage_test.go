@@ -2,7 +2,6 @@ package storage_test
 
 import (
 	"encoding/json"
-	"io/ioutil"
 	"os"
 	"path"
 	"testing"
@@ -121,7 +120,7 @@ func TestStorage_Save(t *testing.T) { //nolint:paralleltest
 	marshalledCfg, err := json.MarshalIndent(cfg, "", "\t")
 	assert.NoError(t, err)
 
-	cfgFile, err := ioutil.ReadFile(path.Join(p, "data", config.Name))
+	cfgFile, err := os.ReadFile(path.Join(p, "data", config.Name))
 	assert.NoError(t, err)
 
 	// model.json properly persisted on disk
@@ -147,13 +146,13 @@ func TestStorage_Save(t *testing.T) { //nolint:paralleltest
 	marshalledNewCfg, err := json.MarshalIndent(newCfg, "", "\t")
 	assert.NoError(t, err)
 
-	cfgFile, err = ioutil.ReadFile(path.Join(p, "data", config.Name))
+	cfgFile, err = os.ReadFile(path.Join(p, "data", config.Name))
 	assert.NoError(t, err)
 
 	// model.json properly persisted on disk
 	assert.Equal(t, marshalledNewCfg, cfgFile)
 
-	backupCfgFile, err := ioutil.ReadFile(path.Join(p, "data", config.Name+".bak"))
+	backupCfgFile, err := os.ReadFile(path.Join(p, "data", config.Name+".bak"))
 	assert.NoError(t, err)
 
 	// backup should store the previous version of model.
@@ -166,11 +165,11 @@ func TestStorage_Save(t *testing.T) { //nolint:paralleltest
 func TestStorage_Reset(t *testing.T) { //nolint:paralleltest
 	p := "../testdata/storage/reset/"
 
-	source, err := ioutil.ReadFile(path.Join(p, "data", config.Name+".bak"))
+	source, err := os.ReadFile(path.Join(p, "data", config.Name+".bak"))
 	assert.NoError(t, err)
 
 	//nolint:gosec
-	err = ioutil.WriteFile(path.Join(p, "data", config.Name), source, 0664) //nolint:gofumpt
+	err = os.WriteFile(path.Join(p, "data", config.Name), source, 0664) //nolint:gofumpt
 	assert.NoError(t, err)
 
 	store := storage.New(&testConfig{}, p, config.Name)

@@ -89,6 +89,15 @@ func (r *router) routeMessages(messageCh fimpgo.MessageCh) {
 
 // processMessage executes handlers responsible for processing the incoming message and send response if applicable.
 func (r *router) processMessage(message *fimpgo.Message) {
+	defer func() {
+		if r := recover(); r != nil {
+			log.WithField("topic", message.Addr.Serialize()).
+				WithField("service", message.Payload.Service).
+				WithField("type", message.Payload.Type).
+				Errorf("message router: panic occurred while processing message: %+v", r)
+		}
+	}()
+
 	for _, routing := range r.routing {
 		if !routing.vote(message) {
 			continue

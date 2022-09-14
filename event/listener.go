@@ -3,6 +3,8 @@ package event
 import (
 	"fmt"
 	"sync"
+
+	log "github.com/sirupsen/logrus"
 )
 
 type Processor interface {
@@ -70,12 +72,23 @@ func (l *listener) process() {
 	for {
 		select {
 		case event := <-l.eventCh:
-			l.processor.Process(event)
+			l.doProcess(event)
 
 		case <-l.closeCh:
 			return
 		}
 	}
+}
+
+// doProcess executes the event processor with a panic recovery.
+func (l *listener) doProcess(event *Event) {
+	defer func() {
+		if r := recover(); r != nil {
+			log.Errorf("task manager: panic occurred while running a task: %+v", r)
+		}
+	}()
+
+	l.processor.Process(event)
 }
 
 func (l *listener) Stop() error {

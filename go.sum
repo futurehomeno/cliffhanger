@@ -10,6 +10,10 @@ github.com/eclipse/paho.mqtt.golang v1.2.0 h1:1F8mhG9+aO5/xpdtFkW4SxOJB67ukuDC3t
 github.com/eclipse/paho.mqtt.golang v1.2.0/go.mod h1:H9keYFcgq3Qr5OUJm/JZI/i6U7joQ8SYLhZwfeOo6Ts=
 github.com/futurehomeno/fimpgo v1.10.0 h1:n3LQIrEEQwyNI5m75ZwdwVO4AIvokV2mH89HIgF6Fcw=
 github.com/futurehomeno/fimpgo v1.10.0/go.mod h1:Nwtf0Pu7I8kMH6PUKNJ4KgSl104Sbjn6kJ1m44+q5TA=
+github.com/futurehomeno/fimpgo v1.11.2-0.20220906094431-0fa98654e347 h1:3/Cetc72JfacmdD/w+PMmOdTfBnPVgrcUMUOrd5on9Y=
+github.com/futurehomeno/fimpgo v1.11.2-0.20220906094431-0fa98654e347/go.mod h1:Nwtf0Pu7I8kMH6PUKNJ4KgSl104Sbjn6kJ1m44+q5TA=
+github.com/futurehomeno/fimpgo v1.11.2 h1:73VR57Z/sJFwm4F1ysplvPRroSdJG2nD5JB0jX8xUs4=
+github.com/futurehomeno/fimpgo v1.11.2/go.mod h1:Nwtf0Pu7I8kMH6PUKNJ4KgSl104Sbjn6kJ1m44+q5TA=
 github.com/google/go-cmp v0.5.7 h1:81/ik6ipDQS2aGcBfIN5dHDB36BwrStyeAQquSYCV4o=
 github.com/google/go-cmp v0.5.7/go.mod h1:n+brtR0CgQNWTVd5ZUFpTBC8YFBDLK/h/bpaJ8/DtOE=
 github.com/google/uuid v1.1.1 h1:Gkbcsh/GbpXz7lPftLA3P6TYMwjCLYm83jiFQZF/3gY=
