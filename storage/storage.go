@@ -3,7 +3,6 @@ package storage
 import (
 	"encoding/json"
 	"fmt"
-	"io/ioutil"
 	"os"
 	"path"
 	"path/filepath"
@@ -92,7 +91,7 @@ func (s *storage) Load() error {
 	return s.load(defaultsExists, dataExists)
 }
 
-// load loads the configuration files in the right order and performs fallback if allowed.
+// load performs loading of the configuration files in the right order and performs fallback if allowed.
 func (s *storage) load(defaultsExists, dataExists bool) error {
 	// Always try to load default configuration first.
 	if defaultsExists {
@@ -119,7 +118,7 @@ func (s *storage) load(defaultsExists, dataExists bool) error {
 	return nil
 }
 
-// load loads the configuration files and performs fallback to a last backup if possible.
+// loadData loads the configuration files and performs fallback to a last backup if possible.
 func (s *storage) loadData() error {
 	err := s.loadFile(s.dataPath)
 	if err == nil {
@@ -166,7 +165,7 @@ func (s *storage) Save() error {
 	}
 
 	//nolint:gosec
-	err = ioutil.WriteFile(s.dataPath, body, 0664) //nolint:gofumpt
+	err = os.WriteFile(s.dataPath, body, 0664) //nolint:gofumpt
 	if err != nil {
 		return fmt.Errorf("storage: cannot save a configuration file at path %s: %w", s.dataPath, err)
 	}
@@ -185,13 +184,13 @@ func (s *storage) makeBackup() error {
 		return nil
 	}
 
-	body, err := ioutil.ReadFile(s.dataPath)
+	body, err := os.ReadFile(s.dataPath)
 	if err != nil {
 		return err
 	}
 
 	//nolint:gosec
-	err = ioutil.WriteFile(s.backupPath, body, 0664) //nolint:gofumpt
+	err = os.WriteFile(s.backupPath, body, 0664) //nolint:gofumpt
 	if err != nil {
 		return err
 	}
@@ -247,7 +246,7 @@ func (s *storage) fileExists(path string) (bool, error) {
 
 // loadFile loads a provided file and unmarshalls it using the configured model.
 func (s *storage) loadFile(path string) error {
-	body, err := ioutil.ReadFile(path)
+	body, err := os.ReadFile(path)
 	if err != nil {
 		return fmt.Errorf("storage: cannot load a configuration file from path %s: %w", path, err)
 	}

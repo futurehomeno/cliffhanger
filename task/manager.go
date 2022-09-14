@@ -4,6 +4,8 @@ import (
 	"errors"
 	"sync"
 	"time"
+
+	log "github.com/sirupsen/logrus"
 )
 
 // Manager is an interface representing a tasks manager service.
@@ -76,7 +78,7 @@ func (r *manager) Stop() error {
 
 // runOnce runs the task once if it's running interval is set to 0.
 func (r *manager) runOnce(task *Task) {
-	task.run()
+	r.run(task)
 	r.wg.Done()
 }
 
@@ -85,12 +87,12 @@ func (r *manager) runContinuously(task *Task) {
 	ticker := time.NewTicker(task.duration)
 	defer ticker.Stop()
 
-	task.run()
+	r.run(task)
 
 	for {
 		select {
 		case <-ticker.C:
-			task.run()
+			r.run(task)
 
 		case <-r.stopCh:
 			r.wg.Done()
@@ -98,4 +100,15 @@ func (r *manager) runContinuously(task *Task) {
 			return
 		}
 	}
+}
+
+// run executes the task with a panic recovery.
+func (r *manager) run(task *Task) {
+	defer func() {
+		if r := recover(); r != nil {
+			log.Errorf("task manager: panic occurred while running a task: %+v", r)
+		}
+	}()
+
+	task.run()
 }

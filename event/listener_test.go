@@ -54,3 +54,45 @@ func TestListener(t *testing.T) {
 	err = listener.Stop()
 	assert.Error(t, err)
 }
+
+func TestListener_Process(t *testing.T) {
+	t.Parallel()
+
+	finishCh := make(chan struct{})
+
+	processor := event.ProcessorFn(func(e *event.Event) {
+		assert.Equal(t, e.Domain, "test")
+
+		if e.Payload == "test1" {
+			panic("test panic")
+		} else {
+			close(finishCh)
+		}
+	})
+
+	manager := event.NewManager()
+
+	listener := event.NewListener(
+		processor,
+		manager,
+		"test_sub_id",
+		10,
+		event.WaitForDomain("test"),
+	)
+
+	err := listener.Start()
+	assert.NoError(t, err)
+
+	manager.Publish(event.New("test", "test1"))
+	manager.Publish(event.New("test", "test2"))
+
+	select {
+	case <-finishCh:
+		break
+	case <-time.After(1 * time.Second):
+		assert.Fail(t, "timeout")
+	}
+
+	err = listener.Stop()
+	assert.NoError(t, err)
+}
