@@ -52,6 +52,26 @@ func NewCanonical(model interface{}, workDir, defaultsDir, name string) Storage 
 	}
 }
 
+func NewState(model interface{}, workDir, name string) Storage {
+	return &storage{
+		lock:         &sync.Mutex{},
+		dataPath:     filepath.Join(workDir, dataDirectory, name),
+		backupPath:   filepath.Join(workDir, dataDirectory, name) + backupExtension,
+		defaultsPath: "",
+		model:        model,
+	}
+}
+
+func NewCanonicalState(model interface{}, workDir, name string) Storage {
+	return &storage{
+		lock:         &sync.Mutex{},
+		dataPath:     filepath.Join(workDir, name),
+		backupPath:   filepath.Join(workDir, name) + backupExtension,
+		defaultsPath: "",
+		model:        model,
+	}
+}
+
 // storage is an implementation of the storage service.
 type storage struct {
 	lock         *sync.Mutex
@@ -76,12 +96,15 @@ func (s *storage) Load() error {
 		return err
 	}
 
-	defaultsExists, err := s.fileExists(s.defaultsPath)
-	if err != nil {
-		return err
+	var defaultsExists bool
+	if s.defaultsPath != "" {
+		defaultsExists, err = s.fileExists(s.defaultsPath)
+		if err != nil {
+			return err
+		}
 	}
 
-	if !dataExists && !defaultsExists {
+	if !dataExists && !defaultsExists && s.defaultsPath != "" {
 		return fmt.Errorf(
 			"storage: no configuration files were found at paths: %s, %s",
 			s.dataPath, s.defaultsPath,
@@ -93,6 +116,10 @@ func (s *storage) Load() error {
 
 // load performs loading of the configuration files in the right order and performs fallback if allowed.
 func (s *storage) load(defaultsExists, dataExists bool) error {
+	if !dataExists && !defaultsExists && s.defaultsPath == "" {
+		return nil
+	}
+
 	// Always try to load default configuration first.
 	if defaultsExists {
 		err := s.loadFile(s.defaultsPath)
@@ -208,7 +235,7 @@ func (s *storage) Reset() error {
 		return err
 	}
 
-	if !defaultsExists {
+	if !defaultsExists && s.defaultsPath != "" {
 		return fmt.Errorf("storage: cannot reset as the default configuration file at path %s is not found", s.defaultsPath)
 	}
 
@@ -227,6 +254,10 @@ func (s *storage) Reset() error {
 		if err != nil {
 			return fmt.Errorf("storage: failed to remove the configuration file at path %s: %w", s.dataPath, err)
 		}
+	}
+
+	if s.defaultsPath == "" {
+		return nil
 	}
 
 	return s.load(true, false)
