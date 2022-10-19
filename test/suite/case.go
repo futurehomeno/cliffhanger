@@ -28,14 +28,15 @@ func NewCase(name string) *Case {
 }
 
 type Case struct {
-	Name     string
-	Routing  []*router.Routing
-	Tasks    []*task.Task
-	Service  Service
-	Mocks    []Mock
-	Setup    Setup
-	TearDown []Callback
-	Nodes    []*Node
+	Name            string
+	Routing         []*router.Routing
+	Tasks           []*task.Task
+	Service         Service
+	ServiceCallback Callback
+	Mocks           []Mock
+	Setup           Setup
+	TearDown        []Callback
+	Nodes           []*Node
 }
 
 func (c *Case) WithName(name string) *Case {
@@ -180,6 +181,10 @@ func (c *Case) initService() {
 		err := c.Service.Start()
 		if err != nil {
 			t.Fatalf("failed to start the service for the test case: %s", err)
+		}
+
+		if c.ServiceCallback != nil {
+			c.ServiceCallback(t)
 		}
 	}
 
