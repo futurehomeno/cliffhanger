@@ -196,6 +196,7 @@ func (c *Case) initService() {
 // injectCallbacks is responsible for queuing callbacks for execution at the correct stage of the test case.
 // All initialization callbacks must execute only after a first node has already set up its expectations to avoid a race condition.
 // For this reason all initialization callbacks are injected into the first node which is responsible for running them at a correct moment.
+// The callbacks are prepended to allow the first node to make assumptions against the environment (e.g. ensuring if the Service is already running).
 func (c *Case) injectCallbacks(initCallback Callback, tearDownCallback Callback) {
 	firstNode := c.Nodes[0]
 
