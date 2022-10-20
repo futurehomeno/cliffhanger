@@ -28,15 +28,14 @@ func NewCase(name string) *Case {
 }
 
 type Case struct {
-	Name            string
-	Routing         []*router.Routing
-	Tasks           []*task.Task
-	Service         Service
-	ServiceCallback Callback
-	Mocks           []Mock
-	Setup           Setup
-	TearDown        []Callback
-	Nodes           []*Node
+	Name     string
+	Routing  []*router.Routing
+	Tasks    []*task.Task
+	Service  Service
+	Mocks    []Mock
+	Setup    Setup
+	TearDown []Callback
+	Nodes    []*Node
 }
 
 func (c *Case) WithName(name string) *Case {
@@ -119,9 +118,9 @@ func (c *Case) init(t *testing.T, mqtt *fimpgo.MqttTransport) {
 		return
 	}
 
-	c.initRouting(mqtt)
-	c.initTasks()
 	c.initService()
+	c.initTasks()
+	c.initRouting(mqtt)
 }
 
 func (c *Case) initRouting(mqtt *fimpgo.MqttTransport) {
@@ -182,10 +181,6 @@ func (c *Case) initService() {
 		if err != nil {
 			t.Fatalf("failed to start the service for the test case: %s", err)
 		}
-
-		if c.ServiceCallback != nil {
-			c.ServiceCallback(t)
-		}
 	}
 
 	tearDownCallback := func(t *testing.T) {
@@ -202,12 +197,11 @@ func (c *Case) initService() {
 // All initialization callbacks must execute only after a first node has already set up its expectations to avoid a race condition.
 // For this reason all initialization callbacks are injected into the first node which is responsible for running them at a correct moment.
 func (c *Case) injectCallbacks(initCallback Callback, tearDownCallback Callback) {
-
 	firstNode := c.Nodes[0]
 
-	firstNode.InitCallbacks = append(c.Nodes[0].InitCallbacks, initCallback)
+	firstNode.InitCallbacks = append([]Callback{initCallback}, c.Nodes[0].InitCallbacks...)
 
-	c.TearDown = append(c.TearDown, tearDownCallback)
+	c.TearDown = append([]Callback{tearDownCallback}, c.TearDown...)
 }
 
 func (c *Case) tearDown(t *testing.T) {
