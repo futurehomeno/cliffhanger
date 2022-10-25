@@ -1,6 +1,7 @@
 package chargepoint
 
 import (
+	"errors"
 	"fmt"
 	"strings"
 	"sync"
@@ -43,10 +44,38 @@ type Controller interface {
 	// ChargepointCurrentSessionReport returns cumulative energy charged during the current session.
 	ChargepointCurrentSessionReport() (float64, error)
 	// ChargepointStateReport returns a current state of the chargepoint.
-	ChargepointStateReport() (string, error)
+	ChargepointStateReport() (StateReport, error)
 }
 
-// Service is an interface representing a waterHeater FIMP service.
+// StateReport represents a state report of the Controller.
+type StateReport struct {
+	// ChargerState is a charger state. This field is mandatory.
+	ChargerState string
+	// ChargingMode is a charging mode. Mandatory if a charger supports charging modes and a charging session is active.
+	ChargingMode string
+}
+
+func (r StateReport) validate(supportedChargingModes []string) error {
+	if r.ChargerState == "" {
+		return errors.New("charger state cannot be empty")
+	}
+
+	if len(supportedChargingModes) == 0 {
+		return nil
+	}
+
+	if r.ChargerState != StateCharging {
+		return nil
+	}
+
+	if r.ChargingMode == "" {
+		return errors.New("charging mode cannot be empty if charging session is running")
+	}
+
+	return nil
+}
+
+// Service is an interface representing a chargepoint FIMP service.
 type Service interface {
 	adapter.Service
 
@@ -241,30 +270,39 @@ func (s *service) SendStateReport(force bool) (bool, error) {
 	s.lock.Lock()
 	defer s.lock.Unlock()
 
-	value, err := s.controller.ChargepointStateReport()
+	report, err := s.controller.ChargepointStateReport()
 	if err != nil {
 		return false, fmt.Errorf("%s: failed to retrieve state report: %w", s.Name(), err)
 	}
 
-	if !force && !s.reportingCache.ReportRequired(s.stateReportingStrategy, EvtStateReport, "", value) {
+	if err := report.validate(s.SupportedChargingModes()); err != nil {
+		return false, fmt.Errorf("%s: state report returned by controller is invalid: %w", s.Name(), err)
+	}
+
+	if !force && !s.reportingCache.ReportRequired(s.stateReportingStrategy, EvtStateReport, "", report.ChargerState) {
 		return false, nil
 	}
 
 	message := fimpgo.NewStringMessage(
 		EvtStateReport,
 		s.Name(),
-		value,
+		report.ChargerState,
 		nil,
 		nil,
 		nil,
 	)
+
+	if report.ChargingMode != "" {
+		message.Properties = make(map[string]string)
+		message.Properties[PropertyChargingMode] = report.ChargingMode
+	}
 
 	err = s.SendMessage(message)
 	if err != nil {
 		return false, fmt.Errorf("%s: failed to send state report: %w", s.Name(), err)
 	}
 
-	s.reportingCache.Reported(EvtStateReport, "", value)
+	s.reportingCache.Reported(EvtStateReport, "", report.ChargerState)
 
 	return true, nil
 }
@@ -274,18 +312,18 @@ func (s *service) SupportedStates() []string {
 	return s.Service.Specification().PropertyStrings(PropertySupportedStates)
 }
 
+// SupportedChargingModes returns charging modes that are supported by the chargepoint.
+func (s *service) SupportedChargingModes() []string {
+	return s.Service.Specification().PropertyStrings(PropertySupportedChargingModes)
+}
+
 // normalizeChargingMode normalizes provided charging mode. Returns true, when everything is fine.
-// TODO: consider introducing mode capable controller (which will contain start function with mode,
-//
-//	where the classic one will not take any parameters) and allow service to decide, which one should be used.
-//
-//nolint:godox
 func (s *service) normalizeChargingMode(mode string) (string, error) {
 	if mode == "" {
 		return "", nil
 	}
 
-	supportedModes := s.Specification().PropertyStrings(PropertySupportedChargingModes)
+	supportedModes := s.SupportedChargingModes()
 	if len(supportedModes) == 0 {
 		return "", nil
 	}

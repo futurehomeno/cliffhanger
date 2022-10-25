@@ -34,7 +34,7 @@ func TestRouteCarCharger(t *testing.T) { //nolint:paralleltest
 				Setup: routeCarCharger(
 					mockedchargepoint.NewController(t).
 						MockStartChargepointCharging("", nil, false).
-						MockChargepointStateReport("charging", nil, false).
+						MockChargepointStateReport(chargepoint.StateReport{ChargerState: "charging"}, nil, false).
 						MockChargepointCurrentSessionReport(1.74, nil, false),
 					nil,
 					nil,
@@ -44,18 +44,20 @@ func TestRouteCarCharger(t *testing.T) { //nolint:paralleltest
 						Name:    "start charging",
 						Command: suite.NullMessage("pt:j1/mt:cmd/rt:dev/rn:test_adapter/ad:1/sv:chargepoint/ad:2", "cmd.charge.start", "chargepoint"),
 						Expectations: []*suite.Expectation{
-							suite.ExpectString("pt:j1/mt:evt/rt:dev/rn:test_adapter/ad:1/sv:chargepoint/ad:2", "evt.state.report", "chargepoint", "charging"),
+							suite.ExpectString("pt:j1/mt:evt/rt:dev/rn:test_adapter/ad:1/sv:chargepoint/ad:2", "evt.state.report", "chargepoint", "charging").
+								ExpectNoProperty(chargepoint.PropertyChargingMode),
 							suite.ExpectFloat("pt:j1/mt:evt/rt:dev/rn:test_adapter/ad:1/sv:chargepoint/ad:2", "evt.current_session.report", "chargepoint", 1.74),
 						},
 					},
 					{
-						Name: "start charging with mode unsupported by controller",
+						Name: "unsupported charging mode gets ignored when starting charging",
 						Command: suite.NewMessageBuilder().
 							NullMessage("pt:j1/mt:cmd/rt:dev/rn:test_adapter/ad:1/sv:chargepoint/ad:2", "cmd.charge.start", "chargepoint").
 							AddProperty(chargepoint.PropertyChargingMode, "slow").
 							Build(),
 						Expectations: []*suite.Expectation{
-							suite.ExpectString("pt:j1/mt:evt/rt:dev/rn:test_adapter/ad:1/sv:chargepoint/ad:2", "evt.state.report", "chargepoint", "charging"),
+							suite.ExpectString("pt:j1/mt:evt/rt:dev/rn:test_adapter/ad:1/sv:chargepoint/ad:2", "evt.state.report", "chargepoint", "charging").
+								ExpectNoProperty(chargepoint.PropertyChargingMode),
 							suite.ExpectFloat("pt:j1/mt:evt/rt:dev/rn:test_adapter/ad:1/sv:chargepoint/ad:2", "evt.current_session.report", "chargepoint", 1.74),
 						},
 					},
@@ -66,7 +68,7 @@ func TestRouteCarCharger(t *testing.T) { //nolint:paralleltest
 				Setup: routeCarCharger(
 					mockedchargepoint.NewController(t).
 						MockStartChargepointCharging("normal", nil, true).
-						MockChargepointStateReport("charging", nil, true).
+						MockChargepointStateReport(chargepoint.StateReport{ChargerState: "charging", ChargingMode: "normal"}, nil, true).
 						MockChargepointCurrentSessionReport(1.74, nil, true),
 					nil,
 					evChargerChargingTestModes,
@@ -79,7 +81,8 @@ func TestRouteCarCharger(t *testing.T) { //nolint:paralleltest
 							AddProperty(chargepoint.PropertyChargingMode, "Normal").
 							Build(),
 						Expectations: []*suite.Expectation{
-							suite.ExpectString("pt:j1/mt:evt/rt:dev/rn:test_adapter/ad:1/sv:chargepoint/ad:2", "evt.state.report", "chargepoint", "charging"),
+							suite.ExpectString("pt:j1/mt:evt/rt:dev/rn:test_adapter/ad:1/sv:chargepoint/ad:2", "evt.state.report", "chargepoint", "charging").
+								ExpectProperty(chargepoint.PropertyChargingMode, "normal"),
 							suite.ExpectFloat("pt:j1/mt:evt/rt:dev/rn:test_adapter/ad:1/sv:chargepoint/ad:2", "evt.current_session.report", "chargepoint", 1.74),
 						},
 					},
@@ -90,7 +93,7 @@ func TestRouteCarCharger(t *testing.T) { //nolint:paralleltest
 				Setup: routeCarCharger(
 					mockedchargepoint.NewController(t).
 						MockStopChargepointCharging(nil, true).
-						MockChargepointStateReport("ready_to_charge", nil, true).
+						MockChargepointStateReport(chargepoint.StateReport{ChargerState: "ready_to_charge"}, nil, true).
 						MockChargepointCurrentSessionReport(1.74, nil, true),
 					nil,
 					nil,
@@ -112,7 +115,7 @@ func TestRouteCarCharger(t *testing.T) { //nolint:paralleltest
 					mockedchargepoint.NewController(t).
 						MockSetChargepointCableLock(true, nil, true).
 						MockChargepointCableLockReport(true, nil, false).
-						MockChargepointStateReport("charging", nil, true).
+						MockChargepointStateReport(chargepoint.StateReport{ChargerState: "charging"}, nil, true).
 						MockChargepointCurrentSessionReport(1.74, nil, true),
 					mockedmeterelec.NewReporter(t).
 						MockElectricityMeterReport("W", 2, nil, false).
@@ -138,7 +141,8 @@ func TestRouteCarCharger(t *testing.T) { //nolint:paralleltest
 						Name:    "state report",
 						Command: suite.NullMessage("pt:j1/mt:cmd/rt:dev/rn:test_adapter/ad:1/sv:chargepoint/ad:2", "cmd.state.get_report", "chargepoint"),
 						Expectations: []*suite.Expectation{
-							suite.ExpectString("pt:j1/mt:evt/rt:dev/rn:test_adapter/ad:1/sv:chargepoint/ad:2", "evt.state.report", "chargepoint", "charging"),
+							suite.ExpectString("pt:j1/mt:evt/rt:dev/rn:test_adapter/ad:1/sv:chargepoint/ad:2", "evt.state.report", "chargepoint", "charging").
+								ExpectNoProperty(chargepoint.PropertyChargingMode),
 						},
 					},
 					{
@@ -187,6 +191,49 @@ func TestRouteCarCharger(t *testing.T) { //nolint:paralleltest
 				},
 			},
 			{
+				Name: "state report with charging modes",
+				Setup: routeCarCharger(
+					mockedchargepoint.NewController(t).
+						MockChargepointStateReport(chargepoint.StateReport{ChargerState: "charging", ChargingMode: "normal"}, nil, true).
+						MockChargepointStateReport(chargepoint.StateReport{ChargerState: "ready_to_charge"}, nil, true).
+						MockChargepointStateReport(chargepoint.StateReport{ChargerState: ""}, nil, true).         // error expected
+						MockChargepointStateReport(chargepoint.StateReport{ChargerState: "charging"}, nil, true), // error expected
+					nil,
+					evChargerChargingTestModes,
+				),
+				Nodes: []*suite.Node{
+					{
+						Name:    "state report contains charging mode if a charging session is active",
+						Command: suite.NullMessage("pt:j1/mt:cmd/rt:dev/rn:test_adapter/ad:1/sv:chargepoint/ad:2", "cmd.state.get_report", "chargepoint"),
+						Expectations: []*suite.Expectation{
+							suite.ExpectString("pt:j1/mt:evt/rt:dev/rn:test_adapter/ad:1/sv:chargepoint/ad:2", "evt.state.report", "chargepoint", "charging").
+								ExpectProperty(chargepoint.PropertyChargingMode, "normal"),
+						},
+					},
+					{
+						Name:    "if there's no active charging session, charging mode is not returned in the state report",
+						Command: suite.NullMessage("pt:j1/mt:cmd/rt:dev/rn:test_adapter/ad:1/sv:chargepoint/ad:2", "cmd.state.get_report", "chargepoint"),
+						Expectations: []*suite.Expectation{
+							suite.ExpectString("pt:j1/mt:evt/rt:dev/rn:test_adapter/ad:1/sv:chargepoint/ad:2", "evt.state.report", "chargepoint", "ready_to_charge"),
+						},
+					},
+					{
+						Name:    "if controller returns empty state, an error message is produced",
+						Command: suite.NullMessage("pt:j1/mt:cmd/rt:dev/rn:test_adapter/ad:1/sv:chargepoint/ad:2", "cmd.state.get_report", "chargepoint"),
+						Expectations: []*suite.Expectation{
+							suite.ExpectError("pt:j1/mt:evt/rt:dev/rn:test_adapter/ad:1/sv:chargepoint/ad:2", "chargepoint"),
+						},
+					},
+					{
+						Name:    "if a charging session is running and charging mode is unknown, an error message is produced",
+						Command: suite.NullMessage("pt:j1/mt:cmd/rt:dev/rn:test_adapter/ad:1/sv:chargepoint/ad:2", "cmd.state.get_report", "chargepoint"),
+						Expectations: []*suite.Expectation{
+							suite.ExpectError("pt:j1/mt:evt/rt:dev/rn:test_adapter/ad:1/sv:chargepoint/ad:2", "chargepoint"),
+						},
+					},
+				},
+			},
+			{
 				Name: "failed start charging routing - starting error",
 				Setup: routeCarCharger(
 					mockedchargepoint.NewController(t).
@@ -209,7 +256,7 @@ func TestRouteCarCharger(t *testing.T) { //nolint:paralleltest
 				Setup: routeCarCharger(
 					mockedchargepoint.NewController(t).
 						MockStartChargepointCharging("", nil, true).
-						MockChargepointStateReport("", errTest, true),
+						MockChargepointStateReport(chargepoint.StateReport{}, errTest, true),
 					nil,
 					nil,
 				),
@@ -228,7 +275,7 @@ func TestRouteCarCharger(t *testing.T) { //nolint:paralleltest
 				Setup: routeCarCharger(
 					mockedchargepoint.NewController(t).
 						MockStartChargepointCharging("", nil, true).
-						MockChargepointStateReport("ready_to_charge", nil, true).
+						MockChargepointStateReport(chargepoint.StateReport{ChargerState: "ready_to_charge"}, nil, true).
 						MockChargepointCurrentSessionReport(0, errTest, true),
 					nil,
 					nil,
@@ -286,7 +333,7 @@ func TestRouteCarCharger(t *testing.T) { //nolint:paralleltest
 				Setup: routeCarCharger(
 					mockedchargepoint.NewController(t).
 						MockStopChargepointCharging(nil, true).
-						MockChargepointStateReport("", errTest, true),
+						MockChargepointStateReport(chargepoint.StateReport{}, errTest, true),
 					nil,
 					nil,
 				),
@@ -305,7 +352,7 @@ func TestRouteCarCharger(t *testing.T) { //nolint:paralleltest
 				Setup: routeCarCharger(
 					mockedchargepoint.NewController(t).
 						MockStopChargepointCharging(nil, true).
-						MockChargepointStateReport("ready_to_charge", nil, true).
+						MockChargepointStateReport(chargepoint.StateReport{ChargerState: "ready_to_charge"}, nil, true).
 						MockChargepointCurrentSessionReport(0, errTest, true),
 					nil,
 					nil,
@@ -362,7 +409,7 @@ func TestRouteCarCharger(t *testing.T) { //nolint:paralleltest
 				Setup: routeCarCharger(
 					mockedchargepoint.NewController(t).
 						MockChargepointCableLockReport(false, errTest, false).
-						MockChargepointStateReport("", errTest, true).
+						MockChargepointStateReport(chargepoint.StateReport{}, errTest, true).
 						MockChargepointCurrentSessionReport(0, errTest, true),
 					mockedmeterelec.NewReporter(t).
 						MockElectricityMeterReport("W", 0, errTest, false).
@@ -491,10 +538,10 @@ func TestTaskCarCharger(t *testing.T) { //nolint:paralleltest
 						MockChargepointCurrentSessionReport(0, errTest, true).
 						MockChargepointCurrentSessionReport(1.23, nil, true).
 						MockChargepointCurrentSessionReport(4.56, nil, true). // should be sent twice
-						MockChargepointStateReport("ready_to_charge", nil, true).
-						MockChargepointStateReport("", errTest, true).
-						MockChargepointStateReport("ready_to_charge", nil, true).
-						MockChargepointStateReport("charging", nil, true), // should be sent twice
+						MockChargepointStateReport(chargepoint.StateReport{ChargerState: "ready_to_charge"}, nil, true).
+						MockChargepointStateReport(chargepoint.StateReport{}, errTest, true).
+						MockChargepointStateReport(chargepoint.StateReport{ChargerState: "ready_to_charge"}, nil, true).
+						MockChargepointStateReport(chargepoint.StateReport{ChargerState: "charging"}, nil, true), // should be sent twice
 					mockedmeterelec.NewReporter(t).
 						MockElectricityMeterReport("W", 2, nil, true).
 						MockElectricityMeterReport("W", 0, errors.New("test"), true).

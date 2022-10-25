@@ -360,6 +360,16 @@ func (e *Expectation) ExpectProperty(propertyName string, propertyValue interfac
 	return e
 }
 
+func (e *Expectation) ExpectNoProperty(propertyName string) *Expectation {
+	e.Voters = append(e.Voters, router.MessageVoterFn(func(message *fimpgo.Message) bool {
+		_, ok := message.Payload.Properties[propertyName]
+
+		return !ok
+	}))
+
+	return e
+}
+
 func (e *Expectation) ReplyWith(reply *fimpgo.FimpMessage) *Expectation {
 	e.Reply = reply
 
