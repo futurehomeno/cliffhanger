@@ -12,7 +12,7 @@ import (
 	"github.com/futurehomeno/cliffhanger/test/suite"
 )
 
-func TestTimeline(t *testing.T) {
+func TestTimeline(t *testing.T) { //nolint:paralleltest
 	var service notification.Timeline
 
 	s := &suite.Suite{
@@ -20,6 +20,8 @@ func TestTimeline(t *testing.T) {
 			{
 				Name: "Timeline",
 				Setup: suite.BaseSetup(func(t *testing.T, mqtt *fimpgo.MqttTransport) (routing []*router.Routing, tasks []*task.Task, mocks []suite.Mock) {
+					t.Helper()
+
 					service = notification.NewTimeline(mqtt)
 
 					return nil, nil, nil
@@ -29,6 +31,8 @@ func TestTimeline(t *testing.T) {
 						Name: "Event",
 						Callbacks: []suite.Callback{
 							func(t *testing.T) {
+								t.Helper()
+
 								err := service.Event(&notification.TimelineEvent{
 									EventName: "test_event_name",
 								})
@@ -51,6 +55,8 @@ func TestTimeline(t *testing.T) {
 						Name: "Message",
 						Callbacks: []suite.Callback{
 							func(t *testing.T) {
+								t.Helper()
+
 								err := service.Message(&notification.TimelineMessage{
 									Sender:    "test_sender",
 									MessageEN: "test_message_en",
