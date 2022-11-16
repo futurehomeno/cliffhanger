@@ -20,16 +20,13 @@ issues:
 linters:
   enable:
     # Enabled by default
-    - deadcode
     - errcheck
     - gosimple
     - govet
     - ineffassign
     - staticcheck
-    - structcheck
     - typecheck
     - unused
-    - varcheck
     # Enabled specifically
     - wsl
     - lll
@@ -60,7 +57,6 @@ linters:
     - gomoddirectives
     - gomodguard
     - goprintffuncname
-    - ifshort
     - importas
     - makezero
     - misspell
