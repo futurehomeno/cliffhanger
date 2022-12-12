@@ -18,6 +18,7 @@ const (
 	UnitC = "C"
 	UnitF = "F"
 
+	PropertyUnit           = "unit"
 	PropertySupportedUnits = "sup_units"
 )
 
@@ -106,7 +107,7 @@ func (s *service) SendSensorReport(unit string, force bool) (bool, error) {
 		s.Name(),
 		value,
 		map[string]string{
-			"unit": normalizedUnit,
+			PropertyUnit: normalizedUnit,
 		},
 		nil,
 		nil,
