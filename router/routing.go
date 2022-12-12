@@ -21,9 +21,14 @@ func TopicPatternApplication(resourceName string) string {
 	return fmt.Sprintf("pt:j1/+/rt:app/rn:%s/ad:1", resourceName)
 }
 
-// TopicPatterDeviceService returns a topic pattern for all device services of the provided type.
-func TopicPatterDeviceService(serviceName string) string {
+// TopicPatternDeviceService returns a topic pattern for all device services of the provided type.
+func TopicPatternDeviceService(serviceName string) string {
 	return fmt.Sprintf("+/+/rt:dev/+/+/sv:%s/#", serviceName)
+}
+
+// TopicPatternDeviceServiceEvents returns a topic pattern for all events of device services of the provided type.
+func TopicPatternDeviceServiceEvents(serviceName string) string {
+	return fmt.Sprintf("+/mt:evt/rt:dev/+/+/sv:%s/#", serviceName)
 }
 
 // CombineTopicPatterns is a helper to easily combine multiple topic pattern slices into one slice.
