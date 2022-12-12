@@ -383,6 +383,16 @@ type ClientType struct {
 
 type Things []*Thing
 
+func (t Things) FindByID(id int) *Thing {
+	for _, thing := range t {
+		if thing.ID == id {
+			return thing
+		}
+	}
+
+	return nil
+}
+
 type Thing struct {
 	ID      int               `json:"id"`
 	Address string            `json:"addr"`
@@ -394,6 +404,16 @@ type Thing struct {
 
 type Rooms []*Room
 
+func (r Rooms) FindByID(id int) *Room {
+	for _, room := range r {
+		if room.ID == id {
+			return room
+		}
+	}
+
+	return nil
+}
+
 type Room struct {
 	Alias   string     `json:"alias"`
 	ID      int        `json:"id"`
@@ -402,6 +422,14 @@ type Room struct {
 	Type    *string    `json:"type"`
 	Area    *int       `json:"area"`
 	Outside bool       `json:"outside"`
+}
+
+func (d *Room) GetAreaID() int {
+	if d.Area == nil {
+		return 0
+	}
+
+	return *d.Area
 }
 
 type RoomParams struct {
