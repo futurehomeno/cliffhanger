@@ -139,6 +139,16 @@ func (d Devices) FindByID(id int) *Device {
 	return nil
 }
 
+func (d Devices) FindByTopic(topic string) *Device {
+	for _, device := range d {
+		if device.MatchesTopic(topic) {
+			return device
+		}
+	}
+
+	return nil
+}
+
 type Device struct {
 	FIMP          FIMP                   `json:"fimp"`
 	Client        ClientType             `json:"client"`
@@ -329,6 +339,16 @@ func (d *Device) GetServicePropertyStrings(serviceName string, property string) 
 	}
 
 	return properties
+}
+
+func (d *Device) MatchesTopic(topic string) bool {
+	for _, srv := range d.Services {
+		if strings.Contains(topic, srv.Addr) {
+			return true
+		}
+	}
+
+	return false
 }
 
 func (d *Device) GetAddresses() []string {
