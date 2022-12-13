@@ -12,7 +12,7 @@ type TopicPattern struct {
 	ResourceType    string
 	ResourceName    string
 	ResourceAddress string
-	Service         string
+	ServiceName     string
 	ServiceAddress  string
 }
 
@@ -70,11 +70,11 @@ func (tp *TopicPattern) ra() string {
 }
 
 func (tp *TopicPattern) sv() string {
-	if tp.Service == "" {
+	if tp.ServiceName == "" {
 		return "+"
 	}
 
-	return "sv:" + tp.Service
+	return "sv:" + tp.ServiceName
 }
 
 func (tp *TopicPattern) sa() string {
@@ -120,7 +120,7 @@ func TopicPatternDeviceService(serviceName string) string {
 	return (&TopicPattern{
 		PayloadType:  fimpgo.DefaultPayload,
 		ResourceType: fimpgo.ResourceTypeDevice,
-		Service:      serviceName,
+		ServiceName:  serviceName,
 	}).String()
 }
 
@@ -130,7 +130,7 @@ func TopicPatternDeviceServiceEvents(serviceName string) string {
 		PayloadType:  fimpgo.DefaultPayload,
 		MessageType:  fimpgo.MsgTypeEvt,
 		ResourceType: fimpgo.ResourceTypeDevice,
-		Service:      serviceName,
+		ServiceName:  serviceName,
 	}).String()
 }
 
@@ -140,7 +140,7 @@ func TopicPatternRoomService(serviceName string) string {
 		PayloadType:  fimpgo.DefaultPayload,
 		ResourceType: fimpgo.ResourceTypeLocation,
 		ResourceName: "room",
-		Service:      serviceName,
+		ServiceName:  serviceName,
 	}).String()
 }
 
@@ -151,7 +151,7 @@ func TopicPatternRoomServiceEvents(serviceName string) string {
 		MessageType:  fimpgo.MsgTypeEvt,
 		ResourceType: fimpgo.ResourceTypeLocation,
 		ResourceName: "room",
-		Service:      serviceName,
+		ServiceName:  serviceName,
 	}).String()
 }
 

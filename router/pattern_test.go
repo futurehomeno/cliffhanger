@@ -39,12 +39,12 @@ func TestTopicPattern(t *testing.T) {
 		},
 		{
 			name:    "All messages for device meter_elec service",
-			pattern: router.TopicPattern{ResourceType: fimpgo.ResourceTypeDevice, Service: "meter_elec"},
+			pattern: router.TopicPattern{ResourceType: fimpgo.ResourceTypeDevice, ServiceName: "meter_elec"},
 			want:    "+/+/rt:dev/+/+/sv:meter_elec/+",
 		},
 		{
 			name:    "All events for device meter_elec service at address 1",
-			pattern: router.TopicPattern{MessageType: fimpgo.MsgTypeEvt, ResourceType: fimpgo.ResourceTypeDevice, Service: "meter_elec", ServiceAddress: "1"},
+			pattern: router.TopicPattern{MessageType: fimpgo.MsgTypeEvt, ResourceType: fimpgo.ResourceTypeDevice, ServiceName: "meter_elec", ServiceAddress: "1"},
 			want:    "+/mt:evt/rt:dev/+/+/sv:meter_elec/ad:1",
 		},
 		{
