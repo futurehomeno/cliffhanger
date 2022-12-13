@@ -5,6 +5,7 @@ import (
 
 	"github.com/futurehomeno/fimpgo"
 
+	"github.com/futurehomeno/cliffhanger/config"
 	"github.com/futurehomeno/cliffhanger/router"
 	"github.com/futurehomeno/cliffhanger/task"
 )
@@ -53,7 +54,7 @@ func (e *core) Start() error {
 		return fmt.Errorf("core: failed to start message router: %w", err)
 	}
 
-	for _, topic := range e.topicSubscriptions {
+	for _, topic := range config.Deduplicte(e.topicSubscriptions) {
 		err = e.mqtt.Subscribe(topic)
 		if err != nil {
 			return fmt.Errorf("core: failed to subscribe to a topic %s: %w", topic, err)

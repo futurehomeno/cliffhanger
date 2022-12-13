@@ -87,3 +87,24 @@ func Contains[T comparable](needle T, haystack []T) bool {
 
 	return false
 }
+
+// Deduplicte is a helper that deduplicates a slice.
+func Deduplicte[T comparable](list []T) []T {
+	deduplicated := make(map[T]struct{})
+
+	for _, el := range list {
+		deduplicated[el] = struct{}{}
+	}
+
+	result := make([]T, len(deduplicated))
+
+	i := 0
+
+	for el := range deduplicated {
+		result[i] = el
+
+		i++
+	}
+
+	return result
+}
