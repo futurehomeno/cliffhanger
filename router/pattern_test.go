@@ -83,4 +83,16 @@ func TestTopicPatternHelpers(t *testing.T) {
 
 	got = router.TopicPatternApplication("test_resource")
 	assert.Equal(t, "pt:j1/+/rt:app/rn:test_resource/ad:1", got)
+
+	got = router.TopicPatternDeviceService("sensor_temp")
+	assert.Equal(t, "pt:j1/+/rt:dev/+/+/sv:sensor_temp/+", got)
+
+	got = router.TopicPatternDeviceServiceEvents("sensor_temp")
+	assert.Equal(t, "pt:j1/mt:evt/rt:dev/+/+/sv:sensor_temp/+", got)
+
+	got = router.TopicPatternRoomService("sensor_temp")
+	assert.Equal(t, "pt:j1/+/rt:loc/rn:room/+/sv:sensor_temp/+", got)
+
+	got = router.TopicPatternRoomServiceEvents("sensor_temp")
+	assert.Equal(t, "pt:j1/mt:evt/rt:loc/rn:room/+/sv:sensor_temp/+", got)
 }

@@ -115,6 +115,46 @@ func TopicPatternApplication(resourceName string) string {
 	}).String()
 }
 
+// TopicPatternDeviceService returns a topic pattern for all device services of the provided type.
+func TopicPatternDeviceService(serviceName string) string {
+	return (&TopicPattern{
+		PayloadType:  fimpgo.DefaultPayload,
+		ResourceType: fimpgo.ResourceTypeDevice,
+		Service:      serviceName,
+	}).String()
+}
+
+// TopicPatternDeviceServiceEvents returns a topic pattern for all device services of the provided type.
+func TopicPatternDeviceServiceEvents(serviceName string) string {
+	return (&TopicPattern{
+		PayloadType:  fimpgo.DefaultPayload,
+		MessageType:  fimpgo.MsgTypeEvt,
+		ResourceType: fimpgo.ResourceTypeDevice,
+		Service:      serviceName,
+	}).String()
+}
+
+// TopicPatternRoomService returns a topic pattern for all device services of the provided type.
+func TopicPatternRoomService(serviceName string) string {
+	return (&TopicPattern{
+		PayloadType:  fimpgo.DefaultPayload,
+		ResourceType: fimpgo.ResourceTypeLocation,
+		ResourceName: "room",
+		Service:      serviceName,
+	}).String()
+}
+
+// TopicPatternRoomServiceEvents returns a topic pattern for all device services of the provided type.
+func TopicPatternRoomServiceEvents(serviceName string) string {
+	return (&TopicPattern{
+		PayloadType:  fimpgo.DefaultPayload,
+		MessageType:  fimpgo.MsgTypeEvt,
+		ResourceType: fimpgo.ResourceTypeLocation,
+		ResourceName: "room",
+		Service:      serviceName,
+	}).String()
+}
+
 // CombineTopicPatterns is a helper to easily combine multiple topic pattern slices into one slice.
 func CombineTopicPatterns(patterns ...[]string) []string {
 	var combined []string
