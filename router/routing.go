@@ -1,46 +1,8 @@
 package router
 
 import (
-	"fmt"
-
 	"github.com/futurehomeno/fimpgo"
 )
-
-// TopicPatternAdapter returns a topic pattern for an adapter useful for subscriptions.
-func TopicPatternAdapter(resourceName string) string {
-	return fmt.Sprintf("pt:j1/+/rt:ad/rn:%s/ad:1", resourceName)
-}
-
-// TopicPatternDevices returns a topic pattern for devices useful for subscriptions.
-func TopicPatternDevices(resourceName string) string {
-	return fmt.Sprintf("pt:j1/+/rt:dev/rn:%s/ad:1/#", resourceName)
-}
-
-// TopicPatternApplication returns a topic pattern for application useful for subscriptions.
-func TopicPatternApplication(resourceName string) string {
-	return fmt.Sprintf("pt:j1/+/rt:app/rn:%s/ad:1", resourceName)
-}
-
-// TopicPatternDeviceService returns a topic pattern for all device services of the provided type.
-func TopicPatternDeviceService(serviceName string) string {
-	return fmt.Sprintf("+/+/rt:dev/+/+/sv:%s/#", serviceName)
-}
-
-// TopicPatternDeviceServiceEvents returns a topic pattern for all events of device services of the provided type.
-func TopicPatternDeviceServiceEvents(serviceName string) string {
-	return fmt.Sprintf("+/mt:evt/rt:dev/+/+/sv:%s/#", serviceName)
-}
-
-// CombineTopicPatterns is a helper to easily combine multiple topic pattern slices into one slice.
-func CombineTopicPatterns(patterns ...[]string) []string {
-	var combined []string
-
-	for _, p := range patterns {
-		combined = append(combined, p...)
-	}
-
-	return combined
-}
 
 // EvtErrorReport is a type of message for error responses.
 const EvtErrorReport = "evt.error.report"
