@@ -10,6 +10,8 @@ import (
 )
 
 func TestTopicPattern(t *testing.T) {
+	t.Parallel()
+
 	tt := []struct {
 		name    string
 		pattern router.TopicPattern
@@ -61,6 +63,8 @@ func TestTopicPattern(t *testing.T) {
 		tc := tc
 
 		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+
 			got := tc.pattern.String()
 
 			assert.Equal(t, tc.want, got)
@@ -69,6 +73,8 @@ func TestTopicPattern(t *testing.T) {
 }
 
 func TestTopicPatternHelpers(t *testing.T) {
+	t.Parallel()
+
 	got := router.TopicPatternAdapter("test_resource")
 	assert.Equal(t, "pt:j1/+/rt:ad/rn:test_resource/ad:1", got)
 
@@ -77,5 +83,4 @@ func TestTopicPatternHelpers(t *testing.T) {
 
 	got = router.TopicPatternApplication("test_resource")
 	assert.Equal(t, "pt:j1/+/rt:app/rn:test_resource/ad:1", got)
-
 }
