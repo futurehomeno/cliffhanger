@@ -186,6 +186,14 @@ func (d *Device) GetThingID() int {
 	return *d.ThingID
 }
 
+func (d *Device) GetRoomID() int {
+	if d.Room == nil {
+		return 0
+	}
+
+	return *d.Room
+}
+
 func (d *Device) GetType() string {
 	v, ok := d.Type["type"]
 	if !ok {
