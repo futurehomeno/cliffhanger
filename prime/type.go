@@ -402,12 +402,12 @@ func (t Things) FindByID(id int) *Thing {
 }
 
 type Thing struct {
-	ID      int               `json:"id"`
-	Address string            `json:"addr"`
-	Name    string            `json:"name"`
-	Devices []int             `json:"devices,omitempty"`
-	Props   map[string]string `json:"props,omitempty"`
-	RoomID  int               `json:"room"`
+	ID      int                    `json:"id"`
+	Address string                 `json:"addr"`
+	Name    string                 `json:"name"`
+	Devices []int                  `json:"devices,omitempty"`
+	Props   map[string]interface{} `json:"props,omitempty"`
+	RoomID  int                    `json:"room"`
 }
 
 type Rooms []*Room
