@@ -8,6 +8,7 @@ issues:
       linters:
         - lll
         - funlen
+        - dupl
     - path: adapter/thing/
       linters:
         - dupl
