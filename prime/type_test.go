@@ -44,15 +44,27 @@ func TestDevices(t *testing.T) {
 			want:    prime.Devices{{ID: 1}, {ID: 2}},
 		},
 		{
-			name:    "filter by id",
+			name:    "find by id",
 			devices: prime.Devices{{ID: 1}, {ID: 2}, {ID: 3}},
 			call:    func(devices prime.Devices) interface{} { return devices.FindByID(1) },
 			want:    &prime.Device{ID: 1},
 		},
 		{
-			name:    "filter by id - no matches",
+			name:    "find by id - no matches",
 			devices: prime.Devices{{ID: 1}, {ID: 2}, {ID: 3}},
 			call:    func(devices prime.Devices) interface{} { return devices.FindByID(4) },
+			want:    (*prime.Device)(nil),
+		},
+		{
+			name:    "find by topic",
+			devices: prime.Devices{{ID: 1}, {ID: 2}, {ID: 3, Services: map[string]*prime.Service{"test_service": {Addr: "test_topic"}}}},
+			call:    func(devices prime.Devices) interface{} { return devices.FindByTopic("test_topic") },
+			want:    &prime.Device{ID: 3, Services: map[string]*prime.Service{"test_service": {Addr: "test_topic"}}},
+		},
+		{
+			name:    "find by topic - no matches",
+			devices: prime.Devices{{ID: 1}, {ID: 2}, {ID: 3, Services: map[string]*prime.Service{"test_service": {Addr: "test_topic"}}}},
+			call:    func(devices prime.Devices) interface{} { return devices.FindByTopic("other_topic") },
 			want:    (*prime.Device)(nil),
 		},
 	}
@@ -107,6 +119,18 @@ func TestDevice(t *testing.T) {
 			name:   "get thing id - nil value",
 			device: &prime.Device{ID: 1},
 			call:   func(d *prime.Device) interface{} { return d.GetThingID() },
+			want:   0,
+		},
+		{
+			name:   "get room id",
+			device: &prime.Device{ID: 1, Room: makeInt(1)},
+			call:   func(d *prime.Device) interface{} { return d.GetRoomID() },
+			want:   1,
+		},
+		{
+			name:   "get room id - nil value",
+			device: &prime.Device{ID: 1},
+			call:   func(d *prime.Device) interface{} { return d.GetRoomID() },
 			want:   0,
 		},
 		{
@@ -306,6 +330,117 @@ func TestDevice(t *testing.T) {
 			t.Parallel()
 
 			got := tc.call(tc.device)
+
+			assert.Equal(t, tc.want, got)
+		})
+	}
+}
+
+func TestThings(t *testing.T) {
+	t.Parallel()
+
+	tt := []struct {
+		name   string
+		things prime.Things
+		call   func(things prime.Things) interface{}
+		want   interface{}
+	}{
+
+		{
+			name:   "find by id",
+			things: prime.Things{{ID: 1}, {ID: 2}, {ID: 3}},
+			call:   func(things prime.Things) interface{} { return things.FindByID(1) },
+			want:   &prime.Thing{ID: 1},
+		},
+		{
+			name:   "find by id - no matches",
+			things: prime.Things{{ID: 1}, {ID: 2}, {ID: 3}},
+			call:   func(things prime.Things) interface{} { return things.FindByID(4) },
+			want:   (*prime.Thing)(nil),
+		},
+	}
+
+	for _, tc := range tt {
+		tc := tc
+
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+
+			got := tc.call(tc.things)
+
+			assert.Equal(t, tc.want, got)
+		})
+	}
+}
+
+func TestRooms(t *testing.T) {
+	t.Parallel()
+
+	tt := []struct {
+		name  string
+		rooms prime.Rooms
+		call  func(rooms prime.Rooms) interface{}
+		want  interface{}
+	}{
+
+		{
+			name:  "find by id",
+			rooms: prime.Rooms{{ID: 1}, {ID: 2}, {ID: 3}},
+			call:  func(rooms prime.Rooms) interface{} { return rooms.FindByID(1) },
+			want:  &prime.Room{ID: 1},
+		},
+		{
+			name:  "find by id - no matches",
+			rooms: prime.Rooms{{ID: 1}, {ID: 2}, {ID: 3}},
+			call:  func(rooms prime.Rooms) interface{} { return rooms.FindByID(4) },
+			want:  (*prime.Room)(nil),
+		},
+	}
+
+	for _, tc := range tt {
+		tc := tc
+
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+
+			got := tc.call(tc.rooms)
+
+			assert.Equal(t, tc.want, got)
+		})
+	}
+}
+
+func TestRoom(t *testing.T) {
+	t.Parallel()
+
+	tt := []struct {
+		name string
+		room *prime.Room
+		call func(room *prime.Room) interface{}
+		want interface{}
+	}{
+
+		{
+			name: "get area id",
+			room: &prime.Room{ID: 1, Area: makeInt(1)},
+			call: func(d *prime.Room) interface{} { return d.GetAreaID() },
+			want: 1,
+		},
+		{
+			name: "get area id - nil value",
+			room: &prime.Room{ID: 1},
+			call: func(d *prime.Room) interface{} { return d.GetAreaID() },
+			want: 0,
+		},
+	}
+
+	for _, tc := range tt {
+		tc := tc
+
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+
+			got := tc.call(tc.room)
 
 			assert.Equal(t, tc.want, got)
 		})
