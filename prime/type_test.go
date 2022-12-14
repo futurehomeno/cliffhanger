@@ -345,7 +345,6 @@ func TestThings(t *testing.T) {
 		call   func(things prime.Things) interface{}
 		want   interface{}
 	}{
-
 		{
 			name:   "find by id",
 			things: prime.Things{{ID: 1}, {ID: 2}, {ID: 3}},
@@ -382,7 +381,6 @@ func TestRooms(t *testing.T) {
 		call  func(rooms prime.Rooms) interface{}
 		want  interface{}
 	}{
-
 		{
 			name:  "find by id",
 			rooms: prime.Rooms{{ID: 1}, {ID: 2}, {ID: 3}},
@@ -419,7 +417,6 @@ func TestRoom(t *testing.T) {
 		call func(room *prime.Room) interface{}
 		want interface{}
 	}{
-
 		{
 			name: "get area id",
 			room: &prime.Room{ID: 1, Area: makeInt(1)},
