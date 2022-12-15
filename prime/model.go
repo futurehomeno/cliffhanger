@@ -416,6 +416,21 @@ func (n *Notify) GetHub() (*Hub, error) {
 	return result, nil
 }
 
+func (n *Notify) GetHubMode() (*HubMode, error) {
+	if n.Component != ComponentHub || n.ID != "mode" {
+		return nil, nil
+	}
+
+	result := &HubMode{}
+
+	err := json.Unmarshal(n.ParamRaw, result)
+	if err != nil {
+		return nil, fmt.Errorf("notify: failed to unmarshal component %s: %w", ComponentHub, err)
+	}
+
+	return result, nil
+}
+
 func (n *Notify) GetShortcut() (*Shortcut, error) {
 	if n.Component != ComponentShortcut {
 		return nil, nil

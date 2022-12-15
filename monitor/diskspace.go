@@ -30,6 +30,7 @@ type diskSpace struct {
 }
 
 // NewDiskSpace creates a new instance of disk space monitor.
+// Limit percent value must be between 0 and 100.
 func NewDiskSpace(interval time.Duration, limitPercent float64) DiskSpace {
 	return &diskSpace{
 		interval:     interval,
@@ -62,7 +63,7 @@ func (d *diskSpace) Start() error {
 	defer d.lock.Unlock()
 
 	if d.closeCh != nil {
-		return errors.New("disk space monitor is already running")
+		return errors.New("disk space monitor: already running")
 	}
 
 	d.closeCh = make(chan struct{})
@@ -79,7 +80,7 @@ func (d *diskSpace) Stop() error {
 	defer d.lock.Unlock()
 
 	if d.closeCh == nil {
-		return errors.New("disk space monitor is not running")
+		return errors.New("disk space monitor: already stopped")
 	}
 
 	close(d.closeCh)
@@ -109,7 +110,7 @@ func (d *diskSpace) run() {
 func (d *diskSpace) checkSpace() {
 	usage, err := disk.Usage("/")
 	if err != nil {
-		log.WithError(err).Error("failed to get disk usage")
+		log.WithError(err).Error("disk space monitor: failed to get disk usage")
 
 		return
 	}

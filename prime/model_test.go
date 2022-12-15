@@ -335,7 +335,27 @@ func TestNotify(t *testing.T) {
 			want:    (*prime.Hub)(nil),
 			wantErr: true,
 		},
-
+		{
+			name:    "notify with hub mode",
+			notify:  &prime.Notify{ID: "mode", Component: prime.ComponentHub, ParamRaw: json.RawMessage(`{"current":"home"}`)},
+			call:    func(n *prime.Notify) (interface{}, error) { return n.GetHubMode() },
+			want:    &prime.HubMode{Current: "home"},
+			wantErr: false,
+		},
+		{
+			name:    "notify without hub mode",
+			notify:  &prime.Notify{Component: prime.ComponentState},
+			call:    func(n *prime.Notify) (interface{}, error) { return n.GetHubMode() },
+			want:    (*prime.HubMode)(nil),
+			wantErr: false,
+		},
+		{
+			name:    "notify with corrupted hub mode",
+			notify:  &prime.Notify{ID: "mode", Component: prime.ComponentHub, ParamRaw: json.RawMessage(`{"current":1}`)},
+			call:    func(n *prime.Notify) (interface{}, error) { return n.GetHubMode() },
+			want:    (*prime.HubMode)(nil),
+			wantErr: true,
+		},
 		{
 			name:    "notify with Shortcut",
 			notify:  &prime.Notify{Component: prime.ComponentShortcut, ParamRaw: json.RawMessage(`{"id":1}`)},
