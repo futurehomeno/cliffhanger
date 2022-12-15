@@ -25,6 +25,7 @@ type diskSpace struct {
 
 	closeCh   chan struct{}
 	lock      *sync.Mutex
+	dataLock  *sync.RWMutex
 	waitGroup *sync.WaitGroup
 }
 
@@ -34,15 +35,23 @@ func NewDiskSpace(interval time.Duration, limitPercent float64) DiskSpace {
 		interval:     interval,
 		limitPercent: limitPercent,
 		lock:         &sync.Mutex{},
+		dataLock:     &sync.RWMutex{},
 		waitGroup:    &sync.WaitGroup{},
 	}
 }
 
 // DiskFull returns true if the disk space is on limit.
 func (d *diskSpace) DiskFull() bool {
-	if d.used == 0 {
+	d.dataLock.RLock()
+	used := d.used
+	d.dataLock.RUnlock()
+
+	if used == 0 {
 		d.checkSpace()
 	}
+
+	d.dataLock.RLock()
+	defer d.dataLock.RUnlock()
 
 	return d.used >= d.limitPercent
 }
@@ -105,8 +114,8 @@ func (d *diskSpace) checkSpace() {
 		return
 	}
 
-	d.lock.Lock()
-	defer d.lock.Unlock()
+	d.dataLock.Lock()
+	defer d.dataLock.Unlock()
 
 	d.used = usage.UsedPercent
 }
