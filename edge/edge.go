@@ -56,7 +56,7 @@ func (e *edge) Start() error {
 		return fmt.Errorf("edge: failed to start message router: %w", err)
 	}
 
-	for _, topic := range config.Deduplicte(e.topicSubscriptions) {
+	for _, topic := range config.Deduplicate(e.topicSubscriptions) {
 		err = e.mqtt.Subscribe(topic)
 		if err != nil {
 			return fmt.Errorf("edge: failed to subscribe to a topic %s: %w", topic, err)
