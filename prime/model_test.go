@@ -353,7 +353,7 @@ func TestNotify(t *testing.T) {
 			name:    "notify with corrupted hub mode",
 			notify:  &prime.Notify{ID: "mode", Component: prime.ComponentHub, ParamRaw: json.RawMessage(`{"current":1}`)},
 			call:    func(n *prime.Notify) (interface{}, error) { return n.GetHubMode() },
-			want:    (*prime.Hub)(nil),
+			want:    (*prime.HubMode)(nil),
 			wantErr: true,
 		},
 		{
