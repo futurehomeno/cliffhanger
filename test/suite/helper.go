@@ -1,6 +1,8 @@
 package suite
 
 import (
+	"time"
+
 	"github.com/futurehomeno/fimpgo"
 )
 
@@ -304,6 +306,12 @@ func (b *MessageBuilder) AddProperty(key, value string) *MessageBuilder {
 
 func (b *MessageBuilder) AddTag(t string) *MessageBuilder {
 	b.tags = append(b.tags, t)
+
+	return b
+}
+
+func (b *MessageBuilder) SetCreationTime(t time.Time) *MessageBuilder {
+	b.msg.Payload.CreationTime = t.Format(fimpgo.TimeFormat)
 
 	return b
 }
