@@ -14,7 +14,7 @@ import (
 	"github.com/futurehomeno/cliffhanger/test/suite"
 )
 
-func TestApp_Run(t *testing.T) {
+func TestApp_Run(t *testing.T) { //nolint:paralleltest
 	tcs := []struct {
 		name         string
 		service      *mockedroot.Service
@@ -74,7 +74,7 @@ func TestApp_Run(t *testing.T) {
 		},
 	}
 
-	for _, tc := range tcs {
+	for _, tc := range tcs { //nolint:paralleltest
 		tc := tc
 
 		t.Run(tc.name, func(t *testing.T) {
@@ -116,12 +116,14 @@ func TestApp_Run(t *testing.T) {
 	}
 }
 
-func TestApp_Reset(t *testing.T) {
+func TestApp_Reset(t *testing.T) { //nolint:paralleltest
 	tc := suite.Suite{
 		Cases: []*suite.Case{
 			{
 				Name: "Receive and handle reset command",
 				Setup: suite.ServiceSetup(func(t *testing.T) (service suite.Service, mocks []suite.Mock) {
+					t.Helper()
+
 					mqtt := suite.DefaultMQTT("root_app", "", "", "")
 
 					resetter := mockedroot.NewResetter(t).MockReset(nil)
@@ -141,6 +143,8 @@ func TestApp_Reset(t *testing.T) {
 						Command: suite.NullMessage(root.GatewayEvtTopic, root.EvtGatewayFactoryReset, "gateway"),
 						Callbacks: []suite.Callback{
 							func(t *testing.T) {
+								t.Helper()
+
 								time.Sleep(100 * time.Millisecond)
 							},
 						},

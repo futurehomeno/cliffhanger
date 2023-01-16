@@ -14,6 +14,8 @@ import (
 )
 
 func TestBuilder_Build(t *testing.T) {
+	t.Parallel()
+
 	mqtt := suite.DefaultMQTT("root_app_builder", "", "", "")
 
 	tcs := []struct {

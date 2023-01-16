@@ -126,8 +126,8 @@ func (b *Builder) doBuild() App {
 
 // prepareRouting prepares routing for the root application.
 func (b *Builder) prepareRouting(rootApp *app) {
-	topicSubscriptions := append(b.topicSubscriptions, discovery.Topic)
-	routing := append(b.routing, discovery.Route(b.resource))
+	topicSubscriptions := append(b.topicSubscriptions, discovery.Topic) //nolint:gocritic
+	routing := append(b.routing, discovery.Route(b.resource))           //nolint:gocritic
 
 	// Include application factory reset routing only if resetters are provided.
 	if len(rootApp.resetters) > 0 {

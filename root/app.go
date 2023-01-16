@@ -112,10 +112,12 @@ func (a *app) Run() error {
 
 	signals := make(chan os.Signal, 1)
 	signal.Notify(signals, syscall.SIGINT, syscall.SIGTERM)
+
 	defer signal.Stop(signals)
 
 	go func() {
 		<-signals
+
 		_ = a.Stop()
 	}()
 
