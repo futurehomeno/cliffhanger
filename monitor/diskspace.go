@@ -8,12 +8,12 @@ import (
 	"github.com/shirou/gopsutil/v3/disk"
 	log "github.com/sirupsen/logrus"
 
-	"github.com/futurehomeno/cliffhanger/core"
+	"github.com/futurehomeno/cliffhanger/root"
 )
 
 // DiskSpace represents a disk space monitor.
 type DiskSpace interface {
-	core.Service
+	root.Service
 
 	DiskFull() bool
 }
