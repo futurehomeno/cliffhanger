@@ -165,11 +165,17 @@ func TestStorage_Save(t *testing.T) { //nolint:paralleltest
 func TestStorage_Reset(t *testing.T) { //nolint:paralleltest
 	p := "../testdata/storage/reset/"
 
-	source, err := os.ReadFile(path.Join(p, "data", config.Name+".bak"))
+	configData := []byte(`{"SettingA": "A","SettingB": "B","SettingC": "C"}`)
+
+	err := os.MkdirAll(path.Join(p, "data"), 0755) //nolint:gofumpt
 	assert.NoError(t, err)
 
 	//nolint:gosec
-	err = os.WriteFile(path.Join(p, "data", config.Name), source, 0664) //nolint:gofumpt
+	err = os.WriteFile(path.Join(p, "data", config.Name+".bak"), configData, 0664) //nolint:gofumpt
+	assert.NoError(t, err)
+
+	//nolint:gosec
+	err = os.WriteFile(path.Join(p, "data", config.Name), configData, 0664) //nolint:gofumpt
 	assert.NoError(t, err)
 
 	store := storage.New(&testConfig{}, p, config.Name)
@@ -181,4 +187,10 @@ func TestStorage_Reset(t *testing.T) { //nolint:paralleltest
 	err = store.Reset()
 	assert.NoError(t, err)
 	assert.Equal(t, &testConfig{"X", "X", "X"}, store.Model().(*testConfig)) //nolint:forcetypeassert
+
+	_, err = os.Stat(path.Join(p, "data", config.Name+".bak"))
+	assert.True(t, os.IsNotExist(err))
+
+	_, err = os.Stat(path.Join(p, "data", config.Name))
+	assert.True(t, os.IsNotExist(err))
 }
