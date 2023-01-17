@@ -245,14 +245,21 @@ func (s *storage) Reset() error {
 	}
 
 	if cfgExists {
-		err = s.makeBackup()
-		if err != nil {
-			return fmt.Errorf("storage: failed to make backup of the configuration file at path %s: %w", s.backupPath, err)
-		}
-
 		err = os.Remove(s.dataPath)
 		if err != nil {
 			return fmt.Errorf("storage: failed to remove the configuration file at path %s: %w", s.dataPath, err)
+		}
+	}
+
+	backupExists, err := s.fileExists(s.backupPath)
+	if err != nil {
+		return err
+	}
+
+	if backupExists {
+		err = os.Remove(s.backupPath)
+		if err != nil {
+			return fmt.Errorf("storage: failed to remove the configuration file at path %s: %w", s.backupPath, err)
 		}
 	}
 

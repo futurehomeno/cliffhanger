@@ -17,7 +17,7 @@ func NewEdgeAppBuilder() *Builder {
 	return newBuilder(true)
 }
 
-// NewCoreAppBuilder creates new instance of an edge app builder.
+// NewCoreAppBuilder creates new instance of an core app builder.
 func NewCoreAppBuilder() *Builder {
 	return newBuilder(false)
 }
