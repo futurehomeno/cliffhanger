@@ -14,10 +14,6 @@ type Config struct {
 }
 
 func (c *Config) configure() {
-	if c.MQTTServerURI == "" {
-		c.MQTTServerURI = "tcp://localhost:11883"
-	}
-
 	if c.MQTTClientIDPrefix == "" {
 		c.MQTTClientIDPrefix = "cliffhanger_test_suite"
 	}
@@ -61,17 +57,12 @@ func (s *Suite) init(t *testing.T) {
 
 	s.Config.configure()
 
-	s.mqtt = fimpgo.NewMqttTransport(
-		s.Config.MQTTServerURI,
+	s.mqtt = DefaultMQTT(
 		s.Config.MQTTClientIDPrefix,
+		s.Config.MQTTServerURI,
 		s.Config.MQTTUsername,
 		s.Config.MQTTPassword,
-		true,
-		1,
-		1,
 	)
-
-	s.mqtt.SetDefaultSource("cliffhanger_test_suite")
 
 	err := s.mqtt.Start()
 	if err != nil {
@@ -88,4 +79,24 @@ func (s *Suite) tearDown(t *testing.T) {
 	t.Helper()
 
 	s.mqtt.Stop()
+}
+
+func DefaultMQTT(clientID, url, user, pass string) *fimpgo.MqttTransport {
+	if url == "" {
+		url = "tcp://localhost:11883"
+	}
+
+	mqtt := fimpgo.NewMqttTransport(
+		url,
+		clientID,
+		user,
+		pass,
+		true,
+		1,
+		1,
+	)
+
+	mqtt.SetDefaultSource(clientID)
+
+	return mqtt
 }

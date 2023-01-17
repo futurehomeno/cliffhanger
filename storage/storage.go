@@ -239,21 +239,14 @@ func (s *storage) Reset() error {
 		return fmt.Errorf("storage: cannot reset as the default configuration file at path %s is not found", s.defaultsPath)
 	}
 
-	cfgExists, err := s.fileExists(s.dataPath)
+	err = s.removeFile(s.dataPath)
 	if err != nil {
 		return err
 	}
 
-	if cfgExists {
-		err = s.makeBackup()
-		if err != nil {
-			return fmt.Errorf("storage: failed to make backup of the configuration file at path %s: %w", s.backupPath, err)
-		}
-
-		err = os.Remove(s.dataPath)
-		if err != nil {
-			return fmt.Errorf("storage: failed to remove the configuration file at path %s: %w", s.dataPath, err)
-		}
+	err = s.removeFile(s.backupPath)
+	if err != nil {
+		return err
 	}
 
 	if s.defaultsPath == "" {
@@ -273,6 +266,22 @@ func (s *storage) fileExists(path string) (bool, error) {
 	}
 
 	return !info.IsDir(), nil
+}
+
+func (s *storage) removeFile(path string) error {
+	cfgExists, err := s.fileExists(path)
+	if err != nil {
+		return err
+	}
+
+	if cfgExists {
+		err = os.Remove(path)
+		if err != nil {
+			return fmt.Errorf("storage: failed to remove the configuration file at path %s: %w", path, err)
+		}
+	}
+
+	return nil
 }
 
 // loadFile loads a provided file and unmarshalls it using the configured model.
