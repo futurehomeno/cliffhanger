@@ -17,10 +17,11 @@ type stateModel struct {
 
 // thingStateModel is a model of a thing state record within the adapter state file.
 type thingStateModel struct {
-	ID      string          `json:"id"`
-	Address string          `json:"address"`
-	Info    json.RawMessage `json:"info,omitempty"`
-	State   json.RawMessage `json:"state,omitempty"`
+	ID                string          `json:"id"`
+	Address           string          `json:"address"`
+	Info              json.RawMessage `json:"info,omitempty"`
+	State             json.RawMessage `json:"state,omitempty"`
+	InclusionChecksum uint32          `json:"inclusion_checksum"`
 }
 
 // State is an interface representing a persistent state of the adapter and its things.
@@ -161,6 +162,10 @@ type ThingState interface {
 	State(model interface{}) error
 	// SetState persists new state of a thing.
 	SetState(model interface{}) error
+	// GetInclusionChecksum returns the checksum of the inclusion report stored in the thing state.
+	GetInclusionChecksum() uint32
+	// SetInclusionChecksum persists the checksum of the inclusion report in the thing state.
+	SetInclusionChecksum(checksum uint32) error
 }
 
 // newThingState creates new instance of a thing state proxy service.
@@ -242,6 +247,29 @@ func (s *thingState) SetState(model interface{}) error {
 	err = s.state.storage.Save()
 	if err != nil {
 		return fmt.Errorf("thing state: failed to persist state of a thing with ID %s: %w", s.ID(), err)
+	}
+
+	return nil
+}
+
+// GetInclusionChecksum returns the checksum of the inclusion report stored in the thing state.
+func (s *thingState) GetInclusionChecksum() uint32 {
+	s.state.lock.RLock()
+	defer s.state.lock.RUnlock()
+
+	return s.model.InclusionChecksum
+}
+
+// SetInclusionChecksum persists the checksum of the inclusion report in the thing state.
+func (s *thingState) SetInclusionChecksum(checksum uint32) error {
+	s.state.lock.Lock()
+	defer s.state.lock.Unlock()
+
+	s.model.InclusionChecksum = checksum
+
+	err := s.state.storage.Save()
+	if err != nil {
+		return fmt.Errorf("thing state: failed to persist inclusion checksum of a thing with ID %s: %w", s.ID(), err)
 	}
 
 	return nil

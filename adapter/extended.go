@@ -3,9 +3,11 @@ package adapter
 import (
 	"encoding/json"
 	"fmt"
+	"hash/crc32"
 	"sync"
 
 	"github.com/futurehomeno/fimpgo"
+	"github.com/futurehomeno/fimpgo/fimptype"
 )
 
 // ExtendedAdapter is an interface representing an extended and stateful device adapter.
@@ -103,19 +105,32 @@ func (a *extendedAdapter) InitializeThings() error {
 	a.lock.Lock()
 	defer a.lock.Unlock()
 
-	var things []Thing
-
 	for _, ts := range a.state.all() {
 		t, err := a.factory.Create(a.mqtt, a, ts)
 		if err != nil {
 			return fmt.Errorf("adapter: failed to create thing with ID %s: %w", ts.ID(), err)
 		}
 
-		things = append(things, t)
-	}
-
-	for _, t := range things {
 		a.RegisterThing(t)
+
+		inclusionChecksum, err := a.calculateInclusionReportChecksum(t.InclusionReport())
+		if err != nil {
+			return fmt.Errorf("adapter: failed to calculate inclusion report checksum for thing with address %s: %w", t.Address(), err)
+		}
+
+		if inclusionChecksum == ts.GetInclusionChecksum() {
+			continue
+		}
+
+		err = a.SendInclusionReport(t)
+		if err != nil {
+			return fmt.Errorf("adapter: failed to send inclusion report for thing with address %s: %w", t.Address(), err)
+		}
+
+		err = ts.SetInclusionChecksum(inclusionChecksum)
+		if err != nil {
+			return fmt.Errorf("adapter: failed to persist inclusion report checksum for thing with address %s: %w", t.Address(), err)
+		}
 	}
 
 	return nil
@@ -214,6 +229,16 @@ func (a *extendedAdapter) createThing(id string, info interface{}) error {
 		return fmt.Errorf("adapter: failed to add thing with ID %s to the adapter: %w", id, err)
 	}
 
+	inclusionChecksum, err := a.calculateInclusionReportChecksum(t.InclusionReport())
+	if err != nil {
+		return fmt.Errorf("adapter: failed to calculate inclusion report checksum for thing with ID %s: %w", id, err)
+	}
+
+	err = ts.SetInclusionChecksum(inclusionChecksum)
+	if err != nil {
+		return fmt.Errorf("adapter: failed to persist inclusion report checksum for thing with ID %s: %w", id, err)
+	}
+
 	return nil
 }
 
@@ -264,4 +289,14 @@ func (a *extendedAdapter) destroyThing(id string) error {
 	}
 
 	return nil
+}
+
+// calculateInclusionReportChecksum calculates checksum of the thing inclusion report.
+func (a *extendedAdapter) calculateInclusionReportChecksum(r *fimptype.ThingInclusionReport) (uint32, error) {
+	data, err := json.Marshal(r)
+	if err != nil {
+		return 0, fmt.Errorf("adapter: failed to marshal thing inclusion report: %w", err)
+	}
+
+	return crc32.ChecksumIEEE(data), nil
 }

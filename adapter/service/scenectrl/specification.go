@@ -18,7 +18,6 @@ func Specification(
 	return &fimptype.Service{
 		Address: fmt.Sprintf("/rt:dev/rn:%s/ad:%s/sv:%s/ad:%s", resourceName, resourceAddress, SceneCtrl, address),
 		Name:    SceneCtrl,
-
 		Groups:  groups,
 		Enabled: true,
 		Props: map[string]interface{}{
