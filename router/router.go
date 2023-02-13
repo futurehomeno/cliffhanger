@@ -27,17 +27,28 @@ func NewRouter(mqtt *fimpgo.MqttTransport, channelID string, routing ...*Routing
 		mqtt:      mqtt,
 		lock:      &sync.Mutex{},
 		wg:        &sync.WaitGroup{},
+		cfg:       defaultConfig(),
 	}
 }
 
 // router is an implementation of the router service.
 type router struct {
+	cfg       *config
 	channelID string
 	routing   []*Routing
 	mqtt      *fimpgo.MqttTransport
 	lock      *sync.Mutex
 	wg        *sync.WaitGroup
 	stopCh    chan struct{}
+}
+
+// WithOptions applies options to the router configuration.
+func (r *router) WithOptions(options ...Option) Router {
+	for _, option := range options {
+		option.apply(r.cfg)
+	}
+
+	return r
 }
 
 // Start starts the router and initiates processing of incoming messages.
@@ -50,10 +61,14 @@ func (r *router) Start() error {
 	}
 
 	r.stopCh = make(chan struct{})
-	messageCh := make(fimpgo.MessageCh, 5)
+	messageCh := make(fimpgo.MessageCh, r.cfg.buffer)
 	r.mqtt.RegisterChannel(r.channelID, messageCh)
 
-	go r.routeMessages(messageCh)
+	r.wg.Add(r.cfg.concurrency)
+
+	for i := 0; i < r.cfg.concurrency; i++ {
+		go r.routeMessages(messageCh)
+	}
 
 	return nil
 }
@@ -70,6 +85,8 @@ func (r *router) Stop() error {
 	r.mqtt.UnregisterChannel(r.channelID)
 	close(r.stopCh)
 
+	r.wg.Wait()
+
 	r.stopCh = nil
 
 	return nil
@@ -77,6 +94,8 @@ func (r *router) Stop() error {
 
 // routeMessages routes incoming message.
 func (r *router) routeMessages(messageCh fimpgo.MessageCh) {
+	defer r.wg.Done()
+
 	for {
 		select {
 		case message := <-messageCh:
@@ -130,4 +149,61 @@ func (r *router) processMessage(message *fimpgo.Message) {
 			}
 		}
 	}
+}
+
+func defaultConfig() *config {
+	return &config{
+		async:       true,
+		buffer:      10,
+		concurrency: 5,
+	}
+}
+
+type config struct {
+	async       bool
+	buffer      int
+	concurrency int
+}
+
+// Option is an interface representing a message router configuration option.
+type Option interface {
+	// apply applies option to the message router.
+	apply(cfg *config)
+}
+
+// messageHandlerOptionFn is an adapter allowing usage of anonymous function as a service meeting message router option interface.
+type optionFn func(cfg *config)
+
+// apply applies option to the message router.
+func (f optionFn) apply(cfg *config) {
+	f(cfg)
+}
+
+// WithSyncProcessing returns an option that enables synchronous processing of incoming messages.
+func WithSyncProcessing() Option {
+	return optionFn(func(cfg *config) {
+		cfg.concurrency = 1
+	})
+}
+
+// WithConcurrency returns an option that sets the number of concurrent workers processing incoming messages.
+func WithConcurrency(concurrency int) Option {
+	return optionFn(func(cfg *config) {
+		if concurrency < 1 {
+			concurrency = 1
+		}
+
+		cfg.concurrency = concurrency
+	})
+}
+
+// WithMessageBuffer returns an option that sets the buffer size for incoming messages.
+func WithMessageBuffer(buffer int) Option {
+	return optionFn(func(cfg *config) {
+		if buffer < 0 {
+			buffer = 0
+		}
+
+		cfg.buffer = buffer
+	})
 }
