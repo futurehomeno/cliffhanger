@@ -30,6 +30,7 @@ func TestBuilder_Build(t *testing.T) {
 				WithServiceDiscovery(&discovery.Resource{}).
 				WithTopicSubscription("test").
 				WithRouting(&router.Routing{}).
+				WithRouterOptions(router.WithAsyncProcessing(3)).
 				WithTask(&task.Task{}),
 			wantErr: false,
 		},

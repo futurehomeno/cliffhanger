@@ -37,6 +37,7 @@ type Builder struct {
 	lifecycle          *lifecycle.Lifecycle
 	topicSubscriptions []string
 	routing            []*router.Routing
+	routerOptions      []router.Option
 	tasks              []*task.Task
 	services           []Service
 	resetters          []Resetter
@@ -66,6 +67,13 @@ func (b *Builder) WithLifecycle(l *lifecycle.Lifecycle) *Builder {
 // WithTopicSubscription sets topic that should be subscribed to.
 func (b *Builder) WithTopicSubscription(topicSubscriptions ...string) *Builder {
 	b.topicSubscriptions = append(b.topicSubscriptions, topicSubscriptions...)
+
+	return b
+}
+
+// WithRouterOptions sets router options.
+func (b *Builder) WithRouterOptions(options ...router.Option) *Builder {
+	b.routerOptions = append(b.routerOptions, options...)
 
 	return b
 }
@@ -136,7 +144,7 @@ func (b *Builder) prepareRouting(rootApp *app) {
 	}
 
 	rootApp.topicSubscriptions = topicSubscriptions
-	rootApp.messageRouter = router.NewRouter(b.mqtt, router.DefaultChannelID, routing...)
+	rootApp.messageRouter = router.NewRouter(b.mqtt, router.DefaultChannelID, routing...).WithOptions(b.routerOptions...)
 }
 
 // check performs checks if all required components have been provided to the builder.
