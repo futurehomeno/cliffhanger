@@ -28,14 +28,15 @@ func NewCase(name string) *Case {
 }
 
 type Case struct {
-	Name     string
-	Routing  []*router.Routing
-	Tasks    []*task.Task
-	Service  Service
-	Mocks    []Mock
-	Setup    Setup
-	TearDown []Callback
-	Nodes    []*Node
+	Name          string
+	RouterOptions []router.Option
+	Routing       []*router.Routing
+	Tasks         []*task.Task
+	Service       Service
+	Mocks         []Mock
+	Setup         Setup
+	TearDown      []Callback
+	Nodes         []*Node
 }
 
 func (c *Case) WithName(name string) *Case {
@@ -46,6 +47,12 @@ func (c *Case) WithName(name string) *Case {
 
 func (c *Case) WithRouting(routing ...*router.Routing) *Case {
 	c.Routing = append(c.Routing, routing...)
+
+	return c
+}
+
+func (c *Case) WithRouterOptions(options ...router.Option) *Case {
+	c.RouterOptions = append(c.RouterOptions, options...)
 
 	return c
 }
@@ -128,7 +135,7 @@ func (c *Case) initRouting(mqtt *fimpgo.MqttTransport) {
 		return
 	}
 
-	r := router.NewRouter(mqtt, "cliffhanger_test_case", c.Routing...)
+	r := router.NewRouter(mqtt, "cliffhanger_test_case", c.Routing...).WithOptions(c.RouterOptions...)
 
 	initCallback := func(t *testing.T) {
 		err := r.Start()

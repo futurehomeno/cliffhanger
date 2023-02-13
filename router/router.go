@@ -13,6 +13,8 @@ const DefaultChannelID = "main_router"
 
 // Router is an interface representing a service responsible for routing messages.
 type Router interface {
+	// WithOptions applies options to the router configuration.
+	WithOptions(options ...Option) Router
 	// Start starts the router and initiates processing of incoming messages.
 	Start() error
 	// Stop stops the router and interrupts processing of incoming messages.
@@ -151,16 +153,16 @@ func (r *router) processMessage(message *fimpgo.Message) {
 	}
 }
 
+// defaultConfig returns a default configuration of the message router.
 func defaultConfig() *config {
 	return &config{
-		async:       true,
 		buffer:      10,
 		concurrency: 5,
 	}
 }
 
+// config is a configuration of the message router.
 type config struct {
-	async       bool
 	buffer      int
 	concurrency int
 }
@@ -186,11 +188,11 @@ func WithSyncProcessing() Option {
 	})
 }
 
-// WithConcurrency returns an option that sets the number of concurrent workers processing incoming messages.
-func WithConcurrency(concurrency int) Option {
+// WithAsyncProcessing returns an option that sets the number of concurrent workers processing incoming messages.
+func WithAsyncProcessing(concurrency int) Option {
 	return optionFn(func(cfg *config) {
-		if concurrency < 1 {
-			concurrency = 1
+		if concurrency < 2 {
+			return
 		}
 
 		cfg.concurrency = concurrency
@@ -201,7 +203,7 @@ func WithConcurrency(concurrency int) Option {
 func WithMessageBuffer(buffer int) Option {
 	return optionFn(func(cfg *config) {
 		if buffer < 0 {
-			buffer = 0
+			return
 		}
 
 		cfg.buffer = buffer
