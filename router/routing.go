@@ -4,8 +4,15 @@ import (
 	"github.com/futurehomeno/fimpgo"
 )
 
-// EvtErrorReport is a type of message for error responses.
-const EvtErrorReport = "evt.error.report"
+// Constant defining error type of message for error responses and its properties.
+const (
+	EvtErrorReport = "evt.error.report"
+
+	PropertyMsg        = "msg"
+	PropertyCmdTopic   = "cmd_topic"
+	PropertyCmdService = "cmd_service"
+	PropertyCmdType    = "cmd_type"
+)
 
 // Routing is an object representing a particular routing. It contains a message handler and a set of message voters.
 type Routing struct {

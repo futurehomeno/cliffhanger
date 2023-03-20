@@ -147,21 +147,19 @@ func (m *messageHandler) handleError(requestMessage *fimpgo.Message, err error) 
 		return nil
 	}
 
-	errMessage := fmt.Sprintf("failed to process message sent to topic %s service %s and type %s: %s",
-		requestMessage.Topic,
-		requestMessage.Payload.Service,
-		requestMessage.Payload.Type,
-		err.Error(),
-	)
-
 	return &fimpgo.Message{
 		Addr: m.getResponseAddress(requestMessage.Addr),
 		Payload: fimpgo.NewMessage(
 			EvtErrorReport,
 			requestMessage.Payload.Service,
 			fimpgo.VTypeString,
-			errMessage,
-			nil,
+			"failed to process incoming message",
+			map[string]string{
+				PropertyMsg:        err.Error(),
+				PropertyCmdTopic:   requestMessage.Topic,
+				PropertyCmdService: requestMessage.Payload.Service,
+				PropertyCmdType:    requestMessage.Payload.Type,
+			},
 			nil,
 			requestMessage.Payload,
 		),
