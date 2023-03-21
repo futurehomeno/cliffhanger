@@ -11,8 +11,10 @@ import (
 	"github.com/futurehomeno/cliffhanger/adapter"
 	"github.com/futurehomeno/cliffhanger/adapter/service/meterelec"
 	"github.com/futurehomeno/cliffhanger/adapter/thing"
+	"github.com/futurehomeno/cliffhanger/event"
 	"github.com/futurehomeno/cliffhanger/router"
 	"github.com/futurehomeno/cliffhanger/task"
+	mockedadapter "github.com/futurehomeno/cliffhanger/test/mocks/adapter"
 	mockedmeterelec "github.com/futurehomeno/cliffhanger/test/mocks/adapter/service/meterelec"
 	"github.com/futurehomeno/cliffhanger/test/suite"
 )
@@ -252,8 +254,11 @@ func setupMainElec[T mockedMeterElec](
 	mocks := []suite.Mock{meterElecReporter}
 
 	cfg := &thing.MainElecConfig{
-		InclusionReport: &fimptype.ThingInclusionReport{
-			Address: "2",
+		ThingConfig: &adapter.ThingConfig{
+			InclusionReport: &fimptype.ThingInclusionReport{
+				Address: "2",
+			},
+			Connector: mockedadapter.NewDefaultConnector(t),
 		},
 		MeterElecConfig: &meterelec.Config{
 			Specification: meterelec.Specification(
@@ -268,12 +273,10 @@ func setupMainElec[T mockedMeterElec](
 		},
 	}
 
-	b := thing.NewMainElec(
-		mqtt,
-		cfg,
-	)
+	ad := adapter.NewAdapter(mqtt, event.NewManager(), nil, nil, "test_adapter", "1")
 
-	ad := adapter.NewAdapter(nil, "test_adapter", "1")
+	b := thing.NewMainElec(ad, nil, cfg)
+
 	ad.RegisterThing(b)
 
 	return thing.RouteMainElec(ad), thing.TaskMainElec(ad, duration), mocks

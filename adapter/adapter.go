@@ -8,8 +8,8 @@ import (
 	"github.com/futurehomeno/fimpgo/fimptype"
 )
 
-// Adapter is an interface representing a device adapter.
-type Adapter interface {
+// baseAdapter is an interface representing a device adapter.
+type baseAdapter interface {
 	// Name returns name of the adapter.
 	Name() string
 	// Address returns an address of the adapter.
@@ -36,14 +36,17 @@ type Adapter interface {
 	RemoveThing(address string) error
 	// RemoveAllThings unregisters all things and sends exclusion reports. Useful when uninstalling or resetting adapter.
 	RemoveAllThings() error
-	// SendInclusionReport sends inclusion report for a specific thing.
-	SendInclusionReport(thing Thing) error
 	// SendExclusionReport sends exclusion report for a specific thing.
 	SendExclusionReport(address string) error
+	SendAllNodesReport() error
+
+	publishAdapterMessage(message *fimpgo.FimpMessage) error
+	publishThingMessage(thing Thing, message *fimpgo.FimpMessage) error
+	publishServiceMessage(service Service, message *fimpgo.FimpMessage) error
 }
 
-// NewAdapter creates an instance of a device adapter.
-func NewAdapter(mqtt *fimpgo.MqttTransport, resourceName, resourceAddress string) Adapter {
+// newBaseAdapter creates an instance of a device adapter.
+func newBaseAdapter(mqtt *fimpgo.MqttTransport, resourceName, resourceAddress string) baseAdapter {
 	return &adapter{
 		lock:    &sync.RWMutex{},
 		mqtt:    mqtt,
@@ -137,6 +140,8 @@ func (a *adapter) RegisterThing(thing Thing) {
 	defer a.lock.Unlock()
 
 	a.things[thing.Address()] = thing
+
+	thing.Connect()
 }
 
 // UnregisterThing unregisters thing from the adapter without sending an exclusion report.
@@ -149,6 +154,8 @@ func (a *adapter) UnregisterThing(address string) {
 	a.lock.Lock()
 	defer a.lock.Unlock()
 
+	t.Disconnect()
+
 	delete(a.things, t.Address())
 }
 
@@ -156,6 +163,10 @@ func (a *adapter) UnregisterThing(address string) {
 func (a *adapter) UnregisterAllThings() {
 	a.lock.Lock()
 	defer a.lock.Unlock()
+
+	for _, t := range a.things {
+		t.Disconnect()
+	}
 
 	a.things = make(map[string]Thing)
 }
@@ -167,7 +178,9 @@ func (a *adapter) AddThing(thing Thing) error {
 
 	a.things[thing.Address()] = thing
 
-	if err := a.SendInclusionReport(thing); err != nil {
+	defer thing.Connect()
+
+	if _, err := thing.SendInclusionReport(true); err != nil {
 		return fmt.Errorf("adapter: failed to send the inclusion report for thing with address %s: %w", thing.Address(), err)
 	}
 
@@ -186,6 +199,8 @@ func (a *adapter) RemoveThing(address string) error {
 
 	delete(a.things, t.Address())
 
+	t.Disconnect()
+
 	if err := a.SendExclusionReport(t.Address()); err != nil {
 		return fmt.Errorf("adapter: failed to send the exclusion report for thing with address %s: %w", t.Address(), err)
 	}
@@ -201,38 +216,12 @@ func (a *adapter) RemoveAllThings() error {
 	for _, t := range a.things {
 		delete(a.things, t.Address())
 
+		t.Disconnect()
+
 		err := a.SendExclusionReport(t.Address())
 		if err != nil {
 			return fmt.Errorf("adapter: failed to send the exclusion report for thing with address %s: %w", t.Address(), err)
 		}
-	}
-
-	return nil
-}
-
-// SendInclusionReport sends inclusion report for a specific thing.
-func (a *adapter) SendInclusionReport(thing Thing) error {
-	report := thing.InclusionReport()
-
-	addr := &fimpgo.Address{
-		MsgType:         fimpgo.MsgTypeEvt,
-		ResourceType:    fimpgo.ResourceTypeAdapter,
-		ResourceName:    a.Name(),
-		ResourceAddress: a.Address(),
-	}
-
-	msg := fimpgo.NewObjectMessage(
-		EvtThingInclusionReport,
-		a.name,
-		report,
-		nil,
-		nil,
-		nil,
-	)
-
-	err := a.mqtt.Publish(addr, msg)
-	if err != nil {
-		return fmt.Errorf("adapter: failed to publish the inclusion report for thing with address %s: %w", thing.Address(), err)
 	}
 
 	return nil
@@ -244,13 +233,6 @@ func (a *adapter) SendExclusionReport(address string) error {
 		Address: address,
 	}
 
-	addr := &fimpgo.Address{
-		MsgType:         fimpgo.MsgTypeEvt,
-		ResourceType:    fimpgo.ResourceTypeAdapter,
-		ResourceName:    a.Name(),
-		ResourceAddress: a.Address(),
-	}
-
 	msg := fimpgo.NewObjectMessage(
 		EvtThingExclusionReport,
 		a.name,
@@ -260,9 +242,90 @@ func (a *adapter) SendExclusionReport(address string) error {
 		nil,
 	)
 
-	err := a.mqtt.Publish(addr, msg)
+	err := a.mqtt.Publish(a.eventAddress(), msg)
 	if err != nil {
 		return fmt.Errorf("adapter: failed to publish the exclusion report for thing with address %s: %w", address, err)
+	}
+
+	return nil
+}
+
+func (a *adapter) SendAllNodesReport() error {
+	var connectivityReports ConnectivityReports
+
+	for _, t := range a.Things() {
+		connectivityReports = append(connectivityReports, t.ConnectivityReport())
+	}
+
+	msg := fimpgo.NewObjectMessage(
+		EvtNetworkAllNodesReport,
+		a.name,
+		connectivityReports,
+		nil,
+		nil,
+		nil,
+	)
+
+	return a.publishAdapterMessage(msg)
+}
+
+func (a *adapter) eventAddress() *fimpgo.Address {
+	return &fimpgo.Address{
+		MsgType:         fimpgo.MsgTypeEvt,
+		ResourceType:    fimpgo.ResourceTypeAdapter,
+		ResourceName:    a.Name(),
+		ResourceAddress: a.Address(),
+	}
+}
+
+func (a *adapter) publishAdapterMessage(message *fimpgo.FimpMessage) error {
+	address := &fimpgo.Address{
+		MsgType:         fimpgo.MsgTypeEvt,
+		ResourceType:    fimpgo.ResourceTypeAdapter,
+		ResourceName:    a.Name(),
+		ResourceAddress: a.Address(),
+	}
+
+	message.Service = a.Name()
+
+	err := a.mqtt.Publish(address, message)
+	if err != nil {
+		return fmt.Errorf("adapter: failed to publish adapter report: %w", err)
+	}
+
+	return nil
+}
+
+func (a *adapter) publishThingMessage(_ Thing, message *fimpgo.FimpMessage) error {
+	address := &fimpgo.Address{
+		MsgType:         fimpgo.MsgTypeEvt,
+		ResourceType:    fimpgo.ResourceTypeAdapter,
+		ResourceName:    a.Name(),
+		ResourceAddress: a.Address(),
+	}
+
+	message.Service = a.Name()
+
+	err := a.mqtt.Publish(address, message)
+	if err != nil {
+		return fmt.Errorf("adapter: failed to publish a thing report: %w", err)
+	}
+
+	return nil
+}
+
+func (a *adapter) publishServiceMessage(service Service, message *fimpgo.FimpMessage) error {
+	address, err := fimpgo.NewAddressFromString(service.Topic())
+	if err != nil {
+		return fmt.Errorf("adapter: failed to parse a service topic %s: %w", service.Topic(), err)
+	}
+
+	address.MsgType = fimpgo.MsgTypeEvt
+	message.Service = service.Name()
+
+	err = a.mqtt.Publish(address, message)
+	if err != nil {
+		return fmt.Errorf("adapter: failed to publish a service report: %w", err)
 	}
 
 	return nil

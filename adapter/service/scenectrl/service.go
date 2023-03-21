@@ -24,7 +24,7 @@ var DefaultReportingStrategy = cache.ReportOnChangeOnly()
 type Controller interface {
 	// SetSceneCtrlScene sets the scene of the device.
 	SetSceneCtrlScene(scene string) error
-	// SceneCtrlReport returns a current scene value.
+	// SceneCtrlSceneReport returns the current scene value.
 	SceneCtrlSceneReport() (SceneReport, error)
 }
 
@@ -54,7 +54,7 @@ type Config struct {
 
 // NewService creates a new instance of a presence FIMP service.
 func NewService(
-	mqtt *fimpgo.MqttTransport,
+	a adapter.Adapter,
 	cfg *Config,
 ) Service {
 	cfg.Specification.EnsureInterfaces(requiredInterfaces()...)
@@ -64,7 +64,7 @@ func NewService(
 	}
 
 	return &service{
-		Service:           adapter.NewService(mqtt, cfg.Specification),
+		Service:           adapter.NewService(a, cfg.Specification),
 		controller:        cfg.Controller,
 		lock:              &sync.Mutex{},
 		reportingStrategy: cfg.ReportingStrategy,

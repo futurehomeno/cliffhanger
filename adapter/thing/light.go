@@ -3,9 +3,6 @@ package thing
 import (
 	"time"
 
-	"github.com/futurehomeno/fimpgo"
-	"github.com/futurehomeno/fimpgo/fimptype"
-
 	"github.com/futurehomeno/cliffhanger/adapter"
 	"github.com/futurehomeno/cliffhanger/adapter/service/outlvlswitch"
 	"github.com/futurehomeno/cliffhanger/router"
@@ -14,21 +11,22 @@ import (
 
 // LightConfig represents a thing configuration.
 type LightConfig struct {
-	InclusionReport    *fimptype.ThingInclusionReport
+	ThingConfig        *adapter.ThingConfig
 	OutLvlSwitchConfig *outlvlswitch.Config
 }
 
 // NewLight creates a thing that satisfies expectations for a light.
 // Specification and implementation for electricity meter is optional.
 func NewLight(
-	mqtt *fimpgo.MqttTransport,
+	a adapter.Adapter,
+	ts adapter.ThingState,
 	cfg *LightConfig,
 ) adapter.Thing {
 	services := []adapter.Service{
-		outlvlswitch.NewService(mqtt, cfg.OutLvlSwitchConfig),
+		outlvlswitch.NewService(a, cfg.OutLvlSwitchConfig),
 	}
 
-	return adapter.NewThing(cfg.InclusionReport, services...)
+	return adapter.NewThing(a, ts, cfg.ThingConfig, services...)
 }
 
 // RouteLight creates routing required to satisfy expectations for a light.

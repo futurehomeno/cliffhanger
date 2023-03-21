@@ -3,9 +3,6 @@ package thing
 import (
 	"time"
 
-	"github.com/futurehomeno/fimpgo"
-	"github.com/futurehomeno/fimpgo/fimptype"
-
 	"github.com/futurehomeno/cliffhanger/adapter"
 	"github.com/futurehomeno/cliffhanger/adapter/service/meterelec"
 	"github.com/futurehomeno/cliffhanger/adapter/service/numericsensor"
@@ -16,7 +13,7 @@ import (
 
 // ThermostatConfig represents a thing configuration.
 type ThermostatConfig struct {
-	InclusionReport  *fimptype.ThingInclusionReport
+	ThingConfig      *adapter.ThingConfig
 	ThermostatConfig *thermostat.Config
 	SensorTempConfig *numericsensor.Config // Optional
 	MeterElecConfig  *meterelec.Config     // Optional
@@ -25,22 +22,23 @@ type ThermostatConfig struct {
 // NewThermostat creates a thing that satisfies expectations for a thermostat controller.
 // Specification and implementations for temperature sensor and electricity meter are optional.
 func NewThermostat(
-	mqtt *fimpgo.MqttTransport,
+	a adapter.Adapter,
+	ts adapter.ThingState,
 	cfg *ThermostatConfig,
 ) adapter.Thing {
 	services := []adapter.Service{
-		thermostat.NewService(mqtt, cfg.ThermostatConfig),
+		thermostat.NewService(a, cfg.ThermostatConfig),
 	}
 
 	if cfg.SensorTempConfig != nil && cfg.SensorTempConfig.Specification.Name == numericsensor.SensorTemp {
-		services = append(services, numericsensor.NewService(mqtt, cfg.SensorTempConfig))
+		services = append(services, numericsensor.NewService(a, cfg.SensorTempConfig))
 	}
 
 	if cfg.MeterElecConfig != nil {
-		services = append(services, meterelec.NewService(mqtt, cfg.MeterElecConfig))
+		services = append(services, meterelec.NewService(a, cfg.MeterElecConfig))
 	}
 
-	return adapter.NewThing(cfg.InclusionReport, services...)
+	return adapter.NewThing(a, ts, cfg.ThingConfig, services...)
 }
 
 // RouteThermostat creates routing required to satisfy expectations for a thermostat controller.

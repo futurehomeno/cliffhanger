@@ -3,17 +3,17 @@ package adapter
 import (
 	"encoding/json"
 	"fmt"
-	"hash/crc32"
 	"sync"
 
 	"github.com/futurehomeno/fimpgo"
-	"github.com/futurehomeno/fimpgo/fimptype"
+
+	"github.com/futurehomeno/cliffhanger/event"
 )
 
-// ExtendedAdapter is an interface representing an extended and stateful device adapter.
+// Adapter is an interface representing an extended and stateful device adapter.
 // It acts as a manager extension of an adapter, abstracting away logic for management of devices.
-type ExtendedAdapter interface {
-	Adapter
+type Adapter interface {
+	baseAdapter
 
 	// ThingByID returns a thing based on its ID. Returns nil if thing was not found.
 	ThingByID(id string) Thing
@@ -34,25 +34,26 @@ type ExtendedAdapter interface {
 	DestroyAllThings() error
 }
 
-// NewExtendedAdapter creates new instance of an extended adapter.
-func NewExtendedAdapter(
+// NewAdapter creates new instance of an extended adapter.
+func NewAdapter(
 	mqtt *fimpgo.MqttTransport,
+	eventManager event.Manager,
 	factory ThingFactory,
 	state State,
 	resourceName, resourceAddress string,
-) ExtendedAdapter {
+) Adapter {
 	return &extendedAdapter{
-		Adapter: NewAdapter(mqtt, resourceName, resourceAddress),
-		factory: factory,
-		state:   state,
-		mqtt:    mqtt,
-		lock:    &sync.RWMutex{},
+		baseAdapter: newBaseAdapter(mqtt, resourceName, resourceAddress),
+		factory:     factory,
+		state:       state,
+		mqtt:        mqtt,
+		lock:        &sync.RWMutex{},
 	}
 }
 
 // extendedAdapter is a private implementation of an extended adapter service.
 type extendedAdapter struct {
-	Adapter
+	baseAdapter
 
 	state   State
 	factory ThingFactory
@@ -106,30 +107,16 @@ func (a *extendedAdapter) InitializeThings() error {
 	defer a.lock.Unlock()
 
 	for _, ts := range a.state.all() {
-		t, err := a.factory.Create(a.mqtt, a, ts)
+		t, err := a.factory.Create(a, ts)
 		if err != nil {
 			return fmt.Errorf("adapter: failed to create thing with ID %s: %w", ts.ID(), err)
 		}
 
 		a.RegisterThing(t)
 
-		inclusionChecksum, err := a.calculateInclusionReportChecksum(t.InclusionReport())
+		_, err = t.SendInclusionReport(false)
 		if err != nil {
-			return fmt.Errorf("adapter: failed to calculate inclusion report checksum for thing with address %s: %w", t.Address(), err)
-		}
-
-		if inclusionChecksum == ts.GetInclusionChecksum() {
-			continue
-		}
-
-		err = a.SendInclusionReport(t)
-		if err != nil {
-			return fmt.Errorf("adapter: failed to send inclusion report for thing with address %s: %w", t.Address(), err)
-		}
-
-		err = ts.SetInclusionChecksum(inclusionChecksum)
-		if err != nil {
-			return fmt.Errorf("adapter: failed to persist inclusion report checksum for thing with address %s: %w", t.Address(), err)
+			return fmt.Errorf("adapter: failed to refresh inclusion report for thing with ID %s: %w", ts.ID(), err)
 		}
 	}
 
@@ -219,7 +206,7 @@ func (a *extendedAdapter) createThing(id string, info interface{}) error {
 		return fmt.Errorf("adapter: failed to create state for thing with ID %s: %w", id, err)
 	}
 
-	t, err := a.factory.Create(a.mqtt, a, ts)
+	t, err := a.factory.Create(a, ts)
 	if err != nil {
 		return fmt.Errorf("adapter: failed to create thing with ID %s: %w", id, err)
 	}
@@ -227,16 +214,6 @@ func (a *extendedAdapter) createThing(id string, info interface{}) error {
 	err = a.AddThing(t)
 	if err != nil {
 		return fmt.Errorf("adapter: failed to add thing with ID %s to the adapter: %w", id, err)
-	}
-
-	inclusionChecksum, err := a.calculateInclusionReportChecksum(t.InclusionReport())
-	if err != nil {
-		return fmt.Errorf("adapter: failed to calculate inclusion report checksum for thing with ID %s: %w", id, err)
-	}
-
-	err = ts.SetInclusionChecksum(inclusionChecksum)
-	if err != nil {
-		return fmt.Errorf("adapter: failed to persist inclusion report checksum for thing with ID %s: %w", id, err)
 	}
 
 	return nil
@@ -289,14 +266,4 @@ func (a *extendedAdapter) destroyThing(id string) error {
 	}
 
 	return nil
-}
-
-// calculateInclusionReportChecksum calculates checksum of the thing inclusion report.
-func (a *extendedAdapter) calculateInclusionReportChecksum(r *fimptype.ThingInclusionReport) (uint32, error) {
-	data, err := json.Marshal(r)
-	if err != nil {
-		return 0, fmt.Errorf("adapter: failed to marshal thing inclusion report: %w", err)
-	}
-
-	return crc32.ChecksumIEEE(data), nil
 }

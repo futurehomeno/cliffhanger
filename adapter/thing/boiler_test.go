@@ -13,8 +13,10 @@ import (
 	"github.com/futurehomeno/cliffhanger/adapter/service/numericsensor"
 	"github.com/futurehomeno/cliffhanger/adapter/service/waterheater"
 	"github.com/futurehomeno/cliffhanger/adapter/thing"
+	"github.com/futurehomeno/cliffhanger/event"
 	"github.com/futurehomeno/cliffhanger/router"
 	"github.com/futurehomeno/cliffhanger/task"
+	mockedadapter "github.com/futurehomeno/cliffhanger/test/mocks/adapter"
 	mockedmeterelec "github.com/futurehomeno/cliffhanger/test/mocks/adapter/service/meterelec"
 	mockednumericsensor "github.com/futurehomeno/cliffhanger/test/mocks/adapter/service/numericsensor"
 	mockedwaterheater "github.com/futurehomeno/cliffhanger/test/mocks/adapter/service/waterheater"
@@ -488,8 +490,11 @@ func setupBoiler(
 	mocks := []suite.Mock{waterHeaterController}
 
 	cfg := &thing.BoilerConfig{
-		InclusionReport: &fimptype.ThingInclusionReport{
-			Address: "2",
+		ThingConfig: &adapter.ThingConfig{
+			InclusionReport: &fimptype.ThingInclusionReport{
+				Address: "2",
+			},
+			Connector: mockedadapter.NewDefaultConnector(t),
 		},
 		WaterHeaterConfig: &waterheater.Config{
 			Specification: waterheater.Specification(
@@ -542,12 +547,10 @@ func setupBoiler(
 		mocks = append(mocks, meterElecReporter)
 	}
 
-	b := thing.NewBoiler(
-		mqtt,
-		cfg,
-	)
+	ad := adapter.NewAdapter(mqtt, event.NewManager(), nil, nil, "test_adapter", "1")
 
-	ad := adapter.NewAdapter(nil, "test_adapter", "1")
+	b := thing.NewBoiler(ad, nil, cfg)
+
 	ad.RegisterThing(b)
 
 	return thing.RouteBoiler(ad), thing.TaskBoiler(ad, duration), mocks

@@ -12,8 +12,10 @@ import (
 	"github.com/futurehomeno/cliffhanger/adapter/service/chargepoint"
 	"github.com/futurehomeno/cliffhanger/adapter/service/meterelec"
 	"github.com/futurehomeno/cliffhanger/adapter/thing"
+	"github.com/futurehomeno/cliffhanger/event"
 	"github.com/futurehomeno/cliffhanger/router"
 	"github.com/futurehomeno/cliffhanger/task"
+	mockedadapter "github.com/futurehomeno/cliffhanger/test/mocks/adapter"
 	mockedchargepoint "github.com/futurehomeno/cliffhanger/test/mocks/adapter/service/chargepoint"
 	mockedmeterelec "github.com/futurehomeno/cliffhanger/test/mocks/adapter/service/meterelec"
 	"github.com/futurehomeno/cliffhanger/test/suite"
@@ -571,8 +573,11 @@ func setupCarCharger(
 	mocks := []suite.Mock{chargepointController}
 
 	cfg := &thing.CarChargerConfig{
-		InclusionReport: &fimptype.ThingInclusionReport{
-			Address: "2",
+		ThingConfig: &adapter.ThingConfig{
+			InclusionReport: &fimptype.ThingInclusionReport{
+				Address: "2",
+			},
+			Connector: mockedadapter.NewDefaultConnector(t),
 		},
 		ChargepointConfig: &chargepoint.Config{
 			Specification: chargepoint.Specification(
@@ -603,8 +608,10 @@ func setupCarCharger(
 		mocks = append(mocks, meterElecReporter)
 	}
 
-	charger := thing.NewCarCharger(mqtt, cfg)
-	ad := adapter.NewAdapter(nil, "test_adapter", "1")
+	ad := adapter.NewAdapter(mqtt, event.NewManager(), nil, nil, "test_adapter", "1")
+
+	charger := thing.NewCarCharger(ad, nil, cfg)
+
 	ad.RegisterThing(charger)
 
 	return thing.RouteCarCharger(ad), thing.TaskCarCharger(ad, duration), mocks

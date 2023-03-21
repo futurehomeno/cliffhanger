@@ -11,8 +11,10 @@ import (
 	"github.com/futurehomeno/cliffhanger/adapter"
 	"github.com/futurehomeno/cliffhanger/adapter/service/outlvlswitch"
 	"github.com/futurehomeno/cliffhanger/adapter/thing"
+	"github.com/futurehomeno/cliffhanger/event"
 	"github.com/futurehomeno/cliffhanger/router"
 	"github.com/futurehomeno/cliffhanger/task"
+	mockedadapter "github.com/futurehomeno/cliffhanger/test/mocks/adapter"
 	mockedoutlvlswitch "github.com/futurehomeno/cliffhanger/test/mocks/adapter/service/outlvlswitch"
 	"github.com/futurehomeno/cliffhanger/test/suite"
 )
@@ -269,8 +271,11 @@ func setupLight(
 	mocks := []suite.Mock{lightController}
 
 	cfg := &thing.LightConfig{
-		InclusionReport: &fimptype.ThingInclusionReport{
-			Address: "2",
+		ThingConfig: &adapter.ThingConfig{
+			InclusionReport: &fimptype.ThingInclusionReport{
+				Address: "2",
+			},
+			Connector: mockedadapter.NewDefaultConnector(t),
 		},
 		OutLvlSwitchConfig: &outlvlswitch.Config{
 			Specification: outlvlswitch.Specification(
@@ -286,8 +291,10 @@ func setupLight(
 		},
 	}
 
-	light := thing.NewLight(mqtt, cfg)
-	ad := adapter.NewAdapter(nil, "test_adapter", "1")
+	ad := adapter.NewAdapter(mqtt, event.NewManager(), nil, nil, "test_adapter", "1")
+
+	light := thing.NewLight(ad, nil, cfg)
+
 	ad.RegisterThing(light)
 
 	return thing.RouteLight(ad), thing.TaskLight(ad, duration), mocks
