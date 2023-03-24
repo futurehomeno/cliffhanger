@@ -147,7 +147,7 @@ func (t *thing) SendInclusionReport(force bool) (bool, error) {
 	}
 
 	message := fimpgo.NewObjectMessage(
-		EvtNetworkNodeReport,
+		EvtThingInclusionReport,
 		"",
 		t.inclusionReport,
 		nil,
