@@ -43,11 +43,12 @@ func NewAdapter(
 	resourceName, resourceAddress string,
 ) Adapter {
 	return &extendedAdapter{
-		baseAdapter: newBaseAdapter(mqtt, resourceName, resourceAddress),
-		factory:     factory,
-		state:       state,
-		mqtt:        mqtt,
-		lock:        &sync.RWMutex{},
+		baseAdapter:  newBaseAdapter(mqtt, resourceName, resourceAddress),
+		factory:      factory,
+		eventManager: eventManager,
+		state:        state,
+		mqtt:         mqtt,
+		lock:         &sync.RWMutex{},
 	}
 }
 
@@ -55,10 +56,11 @@ func NewAdapter(
 type extendedAdapter struct {
 	baseAdapter
 
-	state   State
-	factory ThingFactory
-	mqtt    *fimpgo.MqttTransport
-	lock    *sync.RWMutex
+	eventManager event.Manager
+	state        State
+	factory      ThingFactory
+	mqtt         *fimpgo.MqttTransport
+	lock         *sync.RWMutex
 }
 
 // ThingByID returns a thing based on its ID. Returns nil if thing was not found.
