@@ -12,11 +12,6 @@ type Connector struct {
 	mock.Mock
 }
 
-// Connect provides a mock function with given fields: t
-func (_m *Connector) Connect(t adapter.Thing) {
-	_m.Called(t)
-}
-
 // Connectivity provides a mock function with given fields:
 func (_m *Connector) Connectivity() *adapter.ConnectivityDetails {
 	ret := _m.Called()
@@ -31,11 +26,6 @@ func (_m *Connector) Connectivity() *adapter.ConnectivityDetails {
 	}
 
 	return r0
-}
-
-// Disconnect provides a mock function with given fields: t
-func (_m *Connector) Disconnect(t adapter.Thing) {
-	_m.Called(t)
 }
 
 // Ping provides a mock function with given fields:

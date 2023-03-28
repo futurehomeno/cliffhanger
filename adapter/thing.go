@@ -246,10 +246,20 @@ func (t *thing) SendPingReport() error {
 
 // Connect connects the thing. If the thing is already connected, this method does nothing.
 func (t *thing) Connect() {
-	t.connector.Connect(t)
+	c, ok := t.connector.(ControllableConnector)
+	if !ok {
+		return
+	}
+
+	c.Connect(t)
 }
 
 // Disconnect disconnects the thing. If the thing is already disconnected, this method does nothing.
 func (t *thing) Disconnect() {
-	t.connector.Disconnect(t)
+	c, ok := t.connector.(ControllableConnector)
+	if !ok {
+		return
+	}
+
+	c.Disconnect(t)
 }

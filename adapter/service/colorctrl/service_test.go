@@ -196,7 +196,7 @@ func setupColorCtrl(
 			InclusionReport: &fimptype.ThingInclusionReport{
 				Address: "2",
 			},
-			Connector: mockedadapter.NewDefaultConnector(t),
+			Connector: mockedadapter.NewConnector(t),
 		},
 		ColorCtrlConfig: &colorctrl.Config{
 			Specification: colorctrl.Specification(

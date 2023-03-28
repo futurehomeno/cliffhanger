@@ -258,7 +258,7 @@ func setupMainElec[T mockedMeterElec](
 			InclusionReport: &fimptype.ThingInclusionReport{
 				Address: "2",
 			},
-			Connector: mockedadapter.NewDefaultConnector(t),
+			Connector: mockedadapter.NewConnector(t),
 		},
 		MeterElecConfig: &meterelec.Config{
 			Specification: meterelec.Specification(

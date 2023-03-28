@@ -275,7 +275,7 @@ func setupLight(
 			InclusionReport: &fimptype.ThingInclusionReport{
 				Address: "2",
 			},
-			Connector: mockedadapter.NewDefaultConnector(t),
+			Connector: mockedadapter.NewConnector(t),
 		},
 		OutLvlSwitchConfig: &outlvlswitch.Config{
 			Specification: outlvlswitch.Specification(

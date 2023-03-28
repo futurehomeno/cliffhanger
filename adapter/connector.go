@@ -2,6 +2,17 @@ package adapter
 
 // Connector is represents a service responsible for thing connection management.
 type Connector interface {
+	// Connectivity returns a connectivity report for the thing.
+	Connectivity() *ConnectivityDetails
+	// Ping executes a ping and returns a ping details report for the thing.
+	// This method must never use cached values and should always execute a real ping.
+	Ping() *PingDetails
+}
+
+// ControllableConnector is a connector that can be used to control the connection status of a thing.
+type ControllableConnector interface {
+	Connector
+
 	// Connect ensures that a thing is connected to the source of its data.
 	// If the thing is already connected, this method does nothing.
 	// Implementation might be empty if polling is the only strategy used by the adapter.
@@ -10,11 +21,6 @@ type Connector interface {
 	// If the thing is already disconnected, this method does nothing.
 	// Implementation might be empty if polling is the only strategy used by the adapter.
 	Disconnect(t Thing)
-	// Connectivity returns a connectivity report for the thing.
-	Connectivity() *ConnectivityDetails
-	// Ping executes a ping and returns a ping details report for the thing.
-	// This method must never use cached values and should always execute a real ping.
-	Ping() *PingDetails
 }
 
 // ConnectionStatus represents a connection status of a thing.
