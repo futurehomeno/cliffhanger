@@ -60,7 +60,7 @@ func NewThing(
 	services ...Service,
 ) Thing {
 	if cfg.ConnectivityReportingStrategy == nil {
-		cfg.ConnectivityReportingStrategy = cache.ReportOnChangeOnly()
+		cfg.ConnectivityReportingStrategy = cache.ReportAtLeastEvery(time.Hour)
 	}
 
 	cfg.InclusionReport.Services = nil
