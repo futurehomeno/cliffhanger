@@ -22,23 +22,23 @@ type BoilerConfig struct {
 // NewBoiler creates a thing that satisfies expectations for a boiler.
 // Specification and implementations for temperature sensor and electricity meter are optional.
 func NewBoiler(
-	a adapter.Adapter,
+	publisher adapter.Publisher,
 	ts adapter.ThingState,
 	cfg *BoilerConfig,
 ) adapter.Thing {
 	services := []adapter.Service{
-		waterheater.NewService(a, cfg.WaterHeaterConfig),
+		waterheater.NewService(publisher, cfg.WaterHeaterConfig),
 	}
 
 	if cfg.SensorWatTempConfig != nil && cfg.SensorWatTempConfig.Specification.Name == numericsensor.SensorWatTemp {
-		services = append(services, numericsensor.NewService(a, cfg.SensorWatTempConfig))
+		services = append(services, numericsensor.NewService(publisher, cfg.SensorWatTempConfig))
 	}
 
 	if cfg.MeterElecConfig != nil {
-		services = append(services, meterelec.NewService(a, cfg.MeterElecConfig))
+		services = append(services, meterelec.NewService(publisher, cfg.MeterElecConfig))
 	}
 
-	return adapter.NewThing(a, ts, cfg.ThingConfig, services...)
+	return adapter.NewThing(publisher, ts, cfg.ThingConfig, services...)
 }
 
 // RouteBoiler creates routing required to satisfy expectations for a boiler.

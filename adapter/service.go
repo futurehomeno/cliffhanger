@@ -18,16 +18,16 @@ type Service interface {
 }
 
 // NewService creates instance of a FIMP service.
-func NewService(adapter Adapter, specification *fimptype.Service) Service {
+func NewService(publisher Publisher, specification *fimptype.Service) Service {
 	return &service{
-		adapter:       adapter,
+		publisher:     publisher,
 		specification: specification,
 	}
 }
 
 // Service is a private implementation of a FIMP service.
 type service struct {
-	adapter       Adapter
+	publisher     Publisher
 	specification *fimptype.Service
 }
 
@@ -48,5 +48,5 @@ func (s *service) Specification() *fimptype.Service {
 
 // SendMessage sends a message from the service with provided contents.
 func (s *service) SendMessage(message *fimpgo.FimpMessage) error {
-	return s.adapter.publishServiceMessage(s, message)
+	return s.publisher.PublishServiceMessage(s, message)
 }

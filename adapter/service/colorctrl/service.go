@@ -53,7 +53,7 @@ type Config struct {
 
 // NewService creates a new instance of a colorctrl FIMP service.
 func NewService(
-	a adapter.Adapter,
+	publisher adapter.Publisher,
 	cfg *Config,
 ) Service {
 	cfg.Specification.Name = ColorCtrl
@@ -65,7 +65,7 @@ func NewService(
 	}
 
 	s := &service{
-		Service:           adapter.NewService(a, cfg.Specification),
+		Service:           adapter.NewService(publisher, cfg.Specification),
 		controller:        cfg.Controller,
 		lock:              &sync.Mutex{},
 		reportingCache:    cache.NewReportingCache(),

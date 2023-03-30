@@ -107,7 +107,7 @@ type Config struct {
 
 // NewService creates new instance of a meter_elec FIMP service.
 func NewService(
-	a adapter.Adapter,
+	publisher adapter.Publisher,
 	cfg *Config,
 ) Service {
 	cfg.Specification.Name = MeterElec
@@ -119,7 +119,7 @@ func NewService(
 	}
 
 	s := &service{
-		Service:           adapter.NewService(a, cfg.Specification),
+		Service:           adapter.NewService(publisher, cfg.Specification),
 		reporter:          cfg.Reporter,
 		lock:              &sync.Mutex{},
 		reportingStrategy: cfg.ReportingStrategy,

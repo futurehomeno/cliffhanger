@@ -20,19 +20,19 @@ type CarChargerConfig struct {
 // NewCarCharger creates a thing that satisfies expectations for a car charger.
 // Specification and implementation for electricity meter is optional.
 func NewCarCharger(
-	a adapter.Adapter,
+	publisher adapter.Publisher,
 	ts adapter.ThingState,
 	cfg *CarChargerConfig,
 ) adapter.Thing {
 	services := []adapter.Service{
-		chargepoint.NewService(a, cfg.ChargepointConfig),
+		chargepoint.NewService(publisher, cfg.ChargepointConfig),
 	}
 
 	if cfg.MeterElecConfig != nil {
-		services = append(services, meterelec.NewService(a, cfg.MeterElecConfig))
+		services = append(services, meterelec.NewService(publisher, cfg.MeterElecConfig))
 	}
 
-	return adapter.NewThing(a, ts, cfg.ThingConfig, services...)
+	return adapter.NewThing(publisher, ts, cfg.ThingConfig, services...)
 }
 
 // RouteCarCharger creates routing required to satisfy expectations for a car charger.

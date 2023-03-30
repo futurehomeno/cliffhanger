@@ -88,7 +88,7 @@ type Config struct {
 
 // NewService creates new instance of a water heater FIMP service.
 func NewService(
-	a adapter.Adapter,
+	publisher adapter.Publisher,
 	cfg *Config,
 ) Service {
 	cfg.Specification.Name = WaterHeater
@@ -100,7 +100,7 @@ func NewService(
 	}
 
 	return &service{
-		Service:           adapter.NewService(a, cfg.Specification),
+		Service:           adapter.NewService(publisher, cfg.Specification),
 		controller:        cfg.Controller,
 		lock:              &sync.Mutex{},
 		reportingStrategy: cfg.ReportingStrategy,

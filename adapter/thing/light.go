@@ -18,15 +18,15 @@ type LightConfig struct {
 // NewLight creates a thing that satisfies expectations for a light.
 // Specification and implementation for electricity meter is optional.
 func NewLight(
-	a adapter.Adapter,
+	publisher adapter.Publisher,
 	ts adapter.ThingState,
 	cfg *LightConfig,
 ) adapter.Thing {
 	services := []adapter.Service{
-		outlvlswitch.NewService(a, cfg.OutLvlSwitchConfig),
+		outlvlswitch.NewService(publisher, cfg.OutLvlSwitchConfig),
 	}
 
-	return adapter.NewThing(a, ts, cfg.ThingConfig, services...)
+	return adapter.NewThing(publisher, ts, cfg.ThingConfig, services...)
 }
 
 // RouteLight creates routing required to satisfy expectations for a light.

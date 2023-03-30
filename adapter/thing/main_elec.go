@@ -18,7 +18,7 @@ type MainElecConfig struct {
 
 // NewMainElec creates a thing that satisfies expectations for the main electricity meter.
 func NewMainElec(
-	a adapter.Adapter,
+	publisher adapter.Publisher,
 	ts adapter.ThingState,
 	cfg *MainElecConfig,
 ) adapter.Thing {
@@ -26,9 +26,9 @@ func NewMainElec(
 		cfg.MeterElecConfig.ReportingStrategy = cache.ReportAlways()
 	}
 
-	meterElec := meterelec.NewService(a, cfg.MeterElecConfig)
+	meterElec := meterelec.NewService(publisher, cfg.MeterElecConfig)
 
-	return adapter.NewThing(a, ts, cfg.ThingConfig, meterElec)
+	return adapter.NewThing(publisher, ts, cfg.ThingConfig, meterElec)
 }
 
 // RouteMainElec creates routing required to satisfy expectations for the main electricity meter.

@@ -22,23 +22,23 @@ type ThermostatConfig struct {
 // NewThermostat creates a thing that satisfies expectations for a thermostat controller.
 // Specification and implementations for temperature sensor and electricity meter are optional.
 func NewThermostat(
-	a adapter.Adapter,
+	publisher adapter.Publisher,
 	ts adapter.ThingState,
 	cfg *ThermostatConfig,
 ) adapter.Thing {
 	services := []adapter.Service{
-		thermostat.NewService(a, cfg.ThermostatConfig),
+		thermostat.NewService(publisher, cfg.ThermostatConfig),
 	}
 
 	if cfg.SensorTempConfig != nil && cfg.SensorTempConfig.Specification.Name == numericsensor.SensorTemp {
-		services = append(services, numericsensor.NewService(a, cfg.SensorTempConfig))
+		services = append(services, numericsensor.NewService(publisher, cfg.SensorTempConfig))
 	}
 
 	if cfg.MeterElecConfig != nil {
-		services = append(services, meterelec.NewService(a, cfg.MeterElecConfig))
+		services = append(services, meterelec.NewService(publisher, cfg.MeterElecConfig))
 	}
 
-	return adapter.NewThing(a, ts, cfg.ThingConfig, services...)
+	return adapter.NewThing(publisher, ts, cfg.ThingConfig, services...)
 }
 
 // RouteThermostat creates routing required to satisfy expectations for a thermostat controller.

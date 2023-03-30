@@ -16,7 +16,39 @@ import (
 // ThingFactory is an interface representing a thing factory service which is used by a stateful adapter.
 type ThingFactory interface {
 	// Create creates an instance of a thing using provided state.
-	Create(adapter Adapter, thingState ThingState) (Thing, error)
+	Create(adapter Adapter, publisher Publisher, thingState ThingState) (Thing, error)
+}
+
+type ThingSeeds []*ThingSeed
+
+func (s ThingSeeds) Contains(id string) bool {
+	for _, seed := range s {
+		if seed.ID == id {
+			return true
+		}
+	}
+
+	return false
+}
+
+func (s ThingSeeds) Without(id string) ThingSeeds {
+	var seeds ThingSeeds
+
+	for _, seed := range s {
+		if seed.ID == id {
+			continue
+		}
+
+		seeds = append(seeds, seed)
+	}
+
+	return seeds
+}
+
+type ThingSeed struct {
+	ID            string
+	Info          interface{}
+	CustomAddress string
 }
 
 // ThingConfig represents a thing configuration.
@@ -54,7 +86,7 @@ type Thing interface {
 
 // NewThing creates new instance of a FIMP thing.
 func NewThing(
-	adapter Adapter,
+	publisher Publisher,
 	state ThingState,
 	cfg *ThingConfig,
 	services ...Service,
@@ -73,7 +105,7 @@ func NewThing(
 	}
 
 	return &thing{
-		adapter:                       adapter,
+		publisher:                     publisher,
 		state:                         state,
 		connector:                     cfg.Connector,
 		reportingCache:                cache.NewReportingCache(),
@@ -85,7 +117,7 @@ func NewThing(
 
 // thing is a private implementation of a FIMP thing.
 type thing struct {
-	adapter                       Adapter
+	publisher                     Publisher
 	state                         ThingState
 	connector                     Connector
 	reportingCache                cache.ReportingCache
@@ -155,7 +187,7 @@ func (t *thing) SendInclusionReport(force bool) (bool, error) {
 		nil,
 	)
 
-	err = t.adapter.publishAdapterMessage(message)
+	err = t.publisher.PublishAdapterMessage(message)
 	if err != nil {
 		return false, fmt.Errorf("thing: failed to send inclusion report: %w", err)
 	}
@@ -203,7 +235,7 @@ func (t *thing) SendConnectivityReport(force bool) (bool, error) {
 		nil,
 	)
 
-	err := t.adapter.publishThingMessage(t, message)
+	err := t.publisher.PublishThingMessage(t, message)
 	if err != nil {
 		return false, fmt.Errorf("thing: failed to send node report: %w", err)
 	}
@@ -236,7 +268,7 @@ func (t *thing) SendPingReport() error {
 		nil,
 	)
 
-	err := t.adapter.publishThingMessage(t, message)
+	err := t.publisher.PublishThingMessage(t, message)
 	if err != nil {
 		return fmt.Errorf("thing: failed to send ping report: %w", err)
 	}
