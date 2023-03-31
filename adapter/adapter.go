@@ -7,8 +7,6 @@ import (
 
 	"github.com/futurehomeno/fimpgo"
 	"github.com/futurehomeno/fimpgo/fimptype"
-
-	"github.com/futurehomeno/cliffhanger/event"
 )
 
 // Adapter is an interface representing an stateful device adapter.
@@ -56,29 +54,26 @@ type Adapter interface {
 // NewAdapter creates new instance of an extended adapter.
 func NewAdapter(
 	mqtt *fimpgo.MqttTransport,
-	eventManager event.Manager,
 	factory ThingFactory,
 	state State,
 	resourceName, resourceAddress string,
 ) Adapter {
 	return &adapter{
-		name:         resourceName,
-		address:      resourceAddress,
-		things:       make(map[string]Thing),
-		factory:      factory,
-		eventManager: eventManager,
-		state:        state,
-		publisher:    NewPublisher(mqtt, resourceName, resourceAddress),
-		lock:         &sync.RWMutex{},
+		name:      resourceName,
+		address:   resourceAddress,
+		things:    make(map[string]Thing),
+		factory:   factory,
+		state:     state,
+		publisher: NewPublisher(mqtt, resourceName, resourceAddress),
+		lock:      &sync.RWMutex{},
 	}
 }
 
 // adapter is a private implementation of an adapter service.
 type adapter struct {
-	publisher    Publisher
-	eventManager event.Manager
-	state        State
-	factory      ThingFactory
+	publisher Publisher
+	state     State
+	factory   ThingFactory
 
 	name        string
 	address     string

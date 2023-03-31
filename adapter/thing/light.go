@@ -4,6 +4,7 @@ import (
 	"time"
 
 	"github.com/futurehomeno/cliffhanger/adapter"
+	"github.com/futurehomeno/cliffhanger/adapter/service/colorctrl"
 	"github.com/futurehomeno/cliffhanger/adapter/service/outlvlswitch"
 	"github.com/futurehomeno/cliffhanger/router"
 	"github.com/futurehomeno/cliffhanger/task"
@@ -13,6 +14,7 @@ import (
 type LightConfig struct {
 	ThingConfig        *adapter.ThingConfig
 	OutLvlSwitchConfig *outlvlswitch.Config
+	ColorCtrlConfig    *colorctrl.Config
 }
 
 // NewLight creates a thing that satisfies expectations for a light.
@@ -26,6 +28,10 @@ func NewLight(
 		outlvlswitch.NewService(publisher, cfg.OutLvlSwitchConfig),
 	}
 
+	if cfg.ColorCtrlConfig != nil {
+		services = append(services, colorctrl.NewService(publisher, cfg.ColorCtrlConfig))
+	}
+
 	return adapter.NewThing(publisher, ts, cfg.ThingConfig, services...)
 }
 
@@ -33,6 +39,7 @@ func NewLight(
 func RouteLight(adapter adapter.Adapter) []*router.Routing {
 	return router.Combine(
 		outlvlswitch.RouteService(adapter),
+		colorctrl.RouteService(adapter),
 	)
 }
 
@@ -44,5 +51,6 @@ func TaskLight(
 ) []*task.Task {
 	return []*task.Task{
 		outlvlswitch.TaskReporting(adapter, reportingInterval, reportingVoters...),
+		colorctrl.TaskReporting(adapter, reportingInterval, reportingVoters...),
 	}
 }

@@ -43,7 +43,7 @@ type State interface {
 // NewState creates new instance of the adapter state.
 func NewState(workDir string) (State, error) {
 	model := &adapterStateModel{}
-	storageService := storage.New(model, workDir, "adapter.json")
+	storageService := storage.NewState(model, workDir, "adapter.json")
 
 	if err := storageService.Load(); err != nil {
 		return nil, fmt.Errorf("state: failed to load the initial adapter state: %w", err)
