@@ -11,12 +11,14 @@ import (
 )
 
 // TaskReporting creates a reporting task.
-func TaskReporting(adapter adapter.Adapter, frequency time.Duration, voters ...task.Voter) *task.Task {
-	return task.New(HandleReporting(adapter), frequency, voters...)
+func TaskReporting(a adapter.Adapter, frequency time.Duration, voters ...task.Voter) *task.Task {
+	voters = append(voters, adapter.IsInitialized(a))
+
+	return task.New(handleReporting(a), frequency, voters...)
 }
 
-// HandleReporting creates handler of a reporting task.
-func HandleReporting(adapter adapter.Adapter) func() {
+// handleReporting creates handler of a reporting task.
+func handleReporting(adapter adapter.Adapter) func() {
 	return func() {
 		for _, s := range adapter.Services("") {
 			if !strings.HasPrefix(s.Name(), prefix) {

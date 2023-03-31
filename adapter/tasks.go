@@ -14,8 +14,26 @@ func TaskAdapter(
 	reportingInterval time.Duration,
 	reportingVoters ...task.Voter,
 ) []*task.Task {
+	reportingVoters = append(reportingVoters, IsInitialized(adapter))
+
 	return []*task.Task{
+		taskInitialization(adapter, reportingInterval, task.WhenNot(IsInitialized(adapter))),
 		taskConnectivityReporting(adapter, reportingInterval, reportingVoters...),
+	}
+}
+
+// taskInitialization creates an initialization task.
+func taskInitialization(adapter Adapter, reportingInterval time.Duration, reportingVoters ...task.Voter) *task.Task {
+	return task.New(handleInitialization(adapter), reportingInterval, reportingVoters...)
+}
+
+// handleInitialization creates handler of an initialization task.
+func handleInitialization(adapter Adapter) func() {
+	return func() {
+		err := adapter.InitializeThings()
+		if err != nil {
+			log.WithError(err).Errorf("adapter: failed to initialize things")
+		}
 	}
 }
 
@@ -34,4 +52,11 @@ func handleConnectivityReporting(adapter Adapter) func() {
 			}
 		}
 	}
+}
+
+// IsInitialized returns a voter that checks if the adapter is initialized.
+func IsInitialized(adapter Adapter) task.Voter {
+	return task.VoterFn(func() bool {
+		return adapter.IsInitialized()
+	})
 }

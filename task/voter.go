@@ -18,6 +18,13 @@ func (f VoterFn) Vote() bool {
 	return f()
 }
 
+// WhenNot inverts provided input voter.
+func WhenNot(v Voter) Voter {
+	return VoterFn(func() bool {
+		return !v.Vote()
+	})
+}
+
 // WhenAppIsStarting is a task voter allowing a task to run only if relevant state is met.
 func WhenAppIsStarting(l *lifecycle.Lifecycle) Voter {
 	return VoterFn(func() bool {

@@ -19,8 +19,10 @@ type ThingFactory interface {
 	Create(adapter Adapter, publisher Publisher, thingState ThingState) (Thing, error)
 }
 
+// ThingSeeds is a set of thing seeds to be used for creating things.
 type ThingSeeds []*ThingSeed
 
+// Contains returns true if the set contains a thing with the provided ID.
 func (s ThingSeeds) Contains(id string) bool {
 	for _, seed := range s {
 		if seed.ID == id {
@@ -31,6 +33,7 @@ func (s ThingSeeds) Contains(id string) bool {
 	return false
 }
 
+// Without returns a new set without a thing with the provided ID.
 func (s ThingSeeds) Without(id string) ThingSeeds {
 	var seeds ThingSeeds
 
@@ -45,6 +48,7 @@ func (s ThingSeeds) Without(id string) ThingSeeds {
 	return seeds
 }
 
+// ThingSeed represents a thing seed to be used for creating thing.
 type ThingSeed struct {
 	ID            string
 	Info          interface{}
