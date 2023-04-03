@@ -3,9 +3,6 @@ package thing
 import (
 	"time"
 
-	"github.com/futurehomeno/fimpgo"
-	"github.com/futurehomeno/fimpgo/fimptype"
-
 	"github.com/futurehomeno/cliffhanger/adapter"
 	"github.com/futurehomeno/cliffhanger/adapter/service/chargepoint"
 	"github.com/futurehomeno/cliffhanger/adapter/service/meterelec"
@@ -15,7 +12,7 @@ import (
 
 // CarChargerConfig represents a thing configuration.
 type CarChargerConfig struct {
-	InclusionReport   *fimptype.ThingInclusionReport
+	ThingConfig       *adapter.ThingConfig
 	ChargepointConfig *chargepoint.Config
 	MeterElecConfig   *meterelec.Config // Optional
 }
@@ -23,18 +20,19 @@ type CarChargerConfig struct {
 // NewCarCharger creates a thing that satisfies expectations for a car charger.
 // Specification and implementation for electricity meter is optional.
 func NewCarCharger(
-	mqtt *fimpgo.MqttTransport,
+	publisher adapter.Publisher,
+	ts adapter.ThingState,
 	cfg *CarChargerConfig,
 ) adapter.Thing {
 	services := []adapter.Service{
-		chargepoint.NewService(mqtt, cfg.ChargepointConfig),
+		chargepoint.NewService(publisher, cfg.ChargepointConfig),
 	}
 
 	if cfg.MeterElecConfig != nil {
-		services = append(services, meterelec.NewService(mqtt, cfg.MeterElecConfig))
+		services = append(services, meterelec.NewService(publisher, cfg.MeterElecConfig))
 	}
 
-	return adapter.NewThing(cfg.InclusionReport, services...)
+	return adapter.NewThing(publisher, ts, cfg.ThingConfig, services...)
 }
 
 // RouteCarCharger creates routing required to satisfy expectations for a car charger.

@@ -4,7 +4,6 @@ import (
 	"fmt"
 
 	"github.com/futurehomeno/fimpgo"
-	log "github.com/sirupsen/logrus"
 
 	"github.com/futurehomeno/cliffhanger/router"
 )
@@ -14,40 +13,47 @@ const (
 	EvtThingInclusionReport    = "evt.thing.inclusion_report"
 	EvtThingExclusionReport    = "evt.thing.exclusion_report"
 	CmdThingDelete             = "cmd.thing.delete"
+	CmdNetworkReset            = "cmd.network.reset"
+	EvtNetworkResetDone        = "evt.network.reset_done"
+	CmdNetworkGetNode          = "cmd.network.get_node"
+	EvtNetworkNodeReport       = "evt.network.node_report"
+	CmdNetworkGetAllNodes      = "cmd.network.get_all_nodes"
+	EvtNetworkAllNodesReport   = "evt.network.all_nodes_report"
+	CmdPingSend                = "cmd.ping.send"
+	EvtPingReport              = "evt.ping.report"
 )
 
 // RouteAdapter returns routing for adapter specific commands.
-func RouteAdapter(adapter Adapter, deleteCallback func(thing Thing)) []*router.Routing {
+func RouteAdapter(adapter Adapter) []*router.Routing {
 	return []*router.Routing{
-		RouteCmdThingGetInclusionReport(adapter),
-		RouteCmdThingDelete(adapter, deleteCallback),
+		routeCmdThingGetInclusionReport(adapter),
+		routeCmdThingDelete(adapter),
+		routeCmdNetworkReset(adapter),
+		routeCmdNetworkGetNode(adapter),
+		routeCmdNetworkGetAllNodes(adapter),
+		routeCmdPingSend(adapter),
 	}
 }
 
-// RouteCmdThingGetInclusionReport returns a routing responsible for handling the command.
-func RouteCmdThingGetInclusionReport(adapter Adapter) *router.Routing {
+// routeCmdThingGetInclusionReport returns a routing responsible for handling the command.
+func routeCmdThingGetInclusionReport(adapter Adapter) *router.Routing {
 	return router.NewRouting(
-		HandleCmdThingGetInclusionReport(adapter),
+		handleCmdThingGetInclusionReport(adapter),
 		router.ForService(adapter.Name()),
 		router.ForType(CmdThingGetInclusionReport),
 	)
 }
 
-// HandleCmdThingGetInclusionReport returns a handler responsible for handling the command.
-func HandleCmdThingGetInclusionReport(adapter Adapter) router.MessageHandler {
+// handleCmdThingGetInclusionReport returns a handler responsible for handling the command.
+func handleCmdThingGetInclusionReport(adapter Adapter) router.MessageHandler {
 	return router.NewMessageHandler(
 		router.MessageProcessorFn(func(message *fimpgo.Message) (reply *fimpgo.FimpMessage, err error) {
-			address, err := message.Payload.GetStringValue()
+			t, err := getThingByMessage(adapter, message)
 			if err != nil {
-				return nil, fmt.Errorf("adapter: provided address has an incorrect format: %w", err)
+				return nil, err
 			}
 
-			t := adapter.ThingByAddress(address)
-			if t == nil {
-				return nil, fmt.Errorf("adapter: thing not found under the provided address: %s", address)
-			}
-
-			err = adapter.SendInclusionReport(t)
+			_, err = t.SendInclusionReport(true)
 			if err != nil {
 				return nil, fmt.Errorf("adapter: failed to send the inclusion report: %w", err)
 			}
@@ -57,17 +63,17 @@ func HandleCmdThingGetInclusionReport(adapter Adapter) router.MessageHandler {
 	)
 }
 
-// RouteCmdThingDelete returns a routing responsible for handling the command.
-func RouteCmdThingDelete(adapter Adapter, deleteCallback func(thing Thing)) *router.Routing {
+// routeCmdThingDelete returns a routing responsible for handling the command.
+func routeCmdThingDelete(adapter Adapter) *router.Routing {
 	return router.NewRouting(
-		HandleCmdThingDelete(adapter, deleteCallback),
+		handleCmdThingDelete(adapter),
 		router.ForService(adapter.Name()),
 		router.ForType(CmdThingDelete),
 	)
 }
 
-// HandleCmdThingDelete returns a handler responsible for handling the command.
-func HandleCmdThingDelete(adapter Adapter, deleteCallback func(thing Thing)) router.MessageHandler {
+// handleCmdThingDelete returns a handler responsible for handling the command.
+func handleCmdThingDelete(adapter Adapter) router.MessageHandler {
 	return router.NewMessageHandler(
 		router.MessageProcessorFn(func(message *fimpgo.Message) (reply *fimpgo.FimpMessage, err error) {
 			value, err := message.Payload.GetStrMapValue()
@@ -77,39 +83,134 @@ func HandleCmdThingDelete(adapter Adapter, deleteCallback func(thing Thing)) rou
 
 			address := value["address"]
 
-			t := adapter.ThingByAddress(address)
-			if t == nil {
-				log.Warnf("adapter: thing not found under the provided address %s, sending exclusion report regardless...", address)
-
-				err = adapter.SendExclusionReport(address)
-				if err != nil {
-					return nil, fmt.Errorf("adapter: failed to send the exclusion report: %w", err)
-				}
-
-				return nil, nil
-			}
-
-			extended, ok := adapter.(ExtendedAdapter)
-			if ok {
-				id, ok := extended.ExchangeAddress(address)
-				if ok {
-					err = extended.DestroyThing(id)
-					if err != nil {
-						return nil, fmt.Errorf("adapter: failed to delete thing: %w", err)
-					}
-				}
-			}
-
-			err = adapter.RemoveThing(address)
+			err = adapter.DestroyThingByAddress(address)
 			if err != nil {
-				return nil, fmt.Errorf("adapter: failed to send the exclusion report: %w", err)
-			}
-
-			if deleteCallback != nil {
-				deleteCallback(t)
+				return nil, fmt.Errorf("adapter: failed to delete thing with address %s: %w", address, err)
 			}
 
 			return nil, nil
 		}),
 	)
+}
+
+// routeCmdNetworkReset returns a routing responsible for handling the command.
+func routeCmdNetworkReset(adapter Adapter) *router.Routing {
+	return router.NewRouting(
+		handleCmdNetworkReset(adapter),
+		router.ForService(adapter.Name()),
+		router.ForType(CmdNetworkReset),
+	)
+}
+
+// handleCmdNetworkReset returns a handler responsible for handling the command.
+func handleCmdNetworkReset(adapter Adapter) router.MessageHandler {
+	return router.NewMessageHandler(
+		router.MessageProcessorFn(func(message *fimpgo.Message) (reply *fimpgo.FimpMessage, err error) {
+			err = adapter.DestroyAllThings()
+			if err != nil {
+				return nil, fmt.Errorf("adapter: failed to reset all things: %w", err)
+			}
+
+			return fimpgo.NewNullMessage(
+				EvtNetworkResetDone,
+				adapter.Name(),
+				nil,
+				nil,
+				message.Payload,
+			), nil
+		}),
+	)
+}
+
+// routeCmdNetworkGetNode returns a routing responsible for handling the command.
+func routeCmdNetworkGetNode(adapter Adapter) *router.Routing {
+	return router.NewRouting(
+		handleCmdNetworkGetNode(adapter),
+		router.ForService(adapter.Name()),
+		router.ForType(CmdNetworkGetNode),
+	)
+}
+
+// handleCmdNetworkGetNode returns a handler responsible for handling the command.
+func handleCmdNetworkGetNode(adapter Adapter) router.MessageHandler {
+	return router.NewMessageHandler(
+		router.MessageProcessorFn(func(message *fimpgo.Message) (reply *fimpgo.FimpMessage, err error) {
+			t, err := getThingByMessage(adapter, message)
+			if err != nil {
+				return nil, err
+			}
+
+			_, err = t.SendConnectivityReport(true)
+			if err != nil {
+				return nil, fmt.Errorf("adapter: failed to send the node report: %w", err)
+			}
+
+			return nil, nil
+		}),
+	)
+}
+
+// routeCmdNetworkGetAllNodes returns a routing responsible for handling the command.
+func routeCmdNetworkGetAllNodes(adapter Adapter) *router.Routing {
+	return router.NewRouting(
+		handleCmdNetworkGetAllNodes(adapter),
+		router.ForService(adapter.Name()),
+		router.ForType(CmdNetworkGetAllNodes),
+	)
+}
+
+// handleCmdNetworkGetAllNodes returns a handler responsible for handling the command.
+func handleCmdNetworkGetAllNodes(adapter Adapter) router.MessageHandler {
+	return router.NewMessageHandler(
+		router.MessageProcessorFn(func(message *fimpgo.Message) (reply *fimpgo.FimpMessage, err error) {
+			err = adapter.SendConnectivityReport()
+			if err != nil {
+				return nil, fmt.Errorf("adapter: failed to send connectivity report: %w", err)
+			}
+
+			return nil, nil
+		}),
+	)
+}
+
+// routeCmdPingSend returns a routing responsible for handling the command.
+func routeCmdPingSend(adapter Adapter) *router.Routing {
+	return router.NewRouting(
+		handleCmdPingSend(adapter),
+		router.ForService(adapter.Name()),
+		router.ForType(CmdPingSend),
+	)
+}
+
+// handleCmdPingSend returns a handler responsible for handling the command.
+func handleCmdPingSend(adapter Adapter) router.MessageHandler {
+	return router.NewMessageHandler(
+		router.MessageProcessorFn(func(message *fimpgo.Message) (reply *fimpgo.FimpMessage, err error) {
+			t, err := getThingByMessage(adapter, message)
+			if err != nil {
+				return nil, err
+			}
+
+			err = t.SendPingReport()
+			if err != nil {
+				return nil, fmt.Errorf("adapter: failed to send the ping report: %w", err)
+			}
+
+			return nil, nil
+		}),
+	)
+}
+
+func getThingByMessage(adapter Adapter, message *fimpgo.Message) (Thing, error) {
+	address, err := message.Payload.GetStringValue()
+	if err != nil {
+		return nil, fmt.Errorf("adapter: provided address has an incorrect format: %w", err)
+	}
+
+	t := adapter.ThingByAddress(address)
+	if t == nil {
+		return nil, fmt.Errorf("adapter: thing not found under the provided address: %s", address)
+	}
+
+	return t, nil
 }

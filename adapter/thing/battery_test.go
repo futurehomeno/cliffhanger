@@ -1,4 +1,4 @@
-package battery_test
+package thing_test
 
 import (
 	"errors"
@@ -10,8 +10,11 @@ import (
 
 	"github.com/futurehomeno/cliffhanger/adapter"
 	"github.com/futurehomeno/cliffhanger/adapter/service/battery"
+	"github.com/futurehomeno/cliffhanger/adapter/thing"
 	"github.com/futurehomeno/cliffhanger/router"
 	"github.com/futurehomeno/cliffhanger/task"
+	adapterhelper "github.com/futurehomeno/cliffhanger/test/helper/adapter"
+	mockedadapter "github.com/futurehomeno/cliffhanger/test/mocks/adapter"
 	mockedbattery "github.com/futurehomeno/cliffhanger/test/mocks/adapter/service/battery"
 	"github.com/futurehomeno/cliffhanger/test/suite"
 )
@@ -27,7 +30,8 @@ func TestRouteBattery(t *testing.T) { //nolint:paralleltest
 	s := &suite.Suite{
 		Cases: []*suite.Case{
 			{
-				Name: "successful get reports",
+				Name:     "successful get reports",
+				TearDown: adapterhelper.TearDownAdapter("../../testdata/adapter/test_adapter"),
 				Setup: routeBattery(
 					mockedbattery.NewReporter(t).
 						MockBatteryLevelReport(80, "charging", nil, true).
@@ -55,7 +59,8 @@ func TestRouteBattery(t *testing.T) { //nolint:paralleltest
 				},
 			},
 			{
-				Name: "successful get reports with healt",
+				Name:     "successful get reports with healt",
+				TearDown: adapterhelper.TearDownAdapter("../../testdata/adapter/test_adapter"),
 				Setup: routeBattery(
 					mockedbattery.NewHealthReporter(t).
 						MockBatteryLevelReport(80, "charging", nil, true).
@@ -93,7 +98,8 @@ func TestRouteBattery(t *testing.T) { //nolint:paralleltest
 				},
 			},
 			{
-				Name: "successful get reports with sensor",
+				Name:     "successful get reports with sensor",
+				TearDown: adapterhelper.TearDownAdapter("../../testdata/adapter/test_adapter"),
 				Setup: routeBattery(
 					mockedbattery.NewSensorReporter(t).
 						MockBatteryLevelReport(80, "charging", nil, true).
@@ -131,7 +137,8 @@ func TestRouteBattery(t *testing.T) { //nolint:paralleltest
 				},
 			},
 			{
-				Name: "failed get reports",
+				Name:     "failed get reports",
+				TearDown: adapterhelper.TearDownAdapter("../../testdata/adapter/test_adapter"),
 				Setup: routeBattery(
 					mockedbattery.NewReporter(t).
 						MockBatteryLevelReport(80, "charging", errors.New("fail level report"), true).
@@ -222,7 +229,8 @@ func TestRouteBattery(t *testing.T) { //nolint:paralleltest
 				},
 			},
 			{
-				Name: "failed get reports health reporter",
+				Name:     "failed get reports health reporter",
+				TearDown: adapterhelper.TearDownAdapter("../../testdata/adapter/test_adapter"),
 				Setup: routeBattery(
 					mockedbattery.NewHealthReporter(t).
 						MockBatteryHealthReport(0, errors.New("fail health report"), true),
@@ -259,7 +267,8 @@ func TestRouteBattery(t *testing.T) { //nolint:paralleltest
 				},
 			},
 			{
-				Name: "failed get reports sensor reporter",
+				Name:     "failed get reports sensor reporter",
+				TearDown: adapterhelper.TearDownAdapter("../../testdata/adapter/test_adapter"),
 				Setup: routeBattery(
 					mockedbattery.NewSensorReporter(t).
 						MockBatterySensorReport(0, "", errors.New("fail sensor report"), true),
@@ -328,7 +337,8 @@ func TestTaskBattery(t *testing.T) { //nolint:paralleltest
 	s := &suite.Suite{
 		Cases: []*suite.Case{
 			{
-				Name: "Battery thing tasks",
+				Name:     "Battery thing tasks",
+				TearDown: adapterhelper.TearDownAdapter("../../testdata/adapter/test_adapter"),
 				Setup: taskBattery(
 					mockedbattery.NewReporter(t).
 						MockBatteryLevelReport(80, "charging", nil, true).
@@ -357,7 +367,8 @@ func TestTaskBattery(t *testing.T) { //nolint:paralleltest
 				},
 			},
 			{
-				Name: "Battery thing tasks with health",
+				Name:     "Battery thing tasks with health",
+				TearDown: adapterhelper.TearDownAdapter("../../testdata/adapter/test_adapter"),
 				Setup: taskBattery(
 					mockedbattery.NewHealthReporter(t).
 						MockBatteryLevelReport(80, "charging", nil, true).
@@ -391,7 +402,8 @@ func TestTaskBattery(t *testing.T) { //nolint:paralleltest
 				},
 			},
 			{
-				Name: "Battery thing tasks with sensor and health",
+				Name:     "Battery thing tasks with sensor and health",
+				TearDown: adapterhelper.TearDownAdapter("../../testdata/adapter/test_adapter"),
 				Setup: taskBattery(
 					mockedbattery.NewSensorReporter(t).
 						MockBatteryLevelReport(80, "charging", nil, true).
@@ -471,9 +483,12 @@ func setupBattery[T mockedBattery](
 
 	mocks := []suite.Mock{batteryReporter}
 
-	cfg := &BatteryThingConfig{
-		InclusionReport: &fimptype.ThingInclusionReport{
-			Address: "2",
+	cfg := &thing.BatteryConfig{
+		ThingConfig: &adapter.ThingConfig{
+			InclusionReport: &fimptype.ThingInclusionReport{
+				Address: "2",
+			},
+			Connector: mockedadapter.NewConnector(t),
 		},
 		BatteryConfig: &battery.Config{
 			Specification: battery.Specification(
@@ -486,45 +501,13 @@ func setupBattery[T mockedBattery](
 		},
 	}
 
-	battery := newBatteryThing(mqtt, cfg)
-	ad := adapter.NewAdapter(nil, "test_adapter", "1")
-	ad.RegisterThing(battery)
+	seed := &adapter.ThingSeed{ID: "B", CustomAddress: "2"}
 
-	return routeBatteryThing(ad), taskBatteryThing(ad, interval), mocks
-}
+	factory := adapterhelper.FactoryHelper(func(adapter adapter.Adapter, publisher adapter.Publisher, thingState adapter.ThingState) (adapter.Thing, error) {
+		return thing.NewBattery(publisher, thingState, cfg), nil
+	})
 
-// BatteryThingConfig represents a config for testing battery service.
-type BatteryThingConfig struct {
-	InclusionReport *fimptype.ThingInclusionReport
-	BatteryConfig   *battery.Config
-}
+	ad := adapterhelper.PrepareSeededAdapter(t, "../../testdata/adapter/test_adapter", mqtt, factory, adapter.ThingSeeds{seed})
 
-// newBatteryThing creates a thinng that can be used for testing battery service.
-func newBatteryThing(
-	mqtt *fimpgo.MqttTransport,
-	cfg *BatteryThingConfig,
-) adapter.Thing {
-	services := []adapter.Service{
-		battery.NewService(mqtt, cfg.BatteryConfig),
-	}
-
-	return adapter.NewThing(cfg.InclusionReport, services...)
-}
-
-// routeBatteryThing creates a thing that can be used for testing battery service.
-func routeBatteryThing(adapter adapter.Adapter) []*router.Routing {
-	return router.Combine(
-		battery.RouteService(adapter),
-	)
-}
-
-// taskBatteryThing creates background tasks specific for battery service.
-func taskBatteryThing(
-	adapter adapter.Adapter,
-	interval time.Duration,
-	voter ...task.Voter,
-) []*task.Task {
-	return []*task.Task{
-		battery.TaskReporting(adapter, interval, voter...),
-	}
+	return thing.RouteBattery(ad), thing.TaskBattery(ad, interval), mocks
 }

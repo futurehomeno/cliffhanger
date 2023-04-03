@@ -3,10 +3,8 @@ package thing
 import (
 	"time"
 
-	"github.com/futurehomeno/fimpgo"
-	"github.com/futurehomeno/fimpgo/fimptype"
-
 	"github.com/futurehomeno/cliffhanger/adapter"
+	"github.com/futurehomeno/cliffhanger/adapter/service/colorctrl"
 	"github.com/futurehomeno/cliffhanger/adapter/service/outlvlswitch"
 	"github.com/futurehomeno/cliffhanger/router"
 	"github.com/futurehomeno/cliffhanger/task"
@@ -14,27 +12,34 @@ import (
 
 // LightConfig represents a thing configuration.
 type LightConfig struct {
-	InclusionReport    *fimptype.ThingInclusionReport
+	ThingConfig        *adapter.ThingConfig
 	OutLvlSwitchConfig *outlvlswitch.Config
+	ColorCtrlConfig    *colorctrl.Config
 }
 
 // NewLight creates a thing that satisfies expectations for a light.
 // Specification and implementation for electricity meter is optional.
 func NewLight(
-	mqtt *fimpgo.MqttTransport,
+	publisher adapter.Publisher,
+	ts adapter.ThingState,
 	cfg *LightConfig,
 ) adapter.Thing {
 	services := []adapter.Service{
-		outlvlswitch.NewService(mqtt, cfg.OutLvlSwitchConfig),
+		outlvlswitch.NewService(publisher, cfg.OutLvlSwitchConfig),
 	}
 
-	return adapter.NewThing(cfg.InclusionReport, services...)
+	if cfg.ColorCtrlConfig != nil {
+		services = append(services, colorctrl.NewService(publisher, cfg.ColorCtrlConfig))
+	}
+
+	return adapter.NewThing(publisher, ts, cfg.ThingConfig, services...)
 }
 
 // RouteLight creates routing required to satisfy expectations for a light.
 func RouteLight(adapter adapter.Adapter) []*router.Routing {
 	return router.Combine(
 		outlvlswitch.RouteService(adapter),
+		colorctrl.RouteService(adapter),
 	)
 }
 
@@ -46,5 +51,6 @@ func TaskLight(
 ) []*task.Task {
 	return []*task.Task{
 		outlvlswitch.TaskReporting(adapter, reportingInterval, reportingVoters...),
+		colorctrl.TaskReporting(adapter, reportingInterval, reportingVoters...),
 	}
 }

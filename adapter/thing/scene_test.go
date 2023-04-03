@@ -1,4 +1,4 @@
-package scenectrl_test
+package thing_test
 
 import (
 	"errors"
@@ -10,8 +10,11 @@ import (
 
 	"github.com/futurehomeno/cliffhanger/adapter"
 	"github.com/futurehomeno/cliffhanger/adapter/service/scenectrl"
+	"github.com/futurehomeno/cliffhanger/adapter/thing"
 	"github.com/futurehomeno/cliffhanger/router"
 	"github.com/futurehomeno/cliffhanger/task"
+	adapterhelper "github.com/futurehomeno/cliffhanger/test/helper/adapter"
+	mockedadapter "github.com/futurehomeno/cliffhanger/test/mocks/adapter"
 	mockedscenectrl "github.com/futurehomeno/cliffhanger/test/mocks/adapter/service/scenectrl"
 	"github.com/futurehomeno/cliffhanger/test/suite"
 )
@@ -22,7 +25,7 @@ const (
 	sceneUnsupported = "movietime"
 )
 
-func TestRouteSceneCtrl(t *testing.T) { //nolint:paralleltest
+func TestRouteScene(t *testing.T) { //nolint:paralleltest
 	sceneReportColorloop := scenectrl.SceneReport{
 		Scene:     sceneColorloop,
 		Timestamp: time.Now(),
@@ -31,8 +34,9 @@ func TestRouteSceneCtrl(t *testing.T) { //nolint:paralleltest
 	s := &suite.Suite{
 		Cases: []*suite.Case{
 			{
-				Name: "successful set scene",
-				Setup: routeSceneCtrl(
+				Name:     "successful set scene",
+				TearDown: adapterhelper.TearDownAdapter("../../testdata/adapter/test_adapter"),
+				Setup: routeScene(
 					mockedscenectrl.NewController(t).
 						MockSetSceneCtrlScene(sceneColorloop, nil, true).
 						MockSceneCtrlSceneReport(sceneReportColorloop, nil, true),
@@ -48,8 +52,9 @@ func TestRouteSceneCtrl(t *testing.T) { //nolint:paralleltest
 				},
 			},
 			{
-				Name: "successful get scene",
-				Setup: routeSceneCtrl(
+				Name:     "successful get scene",
+				TearDown: adapterhelper.TearDownAdapter("../../testdata/adapter/test_adapter"),
+				Setup: routeScene(
 					mockedscenectrl.NewController(t).
 						MockSceneCtrlSceneReport(sceneReportColorloop, nil, true),
 				),
@@ -64,8 +69,9 @@ func TestRouteSceneCtrl(t *testing.T) { //nolint:paralleltest
 				},
 			},
 			{
-				Name: "failed set scene - setting error",
-				Setup: routeSceneCtrl(
+				Name:     "failed set scene - setting error",
+				TearDown: adapterhelper.TearDownAdapter("../../testdata/adapter/test_adapter"),
+				Setup: routeScene(
 					mockedscenectrl.NewController(t).
 						MockSetSceneCtrlScene(sceneColorloop, errors.New("error"), true),
 				),
@@ -101,8 +107,9 @@ func TestRouteSceneCtrl(t *testing.T) { //nolint:paralleltest
 				},
 			},
 			{
-				Name: "failed set scene - report error",
-				Setup: routeSceneCtrl(
+				Name:     "failed set scene - report error",
+				TearDown: adapterhelper.TearDownAdapter("../../testdata/adapter/test_adapter"),
+				Setup: routeScene(
 					mockedscenectrl.NewController(t).
 						MockSetSceneCtrlScene(sceneColorloop, nil, true).
 						MockSceneCtrlSceneReport(sceneReportColorloop, errors.New("error"), true),
@@ -123,7 +130,7 @@ func TestRouteSceneCtrl(t *testing.T) { //nolint:paralleltest
 	s.Run(t)
 }
 
-func TestTaskSceneCtrl(t *testing.T) { //nolint:paralleltest
+func TestTaskScene(t *testing.T) { //nolint:paralleltest
 	sceneReport1 := scenectrl.SceneReport{
 		Scene:     sceneColorloop,
 		Timestamp: time.Date(2022, time.January, 1, 1, 1, 1, 1, time.UTC),
@@ -142,8 +149,9 @@ func TestTaskSceneCtrl(t *testing.T) { //nolint:paralleltest
 	s := &suite.Suite{
 		Cases: []*suite.Case{
 			{
-				Name: "SceneCtrl Tasks",
-				Setup: taskSceneCtrl(
+				Name:     "SceneCtrl Tasks",
+				TearDown: adapterhelper.TearDownAdapter("../../testdata/adapter/test_adapter"),
+				Setup: taskScene(
 					mockedscenectrl.NewController(t).
 						MockSceneCtrlSceneReport(sceneReport1, nil, true).
 						MockSceneCtrlSceneReport(sceneReport2, nil, true).
@@ -167,32 +175,32 @@ func TestTaskSceneCtrl(t *testing.T) { //nolint:paralleltest
 	s.Run(t)
 }
 
-func routeSceneCtrl(
+func routeScene(
 	sceneControlController *mockedscenectrl.Controller,
 ) suite.BaseSetup {
 	return func(t *testing.T, mqtt *fimpgo.MqttTransport) ([]*router.Routing, []*task.Task, []suite.Mock) {
 		t.Helper()
 
-		routing, _, mocks := setupSceneCtrl(t, mqtt, sceneControlController, 0)
+		routing, _, mocks := setupScene(t, mqtt, sceneControlController, 0)
 
 		return routing, nil, mocks
 	}
 }
 
-func taskSceneCtrl(
+func taskScene(
 	sceneCtrlController *mockedscenectrl.Controller,
 	interval time.Duration,
 ) suite.BaseSetup {
 	return func(t *testing.T, mqtt *fimpgo.MqttTransport) ([]*router.Routing, []*task.Task, []suite.Mock) {
 		t.Helper()
 
-		routing, tasks, mocks := setupSceneCtrl(t, mqtt, sceneCtrlController, interval)
+		routing, tasks, mocks := setupScene(t, mqtt, sceneCtrlController, interval)
 
 		return routing, tasks, mocks
 	}
 }
 
-func setupSceneCtrl(
+func setupScene(
 	t *testing.T,
 	mqtt *fimpgo.MqttTransport,
 	sceneCtrlController *mockedscenectrl.Controller,
@@ -202,9 +210,12 @@ func setupSceneCtrl(
 
 	mocks := []suite.Mock{sceneCtrlController}
 
-	cfg := &SceneCtrlThingConfig{
-		InclusionReport: &fimptype.ThingInclusionReport{
-			Address: "2",
+	cfg := &thing.SceneConfig{
+		ThingConfig: &adapter.ThingConfig{
+			InclusionReport: &fimptype.ThingInclusionReport{
+				Address: "2",
+			},
+			Connector: mockedadapter.NewConnector(t),
 		},
 		SceneCtrlConfig: &scenectrl.Config{
 			Specification: scenectrl.Specification(
@@ -218,45 +229,13 @@ func setupSceneCtrl(
 		},
 	}
 
-	sceneCtrl := newSceneCtrlThing(mqtt, cfg)
-	ad := adapter.NewAdapter(nil, "test_adapter", "1")
-	ad.RegisterThing(sceneCtrl)
+	seed := &adapter.ThingSeed{ID: "B", CustomAddress: "2"}
 
-	return routeSceneCtrlThing(ad), taskSceneCtrlThing(ad, interval), mocks
-}
+	factory := adapterhelper.FactoryHelper(func(adapter adapter.Adapter, publisher adapter.Publisher, thingState adapter.ThingState) (adapter.Thing, error) {
+		return thing.NewScene(publisher, thingState, cfg), nil
+	})
 
-// SceneCtrlThingCOnfig represents a config for testing scenectrl service.
-type SceneCtrlThingConfig struct {
-	InclusionReport *fimptype.ThingInclusionReport
-	SceneCtrlConfig *scenectrl.Config
-}
+	ad := adapterhelper.PrepareSeededAdapter(t, "../../testdata/adapter/test_adapter", mqtt, factory, adapter.ThingSeeds{seed})
 
-// newSceneCtrlThing creates a thing that can be used for testing scene control service.
-func newSceneCtrlThing(
-	mqtt *fimpgo.MqttTransport,
-	cfg *SceneCtrlThingConfig,
-) adapter.Thing {
-	services := []adapter.Service{
-		scenectrl.NewService(mqtt, cfg.SceneCtrlConfig),
-	}
-
-	return adapter.NewThing(cfg.InclusionReport, services...)
-}
-
-// routeSceneCtrlThing creates a thing that can be used for testing scene control service.
-func routeSceneCtrlThing(ad adapter.Adapter) []*router.Routing {
-	return router.Combine(
-		scenectrl.RouteService(ad),
-	)
-}
-
-// taskSceneCtrlThing creates background tasks specific for a scene control service.
-func taskSceneCtrlThing(
-	ad adapter.Adapter,
-	interval time.Duration,
-	voter ...task.Voter,
-) []*task.Task {
-	return []*task.Task{
-		scenectrl.TaskReporting(ad, interval, voter...),
-	}
+	return thing.RouteScene(ad), thing.TaskScene(ad, interval), mocks
 }

@@ -61,7 +61,7 @@ type Config struct {
 
 // NewService creates new instance of a output level switch FIMP service.
 func NewService(
-	mqtt *fimpgo.MqttTransport,
+	publisher adapter.Publisher,
 	cfg *Config,
 ) Service {
 	cfg.Specification.EnsureInterfaces(requiredInterfaces()...)
@@ -71,7 +71,7 @@ func NewService(
 	}
 
 	s := &service{
-		Service:           adapter.NewService(mqtt, cfg.Specification),
+		Service:           adapter.NewService(publisher, cfg.Specification),
 		lock:              &sync.Mutex{},
 		controller:        cfg.Controller,
 		reportingStrategy: cfg.ReportingStrategy,

@@ -53,7 +53,7 @@ type Config struct {
 
 // NewService creates new instance of a numeric sensor FIMP service.
 func NewService(
-	mqtt *fimpgo.MqttTransport,
+	publisher adapter.Publisher,
 	cfg *Config,
 ) Service {
 	cfg.Specification.EnsureInterfaces(requiredInterfaces()...)
@@ -63,7 +63,7 @@ func NewService(
 	}
 
 	return &service{
-		Service:           adapter.NewService(mqtt, cfg.Specification),
+		Service:           adapter.NewService(publisher, cfg.Specification),
 		sensor:            cfg.Reporter,
 		lock:              &sync.Mutex{},
 		reportingStrategy: cfg.ReportingStrategy,

@@ -15,6 +15,8 @@ import (
 	"github.com/futurehomeno/cliffhanger/adapter/thing"
 	"github.com/futurehomeno/cliffhanger/router"
 	"github.com/futurehomeno/cliffhanger/task"
+	adapterhelper "github.com/futurehomeno/cliffhanger/test/helper/adapter"
+	mockedadapter "github.com/futurehomeno/cliffhanger/test/mocks/adapter"
 	mockedmeterelec "github.com/futurehomeno/cliffhanger/test/mocks/adapter/service/meterelec"
 	mockednumericsensor "github.com/futurehomeno/cliffhanger/test/mocks/adapter/service/numericsensor"
 	mockedthermostat "github.com/futurehomeno/cliffhanger/test/mocks/adapter/service/thermostat"
@@ -25,7 +27,8 @@ func TestRouteThermostat(t *testing.T) { //nolint:paralleltest
 	s := &suite.Suite{
 		Cases: []*suite.Case{
 			{
-				Name: "Successful thermostat reporting",
+				Name:     "Successful thermostat reporting",
+				TearDown: adapterhelper.TearDownAdapter("../../testdata/adapter/test_adapter"),
 				Setup: routeThermostat(
 					mockedthermostat.NewController(t).
 						MockThermostatModeReport("test_mode_a", nil, true).
@@ -122,7 +125,8 @@ func TestRouteThermostat(t *testing.T) { //nolint:paralleltest
 				},
 			},
 			{
-				Name: "Failed thermostat reporting",
+				Name:     "Failed thermostat reporting",
+				TearDown: adapterhelper.TearDownAdapter("../../testdata/adapter/test_adapter"),
 				Setup: routeThermostat(
 					mockedthermostat.NewController(t).
 						MockThermostatModeReport("test_mode_a", errors.New("test"), true).
@@ -256,7 +260,8 @@ func TestRouteThermostat(t *testing.T) { //nolint:paralleltest
 				},
 			},
 			{
-				Name: "Successful thermostat configuration",
+				Name:     "Successful thermostat configuration",
+				TearDown: adapterhelper.TearDownAdapter("../../testdata/adapter/test_adapter"),
 				Setup: routeThermostat(
 					mockedthermostat.NewController(t).
 						MockSetThermostatMode("test_mode_c", nil, true).
@@ -294,7 +299,8 @@ func TestRouteThermostat(t *testing.T) { //nolint:paralleltest
 				},
 			},
 			{
-				Name: "Failed thermostat configuration",
+				Name:     "Failed thermostat configuration",
+				TearDown: adapterhelper.TearDownAdapter("../../testdata/adapter/test_adapter"),
 				Setup: routeThermostat(
 					mockedthermostat.NewController(t).
 						MockSetThermostatMode("test_mode_a", errors.New("test"), true).
@@ -398,7 +404,8 @@ func TestTaskThermostat(t *testing.T) { //nolint:paralleltest
 	s := &suite.Suite{
 		Cases: []*suite.Case{
 			{
-				Name: "Thermostat tasks",
+				Name:     "Thermostat tasks",
+				TearDown: adapterhelper.TearDownAdapter("../../testdata/adapter/test_adapter"),
 				Setup: taskThermostat(
 					mockedthermostat.NewController(t).
 						MockThermostatModeReport("test_mode_a", nil, true).
@@ -502,8 +509,11 @@ func setupThermostat(
 	mocks := []suite.Mock{thermostatController}
 
 	cfg := &thing.ThermostatConfig{
-		InclusionReport: &fimptype.ThingInclusionReport{
-			Address: "2",
+		ThingConfig: &adapter.ThingConfig{
+			InclusionReport: &fimptype.ThingInclusionReport{
+				Address: "2",
+			},
+			Connector: mockedadapter.NewConnector(t),
 		},
 		ThermostatConfig: &thermostat.Config{
 			Specification: thermostat.Specification(
@@ -551,13 +561,13 @@ func setupThermostat(
 		mocks = append(mocks, meterElecReporter)
 	}
 
-	b := thing.NewThermostat(
-		mqtt,
-		cfg,
-	)
+	seed := &adapter.ThingSeed{ID: "B", CustomAddress: "2"}
 
-	ad := adapter.NewAdapter(nil, "test_adapter", "1")
-	ad.RegisterThing(b)
+	factory := adapterhelper.FactoryHelper(func(adapter adapter.Adapter, publisher adapter.Publisher, thingState adapter.ThingState) (adapter.Thing, error) {
+		return thing.NewThermostat(publisher, thingState, cfg), nil
+	})
+
+	ad := adapterhelper.PrepareSeededAdapter(t, "../../testdata/adapter/test_adapter", mqtt, factory, adapter.ThingSeeds{seed})
 
 	return thing.RouteThermostat(ad), thing.TaskThermostat(ad, duration), mocks
 }

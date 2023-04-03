@@ -9,25 +9,34 @@ import (
 	"github.com/futurehomeno/fimpgo/fimptype"
 
 	"github.com/futurehomeno/cliffhanger/adapter"
+	"github.com/futurehomeno/cliffhanger/adapter/service/colorctrl"
 	"github.com/futurehomeno/cliffhanger/adapter/service/outlvlswitch"
 	"github.com/futurehomeno/cliffhanger/adapter/thing"
 	"github.com/futurehomeno/cliffhanger/router"
 	"github.com/futurehomeno/cliffhanger/task"
+	adapterhelper "github.com/futurehomeno/cliffhanger/test/helper/adapter"
+	mockedadapter "github.com/futurehomeno/cliffhanger/test/mocks/adapter"
+	mockedcolorctrl "github.com/futurehomeno/cliffhanger/test/mocks/adapter/service/colorctrl"
 	mockedoutlvlswitch "github.com/futurehomeno/cliffhanger/test/mocks/adapter/service/outlvlswitch"
 	"github.com/futurehomeno/cliffhanger/test/suite"
 )
 
 func TestRouteLight(t *testing.T) { //nolint:paralleltest
+	validColor := map[string]int64{"red": 255, "green": 55, "blue": 100}
+	invalidColor := map[string]float64{"red": 255.0, "green": 55.0, "blue": 100.0}
+
 	s := &suite.Suite{
 		Cases: []*suite.Case{
 			{
-				Name: "successful set level routing",
+				Name:     "successful set level routing",
+				TearDown: adapterhelper.TearDownAdapter("../../testdata/adapter/test_adapter"),
 				Setup: routeLight(
 					mockedoutlvlswitch.NewController(t).
 						MockSetLevelSwitchLevel(99, time.Duration(1)*time.Second, nil, true).
 						MockLevelSwitchLevelReport(99, nil, true).
 						MockSetLevelSwitchLevel(98, time.Duration(0), nil, true).
 						MockLevelSwitchLevelReport(98, nil, true),
+					nil,
 				),
 				Nodes: []*suite.Node{
 					{
@@ -50,10 +59,12 @@ func TestRouteLight(t *testing.T) { //nolint:paralleltest
 				},
 			},
 			{
-				Name: "successful get report",
+				Name:     "successful get level report",
+				TearDown: adapterhelper.TearDownAdapter("../../testdata/adapter/test_adapter"),
 				Setup: routeLight(
 					mockedoutlvlswitch.NewController(t).
 						MockLevelSwitchLevelReport(99, nil, true),
+					nil,
 				),
 				Nodes: []*suite.Node{
 					{
@@ -68,10 +79,12 @@ func TestRouteLight(t *testing.T) { //nolint:paralleltest
 				},
 			},
 			{
-				Name: "failed set level - setting error",
+				Name:     "failed set level - setting error",
+				TearDown: adapterhelper.TearDownAdapter("../../testdata/adapter/test_adapter"),
 				Setup: routeLight(
 					mockedoutlvlswitch.NewController(t).
 						MockSetLevelSwitchLevel(99, time.Duration(0), errors.New("setting error"), true),
+					nil,
 				),
 				Nodes: []*suite.Node{
 					{
@@ -117,11 +130,13 @@ func TestRouteLight(t *testing.T) { //nolint:paralleltest
 				},
 			},
 			{
-				Name: "failed set level - level report error",
+				Name:     "failed set level - level report error",
+				TearDown: adapterhelper.TearDownAdapter("../../testdata/adapter/test_adapter"),
 				Setup: routeLight(
 					mockedoutlvlswitch.NewController(t).
 						MockSetLevelSwitchLevel(99, time.Duration(0), nil, true).
 						MockLevelSwitchLevelReport(99, errors.New("report error"), true),
+					nil,
 				),
 				Nodes: []*suite.Node{
 					{
@@ -134,10 +149,12 @@ func TestRouteLight(t *testing.T) { //nolint:paralleltest
 				},
 			},
 			{
-				Name: "failed set binary - setting error",
+				Name:     "failed set binary - setting error",
+				TearDown: adapterhelper.TearDownAdapter("../../testdata/adapter/test_adapter"),
 				Setup: routeLight(
 					mockedoutlvlswitch.NewController(t).
 						MockSetLevelSwitchBinaryState(true, errors.New("setting error"), true),
+					nil,
 				),
 				Nodes: []*suite.Node{
 					{
@@ -164,11 +181,13 @@ func TestRouteLight(t *testing.T) { //nolint:paralleltest
 				},
 			},
 			{
-				Name: "failed set binary - level report error",
+				Name:     "failed set binary - level report error",
+				TearDown: adapterhelper.TearDownAdapter("../../testdata/adapter/test_adapter"),
 				Setup: routeLight(
 					mockedoutlvlswitch.NewController(t).
 						MockSetLevelSwitchBinaryState(true, nil, true).
 						MockLevelSwitchLevelReport(99, errors.New("report error"), true),
+					nil,
 				),
 				Nodes: []*suite.Node{
 					{
@@ -181,10 +200,12 @@ func TestRouteLight(t *testing.T) { //nolint:paralleltest
 				},
 			},
 			{
-				Name: "failed get level - send level error",
+				Name:     "failed get level - send level error",
+				TearDown: adapterhelper.TearDownAdapter("../../testdata/adapter/test_adapter"),
 				Setup: routeLight(
 					mockedoutlvlswitch.NewController(t).
 						MockLevelSwitchLevelReport(99, errors.New("sending error"), true),
+					nil,
 				),
 				Nodes: []*suite.Node{
 					{
@@ -196,6 +217,94 @@ func TestRouteLight(t *testing.T) { //nolint:paralleltest
 					},
 				},
 			},
+			{
+				Name:     "successful set color",
+				TearDown: adapterhelper.TearDownAdapter("../../testdata/adapter/test_adapter"),
+				Setup: routeLight(
+					mockedoutlvlswitch.NewController(t),
+					mockedcolorctrl.NewController(t).
+						MockSetColorCtrlColor(validColor, nil, true).
+						MockColorCtrlColorReport(validColor, nil, true),
+				),
+				Nodes: []*suite.Node{
+					{
+						Name:    "set color",
+						Command: suite.IntMapMessage("pt:j1/mt:cmd/rt:dev/rn:test_adapter/ad:1/sv:color_ctrl/ad:2", "cmd.color.set", "color_ctrl", validColor),
+						Expectations: []*suite.Expectation{
+							suite.ExpectIntMap("pt:j1/mt:evt/rt:dev/rn:test_adapter/ad:1/sv:color_ctrl/ad:2", "evt.color.report", "color_ctrl", validColor),
+						},
+					},
+				},
+			},
+			{
+				Name:     "successful get color",
+				TearDown: adapterhelper.TearDownAdapter("../../testdata/adapter/test_adapter"),
+				Setup: routeLight(
+					mockedoutlvlswitch.NewController(t),
+					mockedcolorctrl.NewController(t).
+						MockColorCtrlColorReport(validColor, nil, true),
+				),
+				Nodes: []*suite.Node{
+					{
+						Name:    "get color",
+						Command: suite.NullMessage("pt:j1/mt:cmd/rt:dev/rn:test_adapter/ad:1/sv:color_ctrl/ad:2", "cmd.color.get_report", "color_ctrl"),
+						Expectations: []*suite.Expectation{
+							suite.ExpectIntMap("pt:j1/mt:evt/rt:dev/rn:test_adapter/ad:1/sv:color_ctrl/ad:2", "evt.color.report", "color_ctrl", validColor),
+						},
+					},
+				},
+			},
+			{
+				Name:     "failed set color level - setting error",
+				TearDown: adapterhelper.TearDownAdapter("../../testdata/adapter/test_adapter"),
+				Setup: routeLight(
+					mockedoutlvlswitch.NewController(t),
+					mockedcolorctrl.NewController(t).
+						MockSetColorCtrlColor(validColor, errors.New("error"), true),
+				),
+				Nodes: []*suite.Node{
+					{
+						Name:    "controller error",
+						Command: suite.IntMapMessage("pt:j1/mt:cmd/rt:dev/rn:test_adapter/ad:1/sv:color_ctrl/ad:2", "cmd.color.set", "color_ctrl", validColor),
+						Expectations: []*suite.Expectation{
+							suite.ExpectError("pt:j1/mt:evt/rt:dev/rn:test_adapter/ad:1/sv:color_ctrl/ad:2", "color_ctrl"),
+						},
+					},
+					{
+						Name:    "wrong colorValue type",
+						Command: suite.FloatMapMessage("pt:j1/mt:cmd/rt:dev/rn:test_adapter/ad:1/sv:color_ctrl/ad:2", "cmd.color.set", "color_ctrl", invalidColor),
+						Expectations: []*suite.Expectation{
+							suite.ExpectError("pt:j1/mt:evt/rt:dev/rn:test_adapter/ad:1/sv:color_ctrl/ad:2", "color_ctrl"),
+						},
+					},
+					{
+						Name:    "wrong address",
+						Command: suite.IntMapMessage("pt:j1/mt:cmd/rt:dev/rn:test_adapter/ad:1/sv:color_ctrl/ad:3", "cmd.color.set", "color_ctrl", validColor),
+						Expectations: []*suite.Expectation{
+							suite.ExpectError("pt:j1/mt:evt/rt:dev/rn:test_adapter/ad:1/sv:color_ctrl/ad:3", "color_ctrl"),
+						},
+					},
+				},
+			},
+			{
+				Name:     "failed set color level - report error",
+				TearDown: adapterhelper.TearDownAdapter("../../testdata/adapter/test_adapter"),
+				Setup: routeLight(
+					mockedoutlvlswitch.NewController(t),
+					mockedcolorctrl.NewController(t).
+						MockSetColorCtrlColor(validColor, nil, true).
+						MockColorCtrlColorReport(validColor, errors.New("error"), true),
+				),
+				Nodes: []*suite.Node{
+					{
+						Name:    "report error",
+						Command: suite.IntMapMessage("pt:j1/mt:cmd/rt:dev/rn:test_adapter/ad:1/sv:color_ctrl/ad:2", "cmd.color.set", "color_ctrl", validColor),
+						Expectations: []*suite.Expectation{
+							suite.ExpectError("pt:j1/mt:evt/rt:dev/rn:test_adapter/ad:1/sv:color_ctrl/ad:2", "color_ctrl"),
+						},
+					},
+				},
+			},
 		},
 	}
 
@@ -203,10 +312,29 @@ func TestRouteLight(t *testing.T) { //nolint:paralleltest
 }
 
 func TestTaskLight(t *testing.T) { //nolint:paralleltest
+	color1 := map[string]int64{
+		"red":   255,
+		"green": 55,
+		"blue":  100,
+	}
+
+	color2 := map[string]int64{
+		"red":   55,
+		"green": 155,
+		"blue":  255,
+	}
+
+	color3 := map[string]int64{
+		"red":   100,
+		"green": 200,
+		"blue":  0,
+	}
+
 	s := &suite.Suite{
 		Cases: []*suite.Case{
 			{
-				Name: "Light tasks",
+				Name:     "Light with level tasks",
+				TearDown: adapterhelper.TearDownAdapter("../../testdata/adapter/test_adapter"),
 				Setup: taskLight(
 					mockedoutlvlswitch.NewController(t).
 						MockLevelSwitchLevelReport(99, nil, true).
@@ -214,6 +342,7 @@ func TestTaskLight(t *testing.T) { //nolint:paralleltest
 						MockLevelSwitchLevelReport(98, nil, true).
 						MockLevelSwitchLevelReport(97, nil, true).
 						MockLevelSwitchLevelReport(97, nil, false),
+					nil,
 					100*time.Millisecond,
 				),
 				Nodes: []*suite.Node{
@@ -227,6 +356,30 @@ func TestTaskLight(t *testing.T) { //nolint:paralleltest
 					},
 				},
 			},
+			{
+				Name:     "Light with color tasks",
+				TearDown: adapterhelper.TearDownAdapter("../../testdata/adapter/test_adapter"),
+				Setup: taskLight(
+					mockedoutlvlswitch.NewController(t).MockLevelSwitchLevelReport(100, nil, false),
+					mockedcolorctrl.NewController(t).
+						MockColorCtrlColorReport(color1, nil, true).
+						MockColorCtrlColorReport(color1, errors.New("task error"), true).
+						MockColorCtrlColorReport(color2, nil, true).
+						MockColorCtrlColorReport(color3, nil, true).
+						MockColorCtrlColorReport(color3, nil, false),
+					100*time.Millisecond,
+				),
+				Nodes: []*suite.Node{
+					{
+						Name: "Tasks",
+						Expectations: []*suite.Expectation{
+							suite.ExpectIntMap("pt:j1/mt:evt/rt:dev/rn:test_adapter/ad:1/sv:color_ctrl/ad:2", "evt.color.report", "color_ctrl", color1),
+							suite.ExpectIntMap("pt:j1/mt:evt/rt:dev/rn:test_adapter/ad:1/sv:color_ctrl/ad:2", "evt.color.report", "color_ctrl", color2),
+							suite.ExpectIntMap("pt:j1/mt:evt/rt:dev/rn:test_adapter/ad:1/sv:color_ctrl/ad:2", "evt.color.report", "color_ctrl", color3),
+						},
+					},
+				},
+			},
 		},
 	}
 
@@ -235,11 +388,12 @@ func TestTaskLight(t *testing.T) { //nolint:paralleltest
 
 func routeLight(
 	lightController *mockedoutlvlswitch.Controller,
+	colorCtrlController *mockedcolorctrl.Controller,
 ) suite.BaseSetup {
 	return func(t *testing.T, mqtt *fimpgo.MqttTransport) ([]*router.Routing, []*task.Task, []suite.Mock) {
 		t.Helper()
 
-		routing, _, mocks := setupLight(t, mqtt, lightController, 0)
+		routing, _, mocks := setupLight(t, mqtt, lightController, colorCtrlController, 0)
 
 		return routing, nil, mocks
 	}
@@ -247,12 +401,13 @@ func routeLight(
 
 func taskLight(
 	lightController *mockedoutlvlswitch.Controller,
+	colorCtrlController *mockedcolorctrl.Controller,
 	interval time.Duration,
 ) suite.BaseSetup {
 	return func(t *testing.T, mqtt *fimpgo.MqttTransport) ([]*router.Routing, []*task.Task, []suite.Mock) {
 		t.Helper()
 
-		_, tasks, mocks := setupLight(t, mqtt, lightController, interval)
+		_, tasks, mocks := setupLight(t, mqtt, lightController, colorCtrlController, interval)
 
 		return nil, tasks, mocks
 	}
@@ -262,6 +417,7 @@ func setupLight(
 	t *testing.T,
 	mqtt *fimpgo.MqttTransport,
 	lightController *mockedoutlvlswitch.Controller,
+	colorCtrlController *mockedcolorctrl.Controller,
 	duration time.Duration,
 ) ([]*router.Routing, []*task.Task, []suite.Mock) {
 	t.Helper()
@@ -269,8 +425,11 @@ func setupLight(
 	mocks := []suite.Mock{lightController}
 
 	cfg := &thing.LightConfig{
-		InclusionReport: &fimptype.ThingInclusionReport{
-			Address: "2",
+		ThingConfig: &adapter.ThingConfig{
+			InclusionReport: &fimptype.ThingInclusionReport{
+				Address: "2",
+			},
+			Connector: mockedadapter.NewConnector(t),
 		},
 		OutLvlSwitchConfig: &outlvlswitch.Config{
 			Specification: outlvlswitch.Specification(
@@ -286,9 +445,27 @@ func setupLight(
 		},
 	}
 
-	light := thing.NewLight(mqtt, cfg)
-	ad := adapter.NewAdapter(nil, "test_adapter", "1")
-	ad.RegisterThing(light)
+	if colorCtrlController != nil {
+		cfg.ColorCtrlConfig = &colorctrl.Config{
+			Specification: colorctrl.Specification(
+				"test_adapter",
+				"1",
+				"2",
+				nil,
+				[]string{"red", "green", "blue"},
+				map[string]int64{"min": 180, "max": 7620, "step": 60},
+			),
+			Controller: colorCtrlController,
+		}
+	}
+
+	seed := &adapter.ThingSeed{ID: "B", CustomAddress: "2"}
+
+	factory := adapterhelper.FactoryHelper(func(adapter adapter.Adapter, publisher adapter.Publisher, thingState adapter.ThingState) (adapter.Thing, error) {
+		return thing.NewLight(publisher, thingState, cfg), nil
+	})
+
+	ad := adapterhelper.PrepareSeededAdapter(t, "../../testdata/adapter/test_adapter", mqtt, factory, adapter.ThingSeeds{seed})
 
 	return thing.RouteLight(ad), thing.TaskLight(ad, duration), mocks
 }

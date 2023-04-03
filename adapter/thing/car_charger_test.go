@@ -14,6 +14,8 @@ import (
 	"github.com/futurehomeno/cliffhanger/adapter/thing"
 	"github.com/futurehomeno/cliffhanger/router"
 	"github.com/futurehomeno/cliffhanger/task"
+	adapterhelper "github.com/futurehomeno/cliffhanger/test/helper/adapter"
+	mockedadapter "github.com/futurehomeno/cliffhanger/test/mocks/adapter"
 	mockedchargepoint "github.com/futurehomeno/cliffhanger/test/mocks/adapter/service/chargepoint"
 	mockedmeterelec "github.com/futurehomeno/cliffhanger/test/mocks/adapter/service/meterelec"
 	"github.com/futurehomeno/cliffhanger/test/suite"
@@ -30,7 +32,8 @@ func TestRouteCarCharger(t *testing.T) { //nolint:paralleltest
 	s := &suite.Suite{
 		Cases: []*suite.Case{
 			{
-				Name: "successful start charging routing",
+				Name:     "successful start charging routing",
+				TearDown: adapterhelper.TearDownAdapter("../../testdata/adapter/test_adapter"),
 				Setup: routeCarCharger(
 					mockedchargepoint.NewController(t).
 						MockStartChargepointCharging("", nil, false).
@@ -62,7 +65,8 @@ func TestRouteCarCharger(t *testing.T) { //nolint:paralleltest
 				},
 			},
 			{
-				Name: "successful start charging routing with mode support",
+				Name:     "successful start charging routing with mode support",
+				TearDown: adapterhelper.TearDownAdapter("../../testdata/adapter/test_adapter"),
 				Setup: routeCarCharger(
 					mockedchargepoint.NewController(t).
 						MockStartChargepointCharging("normal", nil, true).
@@ -86,7 +90,8 @@ func TestRouteCarCharger(t *testing.T) { //nolint:paralleltest
 				},
 			},
 			{
-				Name: "successful stop charging routing",
+				Name:     "successful stop charging routing",
+				TearDown: adapterhelper.TearDownAdapter("../../testdata/adapter/test_adapter"),
 				Setup: routeCarCharger(
 					mockedchargepoint.NewController(t).
 						MockStopChargepointCharging(nil, true).
@@ -107,7 +112,8 @@ func TestRouteCarCharger(t *testing.T) { //nolint:paralleltest
 				},
 			},
 			{
-				Name: "other successful routing",
+				Name:     "other successful routing",
+				TearDown: adapterhelper.TearDownAdapter("../../testdata/adapter/test_adapter"),
 				Setup: routeCarCharger(
 					mockedchargepoint.NewController(t).
 						MockSetChargepointCableLock(true, nil, true).
@@ -187,7 +193,8 @@ func TestRouteCarCharger(t *testing.T) { //nolint:paralleltest
 				},
 			},
 			{
-				Name: "failed start charging routing - starting error",
+				Name:     "failed start charging routing - starting error",
+				TearDown: adapterhelper.TearDownAdapter("../../testdata/adapter/test_adapter"),
 				Setup: routeCarCharger(
 					mockedchargepoint.NewController(t).
 						MockStartChargepointCharging("", errTest, true),
@@ -205,7 +212,8 @@ func TestRouteCarCharger(t *testing.T) { //nolint:paralleltest
 				},
 			},
 			{
-				Name: "failed start charging routing - state report error",
+				Name:     "failed start charging routing - state report error",
+				TearDown: adapterhelper.TearDownAdapter("../../testdata/adapter/test_adapter"),
 				Setup: routeCarCharger(
 					mockedchargepoint.NewController(t).
 						MockStartChargepointCharging("", nil, true).
@@ -224,7 +232,8 @@ func TestRouteCarCharger(t *testing.T) { //nolint:paralleltest
 				},
 			},
 			{
-				Name: "failed start charging routing - session report error",
+				Name:     "failed start charging routing - session report error",
+				TearDown: adapterhelper.TearDownAdapter("../../testdata/adapter/test_adapter"),
 				Setup: routeCarCharger(
 					mockedchargepoint.NewController(t).
 						MockStartChargepointCharging("", nil, true).
@@ -244,7 +253,8 @@ func TestRouteCarCharger(t *testing.T) { //nolint:paralleltest
 				},
 			},
 			{
-				Name: "failed start charging routing - unsupported charging mode",
+				Name:     "failed start charging routing - unsupported charging mode",
+				TearDown: adapterhelper.TearDownAdapter("../../testdata/adapter/test_adapter"),
 				Setup: routeCarCharger(
 					mockedchargepoint.NewController(t),
 					nil,
@@ -264,7 +274,8 @@ func TestRouteCarCharger(t *testing.T) { //nolint:paralleltest
 				},
 			},
 			{
-				Name: "failed stop charging routing - stopping error",
+				Name:     "failed stop charging routing - stopping error",
+				TearDown: adapterhelper.TearDownAdapter("../../testdata/adapter/test_adapter"),
 				Setup: routeCarCharger(
 					mockedchargepoint.NewController(t).
 						MockStopChargepointCharging(errTest, true),
@@ -282,7 +293,8 @@ func TestRouteCarCharger(t *testing.T) { //nolint:paralleltest
 				},
 			},
 			{
-				Name: "failed stop charging routing - state report error",
+				Name:     "failed stop charging routing - state report error",
+				TearDown: adapterhelper.TearDownAdapter("../../testdata/adapter/test_adapter"),
 				Setup: routeCarCharger(
 					mockedchargepoint.NewController(t).
 						MockStopChargepointCharging(nil, true).
@@ -301,7 +313,8 @@ func TestRouteCarCharger(t *testing.T) { //nolint:paralleltest
 				},
 			},
 			{
-				Name: "failed stop charging routing - session report error",
+				Name:     "failed stop charging routing - session report error",
+				TearDown: adapterhelper.TearDownAdapter("../../testdata/adapter/test_adapter"),
 				Setup: routeCarCharger(
 					mockedchargepoint.NewController(t).
 						MockStopChargepointCharging(nil, true).
@@ -321,7 +334,8 @@ func TestRouteCarCharger(t *testing.T) { //nolint:paralleltest
 				},
 			},
 			{
-				Name: "failed cable lock routing - setter error",
+				Name:     "failed cable lock routing - setter error",
+				TearDown: adapterhelper.TearDownAdapter("../../testdata/adapter/test_adapter"),
 				Setup: routeCarCharger(
 					mockedchargepoint.NewController(t).
 						MockSetChargepointCableLock(true, errTest, true),
@@ -339,7 +353,8 @@ func TestRouteCarCharger(t *testing.T) { //nolint:paralleltest
 				},
 			},
 			{
-				Name: "failed cable lock routing - cable lock report error",
+				Name:     "failed cable lock routing - cable lock report error",
+				TearDown: adapterhelper.TearDownAdapter("../../testdata/adapter/test_adapter"),
 				Setup: routeCarCharger(
 					mockedchargepoint.NewController(t).
 						MockSetChargepointCableLock(true, nil, true).
@@ -358,7 +373,8 @@ func TestRouteCarCharger(t *testing.T) { //nolint:paralleltest
 				},
 			},
 			{
-				Name: "other failed routing",
+				Name:     "other failed routing",
+				TearDown: adapterhelper.TearDownAdapter("../../testdata/adapter/test_adapter"),
 				Setup: routeCarCharger(
 					mockedchargepoint.NewController(t).
 						MockChargepointCableLockReport(false, errTest, false).
@@ -480,7 +496,8 @@ func TestTaskCarCharger(t *testing.T) { //nolint:paralleltest
 	s := &suite.Suite{
 		Cases: []*suite.Case{
 			{
-				Name: "Car charger tasks",
+				Name:     "Car charger tasks",
+				TearDown: adapterhelper.TearDownAdapter("../../testdata/adapter/test_adapter"),
 				Setup: taskCarCharger(
 					mockedchargepoint.NewController(t).
 						MockChargepointCableLockReport(true, nil, true).
@@ -571,8 +588,11 @@ func setupCarCharger(
 	mocks := []suite.Mock{chargepointController}
 
 	cfg := &thing.CarChargerConfig{
-		InclusionReport: &fimptype.ThingInclusionReport{
-			Address: "2",
+		ThingConfig: &adapter.ThingConfig{
+			InclusionReport: &fimptype.ThingInclusionReport{
+				Address: "2",
+			},
+			Connector: mockedadapter.NewConnector(t),
 		},
 		ChargepointConfig: &chargepoint.Config{
 			Specification: chargepoint.Specification(
@@ -603,9 +623,13 @@ func setupCarCharger(
 		mocks = append(mocks, meterElecReporter)
 	}
 
-	charger := thing.NewCarCharger(mqtt, cfg)
-	ad := adapter.NewAdapter(nil, "test_adapter", "1")
-	ad.RegisterThing(charger)
+	seed := &adapter.ThingSeed{ID: "B", CustomAddress: "2"}
+
+	factory := adapterhelper.FactoryHelper(func(adapter adapter.Adapter, publisher adapter.Publisher, thingState adapter.ThingState) (adapter.Thing, error) {
+		return thing.NewCarCharger(publisher, thingState, cfg), nil
+	})
+
+	ad := adapterhelper.PrepareSeededAdapter(t, "../../testdata/adapter/test_adapter", mqtt, factory, adapter.ThingSeeds{seed})
 
 	return thing.RouteCarCharger(ad), thing.TaskCarCharger(ad, duration), mocks
 }

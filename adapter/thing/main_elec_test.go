@@ -13,6 +13,8 @@ import (
 	"github.com/futurehomeno/cliffhanger/adapter/thing"
 	"github.com/futurehomeno/cliffhanger/router"
 	"github.com/futurehomeno/cliffhanger/task"
+	adapterhelper "github.com/futurehomeno/cliffhanger/test/helper/adapter"
+	mockedadapter "github.com/futurehomeno/cliffhanger/test/mocks/adapter"
 	mockedmeterelec "github.com/futurehomeno/cliffhanger/test/mocks/adapter/service/meterelec"
 	"github.com/futurehomeno/cliffhanger/test/suite"
 )
@@ -21,7 +23,8 @@ func TestRouteMainElec(t *testing.T) { //nolint:paralleltest
 	s := &suite.Suite{
 		Cases: []*suite.Case{
 			{
-				Name: "Successful main elec reporting",
+				Name:     "Successful main elec reporting",
+				TearDown: adapterhelper.TearDownAdapter("../../testdata/adapter/test_adapter"),
 				Setup: routeMainElec(
 					mockedmeterelec.NewReporter(t).
 						MockElectricityMeterReport("W", 1500, nil, false).
@@ -67,7 +70,8 @@ func TestRouteMainElec(t *testing.T) { //nolint:paralleltest
 				},
 			},
 			{
-				Name: "Failed main elec reporting",
+				Name:     "Failed main elec reporting",
+				TearDown: adapterhelper.TearDownAdapter("../../testdata/adapter/test_adapter"),
 				Setup: routeMainElec(
 					mockedmeterelec.NewReporter(t).
 						MockElectricityMeterReport("W", 0, errors.New("test"), true),
@@ -111,7 +115,8 @@ func TestRouteMainElec(t *testing.T) { //nolint:paralleltest
 				},
 			},
 			{
-				Name: "Successful extended main elec reporting",
+				Name:     "Successful extended main elec reporting",
+				TearDown: adapterhelper.TearDownAdapter("../../testdata/adapter/test_adapter"),
 				Setup: routeMainElec(
 					mockedmeterelec.NewExtendedReporter(t).
 						MockElectricityMeterExtendedReport(map[string]float64{"p_import": 1500, "e_import": 165.78}, nil, true),
@@ -127,7 +132,8 @@ func TestRouteMainElec(t *testing.T) { //nolint:paralleltest
 				},
 			},
 			{
-				Name: "Failed extended main elec reporting",
+				Name:     "Failed extended main elec reporting",
+				TearDown: adapterhelper.TearDownAdapter("../../testdata/adapter/test_adapter"),
 				Setup: routeMainElec(
 					mockedmeterelec.NewExtendedReporter(t).
 						MockElectricityMeterExtendedReport(nil, errors.New("test"), true),
@@ -159,7 +165,8 @@ func TestTaskMainElec(t *testing.T) { //nolint:paralleltest
 	s := &suite.Suite{
 		Cases: []*suite.Case{
 			{
-				Name: "Main elec tasks",
+				Name:     "Main elec tasks",
+				TearDown: adapterhelper.TearDownAdapter("../../testdata/adapter/test_adapter"),
 				Setup: taskMainElec(
 					mockedmeterelec.NewReporter(t).
 						MockElectricityMeterReport("W", 1500, nil, true).
@@ -185,7 +192,8 @@ func TestTaskMainElec(t *testing.T) { //nolint:paralleltest
 				},
 			},
 			{
-				Name: "Extended main elec tasks",
+				Name:     "Extended main elec tasks",
+				TearDown: adapterhelper.TearDownAdapter("../../testdata/adapter/test_adapter"),
 				Setup: taskMainElec(
 					mockedmeterelec.NewExtendedReporter(t).
 						MockElectricityMeterExtendedReport(map[string]float64{"p_import": 1500, "e_import": 165.78}, nil, true).
@@ -252,8 +260,11 @@ func setupMainElec[T mockedMeterElec](
 	mocks := []suite.Mock{meterElecReporter}
 
 	cfg := &thing.MainElecConfig{
-		InclusionReport: &fimptype.ThingInclusionReport{
-			Address: "2",
+		ThingConfig: &adapter.ThingConfig{
+			InclusionReport: &fimptype.ThingInclusionReport{
+				Address: "2",
+			},
+			Connector: mockedadapter.NewConnector(t),
 		},
 		MeterElecConfig: &meterelec.Config{
 			Specification: meterelec.Specification(
@@ -268,13 +279,13 @@ func setupMainElec[T mockedMeterElec](
 		},
 	}
 
-	b := thing.NewMainElec(
-		mqtt,
-		cfg,
-	)
+	seed := &adapter.ThingSeed{ID: "B", CustomAddress: "2"}
 
-	ad := adapter.NewAdapter(nil, "test_adapter", "1")
-	ad.RegisterThing(b)
+	factory := adapterhelper.FactoryHelper(func(adapter adapter.Adapter, publisher adapter.Publisher, thingState adapter.ThingState) (adapter.Thing, error) {
+		return thing.NewMainElec(publisher, thingState, cfg), nil
+	})
+
+	ad := adapterhelper.PrepareSeededAdapter(t, "../../testdata/adapter/test_adapter", mqtt, factory, adapter.ThingSeeds{seed})
 
 	return thing.RouteMainElec(ad), thing.TaskMainElec(ad, duration), mocks
 }

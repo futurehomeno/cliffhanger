@@ -15,6 +15,8 @@ import (
 	"github.com/futurehomeno/cliffhanger/adapter/thing"
 	"github.com/futurehomeno/cliffhanger/router"
 	"github.com/futurehomeno/cliffhanger/task"
+	adapterhelper "github.com/futurehomeno/cliffhanger/test/helper/adapter"
+	mockedadapter "github.com/futurehomeno/cliffhanger/test/mocks/adapter"
 	mockedmeterelec "github.com/futurehomeno/cliffhanger/test/mocks/adapter/service/meterelec"
 	mockednumericsensor "github.com/futurehomeno/cliffhanger/test/mocks/adapter/service/numericsensor"
 	mockedwaterheater "github.com/futurehomeno/cliffhanger/test/mocks/adapter/service/waterheater"
@@ -25,7 +27,8 @@ func TestRouteBoiler(t *testing.T) { //nolint:paralleltest
 	s := &suite.Suite{
 		Cases: []*suite.Case{
 			{
-				Name: "Successful boiler reporting",
+				Name:     "Successful boiler reporting",
+				TearDown: adapterhelper.TearDownAdapter("../../testdata/adapter/test_adapter"),
 				Setup: routeBoiler(
 					mockedwaterheater.NewController(t).
 						MockWaterHeaterModeReport("test_mode_a", nil, true).
@@ -122,7 +125,8 @@ func TestRouteBoiler(t *testing.T) { //nolint:paralleltest
 				},
 			},
 			{
-				Name: "Failed boiler reporting",
+				Name:     "Failed boiler reporting",
+				TearDown: adapterhelper.TearDownAdapter("../../testdata/adapter/test_adapter"),
 				Setup: routeBoiler(
 					mockedwaterheater.NewController(t).
 						MockWaterHeaterModeReport("test_mode_a", errors.New("test"), true).
@@ -256,7 +260,8 @@ func TestRouteBoiler(t *testing.T) { //nolint:paralleltest
 				},
 			},
 			{
-				Name: "Successful boiler configuration",
+				Name:     "Successful boiler configuration",
+				TearDown: adapterhelper.TearDownAdapter("../../testdata/adapter/test_adapter"),
 				Setup: routeBoiler(
 					mockedwaterheater.NewController(t).
 						MockSetWaterHeaterMode("test_mode_c", nil, true).
@@ -294,7 +299,8 @@ func TestRouteBoiler(t *testing.T) { //nolint:paralleltest
 				},
 			},
 			{
-				Name: "Failed boiler configuration",
+				Name:     "Failed boiler configuration",
+				TearDown: adapterhelper.TearDownAdapter("../../testdata/adapter/test_adapter"),
 				Setup: routeBoiler(
 					mockedwaterheater.NewController(t).
 						MockSetWaterHeaterMode("test_mode_a", errors.New("test"), true).
@@ -384,7 +390,8 @@ func TestTaskBoiler(t *testing.T) { //nolint:paralleltest
 	s := &suite.Suite{
 		Cases: []*suite.Case{
 			{
-				Name: "Boiler tasks",
+				Name:     "Boiler tasks",
+				TearDown: adapterhelper.TearDownAdapter("../../testdata/adapter/test_adapter"),
 				Setup: taskBoiler(
 					mockedwaterheater.NewController(t).
 						MockWaterHeaterModeReport("test_mode_a", nil, true).
@@ -488,8 +495,11 @@ func setupBoiler(
 	mocks := []suite.Mock{waterHeaterController}
 
 	cfg := &thing.BoilerConfig{
-		InclusionReport: &fimptype.ThingInclusionReport{
-			Address: "2",
+		ThingConfig: &adapter.ThingConfig{
+			InclusionReport: &fimptype.ThingInclusionReport{
+				Address: "2",
+			},
+			Connector: mockedadapter.NewConnector(t),
 		},
 		WaterHeaterConfig: &waterheater.Config{
 			Specification: waterheater.Specification(
@@ -542,13 +552,13 @@ func setupBoiler(
 		mocks = append(mocks, meterElecReporter)
 	}
 
-	b := thing.NewBoiler(
-		mqtt,
-		cfg,
-	)
+	seed := &adapter.ThingSeed{ID: "B", CustomAddress: "2"}
 
-	ad := adapter.NewAdapter(nil, "test_adapter", "1")
-	ad.RegisterThing(b)
+	factory := adapterhelper.FactoryHelper(func(adapter adapter.Adapter, publisher adapter.Publisher, thingState adapter.ThingState) (adapter.Thing, error) {
+		return thing.NewBoiler(publisher, thingState, cfg), nil
+	})
+
+	ad := adapterhelper.PrepareSeededAdapter(t, "../../testdata/adapter/test_adapter", mqtt, factory, adapter.ThingSeeds{seed})
 
 	return thing.RouteBoiler(ad), thing.TaskBoiler(ad, duration), mocks
 }

@@ -111,7 +111,7 @@ type Config struct {
 
 // NewService creates a new instance of a battery FIMP service.
 func NewService(
-	mqtt *fimpgo.MqttTransport,
+	publisher adapter.Publisher,
 	cfg *Config,
 ) Service {
 	cfg.Specification.Name = Battery
@@ -123,7 +123,7 @@ func NewService(
 	}
 
 	s := &service{
-		Service:           adapter.NewService(mqtt, cfg.Specification),
+		Service:           adapter.NewService(publisher, cfg.Specification),
 		reporter:          cfg.Reporter,
 		lock:              &sync.Mutex{},
 		reportingCache:    cache.NewReportingCache(),

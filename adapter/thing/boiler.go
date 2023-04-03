@@ -3,9 +3,6 @@ package thing
 import (
 	"time"
 
-	"github.com/futurehomeno/fimpgo"
-	"github.com/futurehomeno/fimpgo/fimptype"
-
 	"github.com/futurehomeno/cliffhanger/adapter"
 	"github.com/futurehomeno/cliffhanger/adapter/service/meterelec"
 	"github.com/futurehomeno/cliffhanger/adapter/service/numericsensor"
@@ -16,7 +13,7 @@ import (
 
 // BoilerConfig represents a thing configuration.
 type BoilerConfig struct {
-	InclusionReport     *fimptype.ThingInclusionReport
+	ThingConfig         *adapter.ThingConfig
 	WaterHeaterConfig   *waterheater.Config
 	SensorWatTempConfig *numericsensor.Config // Optional
 	MeterElecConfig     *meterelec.Config     // Optional
@@ -25,22 +22,23 @@ type BoilerConfig struct {
 // NewBoiler creates a thing that satisfies expectations for a boiler.
 // Specification and implementations for temperature sensor and electricity meter are optional.
 func NewBoiler(
-	mqtt *fimpgo.MqttTransport,
+	publisher adapter.Publisher,
+	ts adapter.ThingState,
 	cfg *BoilerConfig,
 ) adapter.Thing {
 	services := []adapter.Service{
-		waterheater.NewService(mqtt, cfg.WaterHeaterConfig),
+		waterheater.NewService(publisher, cfg.WaterHeaterConfig),
 	}
 
 	if cfg.SensorWatTempConfig != nil && cfg.SensorWatTempConfig.Specification.Name == numericsensor.SensorWatTemp {
-		services = append(services, numericsensor.NewService(mqtt, cfg.SensorWatTempConfig))
+		services = append(services, numericsensor.NewService(publisher, cfg.SensorWatTempConfig))
 	}
 
 	if cfg.MeterElecConfig != nil {
-		services = append(services, meterelec.NewService(mqtt, cfg.MeterElecConfig))
+		services = append(services, meterelec.NewService(publisher, cfg.MeterElecConfig))
 	}
 
-	return adapter.NewThing(cfg.InclusionReport, services...)
+	return adapter.NewThing(publisher, ts, cfg.ThingConfig, services...)
 }
 
 // RouteBoiler creates routing required to satisfy expectations for a boiler.

@@ -9,8 +9,8 @@ import (
 	"github.com/futurehomeno/cliffhanger/storage"
 )
 
-// stateModel is a model of the adapter state file.
-type stateModel struct {
+// adapterStateModel is a model of the adapter state file.
+type adapterStateModel struct {
 	AddressIndex int                         `json:"address_index"`
 	Things       map[string]*thingStateModel `json:"things"`
 }
@@ -42,8 +42,8 @@ type State interface {
 
 // NewState creates new instance of the adapter state.
 func NewState(workDir string) (State, error) {
-	model := &stateModel{}
-	storageService := storage.New(model, workDir, "adapter.json")
+	model := &adapterStateModel{}
+	storageService := storage.NewState(model, workDir, "adapter.json")
 
 	if err := storageService.Load(); err != nil {
 		return nil, fmt.Errorf("state: failed to load the initial adapter state: %w", err)
@@ -59,7 +59,7 @@ func NewState(workDir string) (State, error) {
 // state is a private implementation of the adapter state service.
 type state struct {
 	storage storage.Storage
-	model   *stateModel
+	model   *adapterStateModel
 	lock    *sync.RWMutex
 }
 

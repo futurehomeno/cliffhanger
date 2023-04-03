@@ -1,8 +1,6 @@
 package adapter
 
 import (
-	"fmt"
-
 	"github.com/futurehomeno/fimpgo"
 	"github.com/futurehomeno/fimpgo/fimptype"
 )
@@ -20,16 +18,16 @@ type Service interface {
 }
 
 // NewService creates instance of a FIMP service.
-func NewService(mqtt *fimpgo.MqttTransport, specification *fimptype.Service) Service {
+func NewService(publisher Publisher, specification *fimptype.Service) Service {
 	return &service{
-		mqtt:          mqtt,
+		publisher:     publisher,
 		specification: specification,
 	}
 }
 
 // Service is a private implementation of a FIMP service.
 type service struct {
-	mqtt          *fimpgo.MqttTransport
+	publisher     Publisher
 	specification *fimptype.Service
 }
 
@@ -50,18 +48,5 @@ func (s *service) Specification() *fimptype.Service {
 
 // SendMessage sends a message from the service with provided contents.
 func (s *service) SendMessage(message *fimpgo.FimpMessage) error {
-	address, err := fimpgo.NewAddressFromString(s.Topic())
-	if err != nil {
-		return fmt.Errorf("service: failed to parse a service topic %s: %w", s.Topic(), err)
-	}
-
-	address.MsgType = fimpgo.MsgTypeEvt
-	message.Service = s.Name()
-
-	err = s.mqtt.Publish(address, message)
-	if err != nil {
-		return fmt.Errorf("service: failed to publish a report: %w", err)
-	}
-
-	return nil
+	return s.publisher.PublishServiceMessage(s, message)
 }

@@ -1,4 +1,4 @@
-package presence_test
+package thing_test
 
 import (
 	"errors"
@@ -10,20 +10,26 @@ import (
 
 	"github.com/futurehomeno/cliffhanger/adapter"
 	"github.com/futurehomeno/cliffhanger/adapter/service/presence"
+	"github.com/futurehomeno/cliffhanger/adapter/thing"
 	"github.com/futurehomeno/cliffhanger/router"
 	"github.com/futurehomeno/cliffhanger/task"
+	adapterhelper "github.com/futurehomeno/cliffhanger/test/helper/adapter"
+	mockedadapter "github.com/futurehomeno/cliffhanger/test/mocks/adapter"
+	mockednumericsensor "github.com/futurehomeno/cliffhanger/test/mocks/adapter/service/numericsensor"
 	mockedpresence "github.com/futurehomeno/cliffhanger/test/mocks/adapter/service/presence"
 	"github.com/futurehomeno/cliffhanger/test/suite"
 )
 
-func TestRoutePresence(t *testing.T) { //nolint:paralleltest
+func TestRouteSensor(t *testing.T) { //nolint:paralleltest
 	s := &suite.Suite{
 		Cases: []*suite.Case{
 			{
-				Name: "successful get report",
+				Name:     "successful presence report",
+				TearDown: adapterhelper.TearDownAdapter("../../testdata/adapter/test_adapter"),
 				Setup: routePresence(
 					mockedpresence.NewController(t).
 						MockSensorPresenceReport(true, nil, true),
+					nil,
 				),
 				Nodes: []*suite.Node{
 					{
@@ -38,10 +44,12 @@ func TestRoutePresence(t *testing.T) { //nolint:paralleltest
 				},
 			},
 			{
-				Name: "failed get report",
+				Name:     "failed get report",
+				TearDown: adapterhelper.TearDownAdapter("../../testdata/adapter/test_adapter"),
 				Setup: routePresence(
 					mockedpresence.NewController(t).
 						MockSensorPresenceReport(false, errors.New("error"), true),
+					nil,
 				),
 				Nodes: []*suite.Node{
 					{
@@ -54,7 +62,7 @@ func TestRoutePresence(t *testing.T) { //nolint:paralleltest
 						},
 					},
 					{
-						Name: "wrond address",
+						Name: "wrong address",
 						Command: suite.NewMessageBuilder().
 							NullMessage("pt:j1/mt:cmd/rt:dev/rn:test_adapter/ad:1/sv:sensor_presence/ad:3", "cmd.presence.get_report", "sensor_presence").
 							Build(),
@@ -70,17 +78,19 @@ func TestRoutePresence(t *testing.T) { //nolint:paralleltest
 	s.Run(t)
 }
 
-func TestTaskPresence(t *testing.T) { //nolint:paralleltest
+func TestTaskSensor(t *testing.T) { //nolint:paralleltest
 	s := &suite.Suite{
 		Cases: []*suite.Case{
 			{
-				Name: "Presence thing tasks",
+				Name:     "Presence thing tasks",
+				TearDown: adapterhelper.TearDownAdapter("../../testdata/adapter/test_adapter"),
 				Setup: taskPresence(
 					mockedpresence.NewController(t).
 						MockSensorPresenceReport(true, nil, true).
 						MockSensorPresenceReport(true, errors.New("task error"), true).
 						MockSensorPresenceReport(false, nil, true).
 						MockSensorPresenceReport(false, nil, false),
+					nil,
 					100*time.Millisecond,
 				),
 				Nodes: []*suite.Node{
@@ -101,11 +111,12 @@ func TestTaskPresence(t *testing.T) { //nolint:paralleltest
 
 func routePresence(
 	presenceController *mockedpresence.Controller,
+	numericSensorReporters []*mockednumericsensor.Reporter,
 ) suite.BaseSetup {
 	return func(t *testing.T, mqtt *fimpgo.MqttTransport) ([]*router.Routing, []*task.Task, []suite.Mock) {
 		t.Helper()
 
-		routing, _, mocks := setupPresence(t, mqtt, presenceController, 0)
+		routing, _, mocks := setupPresence(t, mqtt, presenceController, numericSensorReporters, 0)
 
 		return routing, nil, mocks
 	}
@@ -113,12 +124,13 @@ func routePresence(
 
 func taskPresence(
 	presenceController *mockedpresence.Controller,
+	numericSensorReporters []*mockednumericsensor.Reporter,
 	interval time.Duration,
 ) suite.BaseSetup {
 	return func(t *testing.T, mqtt *fimpgo.MqttTransport) ([]*router.Routing, []*task.Task, []suite.Mock) {
 		t.Helper()
 
-		_, tasks, mocks := setupPresence(t, mqtt, presenceController, interval)
+		_, tasks, mocks := setupPresence(t, mqtt, presenceController, numericSensorReporters, interval)
 
 		return nil, tasks, mocks
 	}
@@ -128,15 +140,19 @@ func setupPresence(
 	t *testing.T,
 	mqtt *fimpgo.MqttTransport,
 	presenceController *mockedpresence.Controller,
+	_ []*mockednumericsensor.Reporter,
 	duration time.Duration,
 ) ([]*router.Routing, []*task.Task, []suite.Mock) {
 	t.Helper()
 
 	mocks := []suite.Mock{presenceController}
 
-	cfg := &PresenceThingConfig{
-		InclusionReport: &fimptype.ThingInclusionReport{
-			Address: "2",
+	cfg := &thing.SensorConfig{
+		ThingConfig: &adapter.ThingConfig{
+			InclusionReport: &fimptype.ThingInclusionReport{
+				Address: "2",
+			},
+			Connector: mockedadapter.NewConnector(t),
 		},
 		PresenceConfig: &presence.Config{
 			Specification: presence.Specification(
@@ -149,45 +165,13 @@ func setupPresence(
 		},
 	}
 
-	motionSensor := newPresenceThing(mqtt, cfg)
-	ad := adapter.NewAdapter(nil, "test_adapter", "1")
-	ad.RegisterThing(motionSensor)
+	seed := &adapter.ThingSeed{ID: "B", CustomAddress: "2"}
 
-	return routePresenceThing(ad), taskPresenceThing(ad, duration), mocks
-}
+	factory := adapterhelper.FactoryHelper(func(adapter adapter.Adapter, publisher adapter.Publisher, thingState adapter.ThingState) (adapter.Thing, error) {
+		return thing.NewSensor(publisher, thingState, cfg), nil
+	})
 
-// ThingConfig represents a config for testing precence service.
-type PresenceThingConfig struct {
-	InclusionReport *fimptype.ThingInclusionReport
-	PresenceConfig  *presence.Config
-}
+	ad := adapterhelper.PrepareSeededAdapter(t, "../../testdata/adapter/test_adapter", mqtt, factory, adapter.ThingSeeds{seed})
 
-// newPresenceThing creates a thing that can be used for testing presence service.
-func newPresenceThing(
-	mqtt *fimpgo.MqttTransport,
-	cfg *PresenceThingConfig,
-) adapter.Thing {
-	services := []adapter.Service{
-		presence.NewService(mqtt, cfg.PresenceConfig),
-	}
-
-	return adapter.NewThing(cfg.InclusionReport, services...)
-}
-
-// routePresenceThing creates a thing that can be used for testing presence service.
-func routePresenceThing(adapter adapter.Adapter) []*router.Routing {
-	return router.Combine(
-		presence.RouteService(adapter),
-	)
-}
-
-// taskPresenceThing creates background tasks specific for presence service.
-func taskPresenceThing(
-	adapter adapter.Adapter,
-	reportingInterval time.Duration,
-	reportingVoter ...task.Voter,
-) []*task.Task {
-	return []*task.Task{
-		presence.TaskReporting(adapter, reportingInterval, reportingVoter...),
-	}
+	return thing.RouteSensor(ad), thing.TaskSensor(ad, duration), mocks
 }
