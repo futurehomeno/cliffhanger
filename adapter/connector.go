@@ -47,7 +47,7 @@ type ConnectionQuality string
 
 // Constants representing available connection qualities.
 const (
-	ConnectionQualityGood      ConnectionQuality = "high"
+	ConnectionQualityHigh      ConnectionQuality = "high"
 	ConnectionQualityMedium    ConnectionQuality = "medium"
 	ConnectionQualityLow       ConnectionQuality = "low"
 	ConnectionQualityUndefined ConnectionQuality = "undefined"
