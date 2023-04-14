@@ -60,6 +60,7 @@ type ConnectionType string
 const (
 	ConnectionTypeDirect   ConnectionType = "direct"
 	ConnectionTypeIndirect ConnectionType = "indirect"
+	ConnectionTypeUnknown  ConnectionType = "unknown"
 )
 
 // ConnectivityReports represents a set of connectivity reports of multiple things.
@@ -81,6 +82,14 @@ type ConnectivityReport struct {
 func (c *ConnectivityReport) sanitize() {
 	if c.ConnectionQuality == "" {
 		c.ConnectionQuality = ConnectionQualityUndefined
+	}
+
+	if c.ConnectionType == "" {
+		c.ConnectionType = ConnectionTypeUnknown
+	}
+
+	if c.Operationability == nil {
+		c.Operationability = make([]Operationability, 0)
 	}
 }
 
