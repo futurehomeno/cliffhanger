@@ -1,6 +1,7 @@
 package suite
 
 import (
+	"fmt"
 	"sync"
 	"testing"
 	"time"
@@ -11,6 +12,17 @@ import (
 )
 
 const defaultTimeout = 1500 * time.Millisecond
+
+func SleepNode(duration time.Duration) *Node {
+	return &Node{
+		Name: fmt.Sprintf("Sleeping for %s", duration.String()),
+		InitCallbacks: []Callback{
+			func(t *testing.T) {
+				time.Sleep(duration)
+			},
+		},
+	}
+}
 
 func NewNode(name string) *Node {
 	return &Node{
