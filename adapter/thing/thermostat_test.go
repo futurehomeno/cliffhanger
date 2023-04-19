@@ -9,7 +9,7 @@ import (
 	"github.com/futurehomeno/fimpgo/fimptype"
 
 	"github.com/futurehomeno/cliffhanger/adapter"
-	"github.com/futurehomeno/cliffhanger/adapter/service/meterelec"
+	"github.com/futurehomeno/cliffhanger/adapter/service/numericmeter"
 	"github.com/futurehomeno/cliffhanger/adapter/service/numericsensor"
 	"github.com/futurehomeno/cliffhanger/adapter/service/thermostat"
 	"github.com/futurehomeno/cliffhanger/adapter/thing"
@@ -17,7 +17,7 @@ import (
 	"github.com/futurehomeno/cliffhanger/task"
 	adapterhelper "github.com/futurehomeno/cliffhanger/test/helper/adapter"
 	mockedadapter "github.com/futurehomeno/cliffhanger/test/mocks/adapter"
-	mockedmeterelec "github.com/futurehomeno/cliffhanger/test/mocks/adapter/service/meterelec"
+	mockednumericmeter "github.com/futurehomeno/cliffhanger/test/mocks/adapter/service/numericmeter"
 	mockednumericsensor "github.com/futurehomeno/cliffhanger/test/mocks/adapter/service/numericsensor"
 	mockedthermostat "github.com/futurehomeno/cliffhanger/test/mocks/adapter/service/thermostat"
 	"github.com/futurehomeno/cliffhanger/test/suite"
@@ -36,9 +36,9 @@ func TestRouteThermostat(t *testing.T) { //nolint:paralleltest
 						MockThermostatStateReport("idle", nil, true),
 					mockednumericsensor.NewReporter(t).
 						MockNumericSensorReport("C", 21.5, nil, false),
-					mockedmeterelec.NewReporter(t).
-						MockElectricityMeterReport("W", 2, nil, false).
-						MockElectricityMeterReport("kWh", 123.45, nil, false),
+					mockednumericmeter.NewReporter(t).
+						MockMeterReport("W", 2, nil, false).
+						MockMeterReport("kWh", 123.45, nil, false),
 				),
 				Nodes: []*suite.Node{
 					{
@@ -134,8 +134,8 @@ func TestRouteThermostat(t *testing.T) { //nolint:paralleltest
 						MockThermostatStateReport("", errors.New("test"), true),
 					mockednumericsensor.NewReporter(t).
 						MockNumericSensorReport("C", 0, errors.New("test"), true),
-					mockedmeterelec.NewReporter(t).
-						MockElectricityMeterReport("W", 0, errors.New("test"), true),
+					mockednumericmeter.NewReporter(t).
+						MockMeterReport("W", 0, errors.New("test"), true),
 				),
 				Nodes: []*suite.Node{
 					{
@@ -429,15 +429,15 @@ func TestTaskThermostat(t *testing.T) { //nolint:paralleltest
 						MockNumericSensorReport("C", 0, errors.New("test"), true).
 						MockNumericSensorReport("C", 21, nil, true).
 						MockNumericSensorReport("C", 21.5, nil, false),
-					mockedmeterelec.NewReporter(t).
-						MockElectricityMeterReport("W", 2, nil, true).
-						MockElectricityMeterReport("W", 0, errors.New("test"), true).
-						MockElectricityMeterReport("W", 2, nil, true).
-						MockElectricityMeterReport("W", 1500, nil, false).
-						MockElectricityMeterReport("kWh", 123.45, nil, true).
-						MockElectricityMeterReport("kWh", 0, errors.New("test"), true).
-						MockElectricityMeterReport("kWh", 123.45, nil, true).
-						MockElectricityMeterReport("kWh", 123.56, nil, false),
+					mockednumericmeter.NewReporter(t).
+						MockMeterReport("W", 2, nil, true).
+						MockMeterReport("W", 0, errors.New("test"), true).
+						MockMeterReport("W", 2, nil, true).
+						MockMeterReport("W", 1500, nil, false).
+						MockMeterReport("kWh", 123.45, nil, true).
+						MockMeterReport("kWh", 0, errors.New("test"), true).
+						MockMeterReport("kWh", 123.45, nil, true).
+						MockMeterReport("kWh", 123.56, nil, false),
 					100*time.Millisecond,
 				),
 				Nodes: []*suite.Node{
@@ -470,7 +470,7 @@ func TestTaskThermostat(t *testing.T) { //nolint:paralleltest
 func routeThermostat(
 	thermostatController *mockedthermostat.Controller,
 	sensorTempReporter *mockednumericsensor.Reporter,
-	meterElecReporter *mockedmeterelec.Reporter,
+	meterElecReporter *mockednumericmeter.Reporter,
 ) suite.BaseSetup {
 	return func(t *testing.T, mqtt *fimpgo.MqttTransport) ([]*router.Routing, []*task.Task, []suite.Mock) {
 		t.Helper()
@@ -484,7 +484,7 @@ func routeThermostat(
 func taskThermostat(
 	thermostatController *mockedthermostat.Controller,
 	sensorTempReporter *mockednumericsensor.Reporter,
-	meterElecReporter *mockedmeterelec.Reporter,
+	meterElecReporter *mockednumericmeter.Reporter,
 	interval time.Duration,
 ) suite.BaseSetup {
 	return func(t *testing.T, mqtt *fimpgo.MqttTransport) ([]*router.Routing, []*task.Task, []suite.Mock) {
@@ -501,7 +501,7 @@ func setupThermostat(
 	mqtt *fimpgo.MqttTransport,
 	thermostatController *mockedthermostat.Controller,
 	sensorTempReporter *mockednumericsensor.Reporter,
-	meterElecReporter *mockedmeterelec.Reporter,
+	meterElecReporter *mockednumericmeter.Reporter,
 	duration time.Duration,
 ) ([]*router.Routing, []*task.Task, []suite.Mock) {
 	t.Helper()
@@ -546,14 +546,17 @@ func setupThermostat(
 	}
 
 	if meterElecReporter != nil {
-		cfg.MeterElecConfig = &meterelec.Config{
-			Specification: meterelec.Specification(
+		cfg.MeterElecConfig = &numericmeter.Config{
+			Specification: numericmeter.Specification(
+				numericmeter.MeterElec,
 				"test_adapter",
 				"1",
 				"2",
 				nil,
 				[]string{"W", "kWh"},
 				nil,
+				nil,
+				false,
 			),
 			Reporter: meterElecReporter,
 		}

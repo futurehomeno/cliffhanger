@@ -7,15 +7,16 @@ import (
 
 	"github.com/futurehomeno/fimpgo"
 	"github.com/futurehomeno/fimpgo/fimptype"
+	"github.com/stretchr/testify/mock"
 
 	"github.com/futurehomeno/cliffhanger/adapter"
-	"github.com/futurehomeno/cliffhanger/adapter/service/meterelec"
+	"github.com/futurehomeno/cliffhanger/adapter/service/numericmeter"
 	"github.com/futurehomeno/cliffhanger/adapter/thing"
 	"github.com/futurehomeno/cliffhanger/router"
 	"github.com/futurehomeno/cliffhanger/task"
 	adapterhelper "github.com/futurehomeno/cliffhanger/test/helper/adapter"
 	mockedadapter "github.com/futurehomeno/cliffhanger/test/mocks/adapter"
-	mockedmeterelec "github.com/futurehomeno/cliffhanger/test/mocks/adapter/service/meterelec"
+	mockednumericmeter "github.com/futurehomeno/cliffhanger/test/mocks/adapter/service/numericmeter"
 	"github.com/futurehomeno/cliffhanger/test/suite"
 )
 
@@ -26,9 +27,12 @@ func TestRouteMainElec(t *testing.T) { //nolint:paralleltest
 				Name:     "Successful main elec reporting",
 				TearDown: adapterhelper.TearDownAdapter("../../testdata/adapter/test_adapter"),
 				Setup: routeMainElec(
-					mockedmeterelec.NewReporter(t).
-						MockElectricityMeterReport("W", 1500, nil, false).
-						MockElectricityMeterReport("kWh", 165.78, nil, false),
+					mockednumericmeter.NewMockedMeter(
+						mockednumericmeter.NewReporter(t).
+							MockMeterReport("W", 1500, nil, false).
+							MockMeterReport("kWh", 165.78, nil, false),
+						mockednumericmeter.NewExtendedReporter(t),
+					),
 				),
 				Nodes: []*suite.Node{
 					{
@@ -73,8 +77,8 @@ func TestRouteMainElec(t *testing.T) { //nolint:paralleltest
 				Name:     "Failed main elec reporting",
 				TearDown: adapterhelper.TearDownAdapter("../../testdata/adapter/test_adapter"),
 				Setup: routeMainElec(
-					mockedmeterelec.NewReporter(t).
-						MockElectricityMeterReport("W", 0, errors.New("test"), true),
+					mockednumericmeter.NewReporter(t).
+						MockMeterReport("W", 0, errors.New("test"), true),
 				),
 				Nodes: []*suite.Node{
 					{
@@ -118,8 +122,11 @@ func TestRouteMainElec(t *testing.T) { //nolint:paralleltest
 				Name:     "Successful extended main elec reporting",
 				TearDown: adapterhelper.TearDownAdapter("../../testdata/adapter/test_adapter"),
 				Setup: routeMainElec(
-					mockedmeterelec.NewExtendedReporter(t).
-						MockElectricityMeterExtendedReport(map[string]float64{"p_import": 1500, "e_import": 165.78}, nil, true),
+					mockednumericmeter.NewMockedMeter(
+						mockednumericmeter.NewReporter(t),
+						mockednumericmeter.NewExtendedReporter(t).
+							MockMeterExtendedReport(mock.Anything, map[string]float64{"p_import": 1500, "e_import": 165.78}, nil, true),
+					),
 				),
 				Nodes: []*suite.Node{
 					{
@@ -135,8 +142,11 @@ func TestRouteMainElec(t *testing.T) { //nolint:paralleltest
 				Name:     "Failed extended main elec reporting",
 				TearDown: adapterhelper.TearDownAdapter("../../testdata/adapter/test_adapter"),
 				Setup: routeMainElec(
-					mockedmeterelec.NewExtendedReporter(t).
-						MockElectricityMeterExtendedReport(nil, errors.New("test"), true),
+					mockednumericmeter.NewMockedMeter(
+						mockednumericmeter.NewReporter(t),
+						mockednumericmeter.NewExtendedReporter(t).
+							MockMeterExtendedReport(mock.Anything, nil, errors.New("test"), true),
+					),
 				),
 				Nodes: []*suite.Node{
 					{
@@ -168,15 +178,15 @@ func TestTaskMainElec(t *testing.T) { //nolint:paralleltest
 				Name:     "Main elec tasks",
 				TearDown: adapterhelper.TearDownAdapter("../../testdata/adapter/test_adapter"),
 				Setup: taskMainElec(
-					mockedmeterelec.NewReporter(t).
-						MockElectricityMeterReport("W", 1500, nil, true).
-						MockElectricityMeterReport("W", 1500, nil, true).
-						MockElectricityMeterReport("W", 0, errors.New("test"), true).
-						MockElectricityMeterReport("W", 750, nil, false).
-						MockElectricityMeterReport("kWh", 167.89, nil, true).
-						MockElectricityMeterReport("kWh", 167.89, nil, true).
-						MockElectricityMeterReport("kWh", 0, errors.New("test"), true).
-						MockElectricityMeterReport("kWh", 167.99, nil, false),
+					mockednumericmeter.NewReporter(t).
+						MockMeterReport("W", 1500, nil, true).
+						MockMeterReport("W", 1500, nil, true).
+						MockMeterReport("W", 0, errors.New("test"), true).
+						MockMeterReport("W", 750, nil, false).
+						MockMeterReport("kWh", 167.89, nil, true).
+						MockMeterReport("kWh", 167.89, nil, true).
+						MockMeterReport("kWh", 0, errors.New("test"), true).
+						MockMeterReport("kWh", 167.99, nil, false),
 					100*time.Millisecond,
 				),
 				Nodes: []*suite.Node{
@@ -195,11 +205,14 @@ func TestTaskMainElec(t *testing.T) { //nolint:paralleltest
 				Name:     "Extended main elec tasks",
 				TearDown: adapterhelper.TearDownAdapter("../../testdata/adapter/test_adapter"),
 				Setup: taskMainElec(
-					mockedmeterelec.NewExtendedReporter(t).
-						MockElectricityMeterExtendedReport(map[string]float64{"p_import": 1500, "e_import": 165.78}, nil, true).
-						MockElectricityMeterExtendedReport(map[string]float64{"p_import": 1500, "e_import": 165.78}, nil, true).
-						MockElectricityMeterExtendedReport(nil, errors.New("test"), true).
-						MockElectricityMeterExtendedReport(map[string]float64{"p_import": 750, "e_import": 165.99}, nil, false),
+					mockednumericmeter.NewMockedMeter(
+						mockednumericmeter.NewReporter(t),
+						mockednumericmeter.NewExtendedReporter(t).
+							MockMeterExtendedReport(mock.Anything, map[string]float64{"p_import": 1500, "e_import": 165.78}, nil, true).
+							MockMeterExtendedReport(mock.Anything, map[string]float64{"p_import": 1500, "e_import": 165.78}, nil, true).
+							MockMeterExtendedReport(mock.Anything, nil, errors.New("test"), true).
+							MockMeterExtendedReport(mock.Anything, map[string]float64{"p_import": 750, "e_import": 165.99}, nil, false),
+					),
 					100*time.Millisecond,
 				),
 				Nodes: []*suite.Node{
@@ -218,26 +231,20 @@ func TestTaskMainElec(t *testing.T) { //nolint:paralleltest
 	s.Run(t)
 }
 
-type mockedMeterElec interface {
-	*mockedmeterelec.Reporter | *mockedmeterelec.ExtendedReporter
-	suite.Mock
-	meterelec.Reporter
-}
-
-func routeMainElec[T mockedMeterElec](
-	meterElecReporter T,
+func routeMainElec(
+	meter interface{},
 ) suite.BaseSetup {
 	return func(t *testing.T, mqtt *fimpgo.MqttTransport) ([]*router.Routing, []*task.Task, []suite.Mock) {
 		t.Helper()
 
-		routing, _, mocks := setupMainElec(t, mqtt, meterElecReporter, 0)
+		routing, _, mocks := setupMainElec(t, mqtt, meter, 0)
 
 		return routing, nil, mocks
 	}
 }
 
-func taskMainElec[T mockedMeterElec](
-	meterElecReporter T,
+func taskMainElec(
+	meterElecReporter interface{},
 	interval time.Duration,
 ) suite.BaseSetup {
 	return func(t *testing.T, mqtt *fimpgo.MqttTransport) ([]*router.Routing, []*task.Task, []suite.Mock) {
@@ -249,15 +256,18 @@ func taskMainElec[T mockedMeterElec](
 	}
 }
 
-func setupMainElec[T mockedMeterElec](
+func setupMainElec(
 	t *testing.T,
 	mqtt *fimpgo.MqttTransport,
-	meterElecReporter T,
+	mockedMeter interface{},
 	duration time.Duration,
 ) ([]*router.Routing, []*task.Task, []suite.Mock) {
 	t.Helper()
 
-	mocks := []suite.Mock{meterElecReporter}
+	reporterMock := mockedMeter.(suite.Mock)        //nolint:forcetypeassert
+	reporter := mockedMeter.(numericmeter.Reporter) //nolint:forcetypeassert
+
+	mocks := []suite.Mock{reporterMock}
 
 	cfg := &thing.MainElecConfig{
 		ThingConfig: &adapter.ThingConfig{
@@ -266,16 +276,19 @@ func setupMainElec[T mockedMeterElec](
 			},
 			Connector: mockedadapter.NewConnector(t),
 		},
-		MeterElecConfig: &meterelec.Config{
-			Specification: meterelec.Specification(
+		MeterElecConfig: &numericmeter.Config{
+			Specification: numericmeter.Specification(
+				numericmeter.MeterElec,
 				"test_adapter",
 				"1",
 				"2",
 				nil,
 				[]string{"W", "kWh"},
+				nil,
 				[]string{"p_import", "e_import"},
+				false,
 			),
-			Reporter: meterElecReporter,
+			Reporter: reporter,
 		},
 	}
 

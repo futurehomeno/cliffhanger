@@ -213,7 +213,7 @@ func (s *service) SendBatteryAlarmReport(force bool) (bool, error) {
 		nil,
 		nil,
 		nil,
-	)
+	).WithStorageStrategy(fimpgo.StorageStrategyAggregate, alarm.Event)
 
 	err = s.SendMessage(message)
 	if err != nil {

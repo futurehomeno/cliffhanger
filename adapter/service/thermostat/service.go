@@ -214,7 +214,7 @@ func (s *service) SendSetpointReport(mode string, force bool) (bool, error) {
 		nil,
 		nil,
 		nil,
-	)
+	).WithStorageStrategy(fimpgo.StorageStrategyAggregate, normalizedMode)
 
 	err = s.SendMessage(message)
 	if err != nil {

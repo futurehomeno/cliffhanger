@@ -4,7 +4,7 @@ import (
 	"time"
 
 	"github.com/futurehomeno/cliffhanger/adapter"
-	"github.com/futurehomeno/cliffhanger/adapter/service/meterelec"
+	"github.com/futurehomeno/cliffhanger/adapter/service/numericmeter"
 	"github.com/futurehomeno/cliffhanger/adapter/service/numericsensor"
 	"github.com/futurehomeno/cliffhanger/adapter/service/thermostat"
 	"github.com/futurehomeno/cliffhanger/router"
@@ -16,7 +16,7 @@ type ThermostatConfig struct {
 	ThingConfig      *adapter.ThingConfig
 	ThermostatConfig *thermostat.Config
 	SensorTempConfig *numericsensor.Config // Optional
-	MeterElecConfig  *meterelec.Config     // Optional
+	MeterElecConfig  *numericmeter.Config  // Optional
 }
 
 // NewThermostat creates a thing that satisfies expectations for a thermostat controller.
@@ -35,7 +35,7 @@ func NewThermostat(
 	}
 
 	if cfg.MeterElecConfig != nil {
-		services = append(services, meterelec.NewService(publisher, cfg.MeterElecConfig))
+		services = append(services, numericmeter.NewService(publisher, cfg.MeterElecConfig))
 	}
 
 	return adapter.NewThing(publisher, ts, cfg.ThingConfig, services...)
@@ -46,7 +46,7 @@ func RouteThermostat(adapter adapter.Adapter) []*router.Routing {
 	return router.Combine(
 		thermostat.RouteService(adapter),
 		numericsensor.RouteService(adapter),
-		meterelec.RouteService(adapter),
+		numericmeter.RouteService(adapter),
 	)
 }
 
@@ -59,6 +59,6 @@ func TaskThermostat(
 	return []*task.Task{
 		thermostat.TaskReporting(adapter, reportingInterval, reportingVoters...),
 		numericsensor.TaskReporting(adapter, reportingInterval, reportingVoters...),
-		meterelec.TaskReporting(adapter, reportingInterval, reportingVoters...),
+		numericmeter.TaskReporting(adapter, reportingInterval, reportingVoters...),
 	}
 }

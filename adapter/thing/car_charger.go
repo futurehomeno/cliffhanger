@@ -5,7 +5,7 @@ import (
 
 	"github.com/futurehomeno/cliffhanger/adapter"
 	"github.com/futurehomeno/cliffhanger/adapter/service/chargepoint"
-	"github.com/futurehomeno/cliffhanger/adapter/service/meterelec"
+	"github.com/futurehomeno/cliffhanger/adapter/service/numericmeter"
 	"github.com/futurehomeno/cliffhanger/router"
 	"github.com/futurehomeno/cliffhanger/task"
 )
@@ -14,7 +14,7 @@ import (
 type CarChargerConfig struct {
 	ThingConfig       *adapter.ThingConfig
 	ChargepointConfig *chargepoint.Config
-	MeterElecConfig   *meterelec.Config // Optional
+	MeterElecConfig   *numericmeter.Config // Optional
 }
 
 // NewCarCharger creates a thing that satisfies expectations for a car charger.
@@ -29,7 +29,7 @@ func NewCarCharger(
 	}
 
 	if cfg.MeterElecConfig != nil {
-		services = append(services, meterelec.NewService(publisher, cfg.MeterElecConfig))
+		services = append(services, numericmeter.NewService(publisher, cfg.MeterElecConfig))
 	}
 
 	return adapter.NewThing(publisher, ts, cfg.ThingConfig, services...)
@@ -39,7 +39,7 @@ func NewCarCharger(
 func RouteCarCharger(adapter adapter.Adapter) []*router.Routing {
 	return router.Combine(
 		chargepoint.RouteService(adapter),
-		meterelec.RouteService(adapter),
+		numericmeter.RouteService(adapter),
 	)
 }
 
@@ -51,6 +51,6 @@ func TaskCarCharger(
 ) []*task.Task {
 	return []*task.Task{
 		chargepoint.TaskReporting(adapter, reportingInterval, reportingVoters...),
-		meterelec.TaskReporting(adapter, reportingInterval, reportingVoters...),
+		numericmeter.TaskReporting(adapter, reportingInterval, reportingVoters...),
 	}
 }
