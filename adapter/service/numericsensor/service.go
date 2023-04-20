@@ -111,7 +111,7 @@ func (s *service) SendSensorReport(unit string, force bool) (bool, error) {
 		},
 		nil,
 		nil,
-	)
+	).WithStorageStrategy(fimpgo.StorageStrategyAggregate, normalizedUnit)
 
 	err = s.SendMessage(message)
 	if err != nil {

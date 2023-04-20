@@ -10,14 +10,14 @@ import (
 
 	"github.com/futurehomeno/cliffhanger/adapter"
 	"github.com/futurehomeno/cliffhanger/adapter/service/chargepoint"
-	"github.com/futurehomeno/cliffhanger/adapter/service/meterelec"
+	"github.com/futurehomeno/cliffhanger/adapter/service/numericmeter"
 	"github.com/futurehomeno/cliffhanger/adapter/thing"
 	"github.com/futurehomeno/cliffhanger/router"
 	"github.com/futurehomeno/cliffhanger/task"
 	adapterhelper "github.com/futurehomeno/cliffhanger/test/helper/adapter"
 	mockedadapter "github.com/futurehomeno/cliffhanger/test/mocks/adapter"
 	mockedchargepoint "github.com/futurehomeno/cliffhanger/test/mocks/adapter/service/chargepoint"
-	mockedmeterelec "github.com/futurehomeno/cliffhanger/test/mocks/adapter/service/meterelec"
+	mockednumericmeter "github.com/futurehomeno/cliffhanger/test/mocks/adapter/service/numericmeter"
 	"github.com/futurehomeno/cliffhanger/test/suite"
 )
 
@@ -120,9 +120,9 @@ func TestRouteCarCharger(t *testing.T) { //nolint:paralleltest
 						MockChargepointCableLockReport(true, nil, false).
 						MockChargepointStateReport("charging", nil, true).
 						MockChargepointCurrentSessionReport(1.74, nil, true),
-					mockedmeterelec.NewReporter(t).
-						MockElectricityMeterReport("W", 2, nil, false).
-						MockElectricityMeterReport("kWh", 123.45, nil, false),
+					mockednumericmeter.NewReporter(t).
+						MockMeterReport("W", 2, nil, false).
+						MockMeterReport("kWh", 123.45, nil, false),
 					nil,
 				),
 				Nodes: []*suite.Node{
@@ -380,9 +380,9 @@ func TestRouteCarCharger(t *testing.T) { //nolint:paralleltest
 						MockChargepointCableLockReport(false, errTest, false).
 						MockChargepointStateReport("", errTest, true).
 						MockChargepointCurrentSessionReport(0, errTest, true),
-					mockedmeterelec.NewReporter(t).
-						MockElectricityMeterReport("W", 0, errTest, false).
-						MockElectricityMeterReport("kWh", 0, errTest, false),
+					mockednumericmeter.NewReporter(t).
+						MockMeterReport("W", 0, errTest, false).
+						MockMeterReport("kWh", 0, errTest, false),
 					nil,
 				),
 				Nodes: []*suite.Node{
@@ -512,15 +512,15 @@ func TestTaskCarCharger(t *testing.T) { //nolint:paralleltest
 						MockChargepointStateReport("", errTest, true).
 						MockChargepointStateReport("ready_to_charge", nil, true).
 						MockChargepointStateReport("charging", nil, true), // should be sent twice
-					mockedmeterelec.NewReporter(t).
-						MockElectricityMeterReport("W", 2, nil, true).
-						MockElectricityMeterReport("W", 0, errors.New("test"), true).
-						MockElectricityMeterReport("W", 2, nil, true).
-						MockElectricityMeterReport("W", 1500, nil, false).
-						MockElectricityMeterReport("kWh", 123.45, nil, true).
-						MockElectricityMeterReport("kWh", 0, errors.New("test"), true).
-						MockElectricityMeterReport("kWh", 123.45, nil, true).
-						MockElectricityMeterReport("kWh", 123.56, nil, false),
+					mockednumericmeter.NewReporter(t).
+						MockMeterReport("W", 2, nil, true).
+						MockMeterReport("W", 0, errors.New("test"), true).
+						MockMeterReport("W", 2, nil, true).
+						MockMeterReport("W", 1500, nil, false).
+						MockMeterReport("kWh", 123.45, nil, true).
+						MockMeterReport("kWh", 0, errors.New("test"), true).
+						MockMeterReport("kWh", 123.45, nil, true).
+						MockMeterReport("kWh", 123.56, nil, false),
 					100*time.Millisecond,
 				),
 				Nodes: []*suite.Node{
@@ -549,7 +549,7 @@ func TestTaskCarCharger(t *testing.T) { //nolint:paralleltest
 
 func routeCarCharger(
 	chargepointController *mockedchargepoint.Controller,
-	meterElecReporter *mockedmeterelec.Reporter,
+	meterElecReporter *mockednumericmeter.Reporter,
 	supportedChargingModes []string,
 ) suite.BaseSetup {
 	return func(t *testing.T, mqtt *fimpgo.MqttTransport) ([]*router.Routing, []*task.Task, []suite.Mock) {
@@ -563,7 +563,7 @@ func routeCarCharger(
 
 func taskCarCharger(
 	chargepointController *mockedchargepoint.Controller,
-	meterElecReporter *mockedmeterelec.Reporter,
+	meterElecReporter *mockednumericmeter.Reporter,
 	interval time.Duration,
 ) suite.BaseSetup {
 	return func(t *testing.T, mqtt *fimpgo.MqttTransport) ([]*router.Routing, []*task.Task, []suite.Mock) {
@@ -579,7 +579,7 @@ func setupCarCharger(
 	t *testing.T,
 	mqtt *fimpgo.MqttTransport,
 	chargepointController *mockedchargepoint.Controller,
-	meterElecReporter *mockedmeterelec.Reporter,
+	meterElecReporter *mockednumericmeter.Reporter,
 	supportedChargingModes []string,
 	duration time.Duration,
 ) ([]*router.Routing, []*task.Task, []suite.Mock) {
@@ -608,14 +608,17 @@ func setupCarCharger(
 	}
 
 	if meterElecReporter != nil {
-		cfg.MeterElecConfig = &meterelec.Config{
-			Specification: meterelec.Specification(
+		cfg.MeterElecConfig = &numericmeter.Config{
+			Specification: numericmeter.Specification(
+				numericmeter.MeterElec,
 				"test_adapter",
 				"1",
 				"2",
 				nil,
 				[]string{"W", "kWh"},
 				nil,
+				nil,
+				false,
 			),
 			Reporter: meterElecReporter,
 		}
