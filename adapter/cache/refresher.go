@@ -24,8 +24,8 @@ type Refresher interface {
 	Refresh() (interface{}, error)
 	// Reset cache so next invocation will result in execution of provided refresh function.
 	Reset()
-	// Status returns false if the refreshers failure count exceeded configured threshold and true otherwise.
-	Status() bool
+	// IsFailing returns true if the refreshers failure count exceeded configured threshold and false otherwise.
+	IsFailing() bool
 }
 
 // RefresherOption is an option for refresher service.
@@ -81,6 +81,15 @@ func WithIntervalOffset(offset float64) RefresherOption {
 	})
 }
 
+// WithDefaultOptions sets default options for the refresher.
+func WithDefaultOptions() RefresherOption {
+	return refresherOptionFn(func(r *refresher) {
+		WithDefaultBackoff().apply(r)
+		WithDefaultFailureThreshold().apply(r)
+		WithDefaultIntervalOffset().apply(r)
+	})
+}
+
 // NewRefresher creates new instance of a refresher service.
 func NewRefresher(refresh Refresh, interval time.Duration, options ...RefresherOption) Refresher {
 	r := &refresher{
@@ -123,7 +132,7 @@ func (r *refresher) Refresh() (interface{}, error) {
 		return r.value, nil
 	}
 
-	if r.shouldBackoff(r.lastFailure, r.failureCount) {
+	if r.shouldBackoff() {
 		return nil, fmt.Errorf("refresher: backoff is in effect")
 	}
 
@@ -152,34 +161,34 @@ func (r *refresher) Reset() {
 	r.lastRefresh = time.Time{}
 }
 
-// Status returns false if the refreshers failure count exceeded configured threshold and true otherwise.
-func (r *refresher) Status() bool {
+// IsFailing returns true if the refreshers failure count exceeded configured threshold and false otherwise.
+func (r *refresher) IsFailing() bool {
 	r.lock.Lock()
 	defer r.lock.Unlock()
 
-	return r.failureThreshold < r.failureCount
+	return r.failureCount > r.failureThreshold
 }
 
 // shouldBackoff returns true if the backoff is in effect and false otherwise.
-func (r *refresher) shouldBackoff(failureAt time.Time, failureCount int) bool {
+func (r *refresher) shouldBackoff() bool {
 	if r.backoffThreshold == 0 {
 		return false
 	}
 
-	if failureAt.IsZero() {
+	if r.lastFailure.IsZero() {
 		return false
 	}
 
-	return time.Since(failureAt) < r.getBackoff(failureCount)
+	return time.Since(r.lastFailure) < r.getBackoff(r.failureCount)
 }
 
 // getBackoff returns backoff duration based on the provided failure count.
 func (r *refresher) getBackoff(failureCount int) time.Duration {
-	if failureCount < r.backoffThreshold {
+	if failureCount <= r.backoffThreshold {
 		return r.initialBackoff
 	}
 
-	if failureCount < 2*r.backoffThreshold {
+	if failureCount <= 2*r.backoffThreshold {
 		return r.repeatedBackoff
 	}
 
