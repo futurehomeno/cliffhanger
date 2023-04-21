@@ -5,6 +5,8 @@ import (
 
 	"github.com/futurehomeno/fimpgo"
 	"github.com/futurehomeno/fimpgo/fimptype"
+
+	"github.com/futurehomeno/cliffhanger/router"
 )
 
 // Specification creates a service specification.
@@ -13,13 +15,16 @@ func Specification(
 	resourceAddress,
 	address string,
 	groups []string,
+	events []string,
 ) *fimptype.Service {
 	s := &fimptype.Service{
-		Address:    fmt.Sprintf("/rt:dev/rn:%s/ad:%s/sv:%s/ad:%s", resourceName, resourceAddress, Battery, address),
-		Name:       Battery,
-		Groups:     groups,
-		Enabled:    true,
-		Props:      nil,
+		Address: fmt.Sprintf("/rt:dev/rn:%s/ad:%s/sv:%s/ad:%s", resourceName, resourceAddress, Battery, address),
+		Name:    Battery,
+		Groups:  groups,
+		Enabled: true,
+		Props: map[string]interface{}{
+			PropertySupportedEvents: events,
+		},
 		Interfaces: requiredInterfaces(),
 	}
 
@@ -48,51 +53,9 @@ func requiredInterfaces() []fimptype.Interface {
 			Version:   "1",
 		},
 		{
-			Type:      fimptype.TypeIn,
-			MsgType:   CmdBatteryGetReport,
-			ValueType: fimpgo.VTypeNull,
-			Version:   "1",
-		},
-		{
 			Type:      fimptype.TypeOut,
-			MsgType:   EvtBatteryReport,
-			ValueType: fimpgo.VTypeObject,
-			Version:   "1",
-		},
-	}
-}
-
-// healthInterfaces returns interfaces supported by the health service.
-func healthInterfaces() []fimptype.Interface {
-	return []fimptype.Interface{
-		{
-			Type:      fimptype.TypeIn,
-			MsgType:   CmdHealthGetReport,
-			ValueType: fimpgo.VTypeNull,
-			Version:   "1",
-		},
-		{
-			Type:      fimptype.TypeOut,
-			MsgType:   EvtHealthReport,
-			ValueType: fimpgo.VTypeInt,
-			Version:   "1",
-		},
-	}
-}
-
-// sensorInterfaces returns interfaces supported by the sensor service.
-func sensorInterfaces() []fimptype.Interface {
-	return []fimptype.Interface{
-		{
-			Type:      fimptype.TypeIn,
-			MsgType:   CmdSensorGetReport,
-			ValueType: fimpgo.VTypeNull,
-			Version:   "1",
-		},
-		{
-			Type:      fimptype.TypeOut,
-			MsgType:   EvtSensorReport,
-			ValueType: fimpgo.VTypeFloat,
+			MsgType:   router.EvtErrorReport,
+			ValueType: fimpgo.VTypeString,
 			Version:   "1",
 		},
 	}

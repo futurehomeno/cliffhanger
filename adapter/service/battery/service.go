@@ -2,6 +2,7 @@ package battery
 
 import (
 	"fmt"
+	"strings"
 	"sync"
 
 	"github.com/futurehomeno/fimpgo"
@@ -16,7 +17,10 @@ var DefaultReportingStrategy = cache.ReportOnChangeOnly()
 
 // Constants defining important properties specific for the service.
 const (
-	AlarmLowBatteryEvent  = "low_battery"
+	PropertySupportedEvents = "sup_events"
+
+	AlarmEventLowBattery = "low_battery"
+
 	AlarmStatusActivate   = "activ"
 	AlarmStatusDeactivate = "deactiv"
 )
@@ -34,41 +38,14 @@ func (r *AlarmReport) ToStrMap() map[string]string {
 	}
 }
 
-// FullReport represents value structure of a battery full report.
-type FullReport struct {
-	Level  int     `json:"lvl"`
-	Health int     `json:"health"`
-	State  string  `json:"state"`
-	Temp   float64 `json:"temp_sensor"`
-}
-
 // Reporter is an interface representing an actual car charger device.
 // In a polling scenario implementation might require some safeguards against excessive polling.
 type Reporter interface {
 	// BatteryLevelReport returns a current battery level.
-	BatteryLevelReport() (level int64, state string, err error)
-	// BatteryAlarmReport returns a current battery alarm state.
-	BatteryAlarmReport() (AlarmReport, error)
-	// BatteryFullReport returns a current battery state.
-	BatteryFullReport() (FullReport, error)
-}
-
-// HealthReporter is an interface representing an actual device supporting health reports.
-// In a polling scenario implementation might require some safeguards against excessive polling.
-type HealthReporter interface {
-	Reporter
-
-	// BatteryHealthReport returns a current battery health state.
-	BatteryHealthReport() (int64, error)
-}
-
-// SensorReporter is an interface representing an actual device supporting sensor reports.
-// In a polling scenario implementation might require some safeguards against excessive polling.
-type SensorReporter interface {
-	Reporter
-
-	// BatterySensorReport returns a current battery sensor state.
-	BatterySensorReport() (sensorValue float64, unit string, err error)
+	BatteryLevelReport() (level int64, err error)
+	// BatteryAlarmReport returns a current battery alarm state for provided event.
+	// If device does not support stateful alerts it should return nil alarm report.
+	BatteryAlarmReport(event string) (*AlarmReport, error)
 }
 
 // Service is an interface representing a battery FIMP service.
@@ -79,27 +56,13 @@ type Service interface {
 	// Depending on a caching and reporting configuration the service might decide to skip a report.
 	// To make sure report is being sent regardless of circumstances set the force argument to true.
 	SendBatteryLevelReport(force bool) (bool, error)
-	// SendBatteryAlarmReport sends a battery alarm report. Returns true if a report was sent.
+	// SendBatteryAlarmReport sends a battery alarm report for provided event. Returns true if a report was sent.
 	// Depending on a caching and reporting configuration the service might decide to skip a report.
 	// To make sure report is being sent regardless of circumstances set the force argument to true.
-	SendBatteryAlarmReport(force bool) (bool, error)
-	// SendBatteryHealthReport sends a battery health report. Returns true if a report was sent.
-	// Depending on a caching and reporting configuration the service might decide to skip a report.
-	// To make sure report is being sent regardless of circumstances set the force argument to true.
-	SendBatteryHealthReport(force bool) (bool, error)
-	// SendBatterySensorReport sends a battery sensor report. Returns true if a report was sent.
-	// Depending on a caching and reporting configuration the service might decide to skip a report.
-	// To make sure report is being sent regardless of circumstances set the force argument to true.
-	SendBatterySensorReport(force bool) (bool, error)
-	// SendBatteryFullReport sends a full battery report. Returns true if a report was sent.
-	// Depending on a caching and reporting configuration the service might decide to skip a report.
-	// To make sure report is being sent regardless of circumstances set the force argument to true.
-	SendBatteryFullReport(force bool) (bool, error)
-
-	// SupportsHealthReport returns true if the service supports battery health reports.
-	SupportsHealthReport() bool
-	// SupportsSensorReport returns true if the service supports battery sensor reports.
-	SupportsSensorReport() bool
+	// Regardless report will not be sent if reported does not support stateful events.
+	SendBatteryAlarmReport(event string, force bool) (bool, error)
+	// SupportedEvents returns events that are supported by the battery alarm.
+	SupportedEvents() []string
 }
 
 // Config represents a service configuration.
@@ -130,14 +93,6 @@ func NewService(
 		reportingStrategy: cfg.ReportingStrategy,
 	}
 
-	if s.SupportsHealthReport() {
-		cfg.Specification.EnsureInterfaces(healthInterfaces()...)
-	}
-
-	if s.SupportsSensorReport() {
-		cfg.Specification.EnsureInterfaces(sensorInterfaces()...)
-	}
-
 	return s
 }
 
@@ -158,7 +113,7 @@ func (s *service) SendBatteryLevelReport(force bool) (bool, error) {
 	s.lock.Lock()
 	defer s.lock.Unlock()
 
-	level, state, err := s.reporter.BatteryLevelReport()
+	level, err := s.reporter.BatteryLevelReport()
 	if err != nil {
 		return false, fmt.Errorf("failed to get battery level report: %w", err)
 	}
@@ -167,15 +122,11 @@ func (s *service) SendBatteryLevelReport(force bool) (bool, error) {
 		return false, nil
 	}
 
-	props := fimpgo.Props{
-		"state": state,
-	}
-
 	message := fimpgo.NewIntMessage(
 		EvtLevelReport,
 		s.Name(),
 		level,
-		props,
+		nil,
 		nil,
 		nil,
 	)
@@ -190,19 +141,30 @@ func (s *service) SendBatteryLevelReport(force bool) (bool, error) {
 	return true, nil
 }
 
-// SendBatteryAlarmReport sends a battery alarm report. Returns true if a report was sent.
+// SendBatteryAlarmReport sends a battery alarm report for provided event. Returns true if a report was sent.
 // Depending on a caching and reporting configuration the service might decide to skip a report.
 // To make sure report is being sent regardless of circumstances set the force argument to true.
-func (s *service) SendBatteryAlarmReport(force bool) (bool, error) {
+// Regardless report will not be sent if reported does not support stateful events.
+func (s *service) SendBatteryAlarmReport(event string, force bool) (bool, error) {
 	s.lock.Lock()
 	defer s.lock.Unlock()
 
-	alarm, err := s.reporter.BatteryAlarmReport()
-	if err != nil {
-		return false, fmt.Errorf("failed to get battery alarm report: %w", err)
+	normalizedEvent, ok := s.normalizeEvent(event)
+	if !ok {
+		return false, fmt.Errorf("%s: event is unsupported: %s", s.Name(), event)
 	}
 
-	if !force && !s.reportingCache.ReportRequired(s.reportingStrategy, EvtAlarmReport, "", alarm) {
+	alarm, err := s.reporter.BatteryAlarmReport(normalizedEvent)
+	if err != nil {
+		return false, fmt.Errorf("failed to get battery alarm report for event %s: %w", normalizedEvent, err)
+	}
+
+	// If device does not support stateful events we can't report anything.
+	if alarm == nil {
+		return false, nil
+	}
+
+	if !force && !s.reportingCache.ReportRequired(s.reportingStrategy, EvtAlarmReport, alarm.Event, alarm) {
 		return false, nil
 	}
 
@@ -220,148 +182,23 @@ func (s *service) SendBatteryAlarmReport(force bool) (bool, error) {
 		return false, fmt.Errorf("failed to send battery alarm report: %w", err)
 	}
 
-	s.reportingCache.Reported(EvtAlarmReport, "", alarm)
+	s.reportingCache.Reported(EvtAlarmReport, alarm.Event, alarm)
 
 	return true, nil
 }
 
-// SendBatteryHealthReport sends a battery health report. Returns true if a report was sent.
-// Depending on a caching and reporting configuration the service might decide to skip a report.
-// To make sure report is being sent regardless of circumstances set the force argument to true.
-func (s *service) SendBatteryHealthReport(force bool) (bool, error) {
-	s.lock.Lock()
-	defer s.lock.Unlock()
-
-	if !s.SupportsHealthReport() {
-		return false, fmt.Errorf("%s: battery health reports are not supported", s.Name())
-	}
-
-	healthReporter, ok := s.reporter.(HealthReporter)
-	if !ok {
-		return false, fmt.Errorf("%s: battery health reports are not supported", s.Name())
-	}
-
-	health, err := healthReporter.BatteryHealthReport()
-	if err != nil {
-		return false, fmt.Errorf("failed to get battery health report: %w", err)
-	}
-
-	if !force && !s.reportingCache.ReportRequired(s.reportingStrategy, EvtHealthReport, "", health) {
-		return false, nil
-	}
-
-	message := fimpgo.NewIntMessage(
-		EvtHealthReport,
-		s.Name(),
-		health,
-		nil,
-		nil,
-		nil,
-	)
-
-	err = s.SendMessage(message)
-	if err != nil {
-		return false, fmt.Errorf("failed to send battery health report: %w", err)
-	}
-
-	s.reportingCache.Reported(EvtHealthReport, "", health)
-
-	return true, nil
+// SupportedEvents returns events that are supported by the battery alarm.
+func (s *service) SupportedEvents() []string {
+	return s.Service.Specification().PropertyStrings(PropertySupportedEvents)
 }
 
-// SendBatterySensorReport sends a battery sensor report. Returns true if a report was sent.
-// Depending on a caching and reporting configuration the service might decide to skip a report.
-// To make sure report is being sent regardless of circumstances set the force argument to true.
-func (s *service) SendBatterySensorReport(force bool) (bool, error) {
-	s.lock.Lock()
-	defer s.lock.Unlock()
-
-	if !s.SupportsSensorReport() {
-		return false, fmt.Errorf("%s: battery sensor reports are not supported", s.Name())
+// normalizeEvent checks if event is supported and returns its normalized form.
+func (s *service) normalizeEvent(unit string) (string, bool) {
+	for _, u := range s.SupportedEvents() {
+		if strings.EqualFold(unit, u) {
+			return u, true
+		}
 	}
 
-	sensorReporter, ok := s.reporter.(SensorReporter)
-	if !ok {
-		return false, fmt.Errorf("%s: battery sensor reports are not supported", s.Name())
-	}
-
-	sensor, unit, err := sensorReporter.BatterySensorReport()
-	if err != nil {
-		return false, fmt.Errorf("failed to get battery sensor report: %w", err)
-	}
-
-	if !force && !s.reportingCache.ReportRequired(s.reportingStrategy, EvtSensorReport, "", sensor) {
-		return false, nil
-	}
-
-	props := fimpgo.Props{
-		"unit": unit,
-	}
-
-	message := fimpgo.NewFloatMessage(
-		EvtSensorReport,
-		s.Name(),
-		sensor,
-		props,
-		nil,
-		nil,
-	)
-
-	err = s.SendMessage(message)
-	if err != nil {
-		return false, fmt.Errorf("failed to send battery sensor report: %w", err)
-	}
-
-	s.reportingCache.Reported(EvtSensorReport, "", sensor)
-
-	return true, nil
-}
-
-// SendBatteryFullReport sends a full battery report. Returns true if a report was sent.
-// Depending on a caching and reporting configuration the service might decide to skip a report.
-// To make sure report is being sent regardless of circumstances set the force argument to true.
-func (s *service) SendBatteryFullReport(force bool) (bool, error) {
-	s.lock.Lock()
-	defer s.lock.Unlock()
-
-	full, err := s.reporter.BatteryFullReport()
-	if err != nil {
-		return false, fmt.Errorf("failed to get battery full report: %w", err)
-	}
-
-	if !force && !s.reportingCache.ReportRequired(s.reportingStrategy, EvtBatteryReport, "", full) {
-		return false, nil
-	}
-
-	message := fimpgo.NewObjectMessage(
-		EvtBatteryReport,
-		s.Name(),
-		full,
-		nil,
-		nil,
-		nil,
-	)
-
-	err = s.SendMessage(message)
-	if err != nil {
-		return false, fmt.Errorf("failed to send battery full report: %w", err)
-	}
-
-	s.reportingCache.Reported(EvtBatteryReport, "", full)
-
-	return true, nil
-}
-
-// SupportsHealthReport returns true if the battery supports health reports.
-func (s *service) SupportsHealthReport() bool {
-	_, ok := s.reporter.(HealthReporter)
-
-	return ok
-}
-
-// SupportsSensorReport returns true if the battery supports sensor reports.
-func (s *service) SupportsSensorReport() bool {
-	_, ok := s.reporter.(SensorReporter)
-
-	return ok
+	return "", false
 }
