@@ -166,7 +166,7 @@ func (m *messageHandler) handleError(requestMessage *fimpgo.Message, err error) 
 	}
 
 	// Do not store device errors in the storage.
-	if reply.Addr.ResourceType == fimpgo.ResourceTypeDevice {
+	if reply.Addr.ResourceType == fimpgo.ResourceTypeDevice && reply.Payload.Storage == nil {
 		reply.Payload.WithStorageStrategy(fimpgo.StorageStrategySkip, "")
 	}
 
