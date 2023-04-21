@@ -43,8 +43,9 @@ func (r *AlarmReport) ToStrMap() map[string]string {
 type Reporter interface {
 	// BatteryLevelReport returns a current battery level.
 	BatteryLevelReport() (level int64, err error)
-	// BatteryAlarmReport returns a current battery alarm state for provided event.
-	// If device does not support stateful alerts it should return nil alarm report.
+	// BatteryAlarmReport returns a current battery alarm state for the provided event.
+	// Some devices will produce only ephemeral alerts of which state is not stored in the device.
+	// If device does not support stateful events while no ephemeral alert is waiting in queue, it should return a nil report instead.
 	BatteryAlarmReport(event string) (*AlarmReport, error)
 }
 
