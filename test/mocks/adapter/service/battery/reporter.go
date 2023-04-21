@@ -12,47 +12,25 @@ type Reporter struct {
 	mock.Mock
 }
 
-// BatteryAlarmReport provides a mock function with given fields:
-func (_m *Reporter) BatteryAlarmReport() (battery.AlarmReport, error) {
-	ret := _m.Called()
+// BatteryAlarmReport provides a mock function with given fields: event
+func (_m *Reporter) BatteryAlarmReport(event string) (*battery.AlarmReport, error) {
+	ret := _m.Called(event)
 
-	var r0 battery.AlarmReport
+	var r0 *battery.AlarmReport
 	var r1 error
-	if rf, ok := ret.Get(0).(func() (battery.AlarmReport, error)); ok {
-		return rf()
+	if rf, ok := ret.Get(0).(func(string) (*battery.AlarmReport, error)); ok {
+		return rf(event)
 	}
-	if rf, ok := ret.Get(0).(func() battery.AlarmReport); ok {
-		r0 = rf()
+	if rf, ok := ret.Get(0).(func(string) *battery.AlarmReport); ok {
+		r0 = rf(event)
 	} else {
-		r0 = ret.Get(0).(battery.AlarmReport)
+		if ret.Get(0) != nil {
+			r0 = ret.Get(0).(*battery.AlarmReport)
+		}
 	}
 
-	if rf, ok := ret.Get(1).(func() error); ok {
-		r1 = rf()
-	} else {
-		r1 = ret.Error(1)
-	}
-
-	return r0, r1
-}
-
-// BatteryFullReport provides a mock function with given fields:
-func (_m *Reporter) BatteryFullReport() (battery.FullReport, error) {
-	ret := _m.Called()
-
-	var r0 battery.FullReport
-	var r1 error
-	if rf, ok := ret.Get(0).(func() (battery.FullReport, error)); ok {
-		return rf()
-	}
-	if rf, ok := ret.Get(0).(func() battery.FullReport); ok {
-		r0 = rf()
-	} else {
-		r0 = ret.Get(0).(battery.FullReport)
-	}
-
-	if rf, ok := ret.Get(1).(func() error); ok {
-		r1 = rf()
+	if rf, ok := ret.Get(1).(func(string) error); ok {
+		r1 = rf(event)
 	} else {
 		r1 = ret.Error(1)
 	}
@@ -61,13 +39,12 @@ func (_m *Reporter) BatteryFullReport() (battery.FullReport, error) {
 }
 
 // BatteryLevelReport provides a mock function with given fields:
-func (_m *Reporter) BatteryLevelReport() (int64, string, error) {
+func (_m *Reporter) BatteryLevelReport() (int64, error) {
 	ret := _m.Called()
 
 	var r0 int64
-	var r1 string
-	var r2 error
-	if rf, ok := ret.Get(0).(func() (int64, string, error)); ok {
+	var r1 error
+	if rf, ok := ret.Get(0).(func() (int64, error)); ok {
 		return rf()
 	}
 	if rf, ok := ret.Get(0).(func() int64); ok {
@@ -76,19 +53,13 @@ func (_m *Reporter) BatteryLevelReport() (int64, string, error) {
 		r0 = ret.Get(0).(int64)
 	}
 
-	if rf, ok := ret.Get(1).(func() string); ok {
+	if rf, ok := ret.Get(1).(func() error); ok {
 		r1 = rf()
 	} else {
-		r1 = ret.Get(1).(string)
+		r1 = ret.Error(1)
 	}
 
-	if rf, ok := ret.Get(2).(func() error); ok {
-		r2 = rf()
-	} else {
-		r2 = ret.Error(2)
-	}
-
-	return r0, r1, r2
+	return r0, r1
 }
 
 type mockConstructorTestingTNewReporter interface {

@@ -28,71 +28,23 @@ func (_m *Service) Name() string {
 	return r0
 }
 
-// SendBatteryAlarmReport provides a mock function with given fields: force
-func (_m *Service) SendBatteryAlarmReport(force bool) (bool, error) {
-	ret := _m.Called(force)
+// SendBatteryAlarmReport provides a mock function with given fields: event, force
+func (_m *Service) SendBatteryAlarmReport(event string, force bool) (bool, error) {
+	ret := _m.Called(event, force)
 
 	var r0 bool
 	var r1 error
-	if rf, ok := ret.Get(0).(func(bool) (bool, error)); ok {
-		return rf(force)
+	if rf, ok := ret.Get(0).(func(string, bool) (bool, error)); ok {
+		return rf(event, force)
 	}
-	if rf, ok := ret.Get(0).(func(bool) bool); ok {
-		r0 = rf(force)
+	if rf, ok := ret.Get(0).(func(string, bool) bool); ok {
+		r0 = rf(event, force)
 	} else {
 		r0 = ret.Get(0).(bool)
 	}
 
-	if rf, ok := ret.Get(1).(func(bool) error); ok {
-		r1 = rf(force)
-	} else {
-		r1 = ret.Error(1)
-	}
-
-	return r0, r1
-}
-
-// SendBatteryFullReport provides a mock function with given fields: force
-func (_m *Service) SendBatteryFullReport(force bool) (bool, error) {
-	ret := _m.Called(force)
-
-	var r0 bool
-	var r1 error
-	if rf, ok := ret.Get(0).(func(bool) (bool, error)); ok {
-		return rf(force)
-	}
-	if rf, ok := ret.Get(0).(func(bool) bool); ok {
-		r0 = rf(force)
-	} else {
-		r0 = ret.Get(0).(bool)
-	}
-
-	if rf, ok := ret.Get(1).(func(bool) error); ok {
-		r1 = rf(force)
-	} else {
-		r1 = ret.Error(1)
-	}
-
-	return r0, r1
-}
-
-// SendBatteryHealthReport provides a mock function with given fields: force
-func (_m *Service) SendBatteryHealthReport(force bool) (bool, error) {
-	ret := _m.Called(force)
-
-	var r0 bool
-	var r1 error
-	if rf, ok := ret.Get(0).(func(bool) (bool, error)); ok {
-		return rf(force)
-	}
-	if rf, ok := ret.Get(0).(func(bool) bool); ok {
-		r0 = rf(force)
-	} else {
-		r0 = ret.Get(0).(bool)
-	}
-
-	if rf, ok := ret.Get(1).(func(bool) error); ok {
-		r1 = rf(force)
+	if rf, ok := ret.Get(1).(func(string, bool) error); ok {
+		r1 = rf(event, force)
 	} else {
 		r1 = ret.Error(1)
 	}
@@ -102,30 +54,6 @@ func (_m *Service) SendBatteryHealthReport(force bool) (bool, error) {
 
 // SendBatteryLevelReport provides a mock function with given fields: force
 func (_m *Service) SendBatteryLevelReport(force bool) (bool, error) {
-	ret := _m.Called(force)
-
-	var r0 bool
-	var r1 error
-	if rf, ok := ret.Get(0).(func(bool) (bool, error)); ok {
-		return rf(force)
-	}
-	if rf, ok := ret.Get(0).(func(bool) bool); ok {
-		r0 = rf(force)
-	} else {
-		r0 = ret.Get(0).(bool)
-	}
-
-	if rf, ok := ret.Get(1).(func(bool) error); ok {
-		r1 = rf(force)
-	} else {
-		r1 = ret.Error(1)
-	}
-
-	return r0, r1
-}
-
-// SendBatterySensorReport provides a mock function with given fields: force
-func (_m *Service) SendBatterySensorReport(force bool) (bool, error) {
 	ret := _m.Called(force)
 
 	var r0 bool
@@ -178,29 +106,17 @@ func (_m *Service) Specification() *fimptype.Service {
 	return r0
 }
 
-// SupportsHealthReport provides a mock function with given fields:
-func (_m *Service) SupportsHealthReport() bool {
+// SupportedEvents provides a mock function with given fields:
+func (_m *Service) SupportedEvents() []string {
 	ret := _m.Called()
 
-	var r0 bool
-	if rf, ok := ret.Get(0).(func() bool); ok {
+	var r0 []string
+	if rf, ok := ret.Get(0).(func() []string); ok {
 		r0 = rf()
 	} else {
-		r0 = ret.Get(0).(bool)
-	}
-
-	return r0
-}
-
-// SupportsSensorReport provides a mock function with given fields:
-func (_m *Service) SupportsSensorReport() bool {
-	ret := _m.Called()
-
-	var r0 bool
-	if rf, ok := ret.Get(0).(func() bool); ok {
-		r0 = rf()
-	} else {
-		r0 = ret.Get(0).(bool)
+		if ret.Get(0) != nil {
+			r0 = ret.Get(0).([]string)
+		}
 	}
 
 	return r0

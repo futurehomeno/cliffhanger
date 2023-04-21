@@ -1,19 +1,9 @@
 package mockedbattery
 
-import battery "github.com/futurehomeno/cliffhanger/adapter/service/battery"
+import "github.com/futurehomeno/cliffhanger/adapter/service/battery"
 
-func (_m *Reporter) MockBatteryAlarmReport(alarm battery.AlarmReport, err error, once bool) *Reporter {
-	c := _m.On("BatteryAlarmReport").Return(alarm, err)
-
-	if once {
-		c.Once()
-	}
-
-	return _m
-}
-
-func (_m *Reporter) MockBatteryFullReport(full battery.FullReport, err error, once bool) *Reporter {
-	c := _m.On("BatteryFullReport").Return(full, err)
+func (_m *Reporter) MockBatteryAlarmReport(alarm *battery.AlarmReport, event string, err error, once bool) *Reporter {
+	c := _m.On("BatteryAlarmReport", event).Return(alarm, err)
 
 	if once {
 		c.Once()
@@ -22,8 +12,8 @@ func (_m *Reporter) MockBatteryFullReport(full battery.FullReport, err error, on
 	return _m
 }
 
-func (_m *Reporter) MockBatteryLevelReport(level int64, state string, err error, once bool) *Reporter {
-	c := _m.On("BatteryLevelReport").Return(level, state, err)
+func (_m *Reporter) MockBatteryLevelReport(level int64, err error, once bool) *Reporter {
+	c := _m.On("BatteryLevelReport").Return(level, err)
 
 	if once {
 		c.Once()

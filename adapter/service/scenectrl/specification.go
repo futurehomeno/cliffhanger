@@ -5,6 +5,8 @@ import (
 
 	"github.com/futurehomeno/fimpgo"
 	"github.com/futurehomeno/fimpgo/fimptype"
+
+	"github.com/futurehomeno/cliffhanger/router"
 )
 
 // Specification creates a service specification.
@@ -45,6 +47,12 @@ func requiredInterfaces() []fimptype.Interface {
 		{
 			Type:      fimptype.TypeOut,
 			MsgType:   EvtSceneReport,
+			ValueType: fimpgo.VTypeString,
+			Version:   "1",
+		},
+		{
+			Type:      fimptype.TypeOut,
+			MsgType:   router.EvtErrorReport,
 			ValueType: fimpgo.VTypeString,
 			Version:   "1",
 		},

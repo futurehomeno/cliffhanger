@@ -147,7 +147,7 @@ func (m *messageHandler) handleError(requestMessage *fimpgo.Message, err error) 
 		return nil
 	}
 
-	return &fimpgo.Message{
+	reply := &fimpgo.Message{
 		Addr: m.getResponseAddress(requestMessage.Addr),
 		Payload: fimpgo.NewMessage(
 			EvtErrorReport,
@@ -164,6 +164,13 @@ func (m *messageHandler) handleError(requestMessage *fimpgo.Message, err error) 
 			requestMessage.Payload,
 		),
 	}
+
+	// Do not store device errors in the storage.
+	if reply.Addr.ResourceType == fimpgo.ResourceTypeDevice && reply.Payload.Storage == nil {
+		reply.Payload.WithStorageStrategy(fimpgo.StorageStrategySkip, "")
+	}
+
+	return reply
 }
 
 // getResponseAddress returns response address.

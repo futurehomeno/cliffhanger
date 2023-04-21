@@ -30,27 +30,10 @@ func handleReporting(adapter adapter.Adapter) func() {
 				log.WithError(err).Errorf("adapter: failed to send battery level report")
 			}
 
-			_, err = battery.SendBatteryAlarmReport(false)
-			if err != nil {
-				log.WithError(err).Errorf("adapter: failed to send battery alarm report")
-			}
-
-			_, err = battery.SendBatteryFullReport(false)
-			if err != nil {
-				log.WithError(err).Errorf("adapter: failed to send battery full report")
-			}
-
-			if battery.SupportsHealthReport() {
-				_, err = battery.SendBatteryHealthReport(false)
+			for _, event := range battery.SupportedEvents() {
+				_, err = battery.SendBatteryAlarmReport(event, false)
 				if err != nil {
-					log.WithError(err).Errorf("adapter: failed to send battery health report")
-				}
-			}
-
-			if battery.SupportsSensorReport() {
-				_, err = battery.SendBatterySensorReport(false)
-				if err != nil {
-					log.WithError(err).Errorf("adapter: failed to send battery sensor report")
+					log.WithError(err).Errorf("adapter: failed to send battery alarm report for event: %s", event)
 				}
 			}
 		}
