@@ -99,7 +99,6 @@ type messageHandler struct {
 	processor MessageProcessor
 
 	defaultAddress *fimpgo.Address
-	preservePrefix bool
 	silentErrors   bool
 	locker         MessageHandlerLocker
 }

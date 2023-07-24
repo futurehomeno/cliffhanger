@@ -154,8 +154,10 @@ func (r *router) getResponseAddress(message, response *fimpgo.Message) *fimpgo.A
 		return nil
 	}
 
-	var err error
-	var responseAddress *fimpgo.Address
+	var (
+		err             error
+		responseAddress *fimpgo.Address
+	)
 
 	if message.Payload.ResponseToTopic != "" {
 		responseAddress, err = fimpgo.NewAddressFromString(message.Payload.ResponseToTopic)
