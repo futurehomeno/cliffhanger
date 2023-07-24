@@ -182,7 +182,7 @@ func (m *messageHandler) getResponseAddress(requestAddress *fimpgo.Address) *fim
 
 	return &fimpgo.Address{
 		PayloadType:     a.PayloadType,
-		MsgType:         "evt",
+		MsgType:         fimpgo.MsgTypeEvt,
 		ResourceType:    a.ResourceType,
 		ResourceName:    a.ResourceName,
 		ResourceAddress: a.ResourceAddress,

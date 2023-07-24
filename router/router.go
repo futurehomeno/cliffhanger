@@ -129,42 +129,71 @@ func (r *router) processMessage(message *fimpgo.Message) {
 			continue
 		}
 
+		responseAddress := r.getResponseAddress(message, response)
+		if responseAddress == nil {
+			continue
+		}
+
 		if response.Payload.CorrelationID == "" {
 			response.Payload.CorrelationID = message.Payload.UID
 		}
 
-		if message.Payload.ResponseToTopic != "" {
-			err := r.mqtt.RespondToRequest(message.Payload, response.Payload)
-			if err != nil {
-				log.WithError(err).
-					WithField("topic", message.Payload.ResponseToTopic).
-					WithField("message", response.Payload).
-					Error("failed to publish response")
-			}
-		} else if response.Addr != nil {
-			err := r.mqtt.Publish(response.Addr, response.Payload)
-			if err != nil {
-				log.WithError(err).
-					WithField("topic", response.Addr.Serialize()).
-					WithField("message", response.Payload).
-					Error("failed to publish response")
-			}
+		err := r.mqtt.Publish(responseAddress, response.Payload)
+		if err != nil {
+			log.WithError(err).
+				WithField("topic", response.Addr.Serialize()).
+				WithField("message", response.Payload).
+				Error("failed to publish response")
 		}
 	}
+}
+
+// getResponseAddress returns an address to which the response should be sent based on the incoming message and response.
+func (r *router) getResponseAddress(message, response *fimpgo.Message) *fimpgo.Address {
+	if message.Payload.ResponseToTopic == "" && response.Addr == nil {
+		return nil
+	}
+
+	var (
+		err             error
+		responseAddress *fimpgo.Address
+	)
+
+	if message.Payload.ResponseToTopic != "" {
+		responseAddress, err = fimpgo.NewAddressFromString(message.Payload.ResponseToTopic)
+		if err != nil {
+			log.WithError(err).
+				WithField("topic", message.Addr.Serialize()).
+				WithField("message", message).
+				Error("failed to parse respond to topic address")
+
+			return nil
+		}
+	} else {
+		responseAddress = response.Addr
+	}
+
+	if r.cfg.preserveGlobalPrefix {
+		responseAddress.GlobalPrefix = message.Addr.GlobalPrefix
+	}
+
+	return responseAddress
 }
 
 // defaultConfig returns a default configuration of the message router.
 func defaultConfig() *config {
 	return &config{
-		buffer:      10,
-		concurrency: 5,
+		buffer:               10,
+		concurrency:          5,
+		preserveGlobalPrefix: false,
 	}
 }
 
 // config is a configuration of the message router.
 type config struct {
-	buffer      int
-	concurrency int
+	buffer               int
+	concurrency          int
+	preserveGlobalPrefix bool
 }
 
 // Option is an interface representing a message router configuration option.
@@ -207,5 +236,12 @@ func WithMessageBuffer(buffer int) Option {
 		}
 
 		cfg.buffer = buffer
+	})
+}
+
+// WithPreservedGlobalPrefix returns an option that enables preserving global prefix in the reply topic address.
+func WithPreservedGlobalPrefix() Option {
+	return optionFn(func(cfg *config) {
+		cfg.preserveGlobalPrefix = true
 	})
 }

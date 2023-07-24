@@ -15,6 +15,15 @@ func TestRouter_WithOptions(t *testing.T) {
 		want   *config
 	}{
 		{
+			name:   "With preserved global prefix",
+			option: WithPreservedGlobalPrefix(),
+			want: &config{
+				buffer:               10,
+				concurrency:          5,
+				preserveGlobalPrefix: true,
+			},
+		},
+		{
 			name:   "Sync processing",
 			option: WithSyncProcessing(),
 			want: &config{
