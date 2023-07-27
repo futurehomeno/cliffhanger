@@ -33,6 +33,13 @@ func Or(voters ...MessageVoter) MessageVoter {
 	})
 }
 
+// Not negates provided voter.
+func Not(v MessageVoter) MessageVoter {
+	return MessageVoterFn(func(message *fimpgo.Message) bool {
+		return !v.Vote(message)
+	})
+}
+
 // ForTopic is a message voter allowing a routing to handle message only if it is relevant.
 func ForTopic(topic string) MessageVoter {
 	return MessageVoterFn(func(message *fimpgo.Message) bool {
