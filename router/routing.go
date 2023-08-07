@@ -6,7 +6,8 @@ import (
 
 // Constant defining error type of message for error responses and its properties.
 const (
-	EvtErrorReport = "evt.error.report"
+	EvtSuccessReport = "evt.success.report"
+	EvtErrorReport   = "evt.error.report"
 
 	PropertyMsg        = "msg"
 	PropertyCmdTopic   = "cmd_topic"

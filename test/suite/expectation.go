@@ -65,6 +65,14 @@ func ExpectObject(topic, messageType, service string, object interface{}) *Expec
 		ExpectObject(object)
 }
 
+func ExpectNull(topic, messageType, service string) *Expectation {
+	return NewExpectation().
+		ExpectTopic(topic).
+		ExpectType(messageType).
+		ExpectService(service).
+		ExpectNull()
+}
+
 func ExpectStringMap(topic, messageType, service string, value map[string]string) *Expectation {
 	return NewExpectation().
 		ExpectTopic(topic).
@@ -238,6 +246,18 @@ func (e *Expectation) ExpectObject(object interface{}) *Expectation {
 		}
 
 		return cmp.Equal(raw, message.Payload.GetRawObjectValue())
+	}))
+
+	return e
+}
+
+func (e *Expectation) ExpectNull() *Expectation {
+	e.Voters = append(e.Voters, router.MessageVoterFn(func(message *fimpgo.Message) bool {
+		if message.Payload.ValueType != fimpgo.VTypeNull {
+			return false
+		}
+
+		return message.Payload.Value == nil
 	}))
 
 	return e

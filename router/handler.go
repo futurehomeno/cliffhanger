@@ -100,6 +100,7 @@ type messageHandler struct {
 
 	defaultAddress *fimpgo.Address
 	silentErrors   bool
+	confirmSuccess bool
 	locker         MessageHandlerLocker
 }
 
@@ -125,7 +126,26 @@ func (m *messageHandler) Handle(message *fimpgo.Message) *fimpgo.Message {
 // handleReply returns reply message with an address.
 func (m *messageHandler) handleReply(requestMessage *fimpgo.Message, reply *fimpgo.FimpMessage) *fimpgo.Message {
 	if reply == nil {
-		return nil
+		if !m.confirmSuccess {
+			return nil
+		}
+
+		return &fimpgo.Message{
+			Addr: m.getResponseAddress(requestMessage.Addr),
+			Payload: fimpgo.NewMessage(
+				EvtSuccessReport,
+				requestMessage.Payload.Service,
+				fimpgo.VTypeNull,
+				nil,
+				map[string]string{
+					PropertyCmdTopic:   requestMessage.Topic,
+					PropertyCmdService: requestMessage.Payload.Service,
+					PropertyCmdType:    requestMessage.Payload.Type,
+				},
+				nil,
+				requestMessage.Payload,
+			),
+		}
 	}
 
 	return &fimpgo.Message{
@@ -226,9 +246,16 @@ func WithLock() MessageHandlerOption {
 	})
 }
 
-// WithExternalLock makes sure handler will process message only if a external lock allows for it.
+// WithExternalLock makes sure handler will process message only if an external lock allows for it.
 func WithExternalLock(locker MessageHandlerLocker) MessageHandlerOption {
 	return messageHandlerOptionFn(func(h *messageHandler) {
 		h.locker = locker
+	})
+}
+
+// WithSuccessConfirmation makes sure handler will process message only if a external lock allows for it.
+func WithSuccessConfirmation() MessageHandlerOption {
+	return messageHandlerOptionFn(func(h *messageHandler) {
+		h.confirmSuccess = true
 	})
 }
