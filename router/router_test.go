@@ -231,7 +231,7 @@ func Test_Router_Concurrency(t *testing.T) { //nolint:paralleltest
 	s.Run(t)
 }
 
-func Test_Router_OptionalSuccessConfirmation(t *testing.T) {
+func Test_Router_OptionalSuccessConfirmation(t *testing.T) { //nolint:paralleltest
 	successConfirmationRouting := func(messageType string, message *fimpgo.FimpMessage, err error) *router.Routing {
 		return router.NewRouting(router.NewMessageHandler(router.MessageProcessorFn(
 			func(*fimpgo.Message) (*fimpgo.FimpMessage, error) {
