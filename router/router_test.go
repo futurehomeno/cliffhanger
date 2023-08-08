@@ -1,6 +1,7 @@
 package router_test
 
 import (
+	"errors"
 	"sync"
 	"testing"
 	"time"
@@ -221,6 +222,109 @@ func Test_Router_Concurrency(t *testing.T) { //nolint:paralleltest
 							},
 						},
 						Timeout: 1 * time.Nanosecond,
+					},
+				},
+			},
+		},
+	}
+
+	s.Run(t)
+}
+
+func Test_Router_OptionalSuccessConfirmation(t *testing.T) { //nolint:paralleltest
+	successConfirmationRouting := func(messageType string, message *fimpgo.FimpMessage, err error) *router.Routing {
+		return router.NewRouting(router.NewMessageHandler(router.MessageProcessorFn(
+			func(*fimpgo.Message) (*fimpgo.FimpMessage, error) {
+				return message, err
+			}), router.WithSuccessConfirmation()),
+			router.ForService("test_service"),
+			router.ForType(messageType),
+		)
+	}
+
+	noConfirmationRouting := func(messageType string, message *fimpgo.FimpMessage, err error) *router.Routing {
+		return router.NewRouting(router.NewMessageHandler(router.MessageProcessorFn(
+			func(*fimpgo.Message) (*fimpgo.FimpMessage, error) {
+				return message, err
+			})),
+			router.ForService("test_service"),
+			router.ForType(messageType),
+		)
+	}
+
+	timeout := 100 * time.Millisecond
+
+	s := &suite.Suite{
+		Cases: []*suite.Case{
+			{
+				Name: "Test optional success confirmation on routing",
+				Routing: []*router.Routing{
+					successConfirmationRouting("cmd.test.confirm1", nil, nil),
+					successConfirmationRouting("cmd.test.confirm2", fimpgo.NewStringMessage("evt.test.test_event", "test_service", "test", nil, nil, nil), nil),
+					successConfirmationRouting("cmd.test.confirm3", nil, errors.New("oops")),
+				},
+				Nodes: []*suite.Node{
+					{
+						Name:    "Message processor returns nil - send success confirmation",
+						Command: suite.NullMessage("pt:j1/mt:cmd/rt:app/rn:test/ad:1", "cmd.test.confirm1", "test_service"),
+						Expectations: []*suite.Expectation{
+							suite.ExpectNull("pt:j1/mt:evt/rt:app/rn:test/ad:1", "evt.success.report", "test_service").ExactlyOnce(),
+						},
+						Timeout: timeout,
+					},
+					{
+						Name:    "Message processor returns a message - do not send success confirmation",
+						Command: suite.NullMessage("pt:j1/mt:cmd/rt:app/rn:test/ad:1", "cmd.test.confirm2", "test_service"),
+						Expectations: []*suite.Expectation{
+							suite.ExpectNull("pt:j1/mt:evt/rt:app/rn:test/ad:1", "evt.success.report", "test_service").Never(),
+							suite.ExpectString("pt:j1/mt:evt/rt:app/rn:test/ad:1", "evt.test.test_event", "test_service", "test").ExactlyOnce(),
+						},
+						Timeout: timeout,
+					},
+					{
+						Name:    "Error returned by processor cannot trigger success confirmation",
+						Command: suite.NullMessage("pt:j1/mt:cmd/rt:app/rn:test/ad:1", "cmd.test.confirm3", "test_service"),
+						Expectations: []*suite.Expectation{
+							suite.ExpectNull("pt:j1/mt:evt/rt:app/rn:test/ad:1", "evt.success.report", "test_service").Never(),
+							suite.ExpectError("pt:j1/mt:evt/rt:app/rn:test/ad:1", "test_service").ExactlyOnce(),
+						},
+						Timeout: timeout,
+					},
+				},
+			},
+			{
+				Name: "Test cases success confirmation on routing is not enabled",
+				Routing: []*router.Routing{
+					noConfirmationRouting("cmd.test.do_not_confirm1", nil, nil),
+					noConfirmationRouting("cmd.test.do_not_confirm2", fimpgo.NewStringMessage("evt.test.test_event", "test_service", "test", nil, nil, nil), nil),
+					noConfirmationRouting("cmd.test.do_not_confirm3", nil, errors.New("oops")),
+				},
+				Nodes: []*suite.Node{
+					{
+						Name:    "Message processor returns nil - do not send success confirmation",
+						Command: suite.NullMessage("pt:j1/mt:cmd/rt:app/rn:test/ad:1", "cmd.test.do_not_confirm1", "test_service"),
+						Expectations: []*suite.Expectation{
+							suite.ExpectNull("pt:j1/mt:evt/rt:app/rn:test/ad:1", "evt.success.report", "test_service").Never(),
+						},
+						Timeout: timeout,
+					},
+					{
+						Name:    "Message processor returns a message - do not send success confirmation",
+						Command: suite.NullMessage("pt:j1/mt:cmd/rt:app/rn:test/ad:1", "cmd.test.do_not_confirm2", "test_service"),
+						Expectations: []*suite.Expectation{
+							suite.ExpectNull("pt:j1/mt:evt/rt:app/rn:test/ad:1", "evt.success.report", "test_service").Never(),
+							suite.ExpectString("pt:j1/mt:evt/rt:app/rn:test/ad:1", "evt.test.test_event", "test_service", "test").ExactlyOnce(),
+						},
+						Timeout: timeout,
+					},
+					{
+						Name:    "Error returned by processor cannot trigger success confirmation",
+						Command: suite.NullMessage("pt:j1/mt:cmd/rt:app/rn:test/ad:1", "cmd.test.do_not_confirm3", "test_service"),
+						Expectations: []*suite.Expectation{
+							suite.ExpectNull("pt:j1/mt:evt/rt:app/rn:test/ad:1", "evt.success.report", "test_service").Never(),
+							suite.ExpectError("pt:j1/mt:evt/rt:app/rn:test/ad:1", "test_service").ExactlyOnce(),
+						},
+						Timeout: timeout,
 					},
 				},
 			},
