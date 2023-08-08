@@ -253,7 +253,7 @@ func WithExternalLock(locker MessageHandlerLocker) MessageHandlerOption {
 	})
 }
 
-// WithSuccessConfirmation makes sure handler will process message only if a external lock allows for it.
+// WithSuccessConfirmation makes handler respond with success report if message processor do not reply with a message.
 func WithSuccessConfirmation() MessageHandlerOption {
 	return messageHandlerOptionFn(func(h *messageHandler) {
 		h.confirmSuccess = true
