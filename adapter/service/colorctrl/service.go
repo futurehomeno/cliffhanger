@@ -53,7 +53,7 @@ type Config struct {
 
 // NewService creates a new instance of a colorctrl FIMP service.
 func NewService(
-	publisher adapter.Publisher,
+	publisher adapter.ServicePublisher,
 	cfg *Config,
 ) Service {
 	cfg.Specification.Name = ColorCtrl

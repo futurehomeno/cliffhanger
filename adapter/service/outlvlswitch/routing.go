@@ -24,28 +24,28 @@ const (
 )
 
 // RouteService returns routing for service specific commands.
-func RouteService(adapter adapter.Adapter) []*router.Routing {
+func RouteService(serviceRegistry adapter.ServiceRegistry) []*router.Routing {
 	return []*router.Routing{
-		RouteCmdLvlSet(adapter),
-		RouteCmdBinarySet(adapter),
-		RouteCmdLvlGetReport(adapter),
+		RouteCmdLvlSet(serviceRegistry),
+		RouteCmdBinarySet(serviceRegistry),
+		RouteCmdLvlGetReport(serviceRegistry),
 	}
 }
 
 // RouteCmdLvlSet returns a routing responsible for handling the command.
-func RouteCmdLvlSet(adapter adapter.Adapter) *router.Routing {
+func RouteCmdLvlSet(serviceRegistry adapter.ServiceRegistry) *router.Routing {
 	return router.NewRouting(
-		HandleCmdLvlSet(adapter),
+		HandleCmdLvlSet(serviceRegistry),
 		router.ForService(OutLvlSwitch),
 		router.ForType(CmdLvlSet),
 	)
 }
 
 // HandleCmdLvlSet returns a handler responsible for handling the command.
-func HandleCmdLvlSet(adapter adapter.Adapter) router.MessageHandler {
+func HandleCmdLvlSet(serviceRegistry adapter.ServiceRegistry) router.MessageHandler {
 	return router.NewMessageHandler(
 		router.MessageProcessorFn(func(message *fimpgo.Message) (*fimpgo.FimpMessage, error) {
-			s := adapter.ServiceByTopic(message.Topic)
+			s := serviceRegistry.ServiceByTopic(message.Topic)
 			if s == nil {
 				return nil, fmt.Errorf("adapter: service not found under the provided address: %s", message.Addr.ServiceAddress)
 			}
@@ -94,19 +94,19 @@ func getDurationInSeconds(message *fimpgo.Message) (time.Duration, error) {
 }
 
 // RouteCmdBinarySet returns a routing responsible for handling the command.
-func RouteCmdBinarySet(adapter adapter.Adapter) *router.Routing {
+func RouteCmdBinarySet(serviceRegistry adapter.ServiceRegistry) *router.Routing {
 	return router.NewRouting(
-		HandleCmdBinarySet(adapter),
+		HandleCmdBinarySet(serviceRegistry),
 		router.ForService(OutLvlSwitch),
 		router.ForType(CmdBinarySet),
 	)
 }
 
 // HandleCmdBinarySet returns a handler responsible for handling the command.
-func HandleCmdBinarySet(adapter adapter.Adapter) router.MessageHandler {
+func HandleCmdBinarySet(serviceRegistry adapter.ServiceRegistry) router.MessageHandler {
 	return router.NewMessageHandler(
 		router.MessageProcessorFn(func(message *fimpgo.Message) (*fimpgo.FimpMessage, error) {
-			s := adapter.ServiceByTopic(message.Topic)
+			s := serviceRegistry.ServiceByTopic(message.Topic)
 			if s == nil {
 				return nil, fmt.Errorf("adapter: service not found under the provided address: %s", message.Addr.ServiceAddress)
 			}
@@ -137,19 +137,19 @@ func HandleCmdBinarySet(adapter adapter.Adapter) router.MessageHandler {
 }
 
 // RouteCmdLvlGetReport returns a routing responsible for handling the command.
-func RouteCmdLvlGetReport(adapter adapter.Adapter) *router.Routing {
+func RouteCmdLvlGetReport(serviceRegistry adapter.ServiceRegistry) *router.Routing {
 	return router.NewRouting(
-		HandleCmdLvlGetReport(adapter),
+		HandleCmdLvlGetReport(serviceRegistry),
 		router.ForService(OutLvlSwitch),
 		router.ForType(CmdLvlGetReport),
 	)
 }
 
 // HandleCmdLvlGetReport returns a handler responsible for handling the command.
-func HandleCmdLvlGetReport(adapter adapter.Adapter) router.MessageHandler {
+func HandleCmdLvlGetReport(serviceRegistry adapter.ServiceRegistry) router.MessageHandler {
 	return router.NewMessageHandler(
 		router.MessageProcessorFn(func(message *fimpgo.Message) (*fimpgo.FimpMessage, error) {
-			s := adapter.ServiceByTopic(message.Topic)
+			s := serviceRegistry.ServiceByTopic(message.Topic)
 			if s == nil {
 				return nil, fmt.Errorf("adapter: service not found under the provided address: %s", message.Addr.ServiceAddress)
 			}

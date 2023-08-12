@@ -24,7 +24,7 @@ const (
 )
 
 // RouteService returns routing for service specific commands.
-func RouteService(adapter adapter.Adapter) []*router.Routing {
+func RouteService(adapter adapter.ServiceRegistry) []*router.Routing {
 	return []*router.Routing{
 		RouteCmdModeSet(adapter),
 		RouteCmdSetpointSet(adapter),
@@ -35,7 +35,7 @@ func RouteService(adapter adapter.Adapter) []*router.Routing {
 }
 
 // RouteCmdModeSet returns a routing responsible for handling the command.
-func RouteCmdModeSet(adapter adapter.Adapter) *router.Routing {
+func RouteCmdModeSet(adapter adapter.ServiceRegistry) *router.Routing {
 	return router.NewRouting(
 		HandleCmdModeSet(adapter),
 		router.ForService(WaterHeater),
@@ -44,7 +44,7 @@ func RouteCmdModeSet(adapter adapter.Adapter) *router.Routing {
 }
 
 // HandleCmdModeSet returns a handler responsible for handling the command.
-func HandleCmdModeSet(adapter adapter.Adapter) router.MessageHandler {
+func HandleCmdModeSet(adapter adapter.ServiceRegistry) router.MessageHandler {
 	return router.NewMessageHandler(
 		router.MessageProcessorFn(func(message *fimpgo.Message) (*fimpgo.FimpMessage, error) {
 			s := adapter.ServiceByTopic(message.Topic)
@@ -85,7 +85,7 @@ func HandleCmdModeSet(adapter adapter.Adapter) router.MessageHandler {
 }
 
 // RouteCmdSetpointSet returns a routing responsible for handling the command.
-func RouteCmdSetpointSet(adapter adapter.Adapter) *router.Routing {
+func RouteCmdSetpointSet(adapter adapter.ServiceRegistry) *router.Routing {
 	return router.NewRouting(
 		HandleCmdSetpointSet(adapter),
 		router.ForService(WaterHeater),
@@ -94,7 +94,7 @@ func RouteCmdSetpointSet(adapter adapter.Adapter) *router.Routing {
 }
 
 // HandleCmdSetpointSet returns a handler responsible for handling the command.
-func HandleCmdSetpointSet(adapter adapter.Adapter) router.MessageHandler {
+func HandleCmdSetpointSet(adapter adapter.ServiceRegistry) router.MessageHandler {
 	return router.NewMessageHandler(
 		router.MessageProcessorFn(func(message *fimpgo.Message) (*fimpgo.FimpMessage, error) {
 			s := adapter.ServiceByTopic(message.Topic)
@@ -130,7 +130,7 @@ func HandleCmdSetpointSet(adapter adapter.Adapter) router.MessageHandler {
 }
 
 // RouteCmdModeGetReport returns a routing responsible for handling the command.
-func RouteCmdModeGetReport(adapter adapter.Adapter) *router.Routing {
+func RouteCmdModeGetReport(adapter adapter.ServiceRegistry) *router.Routing {
 	return router.NewRouting(
 		HandleCmdModeGetReport(adapter),
 		router.ForService(WaterHeater),
@@ -139,7 +139,7 @@ func RouteCmdModeGetReport(adapter adapter.Adapter) *router.Routing {
 }
 
 // HandleCmdModeGetReport returns a handler responsible for handling the command.
-func HandleCmdModeGetReport(adapter adapter.Adapter) router.MessageHandler {
+func HandleCmdModeGetReport(adapter adapter.ServiceRegistry) router.MessageHandler {
 	return router.NewMessageHandler(
 		router.MessageProcessorFn(func(message *fimpgo.Message) (*fimpgo.FimpMessage, error) {
 			s := adapter.ServiceByTopic(message.Topic)
@@ -163,7 +163,7 @@ func HandleCmdModeGetReport(adapter adapter.Adapter) router.MessageHandler {
 }
 
 // RouteCmdSetpointGetReport returns a routing responsible for handling the command.
-func RouteCmdSetpointGetReport(adapter adapter.Adapter) *router.Routing {
+func RouteCmdSetpointGetReport(adapter adapter.ServiceRegistry) *router.Routing {
 	return router.NewRouting(
 		HandleCmdSetpointGetReport(adapter),
 		router.ForService(WaterHeater),
@@ -172,7 +172,7 @@ func RouteCmdSetpointGetReport(adapter adapter.Adapter) *router.Routing {
 }
 
 // HandleCmdSetpointGetReport returns a handler responsible for handling the command.
-func HandleCmdSetpointGetReport(adapter adapter.Adapter) router.MessageHandler {
+func HandleCmdSetpointGetReport(adapter adapter.ServiceRegistry) router.MessageHandler {
 	return router.NewMessageHandler(
 		router.MessageProcessorFn(func(message *fimpgo.Message) (*fimpgo.FimpMessage, error) {
 			s := adapter.ServiceByTopic(message.Topic)
@@ -201,7 +201,7 @@ func HandleCmdSetpointGetReport(adapter adapter.Adapter) router.MessageHandler {
 }
 
 // RouteCmdStateGetReport returns a routing responsible for handling the command.
-func RouteCmdStateGetReport(adapter adapter.Adapter) *router.Routing {
+func RouteCmdStateGetReport(adapter adapter.ServiceRegistry) *router.Routing {
 	return router.NewRouting(
 		HandleCmdStateGetReport(adapter),
 		router.ForService(WaterHeater),
@@ -210,7 +210,7 @@ func RouteCmdStateGetReport(adapter adapter.Adapter) *router.Routing {
 }
 
 // HandleCmdStateGetReport returns a handler responsible for handling the command.
-func HandleCmdStateGetReport(adapter adapter.Adapter) router.MessageHandler {
+func HandleCmdStateGetReport(adapter adapter.ServiceRegistry) router.MessageHandler {
 	return router.NewMessageHandler(
 		router.MessageProcessorFn(func(message *fimpgo.Message) (*fimpgo.FimpMessage, error) {
 			s := adapter.ServiceByTopic(message.Topic)

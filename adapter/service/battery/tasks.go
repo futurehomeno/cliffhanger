@@ -10,16 +10,16 @@ import (
 )
 
 // TaskReporting creates a reporting task.
-func TaskReporting(a adapter.Adapter, frequency time.Duration, voters ...task.Voter) *task.Task {
-	voters = append(voters, adapter.IsInitialized(a))
+func TaskReporting(serviceRegistry adapter.ServiceRegistry, frequency time.Duration, voters ...task.Voter) *task.Task {
+	voters = append(voters, adapter.IsRegistryInitialized(serviceRegistry))
 
-	return task.New(handleReporting(a), frequency, voters...)
+	return task.New(handleReporting(serviceRegistry), frequency, voters...)
 }
 
 // handleReporting creates handler of a reporting task.
-func handleReporting(adapter adapter.Adapter) func() {
+func handleReporting(serviceRegistry adapter.ServiceRegistry) func() {
 	return func() {
-		for _, s := range adapter.Services(Battery) {
+		for _, s := range serviceRegistry.Services(Battery) {
 			battery, ok := s.(Service)
 			if !ok {
 				continue

@@ -19,27 +19,27 @@ const (
 )
 
 // RouteService returns routing for service specific commands.
-func RouteService(adapter adapter.Adapter) []*router.Routing {
+func RouteService(serviceRegistry adapter.ServiceRegistry) []*router.Routing {
 	return []*router.Routing{
-		RouteCmdSceneSet(adapter),
-		RouteCmdSceneGetReport(adapter),
+		RouteCmdSceneSet(serviceRegistry),
+		RouteCmdSceneGetReport(serviceRegistry),
 	}
 }
 
 // RouteCmdSceneSet returns a routing responsible for handling the command.
-func RouteCmdSceneSet(adapter adapter.Adapter) *router.Routing {
+func RouteCmdSceneSet(serviceRegistry adapter.ServiceRegistry) *router.Routing {
 	return router.NewRouting(
-		HandleCmdSceneSet(adapter),
+		HandleCmdSceneSet(serviceRegistry),
 		router.ForService(SceneCtrl),
 		router.ForType(CmdSceneSet),
 	)
 }
 
 // HandleCmdSceneSet returns a handler responsible for handling the command.
-func HandleCmdSceneSet(adapter adapter.Adapter) router.MessageHandler {
+func HandleCmdSceneSet(serviceRegistry adapter.ServiceRegistry) router.MessageHandler {
 	return router.NewMessageHandler(
 		router.MessageProcessorFn(func(message *fimpgo.Message) (*fimpgo.FimpMessage, error) {
-			s := adapter.ServiceByTopic(message.Topic)
+			s := serviceRegistry.ServiceByTopic(message.Topic)
 			if s == nil {
 				return nil, fmt.Errorf("adapter: service not found under the provided address: %s", message.Addr.ServiceAddress)
 			}
@@ -70,19 +70,19 @@ func HandleCmdSceneSet(adapter adapter.Adapter) router.MessageHandler {
 }
 
 // RouteCmdSceneGetReport returns a routing responsible for handling the command.
-func RouteCmdSceneGetReport(adapter adapter.Adapter) *router.Routing {
+func RouteCmdSceneGetReport(serviceRegistry adapter.ServiceRegistry) *router.Routing {
 	return router.NewRouting(
-		HandleCmdSceneGetReport(adapter),
+		HandleCmdSceneGetReport(serviceRegistry),
 		router.ForService(SceneCtrl),
 		router.ForType(CmdSceneGetReport),
 	)
 }
 
 // HandleCmdSceneGetReport returns a handler responsible for handling the command.
-func HandleCmdSceneGetReport(adapter adapter.Adapter) router.MessageHandler {
+func HandleCmdSceneGetReport(serviceRegistry adapter.ServiceRegistry) router.MessageHandler {
 	return router.NewMessageHandler(
 		router.MessageProcessorFn(func(message *fimpgo.Message) (*fimpgo.FimpMessage, error) {
-			s := adapter.ServiceByTopic(message.Topic)
+			s := serviceRegistry.ServiceByTopic(message.Topic)
 			if s == nil {
 				return nil, fmt.Errorf("adapter: service not found under the provided address: %s", message.Addr.ServiceAddress)
 			}

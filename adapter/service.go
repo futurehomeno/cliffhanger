@@ -3,6 +3,8 @@ package adapter
 import (
 	"github.com/futurehomeno/fimpgo"
 	"github.com/futurehomeno/fimpgo/fimptype"
+
+	"github.com/futurehomeno/cliffhanger/task"
 )
 
 // Service is an interface representing a FIMP service.
@@ -17,8 +19,25 @@ type Service interface {
 	SendMessage(message *fimpgo.FimpMessage) error
 }
 
+// ServiceRegistry is an interface representing a service registry.
+type ServiceRegistry interface {
+	// Services returns all services from all things that match the provided name. If empty all services are returned.
+	Services(name string) []Service
+	// ServiceByTopic returns a service based on its topic. Returns nil if service was not found.
+	ServiceByTopic(topic string) Service
+	// IsInitialized returns true if service registry is initialized.
+	IsInitialized() bool
+}
+
+// IsRegistryInitialized returns a voter that checks if the registry is initialized.
+func IsRegistryInitialized(serviceRegistry ServiceRegistry) task.Voter {
+	return task.VoterFn(func() bool {
+		return serviceRegistry.IsInitialized()
+	})
+}
+
 // NewService creates instance of a FIMP service.
-func NewService(publisher Publisher, specification *fimptype.Service) Service {
+func NewService(publisher ServicePublisher, specification *fimptype.Service) Service {
 	return &service{
 		publisher:     publisher,
 		specification: specification,
@@ -27,7 +46,7 @@ func NewService(publisher Publisher, specification *fimptype.Service) Service {
 
 // Service is a private implementation of a FIMP service.
 type service struct {
-	publisher     Publisher
+	publisher     ServicePublisher
 	specification *fimptype.Service
 }
 

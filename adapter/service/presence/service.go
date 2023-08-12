@@ -40,7 +40,7 @@ type Config struct {
 
 // NewService creates a new instance of a presence FIMP service.
 func NewService(
-	publisher adapter.Publisher,
+	publisher adapter.ServicePublisher,
 	cfg *Config,
 ) Service {
 	cfg.Specification.EnsureInterfaces(requiredInterfaces()...)

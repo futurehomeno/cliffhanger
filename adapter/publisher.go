@@ -7,9 +7,21 @@ import (
 )
 
 type Publisher interface {
-	PublishServiceMessage(service Service, message *fimpgo.FimpMessage) error
-	PublishThingMessage(thing Thing, message *fimpgo.FimpMessage) error
+	ThingPublisher
+
 	PublishAdapterMessage(message *fimpgo.FimpMessage) error
+}
+
+// ThingPublisher is an interface representing a FIMP thing publisher.
+type ThingPublisher interface {
+	ServicePublisher
+
+	PublishThingMessage(thing Thing, message *fimpgo.FimpMessage) error
+}
+
+// ServicePublisher is an interface representing a FIMP service publisher.
+type ServicePublisher interface {
+	PublishServiceMessage(service Service, message *fimpgo.FimpMessage) error
 }
 
 func NewPublisher(mqtt *fimpgo.MqttTransport, adapterName, adapterAddress string) Publisher {

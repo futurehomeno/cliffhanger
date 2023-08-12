@@ -29,6 +29,11 @@ func NewRouting(handler MessageHandler, voters ...MessageVoter) *Routing {
 	}
 }
 
+// Wrap is a helper which creates a new routing with additional message voters.
+func (r *Routing) Wrap(voters ...MessageVoter) *Routing {
+	return NewRouting(r.handler, append(voters, r.voters...)...)
+}
+
 // vote checks if all set conditions are met by executing all registered voters.
 func (r *Routing) vote(message *fimpgo.Message) bool {
 	for _, v := range r.voters {

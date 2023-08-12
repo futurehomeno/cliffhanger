@@ -25,31 +25,31 @@ const (
 )
 
 // RouteService returns routing for service specific commands.
-func RouteService(adapter adapter.Adapter) []*router.Routing {
+func RouteService(serviceRegistry adapter.ServiceRegistry) []*router.Routing {
 	return []*router.Routing{
-		RouteCmdChargeStart(adapter),
-		RouteCmdChargeStop(adapter),
-		RouteCmdCableLockSet(adapter),
-		RouteCmdStateGetReport(adapter),
-		RouteCmdCurrentSessionGetReport(adapter),
-		RouteCmdCableLockGetReport(adapter),
+		RouteCmdChargeStart(serviceRegistry),
+		RouteCmdChargeStop(serviceRegistry),
+		RouteCmdCableLockSet(serviceRegistry),
+		RouteCmdStateGetReport(serviceRegistry),
+		RouteCmdCurrentSessionGetReport(serviceRegistry),
+		RouteCmdCableLockGetReport(serviceRegistry),
 	}
 }
 
 // RouteCmdChargeStart returns a routing responsible for handling the command.
-func RouteCmdChargeStart(adapter adapter.Adapter) *router.Routing {
+func RouteCmdChargeStart(serviceRegistry adapter.ServiceRegistry) *router.Routing {
 	return router.NewRouting(
-		HandleCmdChargeStart(adapter),
+		HandleCmdChargeStart(serviceRegistry),
 		router.ForService(Chargepoint),
 		router.ForType(CmdChargeStart),
 	)
 }
 
 // HandleCmdChargeStart returns a handler responsible for handling the command.
-func HandleCmdChargeStart(adapter adapter.Adapter) router.MessageHandler {
+func HandleCmdChargeStart(serviceRegistry adapter.ServiceRegistry) router.MessageHandler {
 	return router.NewMessageHandler(
 		router.MessageProcessorFn(func(message *fimpgo.Message) (*fimpgo.FimpMessage, error) {
-			s := adapter.ServiceByTopic(message.Topic)
+			s := serviceRegistry.ServiceByTopic(message.Topic)
 			if s == nil {
 				return nil, fmt.Errorf("adapter: service not found under the provided address: %s", message.Addr.ServiceAddress)
 			}
@@ -82,19 +82,19 @@ func HandleCmdChargeStart(adapter adapter.Adapter) router.MessageHandler {
 }
 
 // RouteCmdChargeStop returns a routing responsible for handling the command.
-func RouteCmdChargeStop(adapter adapter.Adapter) *router.Routing {
+func RouteCmdChargeStop(serviceRegistry adapter.ServiceRegistry) *router.Routing {
 	return router.NewRouting(
-		HandleCmdChargeStop(adapter),
+		HandleCmdChargeStop(serviceRegistry),
 		router.ForService(Chargepoint),
 		router.ForType(CmdChargeStop),
 	)
 }
 
 // HandleCmdChargeStop returns a handler responsible for handling the command.
-func HandleCmdChargeStop(adapter adapter.Adapter) router.MessageHandler {
+func HandleCmdChargeStop(serviceRegistry adapter.ServiceRegistry) router.MessageHandler {
 	return router.NewMessageHandler(
 		router.MessageProcessorFn(func(message *fimpgo.Message) (*fimpgo.FimpMessage, error) {
-			s := adapter.ServiceByTopic(message.Topic)
+			s := serviceRegistry.ServiceByTopic(message.Topic)
 			if s == nil {
 				return nil, fmt.Errorf("adapter: service not found under the provided address: %s", message.Addr.ServiceAddress)
 			}
@@ -125,19 +125,19 @@ func HandleCmdChargeStop(adapter adapter.Adapter) router.MessageHandler {
 }
 
 // RouteCmdCableLockSet returns a routing responsible for handling the command.
-func RouteCmdCableLockSet(adapter adapter.Adapter) *router.Routing {
+func RouteCmdCableLockSet(serviceRegistry adapter.ServiceRegistry) *router.Routing {
 	return router.NewRouting(
-		HandleCmdCableLockSet(adapter),
+		HandleCmdCableLockSet(serviceRegistry),
 		router.ForService(Chargepoint),
 		router.ForType(CmdCableLockSet),
 	)
 }
 
 // HandleCmdCableLockSet returns a handler responsible for handling the command.
-func HandleCmdCableLockSet(adapter adapter.Adapter) router.MessageHandler {
+func HandleCmdCableLockSet(serviceRegistry adapter.ServiceRegistry) router.MessageHandler {
 	return router.NewMessageHandler(
 		router.MessageProcessorFn(func(message *fimpgo.Message) (*fimpgo.FimpMessage, error) {
-			s := adapter.ServiceByTopic(message.Topic)
+			s := serviceRegistry.ServiceByTopic(message.Topic)
 			if s == nil {
 				return nil, fmt.Errorf("adapter: service not found under the provided address: %s", message.Addr.ServiceAddress)
 			}
@@ -168,19 +168,19 @@ func HandleCmdCableLockSet(adapter adapter.Adapter) router.MessageHandler {
 }
 
 // RouteCmdStateGetReport returns a routing responsible for handling the command.
-func RouteCmdStateGetReport(adapter adapter.Adapter) *router.Routing {
+func RouteCmdStateGetReport(serviceRegistry adapter.ServiceRegistry) *router.Routing {
 	return router.NewRouting(
-		HandleCmdStateGetReport(adapter),
+		HandleCmdStateGetReport(serviceRegistry),
 		router.ForService(Chargepoint),
 		router.ForType(CmdStateGetReport),
 	)
 }
 
 // HandleCmdStateGetReport returns a handler responsible for handling the command.
-func HandleCmdStateGetReport(adapter adapter.Adapter) router.MessageHandler {
+func HandleCmdStateGetReport(serviceRegistry adapter.ServiceRegistry) router.MessageHandler {
 	return router.NewMessageHandler(
 		router.MessageProcessorFn(func(message *fimpgo.Message) (*fimpgo.FimpMessage, error) {
-			s := adapter.ServiceByTopic(message.Topic)
+			s := serviceRegistry.ServiceByTopic(message.Topic)
 			if s == nil {
 				return nil, fmt.Errorf("adapter: service not found under the provided address: %s", message.Addr.ServiceAddress)
 			}
@@ -201,19 +201,19 @@ func HandleCmdStateGetReport(adapter adapter.Adapter) router.MessageHandler {
 }
 
 // RouteCmdCableLockGetReport returns a routing responsible for handling the command.
-func RouteCmdCableLockGetReport(adapter adapter.Adapter) *router.Routing {
+func RouteCmdCableLockGetReport(serviceRegistry adapter.ServiceRegistry) *router.Routing {
 	return router.NewRouting(
-		HandleCmdCableLockGetReport(adapter),
+		HandleCmdCableLockGetReport(serviceRegistry),
 		router.ForService(Chargepoint),
 		router.ForType(CmdCableLockGetReport),
 	)
 }
 
 // HandleCmdCableLockGetReport returns a handler responsible for handling the command.
-func HandleCmdCableLockGetReport(adapter adapter.Adapter) router.MessageHandler {
+func HandleCmdCableLockGetReport(serviceRegistry adapter.ServiceRegistry) router.MessageHandler {
 	return router.NewMessageHandler(
 		router.MessageProcessorFn(func(message *fimpgo.Message) (*fimpgo.FimpMessage, error) {
-			s := adapter.ServiceByTopic(message.Topic)
+			s := serviceRegistry.ServiceByTopic(message.Topic)
 			if s == nil {
 				return nil, fmt.Errorf("adapter: service not found under the provided address: %s", message.Addr.ServiceAddress)
 			}
@@ -234,19 +234,19 @@ func HandleCmdCableLockGetReport(adapter adapter.Adapter) router.MessageHandler 
 }
 
 // RouteCmdCurrentSessionGetReport returns a routing responsible for handling the command.
-func RouteCmdCurrentSessionGetReport(adapter adapter.Adapter) *router.Routing {
+func RouteCmdCurrentSessionGetReport(serviceRegistry adapter.ServiceRegistry) *router.Routing {
 	return router.NewRouting(
-		HandleCmdCurrentSessionGetReport(adapter),
+		HandleCmdCurrentSessionGetReport(serviceRegistry),
 		router.ForService(Chargepoint),
 		router.ForType(CmdCurrentSessionGetReport),
 	)
 }
 
 // HandleCmdCurrentSessionGetReport returns a handler responsible for handling the command.
-func HandleCmdCurrentSessionGetReport(adapter adapter.Adapter) router.MessageHandler {
+func HandleCmdCurrentSessionGetReport(serviceRegistry adapter.ServiceRegistry) router.MessageHandler {
 	return router.NewMessageHandler(
 		router.MessageProcessorFn(func(message *fimpgo.Message) (*fimpgo.FimpMessage, error) {
-			s := adapter.ServiceByTopic(message.Topic)
+			s := serviceRegistry.ServiceByTopic(message.Topic)
 			if s == nil {
 				return nil, fmt.Errorf("adapter: service not found under the provided address: %s", message.Addr.ServiceAddress)
 			}

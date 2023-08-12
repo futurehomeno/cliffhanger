@@ -57,26 +57,26 @@ const (
 )
 
 // RouteService returns routing for service specific commands.
-func RouteService(adapter adapter.Adapter) []*router.Routing {
+func RouteService(serviceRegistry adapter.ServiceRegistry) []*router.Routing {
 	return []*router.Routing{
-		RouteCmdSensorGetReport(adapter),
+		RouteCmdSensorGetReport(serviceRegistry),
 	}
 }
 
 // RouteCmdSensorGetReport returns a routing responsible for handling the command.
-func RouteCmdSensorGetReport(adapter adapter.Adapter) *router.Routing {
+func RouteCmdSensorGetReport(serviceRegistry adapter.ServiceRegistry) *router.Routing {
 	return router.NewRouting(
-		HandleCmdSensorGetReport(adapter),
+		HandleCmdSensorGetReport(serviceRegistry),
 		router.ForServicePrefix(prefix),
 		router.ForType(CmdSensorGetReport),
 	)
 }
 
 // HandleCmdSensorGetReport returns a handler responsible for handling the command.
-func HandleCmdSensorGetReport(adapter adapter.Adapter) router.MessageHandler {
+func HandleCmdSensorGetReport(serviceRegistry adapter.ServiceRegistry) router.MessageHandler {
 	return router.NewMessageHandler(
 		router.MessageProcessorFn(func(message *fimpgo.Message) (reply *fimpgo.FimpMessage, err error) {
-			s := adapter.ServiceByTopic(message.Topic)
+			s := serviceRegistry.ServiceByTopic(message.Topic)
 			if s == nil {
 				return nil, fmt.Errorf("adapter: service not found under the provided address: %s", message.Addr.ServiceAddress)
 			}
