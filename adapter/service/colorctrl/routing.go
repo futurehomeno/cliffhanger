@@ -19,27 +19,27 @@ const (
 )
 
 // RouteService returns routing for service specific commands.
-func RouteService(adapter adapter.Adapter) []*router.Routing {
+func RouteService(serviceRegistry adapter.ServiceRegistry) []*router.Routing {
 	return []*router.Routing{
-		RouteCmdColorSet(adapter),
-		RouteCmdColorGetReport(adapter),
+		RouteCmdColorSet(serviceRegistry),
+		RouteCmdColorGetReport(serviceRegistry),
 	}
 }
 
 // RouteCmdColorSet returns a routing responsible for handling the command.
-func RouteCmdColorSet(adapter adapter.Adapter) *router.Routing {
+func RouteCmdColorSet(serviceRegistry adapter.ServiceRegistry) *router.Routing {
 	return router.NewRouting(
-		HandleCmdColorSet(adapter),
+		HandleCmdColorSet(serviceRegistry),
 		router.ForService(ColorCtrl),
 		router.ForType(CmdColorSet),
 	)
 }
 
 // HandleCmdColorSet returns a handler responsible for handling the command.
-func HandleCmdColorSet(adapter adapter.Adapter) router.MessageHandler {
+func HandleCmdColorSet(serviceRegistry adapter.ServiceRegistry) router.MessageHandler {
 	return router.NewMessageHandler(
 		router.MessageProcessorFn(func(message *fimpgo.Message) (*fimpgo.FimpMessage, error) {
-			s := adapter.ServiceByTopic(message.Topic)
+			s := serviceRegistry.ServiceByTopic(message.Topic)
 			if s == nil {
 				return nil, fmt.Errorf("adapter: service not found under the provided address: %s", message.Addr.ServiceAddress)
 			}
@@ -70,19 +70,19 @@ func HandleCmdColorSet(adapter adapter.Adapter) router.MessageHandler {
 }
 
 // RouteCmdColorGetReport returns a routing responsible for handling the command.
-func RouteCmdColorGetReport(adapter adapter.Adapter) *router.Routing {
+func RouteCmdColorGetReport(serviceRegistry adapter.ServiceRegistry) *router.Routing {
 	return router.NewRouting(
-		HandleCmdColorGetReport(adapter),
+		HandleCmdColorGetReport(serviceRegistry),
 		router.ForService(ColorCtrl),
 		router.ForType(CmdColorGetReport),
 	)
 }
 
 // HandleCmdColorGetReport returns a handler responsible for handling the command.
-func HandleCmdColorGetReport(adapter adapter.Adapter) router.MessageHandler {
+func HandleCmdColorGetReport(serviceRegistry adapter.ServiceRegistry) router.MessageHandler {
 	return router.NewMessageHandler(
 		router.MessageProcessorFn(func(message *fimpgo.Message) (*fimpgo.FimpMessage, error) {
-			s := adapter.ServiceByTopic(message.Topic)
+			s := serviceRegistry.ServiceByTopic(message.Topic)
 			if s == nil {
 				return nil, fmt.Errorf("adapter: service not found under the provided address: %s", message.Addr.ServiceAddress)
 			}

@@ -138,7 +138,7 @@ type Config struct {
 
 // NewService creates new instance of a meter FIMP service.
 func NewService(
-	publisher adapter.Publisher,
+	publisher adapter.ServicePublisher,
 	cfg *Config,
 ) Service {
 	cfg.Specification.EnsureInterfaces(requiredInterfaces()...)

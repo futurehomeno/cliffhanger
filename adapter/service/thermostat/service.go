@@ -85,7 +85,7 @@ type Config struct {
 
 // NewService creates new instance of a thermostat FIMP service.
 func NewService(
-	publisher adapter.Publisher,
+	publisher adapter.ServicePublisher,
 	cfg *Config,
 ) Service {
 	cfg.Specification.Name = Thermostat
