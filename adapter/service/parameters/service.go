@@ -8,27 +8,31 @@ import (
 	"github.com/futurehomeno/fimpgo/fimptype"
 
 	"github.com/futurehomeno/cliffhanger/adapter"
+	"github.com/futurehomeno/cliffhanger/adapter/cache"
 )
 
-const (
-	PropertyParameterSizes = "req_param_sizes"
-)
-
-// Controller is an interface representing an actual car charger device.
+// Controller is an interface representing a device holding parameters.
 type Controller interface {
+	// SetParameter sets a parameter.
 	SetParameter(p Parameter) error
+	// GetParameter returns a parameter by ID.
 	GetParameter(id string) (Parameter, error)
-	GetSupportedParameters() ([]SupportedParameter, error) // TODO: there should be an interface composition implemented here
+	// GetParameterSpecifications returns a list of all parameter specifications/definitions.
+	GetParameterSpecifications() ([]ParameterSpecification, error)
 }
 
-// Service is an interface representing a waterHeater FIMP service.
+// Service is an interface representing a parameters FIMP service.
+// Depending on a caching and reporting configuration the service might decide to skip a report.
+// To make sure report is being sent regardless of circumstances set the force argument to true for all send methods.
 type Service interface {
 	adapter.Service
 
+	// SetParameter sets a parameter.
 	SetParameter(p Parameter) error
-	SendParameterReport(id string) error
-	SendSupportedParamsReport() error
-	SupportsParamsDiscovery() bool
+	// SendParameterReport sends a parameter report. Returns true if the report was sent.
+	SendParameterReport(id string, force bool) (bool, error)
+	// SendSupportedParamsReport sends a supported parameters report. Returns true if the report was sent.
+	SendSupportedParamsReport(force bool) (bool, error)
 }
 
 // Config represents a service configuration.
@@ -37,7 +41,7 @@ type Config struct {
 	Controller    Controller
 }
 
-// NewService creates new instance of a water heater FIMP service.
+// NewService creates new instance of a parameters FIMP service.
 func NewService(
 	publisher adapter.ServicePublisher,
 	cfg *Config,
@@ -45,25 +49,23 @@ func NewService(
 	cfg.Specification.Name = Parameters
 	cfg.Specification.EnsureInterfaces(requiredInterfaces()...)
 
-	s := &service{
-		Service:    adapter.NewService(publisher, cfg.Specification),
-		controller: cfg.Controller,
-		lock:       &sync.Mutex{},
+	return &service{
+		Service:           adapter.NewService(publisher, cfg.Specification),
+		controller:        cfg.Controller,
+		lock:              &sync.Mutex{},
+		reportingCache:    cache.NewReportingCache(),
+		reportingStrategy: cache.ReportOnChangeOnly(),
 	}
-
-	if s.SupportsParamsDiscovery() {
-		s.Specification().EnsureInterfaces(optionalInterfaces()...)
-	}
-
-	return s
 }
 
-// service is a private implementation of a water heater FIMP service.
+// service is a private implementation of a parameters FIMP service.
 type service struct {
 	adapter.Service
 
-	lock       *sync.Mutex
-	controller Controller
+	lock              *sync.Mutex
+	controller        Controller
+	reportingCache    cache.ReportingCache
+	reportingStrategy cache.ReportingStrategy
 }
 
 func (s *service) SetParameter(p Parameter) error {
@@ -71,27 +73,40 @@ func (s *service) SetParameter(p Parameter) error {
 	defer s.lock.Unlock()
 
 	if err := p.Validate(); err != nil {
-		return fmt.Errorf("%s: invalid parameter: %w", s.Name(), err)
+		return fmt.Errorf("%s: failed to validate parameter: %w", s.Name(), err)
 	}
 
-	if err := s.controller.SetParameter(p); err != nil {
+	spec, err := s.getParameterSpecification(p.ID)
+	if err != nil {
+		return fmt.Errorf("%s: failed to get parameter specification: %w", s.Name(), err)
+	}
+
+	if spec.ReadOnly {
+		return fmt.Errorf("%s: parameter is read only", s.Name())
+	}
+
+	if err = spec.ValidateParameter(p); err != nil {
+		return fmt.Errorf("%s: failed to validate parameter: %w", s.Name(), err)
+	}
+
+	if err = s.controller.SetParameter(p); err != nil {
 		return fmt.Errorf("%s: failed to set parameter ID %s: %w", s.Name(), p.ID, err)
 	}
 
 	return nil
 }
 
-func (s *service) SendParameterReport(id string) error {
+func (s *service) SendParameterReport(id string, force bool) (bool, error) {
 	s.lock.Lock()
 	defer s.lock.Unlock()
 
 	parameter, err := s.controller.GetParameter(id)
 	if err != nil {
-		return fmt.Errorf("%s: failed to get parameter ID %s: %w", s.Name(), id, err)
+		return false, fmt.Errorf("%s: failed to get parameter ID %s: %w", s.Name(), id, err)
 	}
 
-	if err = parameter.Validate(); err != nil {
-		return fmt.Errorf("%s: invalid parameter provided: %w", s.Name(), err)
+	if !force && !s.reportingCache.ReportRequired(s.reportingStrategy, EvtParamReport, "", parameter) {
+		return false, nil
 	}
 
 	message := fimpgo.NewObjectMessage(
@@ -105,25 +120,23 @@ func (s *service) SendParameterReport(id string) error {
 	message.WithStorageStrategy(fimpgo.StorageStrategyAggregate, parameter.ID)
 
 	if err = s.SendMessage(message); err != nil {
-		return fmt.Errorf("%s: failed to send parameter report: %w", s.Name(), err)
+		return false, fmt.Errorf("%s: failed to send parameter report: %w", s.Name(), err)
 	}
 
-	return nil
+	return true, nil
 }
 
-func (s *service) SendSupportedParamsReport() error {
+func (s *service) SendSupportedParamsReport(force bool) (bool, error) {
 	s.lock.Lock()
 	defer s.lock.Unlock()
 
-	parameters, err := s.controller.GetSupportedParameters()
+	parameters, err := s.controller.GetParameterSpecifications()
 	if err != nil {
-		return fmt.Errorf("%s: failed to get supported parameters: %w", s.Name(), err)
+		return false, fmt.Errorf("%s: failed to get supported parameters: %w", s.Name(), err)
 	}
 
-	for _, p := range parameters {
-		if err = p.Validate(); err != nil {
-			return fmt.Errorf("%s: invalid parameter provided: %w", s.Name(), err)
-		}
+	if !force && !s.reportingCache.ReportRequired(s.reportingStrategy, EvtSupParamsReport, "", parameters) {
+		return false, nil
 	}
 
 	message := fimpgo.NewObjectMessage(
@@ -136,14 +149,23 @@ func (s *service) SendSupportedParamsReport() error {
 	)
 
 	if err = s.SendMessage(message); err != nil {
-		return fmt.Errorf("%s: failed to send supported parameters report: %w", s.Name(), err)
+		return false, fmt.Errorf("%s: failed to send supported parameters report: %w", s.Name(), err)
 	}
 
-	return nil
+	return true, nil
 }
 
-func (s *service) SupportsParamsDiscovery() bool {
-	sizes := s.Specification().PropertyIntegers(PropertyParameterSizes)
+func (s *service) getParameterSpecification(id string) (ParameterSpecification, error) {
+	specs, err := s.controller.GetParameterSpecifications()
+	if err != nil {
+		return ParameterSpecification{}, fmt.Errorf("failed to get parameter specifications: %w", err)
+	}
 
-	return len(sizes) == 0
+	for _, spec := range specs {
+		if spec.ID == id {
+			return spec, nil
+		}
+	}
+
+	return ParameterSpecification{}, fmt.Errorf("parameter specification id '%s' not found", id)
 }

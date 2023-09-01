@@ -1,7 +1,6 @@
 package parameters
 
 import (
-	"errors"
 	"fmt"
 
 	"github.com/futurehomeno/fimpgo"
@@ -24,40 +23,31 @@ const (
 // RouteService returns routing for service specific commands.
 func RouteService(serviceRegistry adapter.ServiceRegistry) []*router.Routing {
 	return []*router.Routing{
-		RouteCmdSupParamsGetReport(serviceRegistry),
-		RouteCmdParamSet(serviceRegistry),
-		RouteCmdParamGetReport(serviceRegistry),
+		routeCmdSupParamsGetReport(serviceRegistry),
+		routeCmdParamSet(serviceRegistry),
+		routeCmdParamGetReport(serviceRegistry),
 	}
 }
 
-// RouteCmdSupParamsGetReport returns a routing responsible for handling the command.
-func RouteCmdSupParamsGetReport(serviceRegistry adapter.ServiceRegistry) *router.Routing {
+// routeCmdSupParamsGetReport returns a routing responsible for handling the command.
+func routeCmdSupParamsGetReport(serviceRegistry adapter.ServiceRegistry) *router.Routing {
 	return router.NewRouting(
-		HandleCmdSupParamsGetReport(serviceRegistry),
+		handleCmdSupParamsGetReport(serviceRegistry),
 		router.ForService(Parameters),
 		router.ForType(CmdSupParamsGetReport),
 	)
 }
 
-// HandleCmdSupParamsGetReport returns a handler responsible for handling the command.
-func HandleCmdSupParamsGetReport(serviceRegistry adapter.ServiceRegistry) router.MessageHandler {
+// handleCmdSupParamsGetReport returns a handler responsible for handling the command.
+func handleCmdSupParamsGetReport(serviceRegistry adapter.ServiceRegistry) router.MessageHandler {
 	return router.NewMessageHandler(
 		router.MessageProcessorFn(func(message *fimpgo.Message) (*fimpgo.FimpMessage, error) {
-			s := serviceRegistry.ServiceByTopic(message.Topic)
-			if s == nil {
-				return nil, fmt.Errorf("adapter: service not found under the provided address: %s", message.Addr.ServiceAddress)
+			parameters, err := getService(serviceRegistry, message)
+			if err != nil {
+				return nil, err
 			}
 
-			parameters, ok := s.(Service)
-			if !ok {
-				return nil, fmt.Errorf("adapter: incorrect service found under the provided address: %s", message.Addr.ServiceAddress)
-			}
-
-			if !parameters.SupportsParamsDiscovery() {
-				return nil, errors.New("adapter: service does not support parameters discovery")
-			}
-
-			err := parameters.SendSupportedParamsReport()
+			_, err = parameters.SendSupportedParamsReport(true)
 			if err != nil {
 				return nil, fmt.Errorf("adapter: failed to send supported parameters report: %w", err)
 			}
@@ -67,40 +57,35 @@ func HandleCmdSupParamsGetReport(serviceRegistry adapter.ServiceRegistry) router
 	)
 }
 
-// RouteCmdParamSet returns a routing responsible for handling the command.
-func RouteCmdParamSet(serviceRegistry adapter.ServiceRegistry) *router.Routing {
+// routeCmdParamSet returns a routing responsible for handling the command.
+func routeCmdParamSet(serviceRegistry adapter.ServiceRegistry) *router.Routing {
 	return router.NewRouting(
-		HandleCmdParamSet(serviceRegistry),
+		handleCmdParamSet(serviceRegistry),
 		router.ForService(Parameters),
 		router.ForType(CmdParamSet),
 	)
 }
 
-// HandleCmdParamSet returns a handler responsible for handling the command.
-func HandleCmdParamSet(serviceRegistry adapter.ServiceRegistry) router.MessageHandler {
+// handleCmdParamSet returns a handler responsible for handling the command.
+func handleCmdParamSet(serviceRegistry adapter.ServiceRegistry) router.MessageHandler {
 	return router.NewMessageHandler(
 		router.MessageProcessorFn(func(message *fimpgo.Message) (*fimpgo.FimpMessage, error) {
-			s := serviceRegistry.ServiceByTopic(message.Topic)
-			if s == nil {
-				return nil, fmt.Errorf("adapter: service not found under the provided address: %s", message.Addr.ServiceAddress)
-			}
-
-			parameters, ok := s.(Service)
-			if !ok {
-				return nil, fmt.Errorf("adapter: incorrect service found under the provided address: %s", message.Addr.ServiceAddress)
+			parameters, err := getService(serviceRegistry, message)
+			if err != nil {
+				return nil, err
 			}
 
 			var param Parameter
 
 			if err := message.Payload.GetObjectValue(&param); err != nil {
-				return nil, fmt.Errorf("adapter: provided cable lock value has an incorrect format: %w", err)
+				return nil, fmt.Errorf("adapter: provided parameter has an incorrect format: %w", err)
 			}
 
 			if err := parameters.SetParameter(param); err != nil {
 				return nil, fmt.Errorf("adapter: failed to set a parameter: %w", err)
 			}
 
-			if err := parameters.SendParameterReport(param.ID); err != nil {
+			if _, err := parameters.SendParameterReport(param.ID, true); err != nil {
 				return nil, fmt.Errorf("adapter: failed to send parameter report: %w", err)
 			}
 
@@ -109,27 +94,22 @@ func HandleCmdParamSet(serviceRegistry adapter.ServiceRegistry) router.MessageHa
 	)
 }
 
-// RouteCmdParamGetReport returns a routing responsible for handling the command.
-func RouteCmdParamGetReport(serviceRegistry adapter.ServiceRegistry) *router.Routing {
+// routeCmdParamGetReport returns a routing responsible for handling the command.
+func routeCmdParamGetReport(serviceRegistry adapter.ServiceRegistry) *router.Routing {
 	return router.NewRouting(
-		HandleCmdParamGetReport(serviceRegistry),
+		handleCmdParamGetReport(serviceRegistry),
 		router.ForService(Parameters),
 		router.ForType(CmdParamGetReport),
 	)
 }
 
-// HandleCmdParamGetReport returns a handler responsible for handling the command.
-func HandleCmdParamGetReport(serviceRegistry adapter.ServiceRegistry) router.MessageHandler {
+// handleCmdParamGetReport returns a handler responsible for handling the command.
+func handleCmdParamGetReport(serviceRegistry adapter.ServiceRegistry) router.MessageHandler {
 	return router.NewMessageHandler(
 		router.MessageProcessorFn(func(message *fimpgo.Message) (*fimpgo.FimpMessage, error) {
-			s := serviceRegistry.ServiceByTopic(message.Topic)
-			if s == nil {
-				return nil, fmt.Errorf("adapter: service not found under the provided address: %s", message.Addr.ServiceAddress)
-			}
-
-			parameters, ok := s.(Service)
-			if !ok {
-				return nil, fmt.Errorf("adapter: incorrect service found under the provided address: %s", message.Addr.ServiceAddress)
+			parameters, err := getService(serviceRegistry, message)
+			if err != nil {
+				return nil, err
 			}
 
 			value, err := message.Payload.GetStringValue()
@@ -137,12 +117,26 @@ func HandleCmdParamGetReport(serviceRegistry adapter.ServiceRegistry) router.Mes
 				return nil, fmt.Errorf("adapter: provided parameter id has an incorrect format: %w", err)
 			}
 
-			err = parameters.SendParameterReport(value)
-			if err != nil {
+			if _, err = parameters.SendParameterReport(value, true); err != nil {
 				return nil, fmt.Errorf("adapter: failed to send parameter report: %w", err)
 			}
 
 			return nil, nil
 		}),
 	)
+}
+
+// getService returns a service responsible for handling the message.
+func getService(serviceRegistry adapter.ServiceRegistry, message *fimpgo.Message) (Service, error) {
+	s := serviceRegistry.ServiceByTopic(message.Topic)
+	if s == nil {
+		return nil, fmt.Errorf("adapter: service not found under the provided address: %s", message.Addr.ServiceAddress)
+	}
+
+	parameters, ok := s.(Service)
+	if !ok {
+		return nil, fmt.Errorf("adapter: incorrect service found under the provided address: %s", message.Addr.ServiceAddress)
+	}
+
+	return parameters, nil
 }
