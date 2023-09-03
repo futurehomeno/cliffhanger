@@ -12,8 +12,8 @@ import (
 // Controller for dev_sys service specifies no methods, as the service has no mandatory interfaces.
 type Controller interface{}
 
-// RebootableController is a controller that allows to reboot the device.
-type RebootableController interface {
+// RebootController is a controller that allows to reboot the device.
+type RebootController interface {
 	RebootDevice(hard bool) error
 }
 
@@ -42,7 +42,7 @@ func NewService(
 
 	cfg.Specification.EnsureInterfaces(requiredInterfaces()...)
 
-	_, ok := cfg.Controller.(RebootableController)
+	_, ok := cfg.Controller.(RebootController)
 	if ok {
 		cfg.Specification.EnsureInterfaces(rebootInterfaces()...)
 	}
@@ -64,7 +64,7 @@ type service struct {
 	lock       *sync.Mutex
 }
 
-// Reboot triggers device reboot
+// Reboot triggers device reboot.
 func (s *service) Reboot(hard bool) error {
 	s.lock.Lock()
 	defer s.lock.Unlock()
@@ -73,7 +73,7 @@ func (s *service) Reboot(hard bool) error {
 		return fmt.Errorf("%s: device reboot functionality is not supported", s.Name())
 	}
 
-	controller, _ := s.controller.(RebootableController)
+	controller, _ := s.controller.(RebootController)
 
 	err := controller.RebootDevice(hard)
 	if err != nil {
@@ -85,7 +85,7 @@ func (s *service) Reboot(hard bool) error {
 
 // SupportsReboot returns true if the service supports rebooting the device.
 func (s *service) SupportsReboot() bool {
-	_, ok := s.controller.(RebootableController)
+	_, ok := s.controller.(RebootController)
 
 	return ok
 }

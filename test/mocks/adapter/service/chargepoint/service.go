@@ -3,7 +3,9 @@
 package mockedchargepoint
 
 import (
+	chargepoint "github.com/futurehomeno/cliffhanger/adapter/service/chargepoint"
 	fimpgo "github.com/futurehomeno/fimpgo"
+
 	fimptype "github.com/futurehomeno/fimpgo/fimptype"
 
 	mock "github.com/stretchr/testify/mock"
@@ -54,6 +56,30 @@ func (_m *Service) SendCableLockReport(force bool) (bool, error) {
 
 // SendCurrentSessionReport provides a mock function with given fields: force
 func (_m *Service) SendCurrentSessionReport(force bool) (bool, error) {
+	ret := _m.Called(force)
+
+	var r0 bool
+	var r1 error
+	if rf, ok := ret.Get(0).(func(bool) (bool, error)); ok {
+		return rf(force)
+	}
+	if rf, ok := ret.Get(0).(func(bool) bool); ok {
+		r0 = rf(force)
+	} else {
+		r0 = ret.Get(0).(bool)
+	}
+
+	if rf, ok := ret.Get(1).(func(bool) error); ok {
+		r1 = rf(force)
+	} else {
+		r1 = ret.Error(1)
+	}
+
+	return r0, r1
+}
+
+// SendMaxCurrentReport provides a mock function with given fields: force
+func (_m *Service) SendMaxCurrentReport(force bool) (bool, error) {
 	ret := _m.Called(force)
 
 	var r0 bool
@@ -128,6 +154,34 @@ func (_m *Service) SetCableLock(_a0 bool) error {
 	return r0
 }
 
+// SetMaxCurrent provides a mock function with given fields: _a0
+func (_m *Service) SetMaxCurrent(_a0 int64) error {
+	ret := _m.Called(_a0)
+
+	var r0 error
+	if rf, ok := ret.Get(0).(func(int64) error); ok {
+		r0 = rf(_a0)
+	} else {
+		r0 = ret.Error(0)
+	}
+
+	return r0
+}
+
+// SetOfferedCurrent provides a mock function with given fields: _a0
+func (_m *Service) SetOfferedCurrent(_a0 int64) error {
+	ret := _m.Called(_a0)
+
+	var r0 error
+	if rf, ok := ret.Get(0).(func(int64) error); ok {
+		r0 = rf(_a0)
+	} else {
+		r0 = ret.Error(0)
+	}
+
+	return r0
+}
+
 // Specification provides a mock function with given fields:
 func (_m *Service) Specification() *fimptype.Service {
 	ret := _m.Called()
@@ -144,13 +198,13 @@ func (_m *Service) Specification() *fimptype.Service {
 	return r0
 }
 
-// StartCharging provides a mock function with given fields: mode
-func (_m *Service) StartCharging(mode string) error {
-	ret := _m.Called(mode)
+// StartCharging provides a mock function with given fields: settings
+func (_m *Service) StartCharging(settings *chargepoint.ChargingSettings) error {
+	ret := _m.Called(settings)
 
 	var r0 error
-	if rf, ok := ret.Get(0).(func(string) error); ok {
-		r0 = rf(mode)
+	if rf, ok := ret.Get(0).(func(*chargepoint.ChargingSettings) error); ok {
+		r0 = rf(settings)
 	} else {
 		r0 = ret.Error(0)
 	}
@@ -183,6 +237,20 @@ func (_m *Service) SupportedStates() []string {
 		if ret.Get(0) != nil {
 			r0 = ret.Get(0).([]string)
 		}
+	}
+
+	return r0
+}
+
+// SupportsAdjustingCurrent provides a mock function with given fields:
+func (_m *Service) SupportsAdjustingCurrent() bool {
+	ret := _m.Called()
+
+	var r0 bool
+	if rf, ok := ret.Get(0).(func() bool); ok {
+		r0 = rf()
+	} else {
+		r0 = ret.Get(0).(bool)
 	}
 
 	return r0

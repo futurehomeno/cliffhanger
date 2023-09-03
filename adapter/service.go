@@ -36,6 +36,20 @@ func IsRegistryInitialized(serviceRegistry ServiceRegistry) task.Voter {
 	})
 }
 
+// SpecificationOption is an interface representing a particular service specification option.
+type SpecificationOption interface {
+	// Apply applies the option to the provided service specification.
+	Apply(*fimptype.Service)
+}
+
+// SpecificationOptionFn is an convenience adapter for the SpecificationOption interface.
+type SpecificationOptionFn func(*fimptype.Service)
+
+// Apply applies the option to the provided service specification.
+func (f SpecificationOptionFn) Apply(s *fimptype.Service) {
+	f(s)
+}
+
 // NewService creates instance of a FIMP service.
 func NewService(publisher ServicePublisher, specification *fimptype.Service) Service {
 	return &service{

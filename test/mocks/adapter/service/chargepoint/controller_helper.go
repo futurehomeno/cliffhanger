@@ -1,7 +1,11 @@
 package mockedchargepoint
 
-func (_m *Controller) MockStartChargepointCharging(mode string, err error, once bool) *Controller {
-	c := _m.On("StartChargepointCharging", mode).Return(err)
+import (
+	"github.com/futurehomeno/cliffhanger/adapter/service/chargepoint"
+)
+
+func (_m *Controller) MockStartChargepointCharging(settings *chargepoint.ChargingSettings, err error, once bool) *Controller {
+	c := _m.On("StartChargepointCharging", settings).Return(err)
 
 	if once {
 		c.Once()
@@ -30,7 +34,7 @@ func (_m *Controller) MockChargepointStateReport(state string, err error, once b
 	return _m
 }
 
-func (_m *Controller) MockChargepointCurrentSessionReport(value float64, err error, once bool) *Controller {
+func (_m *Controller) MockChargepointCurrentSessionReport(value *chargepoint.SessionReport, err error, once bool) *Controller {
 	c := _m.On("ChargepointCurrentSessionReport").Return(value, err)
 
 	if once {

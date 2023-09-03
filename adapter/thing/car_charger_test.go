@@ -36,9 +36,9 @@ func TestRouteCarCharger(t *testing.T) { //nolint:paralleltest
 				TearDown: adapterhelper.TearDownAdapter("../../testdata/adapter/test_adapter"),
 				Setup: routeCarCharger(
 					mockedchargepoint.NewController(t).
-						MockStartChargepointCharging("", nil, false).
+						MockStartChargepointCharging(&chargepoint.ChargingSettings{}, nil, false).
 						MockChargepointStateReport("charging", nil, false).
-						MockChargepointCurrentSessionReport(1.74, nil, false),
+						MockChargepointCurrentSessionReport(&chargepoint.SessionReport{SessionEnergy: 1.74}, nil, false),
 					nil,
 					nil,
 				),
@@ -69,9 +69,9 @@ func TestRouteCarCharger(t *testing.T) { //nolint:paralleltest
 				TearDown: adapterhelper.TearDownAdapter("../../testdata/adapter/test_adapter"),
 				Setup: routeCarCharger(
 					mockedchargepoint.NewController(t).
-						MockStartChargepointCharging("normal", nil, true).
+						MockStartChargepointCharging(&chargepoint.ChargingSettings{Mode: "normal"}, nil, true).
 						MockChargepointStateReport("charging", nil, true).
-						MockChargepointCurrentSessionReport(1.74, nil, true),
+						MockChargepointCurrentSessionReport(&chargepoint.SessionReport{SessionEnergy: 1.74}, nil, true),
 					nil,
 					evChargerChargingTestModes,
 				),
@@ -96,7 +96,7 @@ func TestRouteCarCharger(t *testing.T) { //nolint:paralleltest
 					mockedchargepoint.NewController(t).
 						MockStopChargepointCharging(nil, true).
 						MockChargepointStateReport("ready_to_charge", nil, true).
-						MockChargepointCurrentSessionReport(1.74, nil, true),
+						MockChargepointCurrentSessionReport(&chargepoint.SessionReport{SessionEnergy: 1.74}, nil, true),
 					nil,
 					nil,
 				),
@@ -119,7 +119,7 @@ func TestRouteCarCharger(t *testing.T) { //nolint:paralleltest
 						MockSetChargepointCableLock(true, nil, true).
 						MockChargepointCableLockReport(true, nil, false).
 						MockChargepointStateReport("charging", nil, true).
-						MockChargepointCurrentSessionReport(1.74, nil, true),
+						MockChargepointCurrentSessionReport(&chargepoint.SessionReport{SessionEnergy: 1.74}, nil, true),
 					mockednumericmeter.NewReporter(t).
 						MockMeterReport("W", 2, nil, false).
 						MockMeterReport("kWh", 123.45, nil, false),
@@ -197,7 +197,7 @@ func TestRouteCarCharger(t *testing.T) { //nolint:paralleltest
 				TearDown: adapterhelper.TearDownAdapter("../../testdata/adapter/test_adapter"),
 				Setup: routeCarCharger(
 					mockedchargepoint.NewController(t).
-						MockStartChargepointCharging("", errTest, true),
+						MockStartChargepointCharging(&chargepoint.ChargingSettings{}, errTest, true),
 					nil,
 					nil,
 				),
@@ -216,7 +216,7 @@ func TestRouteCarCharger(t *testing.T) { //nolint:paralleltest
 				TearDown: adapterhelper.TearDownAdapter("../../testdata/adapter/test_adapter"),
 				Setup: routeCarCharger(
 					mockedchargepoint.NewController(t).
-						MockStartChargepointCharging("", nil, true).
+						MockStartChargepointCharging(&chargepoint.ChargingSettings{}, nil, true).
 						MockChargepointStateReport("", errTest, true),
 					nil,
 					nil,
@@ -236,9 +236,9 @@ func TestRouteCarCharger(t *testing.T) { //nolint:paralleltest
 				TearDown: adapterhelper.TearDownAdapter("../../testdata/adapter/test_adapter"),
 				Setup: routeCarCharger(
 					mockedchargepoint.NewController(t).
-						MockStartChargepointCharging("", nil, true).
+						MockStartChargepointCharging(&chargepoint.ChargingSettings{}, nil, true).
 						MockChargepointStateReport("ready_to_charge", nil, true).
-						MockChargepointCurrentSessionReport(0, errTest, true),
+						MockChargepointCurrentSessionReport(&chargepoint.SessionReport{SessionEnergy: 0}, errTest, true),
 					nil,
 					nil,
 				),
@@ -319,7 +319,7 @@ func TestRouteCarCharger(t *testing.T) { //nolint:paralleltest
 					mockedchargepoint.NewController(t).
 						MockStopChargepointCharging(nil, true).
 						MockChargepointStateReport("ready_to_charge", nil, true).
-						MockChargepointCurrentSessionReport(0, errTest, true),
+						MockChargepointCurrentSessionReport(&chargepoint.SessionReport{SessionEnergy: 0}, errTest, true),
 					nil,
 					nil,
 				),
@@ -379,7 +379,7 @@ func TestRouteCarCharger(t *testing.T) { //nolint:paralleltest
 					mockedchargepoint.NewController(t).
 						MockChargepointCableLockReport(false, errTest, false).
 						MockChargepointStateReport("", errTest, true).
-						MockChargepointCurrentSessionReport(0, errTest, true),
+						MockChargepointCurrentSessionReport(nil, errTest, true),
 					mockednumericmeter.NewReporter(t).
 						MockMeterReport("W", 0, errTest, false).
 						MockMeterReport("kWh", 0, errTest, false),
@@ -504,10 +504,10 @@ func TestTaskCarCharger(t *testing.T) { //nolint:paralleltest
 						MockChargepointCableLockReport(false, errTest, true).
 						MockChargepointCableLockReport(true, nil, true).
 						MockChargepointCableLockReport(false, nil, true). // should be sent twice
-						MockChargepointCurrentSessionReport(1.23, nil, true).
-						MockChargepointCurrentSessionReport(0, errTest, true).
-						MockChargepointCurrentSessionReport(1.23, nil, true).
-						MockChargepointCurrentSessionReport(4.56, nil, true). // should be sent twice
+						MockChargepointCurrentSessionReport(&chargepoint.SessionReport{SessionEnergy: 1.23}, nil, true).
+						MockChargepointCurrentSessionReport(nil, errTest, true).
+						MockChargepointCurrentSessionReport(&chargepoint.SessionReport{SessionEnergy: 1.23}, nil, true).
+						MockChargepointCurrentSessionReport(&chargepoint.SessionReport{SessionEnergy: 4.56}, nil, true). // should be sent twice
 						MockChargepointStateReport("ready_to_charge", nil, true).
 						MockChargepointStateReport("", errTest, true).
 						MockChargepointStateReport("ready_to_charge", nil, true).
@@ -601,7 +601,7 @@ func setupCarCharger(
 				"2",
 				nil,
 				evChargerTestStates,
-				supportedChargingModes,
+				chargepoint.WithChargingModes(supportedChargingModes...),
 			),
 			Controller: chargepointController,
 		},

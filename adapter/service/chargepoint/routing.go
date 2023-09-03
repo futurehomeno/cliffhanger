@@ -11,15 +11,19 @@ import (
 
 // Constants defining routing service, commands and events.
 const (
-	CmdChargeStart             = "cmd.charge.start"
-	CmdChargeStop              = "cmd.charge.stop"
-	CmdStateGetReport          = "cmd.state.get_report"
-	EvtStateReport             = "evt.state.report"
-	CmdCableLockSet            = "cmd.cable_lock.set"
-	CmdCableLockGetReport      = "cmd.cable_lock.get_report"
-	EvtCableLockReport         = "evt.cable_lock.report"
-	CmdCurrentSessionGetReport = "cmd.current_session.get_report"
-	EvtCurrentSessionReport    = "evt.current_session.report"
+	CmdChargeStart              = "cmd.charge.start"
+	CmdChargeStop               = "cmd.charge.stop"
+	CmdStateGetReport           = "cmd.state.get_report"
+	EvtStateReport              = "evt.state.report"
+	CmdCableLockSet             = "cmd.cable_lock.set"
+	CmdCableLockGetReport       = "cmd.cable_lock.get_report"
+	EvtCableLockReport          = "evt.cable_lock.report"
+	CmdCurrentSessionGetReport  = "cmd.current_session.get_report"
+	EvtCurrentSessionReport     = "evt.current_session.report"
+	CmdCurrentSessionSetCurrent = "cmd.current_session.set_current"
+	CmdMaxCurrentSet            = "cmd.max_current.set"
+	CmdMaxCurrentGetReport      = "cmd.max_current.get_report"
+	EvtMaxCurrentReport         = "evt.max_current.report"
 
 	Chargepoint = "chargepoint"
 )
@@ -27,41 +31,38 @@ const (
 // RouteService returns routing for service specific commands.
 func RouteService(serviceRegistry adapter.ServiceRegistry) []*router.Routing {
 	return []*router.Routing{
-		RouteCmdChargeStart(serviceRegistry),
-		RouteCmdChargeStop(serviceRegistry),
-		RouteCmdCableLockSet(serviceRegistry),
-		RouteCmdStateGetReport(serviceRegistry),
-		RouteCmdCurrentSessionGetReport(serviceRegistry),
-		RouteCmdCableLockGetReport(serviceRegistry),
+		routeCmdChargeStart(serviceRegistry),
+		routeCmdChargeStop(serviceRegistry),
+		routeCmdCableLockSet(serviceRegistry),
+		routeCmdStateGetReport(serviceRegistry),
+		routeCmdCurrentSessionGetReport(serviceRegistry),
+		routeCmdCableLockGetReport(serviceRegistry),
 	}
 }
 
-// RouteCmdChargeStart returns a routing responsible for handling the command.
-func RouteCmdChargeStart(serviceRegistry adapter.ServiceRegistry) *router.Routing {
+// routeCmdChargeStart returns a routing responsible for handling the command.
+func routeCmdChargeStart(serviceRegistry adapter.ServiceRegistry) *router.Routing {
 	return router.NewRouting(
-		HandleCmdChargeStart(serviceRegistry),
+		handleCmdChargeStart(serviceRegistry),
 		router.ForService(Chargepoint),
 		router.ForType(CmdChargeStart),
 	)
 }
 
-// HandleCmdChargeStart returns a handler responsible for handling the command.
-func HandleCmdChargeStart(serviceRegistry adapter.ServiceRegistry) router.MessageHandler {
+// handleCmdChargeStart returns a handler responsible for handling the command.
+func handleCmdChargeStart(serviceRegistry adapter.ServiceRegistry) router.MessageHandler {
 	return router.NewMessageHandler(
 		router.MessageProcessorFn(func(message *fimpgo.Message) (*fimpgo.FimpMessage, error) {
-			s := serviceRegistry.ServiceByTopic(message.Topic)
-			if s == nil {
-				return nil, fmt.Errorf("adapter: service not found under the provided address: %s", message.Addr.ServiceAddress)
+			chargepoint, err := getService(serviceRegistry, message)
+			if err != nil {
+				return nil, err
 			}
 
-			chargepoint, ok := s.(Service)
-			if !ok {
-				return nil, fmt.Errorf("adapter: incorrect service found under the provided address: %s", message.Addr.ServiceAddress)
+			chargingSettings := &ChargingSettings{
+				Mode: message.Payload.Properties[PropertyChargingMode],
 			}
 
-			mode := message.Payload.Properties[PropertyChargingMode]
-
-			err := chargepoint.StartCharging(mode)
+			err = chargepoint.StartCharging(chargingSettings)
 			if err != nil {
 				return nil, fmt.Errorf("adapter: failed to start charging: %w", err)
 			}
@@ -81,30 +82,25 @@ func HandleCmdChargeStart(serviceRegistry adapter.ServiceRegistry) router.Messag
 	)
 }
 
-// RouteCmdChargeStop returns a routing responsible for handling the command.
-func RouteCmdChargeStop(serviceRegistry adapter.ServiceRegistry) *router.Routing {
+// routeCmdChargeStop returns a routing responsible for handling the command.
+func routeCmdChargeStop(serviceRegistry adapter.ServiceRegistry) *router.Routing {
 	return router.NewRouting(
-		HandleCmdChargeStop(serviceRegistry),
+		handleCmdChargeStop(serviceRegistry),
 		router.ForService(Chargepoint),
 		router.ForType(CmdChargeStop),
 	)
 }
 
-// HandleCmdChargeStop returns a handler responsible for handling the command.
-func HandleCmdChargeStop(serviceRegistry adapter.ServiceRegistry) router.MessageHandler {
+// handleCmdChargeStop returns a handler responsible for handling the command.
+func handleCmdChargeStop(serviceRegistry adapter.ServiceRegistry) router.MessageHandler {
 	return router.NewMessageHandler(
 		router.MessageProcessorFn(func(message *fimpgo.Message) (*fimpgo.FimpMessage, error) {
-			s := serviceRegistry.ServiceByTopic(message.Topic)
-			if s == nil {
-				return nil, fmt.Errorf("adapter: service not found under the provided address: %s", message.Addr.ServiceAddress)
+			chargepoint, err := getService(serviceRegistry, message)
+			if err != nil {
+				return nil, err
 			}
 
-			chargepoint, ok := s.(Service)
-			if !ok {
-				return nil, fmt.Errorf("adapter: incorrect service found under the provided address: %s", message.Addr.ServiceAddress)
-			}
-
-			err := chargepoint.StopCharging()
+			err = chargepoint.StopCharging()
 			if err != nil {
 				return nil, fmt.Errorf("adapter: failed to stop charging: %w", err)
 			}
@@ -124,27 +120,22 @@ func HandleCmdChargeStop(serviceRegistry adapter.ServiceRegistry) router.Message
 	)
 }
 
-// RouteCmdCableLockSet returns a routing responsible for handling the command.
-func RouteCmdCableLockSet(serviceRegistry adapter.ServiceRegistry) *router.Routing {
+// routeCmdCableLockSet returns a routing responsible for handling the command.
+func routeCmdCableLockSet(serviceRegistry adapter.ServiceRegistry) *router.Routing {
 	return router.NewRouting(
-		HandleCmdCableLockSet(serviceRegistry),
+		handleCmdCableLockSet(serviceRegistry),
 		router.ForService(Chargepoint),
 		router.ForType(CmdCableLockSet),
 	)
 }
 
-// HandleCmdCableLockSet returns a handler responsible for handling the command.
-func HandleCmdCableLockSet(serviceRegistry adapter.ServiceRegistry) router.MessageHandler {
+// handleCmdCableLockSet returns a handler responsible for handling the command.
+func handleCmdCableLockSet(serviceRegistry adapter.ServiceRegistry) router.MessageHandler {
 	return router.NewMessageHandler(
 		router.MessageProcessorFn(func(message *fimpgo.Message) (*fimpgo.FimpMessage, error) {
-			s := serviceRegistry.ServiceByTopic(message.Topic)
-			if s == nil {
-				return nil, fmt.Errorf("adapter: service not found under the provided address: %s", message.Addr.ServiceAddress)
-			}
-
-			chargepoint, ok := s.(Service)
-			if !ok {
-				return nil, fmt.Errorf("adapter: incorrect service found under the provided address: %s", message.Addr.ServiceAddress)
+			chargepoint, err := getService(serviceRegistry, message)
+			if err != nil {
+				return nil, err
 			}
 
 			value, err := message.Payload.GetBoolValue()
@@ -167,30 +158,25 @@ func HandleCmdCableLockSet(serviceRegistry adapter.ServiceRegistry) router.Messa
 	)
 }
 
-// RouteCmdStateGetReport returns a routing responsible for handling the command.
-func RouteCmdStateGetReport(serviceRegistry adapter.ServiceRegistry) *router.Routing {
+// routeCmdStateGetReport returns a routing responsible for handling the command.
+func routeCmdStateGetReport(serviceRegistry adapter.ServiceRegistry) *router.Routing {
 	return router.NewRouting(
-		HandleCmdStateGetReport(serviceRegistry),
+		handleCmdStateGetReport(serviceRegistry),
 		router.ForService(Chargepoint),
 		router.ForType(CmdStateGetReport),
 	)
 }
 
-// HandleCmdStateGetReport returns a handler responsible for handling the command.
-func HandleCmdStateGetReport(serviceRegistry adapter.ServiceRegistry) router.MessageHandler {
+// handleCmdStateGetReport returns a handler responsible for handling the command.
+func handleCmdStateGetReport(serviceRegistry adapter.ServiceRegistry) router.MessageHandler {
 	return router.NewMessageHandler(
 		router.MessageProcessorFn(func(message *fimpgo.Message) (*fimpgo.FimpMessage, error) {
-			s := serviceRegistry.ServiceByTopic(message.Topic)
-			if s == nil {
-				return nil, fmt.Errorf("adapter: service not found under the provided address: %s", message.Addr.ServiceAddress)
+			chargepoint, err := getService(serviceRegistry, message)
+			if err != nil {
+				return nil, err
 			}
 
-			chargepoint, ok := s.(Service)
-			if !ok {
-				return nil, fmt.Errorf("adapter: incorrect service found under the provided address: %s", message.Addr.ServiceAddress)
-			}
-
-			_, err := chargepoint.SendStateReport(true)
+			_, err = chargepoint.SendStateReport(true)
 			if err != nil {
 				return nil, fmt.Errorf("adapter: failed to send chargepoint state report: %w", err)
 			}
@@ -200,30 +186,25 @@ func HandleCmdStateGetReport(serviceRegistry adapter.ServiceRegistry) router.Mes
 	)
 }
 
-// RouteCmdCableLockGetReport returns a routing responsible for handling the command.
-func RouteCmdCableLockGetReport(serviceRegistry adapter.ServiceRegistry) *router.Routing {
+// routeCmdCableLockGetReport returns a routing responsible for handling the command.
+func routeCmdCableLockGetReport(serviceRegistry adapter.ServiceRegistry) *router.Routing {
 	return router.NewRouting(
-		HandleCmdCableLockGetReport(serviceRegistry),
+		handleCmdCableLockGetReport(serviceRegistry),
 		router.ForService(Chargepoint),
 		router.ForType(CmdCableLockGetReport),
 	)
 }
 
-// HandleCmdCableLockGetReport returns a handler responsible for handling the command.
-func HandleCmdCableLockGetReport(serviceRegistry adapter.ServiceRegistry) router.MessageHandler {
+// handleCmdCableLockGetReport returns a handler responsible for handling the command.
+func handleCmdCableLockGetReport(serviceRegistry adapter.ServiceRegistry) router.MessageHandler {
 	return router.NewMessageHandler(
 		router.MessageProcessorFn(func(message *fimpgo.Message) (*fimpgo.FimpMessage, error) {
-			s := serviceRegistry.ServiceByTopic(message.Topic)
-			if s == nil {
-				return nil, fmt.Errorf("adapter: service not found under the provided address: %s", message.Addr.ServiceAddress)
+			chargepoint, err := getService(serviceRegistry, message)
+			if err != nil {
+				return nil, err
 			}
 
-			chargepoint, ok := s.(Service)
-			if !ok {
-				return nil, fmt.Errorf("adapter: incorrect service found under the provided address: %s", message.Addr.ServiceAddress)
-			}
-
-			_, err := chargepoint.SendCableLockReport(true)
+			_, err = chargepoint.SendCableLockReport(true)
 			if err != nil {
 				return nil, fmt.Errorf("adapter: failed to send chargepoint cable lock report: %w", err)
 			}
@@ -233,30 +214,25 @@ func HandleCmdCableLockGetReport(serviceRegistry adapter.ServiceRegistry) router
 	)
 }
 
-// RouteCmdCurrentSessionGetReport returns a routing responsible for handling the command.
-func RouteCmdCurrentSessionGetReport(serviceRegistry adapter.ServiceRegistry) *router.Routing {
+// routeCmdCurrentSessionGetReport returns a routing responsible for handling the command.
+func routeCmdCurrentSessionGetReport(serviceRegistry adapter.ServiceRegistry) *router.Routing {
 	return router.NewRouting(
-		HandleCmdCurrentSessionGetReport(serviceRegistry),
+		handleCmdCurrentSessionGetReport(serviceRegistry),
 		router.ForService(Chargepoint),
 		router.ForType(CmdCurrentSessionGetReport),
 	)
 }
 
-// HandleCmdCurrentSessionGetReport returns a handler responsible for handling the command.
-func HandleCmdCurrentSessionGetReport(serviceRegistry adapter.ServiceRegistry) router.MessageHandler {
+// handleCmdCurrentSessionGetReport returns a handler responsible for handling the command.
+func handleCmdCurrentSessionGetReport(serviceRegistry adapter.ServiceRegistry) router.MessageHandler {
 	return router.NewMessageHandler(
 		router.MessageProcessorFn(func(message *fimpgo.Message) (*fimpgo.FimpMessage, error) {
-			s := serviceRegistry.ServiceByTopic(message.Topic)
-			if s == nil {
-				return nil, fmt.Errorf("adapter: service not found under the provided address: %s", message.Addr.ServiceAddress)
+			chargepoint, err := getService(serviceRegistry, message)
+			if err != nil {
+				return nil, err
 			}
 
-			chargepoint, ok := s.(Service)
-			if !ok {
-				return nil, fmt.Errorf("adapter: incorrect service found under the provided address: %s", message.Addr.ServiceAddress)
-			}
-
-			_, err := chargepoint.SendCurrentSessionReport(true)
+			_, err = chargepoint.SendCurrentSessionReport(true)
 			if err != nil {
 				return nil, fmt.Errorf("adapter: failed to send chargepoint current session report: %w", err)
 			}
@@ -264,4 +240,19 @@ func HandleCmdCurrentSessionGetReport(serviceRegistry adapter.ServiceRegistry) r
 			return nil, nil
 		}),
 	)
+}
+
+// getService returns a service responsible for handling the message.
+func getService(serviceRegistry adapter.ServiceRegistry, message *fimpgo.Message) (Service, error) {
+	s := serviceRegistry.ServiceByTopic(message.Topic)
+	if s == nil {
+		return nil, fmt.Errorf("adapter: service not found under the provided address: %s", message.Addr.ServiceAddress)
+	}
+
+	chargepoint, ok := s.(Service)
+	if !ok {
+		return nil, fmt.Errorf("adapter: incorrect service found under the provided address: %s", message.Addr.ServiceAddress)
+	}
+
+	return chargepoint, nil
 }
