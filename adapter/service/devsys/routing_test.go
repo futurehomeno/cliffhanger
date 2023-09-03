@@ -107,7 +107,7 @@ func setupService(
 	t *testing.T,
 	mqtt *fimpgo.MqttTransport,
 	controller devsys.Controller,
-) ([]*router.Routing, []*task.Task, []suite.Mock) {
+) ([]*router.Routing, []*task.Task, []suite.Mock) { //nolint:unparam
 	t.Helper()
 
 	mockedController, ok := controller.(suite.Mock)
