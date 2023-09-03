@@ -94,11 +94,6 @@ func NewService(
 
 	cfg.Specification.EnsureInterfaces(requiredInterfaces()...)
 
-	_, ok := cfg.Controller.(AdjustableCurrentController)
-	if ok {
-		cfg.Specification.EnsureInterfaces(adjustableCurrentInterfaces()...)
-	}
-
 	if cfg.SessionReportingStrategy == nil {
 		cfg.SessionReportingStrategy = DefaultSessionReportingStrategy
 	}
@@ -114,6 +109,10 @@ func NewService(
 		reportingCache:           cache.NewReportingCache(),
 		sessionReportingStrategy: cfg.SessionReportingStrategy,
 		stateReportingStrategy:   cfg.StateReportingStrategy,
+	}
+
+	if s.SupportsAdjustingCurrent() {
+		cfg.Specification.EnsureInterfaces(adjustableCurrentInterfaces()...)
 	}
 
 	return s
@@ -376,6 +375,11 @@ func (s *service) SupportsAdjustingCurrent() bool {
 
 // adjustableCurrentController returns the AdjustableCurrentController, if supported.
 func (s *service) adjustableCurrentController() (AdjustableCurrentController, error) {
+	_, ok := s.Specification().PropertyInteger(PropertySupportedMaxCurrent)
+	if !ok {
+		return nil, fmt.Errorf("%s: adjusting current is not supported", s.Name())
+	}
+
 	controller, ok := s.controller.(AdjustableCurrentController)
 	if !ok {
 		return nil, fmt.Errorf("%s: adjusting current is not supported", s.Name())
@@ -412,8 +416,9 @@ func (s *service) validateCurrent(current int64) error {
 		return fmt.Errorf("%s: configured current must be at least 6A, received %dA instead", s.Name(), current)
 	}
 
-	maximumCurrent, ok := s.Specification().PropertyInteger(PropertySupportedMaxCurrent)
-	if ok && current > maximumCurrent {
+	maximumCurrent, _ := s.Specification().PropertyInteger(PropertySupportedMaxCurrent)
+
+	if current > maximumCurrent {
 		return fmt.Errorf("%s: configured current must not exceed %dA, received %dA instead", s.Name(), maximumCurrent, current)
 	}
 
