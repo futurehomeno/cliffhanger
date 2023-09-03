@@ -41,6 +41,13 @@ func handleReporting(serviceRegistry adapter.ServiceRegistry) func() {
 					log.WithError(err).Errorf("adapter: failed to send chargepoint state report")
 				}
 			}
+
+			if chargepoint.SupportsAdjustingCurrent() {
+				_, err = chargepoint.SendMaxCurrentReport(false)
+				if err != nil {
+					log.WithError(err).Errorf("adapter: failed to send chargepoint max current report")
+				}
+			}
 		}
 	}
 }

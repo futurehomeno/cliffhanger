@@ -326,7 +326,7 @@ func routeCmdMaxCurrentGetReport(serviceRegistry adapter.ServiceRegistry) *route
 	return router.NewRouting(
 		handleCmdMaxCurrentGetReport(serviceRegistry),
 		router.ForService(Chargepoint),
-		router.ForType(CmdMaxCurrentSet),
+		router.ForType(CmdMaxCurrentGetReport),
 	)
 }
 

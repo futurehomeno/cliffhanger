@@ -25,7 +25,7 @@ func WithSupportedMaxCurrent(current int64) adapter.SpecificationOption {
 }
 
 // WithGridType adds grid type to the service specification.
-func WithGridType(gridType string) adapter.SpecificationOption {
+func WithGridType(gridType GridType) adapter.SpecificationOption {
 	return adapter.SpecificationOptionFn(func(f *fimptype.Service) {
 		f.Props[PropertyGridType] = gridType
 	})

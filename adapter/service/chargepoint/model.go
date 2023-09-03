@@ -60,7 +60,7 @@ func (r *SessionReport) reportProperties(supportsAdjustingCurrent bool) map[stri
 	properties := make(map[string]string)
 
 	if r.PreviousSessionEnergy > 0 {
-		properties[PropertyPreviousSession] = strconv.FormatFloat(r.PreviousSessionEnergy, 'f', 4, 64)
+		properties[PropertyPreviousSession] = strconv.FormatFloat(r.PreviousSessionEnergy, 'f', 2, 64)
 	}
 
 	if !r.StartedAt.IsZero() {

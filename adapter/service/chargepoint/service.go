@@ -366,11 +366,8 @@ func (s *service) SupportedStates() []string {
 // SupportsAdjustingCurrent returns true if the chargepoint supports adjusting current.
 func (s *service) SupportsAdjustingCurrent() bool {
 	_, err := s.adjustableCurrentController()
-	if err != nil {
-		return false
-	}
 
-	return true
+	return err == nil
 }
 
 // adjustableCurrentController returns the AdjustableCurrentController, if supported.

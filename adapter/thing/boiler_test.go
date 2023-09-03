@@ -545,9 +545,6 @@ func setupBoiler(
 				"2",
 				nil,
 				[]string{"W", "kWh"},
-				nil,
-				nil,
-				false,
 			),
 			Reporter: meterElecReporter,
 		}
