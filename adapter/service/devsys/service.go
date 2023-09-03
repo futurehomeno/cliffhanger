@@ -42,15 +42,14 @@ func NewService(
 
 	cfg.Specification.EnsureInterfaces(requiredInterfaces()...)
 
-	_, ok := cfg.Controller.(RebootController)
-	if ok {
-		cfg.Specification.EnsureInterfaces(rebootInterfaces()...)
-	}
-
 	s := &service{
 		Service:    adapter.NewService(publisher, cfg.Specification),
 		controller: cfg.Controller,
 		lock:       &sync.Mutex{},
+	}
+
+	if s.SupportsReboot() {
+		cfg.Specification.EnsureInterfaces(rebootInterfaces()...)
 	}
 
 	return s
@@ -69,13 +68,12 @@ func (s *service) Reboot(hard bool) error {
 	s.lock.Lock()
 	defer s.lock.Unlock()
 
-	if !s.SupportsReboot() {
-		return fmt.Errorf("%s: device reboot functionality is not supported", s.Name())
+	controller, err := s.rebootController()
+	if err != nil {
+		return err
 	}
 
-	controller, _ := s.controller.(RebootController)
-
-	err := controller.RebootDevice(hard)
+	err = controller.RebootDevice(hard)
 	if err != nil {
 		return fmt.Errorf("%s: failed to reboot device: %w", s.Name(), err)
 	}
@@ -85,7 +83,17 @@ func (s *service) Reboot(hard bool) error {
 
 // SupportsReboot returns true if the service supports rebooting the device.
 func (s *service) SupportsReboot() bool {
-	_, ok := s.controller.(RebootController)
+	_, err := s.rebootController()
 
-	return ok
+	return err == nil
+}
+
+// rebootController returns a reboot controller, if the service supports rebooting the device.
+func (s *service) rebootController() (RebootController, error) {
+	controller, ok := s.controller.(RebootController)
+	if !ok {
+		return nil, fmt.Errorf("%s: reboot functionality is not supported", s.Name())
+	}
+
+	return controller, nil
 }

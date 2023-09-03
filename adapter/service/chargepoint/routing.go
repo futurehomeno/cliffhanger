@@ -33,10 +33,13 @@ func RouteService(serviceRegistry adapter.ServiceRegistry) []*router.Routing {
 	return []*router.Routing{
 		routeCmdChargeStart(serviceRegistry),
 		routeCmdChargeStop(serviceRegistry),
-		routeCmdCableLockSet(serviceRegistry),
 		routeCmdStateGetReport(serviceRegistry),
-		routeCmdCurrentSessionGetReport(serviceRegistry),
+		routeCmdCableLockSet(serviceRegistry),
 		routeCmdCableLockGetReport(serviceRegistry),
+		routeCmdCurrentSessionSetCurrent(serviceRegistry),
+		routeCmdCurrentSessionGetReport(serviceRegistry),
+		routeCmdMaxCurrentSet(serviceRegistry),
+		routeCmdMaxCurrentGetReport(serviceRegistry),
 	}
 }
 
@@ -214,6 +217,44 @@ func handleCmdCableLockGetReport(serviceRegistry adapter.ServiceRegistry) router
 	)
 }
 
+// routeCmdCurrentSessionSetCurrent returns a routing responsible for handling the command.
+func routeCmdCurrentSessionSetCurrent(serviceRegistry adapter.ServiceRegistry) *router.Routing {
+	return router.NewRouting(
+		handleCmdCurrentSessionSetCurrent(serviceRegistry),
+		router.ForService(Chargepoint),
+		router.ForType(CmdCurrentSessionSetCurrent),
+	)
+}
+
+// handleCmdCurrentSessionSetCurrent returns a handler responsible for handling the command.
+func handleCmdCurrentSessionSetCurrent(serviceRegistry adapter.ServiceRegistry) router.MessageHandler {
+	return router.NewMessageHandler(
+		router.MessageProcessorFn(func(message *fimpgo.Message) (*fimpgo.FimpMessage, error) {
+			chargepoint, err := getService(serviceRegistry, message)
+			if err != nil {
+				return nil, err
+			}
+
+			current, err := message.Payload.GetIntValue()
+			if err != nil {
+				return nil, fmt.Errorf("adapter: provided current value has an incorrect format: %w", err)
+			}
+
+			err = chargepoint.SetOfferedCurrent(current)
+			if err != nil {
+				return nil, fmt.Errorf("adapter: failed to set chargepoint offered current: %w", err)
+			}
+
+			_, err = chargepoint.SendCurrentSessionReport(true)
+			if err != nil {
+				return nil, fmt.Errorf("adapter: failed to send chargepoint current session report: %w", err)
+			}
+
+			return nil, nil
+		}),
+	)
+}
+
 // routeCmdCurrentSessionGetReport returns a routing responsible for handling the command.
 func routeCmdCurrentSessionGetReport(serviceRegistry adapter.ServiceRegistry) *router.Routing {
 	return router.NewRouting(
@@ -235,6 +276,72 @@ func handleCmdCurrentSessionGetReport(serviceRegistry adapter.ServiceRegistry) r
 			_, err = chargepoint.SendCurrentSessionReport(true)
 			if err != nil {
 				return nil, fmt.Errorf("adapter: failed to send chargepoint current session report: %w", err)
+			}
+
+			return nil, nil
+		}),
+	)
+}
+
+// routeCmdMaxCurrentSet returns a routing responsible for handling the command.
+func routeCmdMaxCurrentSet(serviceRegistry adapter.ServiceRegistry) *router.Routing {
+	return router.NewRouting(
+		handleCmdMaxCurrentSet(serviceRegistry),
+		router.ForService(Chargepoint),
+		router.ForType(CmdMaxCurrentSet),
+	)
+}
+
+// handleCmdMaxCurrentSet returns a handler responsible for handling the command.
+func handleCmdMaxCurrentSet(serviceRegistry adapter.ServiceRegistry) router.MessageHandler {
+	return router.NewMessageHandler(
+		router.MessageProcessorFn(func(message *fimpgo.Message) (*fimpgo.FimpMessage, error) {
+			chargepoint, err := getService(serviceRegistry, message)
+			if err != nil {
+				return nil, err
+			}
+
+			current, err := message.Payload.GetIntValue()
+			if err != nil {
+				return nil, fmt.Errorf("adapter: provided current value has an incorrect format: %w", err)
+			}
+
+			err = chargepoint.SetMaxCurrent(current)
+			if err != nil {
+				return nil, fmt.Errorf("adapter: failed to set chargepoint max current: %w", err)
+			}
+
+			_, err = chargepoint.SendMaxCurrentReport(true)
+			if err != nil {
+				return nil, fmt.Errorf("adapter: failed to send chargepoint max current report: %w", err)
+			}
+
+			return nil, nil
+		}),
+	)
+}
+
+// routeCmdMaxCurrentGetReport returns a routing responsible for handling the command.
+func routeCmdMaxCurrentGetReport(serviceRegistry adapter.ServiceRegistry) *router.Routing {
+	return router.NewRouting(
+		handleCmdMaxCurrentGetReport(serviceRegistry),
+		router.ForService(Chargepoint),
+		router.ForType(CmdMaxCurrentSet),
+	)
+}
+
+// handleCmdMaxCurrentGetReport returns a handler responsible for handling the command.
+func handleCmdMaxCurrentGetReport(serviceRegistry adapter.ServiceRegistry) router.MessageHandler {
+	return router.NewMessageHandler(
+		router.MessageProcessorFn(func(message *fimpgo.Message) (*fimpgo.FimpMessage, error) {
+			chargepoint, err := getService(serviceRegistry, message)
+			if err != nil {
+				return nil, err
+			}
+
+			_, err = chargepoint.SendMaxCurrentReport(true)
+			if err != nil {
+				return nil, fmt.Errorf("adapter: failed to send chargepoint max current report: %w", err)
 			}
 
 			return nil, nil
