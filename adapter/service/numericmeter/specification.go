@@ -11,14 +11,14 @@ import (
 )
 
 // WithExportUnits adds export units to the service specification.
-func WithExportUnits(exportUnits ...string) adapter.SpecificationOption {
+func WithExportUnits(exportUnits ...Unit) adapter.SpecificationOption {
 	return adapter.SpecificationOptionFn(func(f *fimptype.Service) {
 		f.Props[PropertySupportedExportUnits] = exportUnits
 	})
 }
 
 // WithExtendedValues adds extended values to the service specification.
-func WithExtendedValues(extendedValues ...string) adapter.SpecificationOption {
+func WithExtendedValues(extendedValues ...Value) adapter.SpecificationOption {
 	return adapter.SpecificationOptionFn(func(f *fimptype.Service) {
 		f.Props[PropertySupportedExtendedValues] = extendedValues
 	})
@@ -37,8 +37,8 @@ func Specification(
 	resourceName,
 	resourceAddress,
 	address string,
-	groups,
-	units []string,
+	groups []string,
+	units []Unit,
 	options ...adapter.SpecificationOption,
 ) *fimptype.Service {
 	specification := &fimptype.Service{

@@ -36,20 +36,15 @@ func routeCmdThingReboot(serviceRegistry adapter.ServiceRegistry) *router.Routin
 func handleCmdThingReboot(serviceRegistry adapter.ServiceRegistry) router.MessageHandler {
 	return router.NewMessageHandler(
 		router.MessageProcessorFn(func(message *fimpgo.Message) (*fimpgo.FimpMessage, error) {
-			s := serviceRegistry.ServiceByTopic(message.Topic)
-			if s == nil {
-				return nil, fmt.Errorf("adapter: service not found under the provided address: %s", message.Addr.ServiceAddress)
-			}
-
-			devSys, ok := s.(Service)
-			if !ok {
-				return nil, fmt.Errorf("adapter: incorrect service found under the provided address: %s", message.Addr.ServiceAddress)
+			devSys, err := getService(serviceRegistry, message)
+			if err != nil {
+				return nil, err
 			}
 
 			// We do not need to handle the error, as for backwards compatibility we should consider all other reboot commands as soft reboots.
 			hard, _ := message.Payload.GetBoolValue()
 
-			err := devSys.Reboot(hard)
+			err = devSys.Reboot(hard)
 			if err != nil {
 				return nil, fmt.Errorf("adapter: failed to reboot: %w", err)
 			}
@@ -58,4 +53,19 @@ func handleCmdThingReboot(serviceRegistry adapter.ServiceRegistry) router.Messag
 		}),
 		router.WithSuccessConfirmation(),
 	)
+}
+
+// getService returns a service responsible for handling the message.
+func getService(serviceRegistry adapter.ServiceRegistry, message *fimpgo.Message) (Service, error) {
+	s := serviceRegistry.ServiceByTopic(message.Topic)
+	if s == nil {
+		return nil, fmt.Errorf("adapter: service not found under the provided address: %s", message.Addr.ServiceAddress)
+	}
+
+	chargepoint, ok := s.(Service)
+	if !ok {
+		return nil, fmt.Errorf("adapter: incorrect service found under the provided address: %s", message.Addr.ServiceAddress)
+	}
+
+	return chargepoint, nil
 }

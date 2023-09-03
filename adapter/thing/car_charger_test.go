@@ -175,7 +175,7 @@ func setupCarCharger(
 				"1",
 				"2",
 				nil,
-				[]string{"ready_to_charge", "charging", "error"},
+				[]chargepoint.State{"ready_to_charge", "charging", "error"},
 			),
 			Controller: chargepointController,
 		},
@@ -189,7 +189,7 @@ func setupCarCharger(
 				"1",
 				"2",
 				nil,
-				[]string{"W", "kWh"},
+				[]numericmeter.Unit{"W", "kWh"},
 			),
 			Reporter: meterElecReporter,
 		}

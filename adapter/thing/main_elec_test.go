@@ -283,7 +283,7 @@ func setupMainElec(
 				"1",
 				"2",
 				nil,
-				[]string{"W", "kWh"},
+				[]numericmeter.Unit{"W", "kWh"},
 				numericmeter.WithExtendedValues("p_import", "e_import"),
 			),
 			Reporter: reporter,

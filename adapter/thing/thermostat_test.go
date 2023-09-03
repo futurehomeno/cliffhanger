@@ -553,7 +553,7 @@ func setupThermostat(
 				"1",
 				"2",
 				nil,
-				[]string{"W", "kWh"},
+				[]numericmeter.Unit{"W", "kWh"},
 			),
 			Reporter: meterElecReporter,
 		}

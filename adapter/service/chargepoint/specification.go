@@ -43,8 +43,8 @@ func Specification(
 	resourceName,
 	resourceAddress,
 	address string,
-	groups,
-	supportedStates []string,
+	groups []string,
+	supportedStates []State,
 	options ...adapter.SpecificationOption,
 ) *fimptype.Service {
 	s := &fimptype.Service{

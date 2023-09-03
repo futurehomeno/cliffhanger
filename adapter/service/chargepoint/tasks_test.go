@@ -21,7 +21,7 @@ func TestTaskCarCharger(t *testing.T) { //nolint:paralleltest
 			{
 				Name:     "Car charger tasks",
 				TearDown: adapterhelper.TearDownAdapter("../../testdata/adapter/test_adapter"),
-				Setup: taskCarCharger(
+				Setup: taskChargepoint(
 					mockedchargepoint.NewMockedChargepoint(
 						mockedchargepoint.NewController(t).
 							MockChargepointCableLockReport(true, nil, true).
@@ -71,7 +71,7 @@ func TestTaskCarCharger(t *testing.T) { //nolint:paralleltest
 	s.Run(t)
 }
 
-func taskCarCharger(
+func taskChargepoint(
 	chargepointController chargepoint.Controller,
 	chargepointOptions []adapter.SpecificationOption,
 	interval time.Duration,
@@ -79,7 +79,7 @@ func taskCarCharger(
 	return func(t *testing.T, mqtt *fimpgo.MqttTransport) ([]*router.Routing, []*task.Task, []suite.Mock) {
 		t.Helper()
 
-		_, tasks, mocks := setupCarCharger(t, mqtt, chargepointController, chargepointOptions, interval)
+		_, tasks, mocks := setupService(t, mqtt, chargepointController, chargepointOptions, interval)
 
 		return nil, tasks, mocks
 	}
