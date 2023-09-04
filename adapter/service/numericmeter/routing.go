@@ -51,14 +51,9 @@ func routeCmdMeterGetReport(serviceRegistry adapter.ServiceRegistry) *router.Rou
 func handleCmdMeterGetReport(serviceRegistry adapter.ServiceRegistry) router.MessageHandler {
 	return router.NewMessageHandler(
 		router.MessageProcessorFn(func(message *fimpgo.Message) (reply *fimpgo.FimpMessage, err error) {
-			s := serviceRegistry.ServiceByTopic(message.Topic)
-			if s == nil {
-				return nil, fmt.Errorf("adapter: service not found under the provided address: %s", message.Addr.ServiceAddress)
-			}
-
-			meter, ok := s.(Service)
-			if !ok {
-				return nil, fmt.Errorf("adapter: incorrect service found under the provided address: %s", message.Addr.ServiceAddress)
+			meter, err := getService(serviceRegistry, message)
+			if err != nil {
+				return nil, err
 			}
 
 			if message.Payload.ValueType != fimpgo.VTypeString && message.Payload.ValueType != fimpgo.VTypeNull {
@@ -98,14 +93,9 @@ func routeCmdMeterExportGetReport(serviceRegistry adapter.ServiceRegistry) *rout
 func handleCmdMeterExportGetReport(serviceRegistry adapter.ServiceRegistry) router.MessageHandler {
 	return router.NewMessageHandler(
 		router.MessageProcessorFn(func(message *fimpgo.Message) (reply *fimpgo.FimpMessage, err error) {
-			s := serviceRegistry.ServiceByTopic(message.Topic)
-			if s == nil {
-				return nil, fmt.Errorf("adapter: service not found under the provided address: %s", message.Addr.ServiceAddress)
-			}
-
-			meter, ok := s.(Service)
-			if !ok {
-				return nil, fmt.Errorf("adapter: incorrect service found under the provided address: %s", message.Addr.ServiceAddress)
+			meter, err := getService(serviceRegistry, message)
+			if err != nil {
+				return nil, err
 			}
 
 			if message.Payload.ValueType != fimpgo.VTypeString && message.Payload.ValueType != fimpgo.VTypeNull {
@@ -145,14 +135,9 @@ func routeCmdMeterExtGetReport(serviceRegistry adapter.ServiceRegistry) *router.
 func handleCmdMeterExtGetReport(serviceRegistry adapter.ServiceRegistry) router.MessageHandler {
 	return router.NewMessageHandler(
 		router.MessageProcessorFn(func(message *fimpgo.Message) (reply *fimpgo.FimpMessage, err error) {
-			s := serviceRegistry.ServiceByTopic(message.Topic)
-			if s == nil {
-				return nil, fmt.Errorf("adapter: service not found under the provided address: %s", message.Addr.ServiceAddress)
-			}
-
-			meter, ok := s.(Service)
-			if !ok {
-				return nil, fmt.Errorf("adapter: incorrect service found under the provided address: %s", message.Addr.ServiceAddress)
+			meter, err := getService(serviceRegistry, message)
+			if err != nil {
+				return nil, err
 			}
 
 			if message.Payload.ValueType != fimpgo.VTypeStrArray && message.Payload.ValueType != fimpgo.VTypeNull {
@@ -190,14 +175,9 @@ func routeCmdMeterReset(serviceRegistry adapter.ServiceRegistry) *router.Routing
 func handleCmdMeterReset(serviceRegistry adapter.ServiceRegistry) router.MessageHandler {
 	return router.NewMessageHandler(
 		router.MessageProcessorFn(func(message *fimpgo.Message) (reply *fimpgo.FimpMessage, err error) {
-			s := serviceRegistry.ServiceByTopic(message.Topic)
-			if s == nil {
-				return nil, fmt.Errorf("adapter: service not found under the provided address: %s", message.Addr.ServiceAddress)
-			}
-
-			meter, ok := s.(Service)
-			if !ok {
-				return nil, fmt.Errorf("adapter: incorrect service found under the provided address: %s", message.Addr.ServiceAddress)
+			meter, err := getService(serviceRegistry, message)
+			if err != nil {
+				return nil, err
 			}
 
 			err = meter.ResetMeter()
@@ -244,4 +224,19 @@ func valuesToReport(message *fimpgo.Message, supportedValues []string) ([]string
 	}
 
 	return values, nil
+}
+
+// getService returns a service responsible for handling the message.
+func getService(serviceRegistry adapter.ServiceRegistry, message *fimpgo.Message) (Service, error) {
+	s := serviceRegistry.ServiceByTopic(message.Topic)
+	if s == nil {
+		return nil, fmt.Errorf("adapter: service not found under the provided address: %s", message.Addr.ServiceAddress)
+	}
+
+	numericMeter, ok := s.(Service)
+	if !ok {
+		return nil, fmt.Errorf("adapter: incorrect service found under the provided address: %s", message.Addr.ServiceAddress)
+	}
+
+	return numericMeter, nil
 }

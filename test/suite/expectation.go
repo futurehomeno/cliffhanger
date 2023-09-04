@@ -140,7 +140,14 @@ func ExpectBoolArray(topic, messageType, service string, value []bool) *Expectat
 func ExpectError(topic, service string) *Expectation {
 	return NewExpectation().
 		ExpectTopic(topic).
-		ExpectType("evt.error.report").
+		ExpectType(router.EvtErrorReport).
+		ExpectService(service)
+}
+
+func ExpectSuccess(topic, service string) *Expectation {
+	return NewExpectation().
+		ExpectTopic(topic).
+		ExpectType(router.EvtSuccessReport).
 		ExpectService(service)
 }
 

@@ -6,8 +6,30 @@ import (
 	"github.com/futurehomeno/fimpgo"
 	"github.com/futurehomeno/fimpgo/fimptype"
 
+	"github.com/futurehomeno/cliffhanger/adapter"
 	"github.com/futurehomeno/cliffhanger/router"
 )
+
+// WithExportUnits adds export units to the service specification.
+func WithExportUnits(exportUnits ...Unit) adapter.SpecificationOption {
+	return adapter.SpecificationOptionFn(func(f *fimptype.Service) {
+		f.Props[PropertySupportedExportUnits] = exportUnits
+	})
+}
+
+// WithExtendedValues adds extended values to the service specification.
+func WithExtendedValues(extendedValues ...Value) adapter.SpecificationOption {
+	return adapter.SpecificationOptionFn(func(f *fimptype.Service) {
+		f.Props[PropertySupportedExtendedValues] = extendedValues
+	})
+}
+
+// WithIsVirtual adds is virtual flag to the service specification.
+func WithIsVirtual() adapter.SpecificationOption {
+	return adapter.SpecificationOptionFn(func(f *fimptype.Service) {
+		f.Props[PropertyIsVirtual] = true
+	})
+}
 
 // Specification creates a service specification.
 func Specification(
@@ -15,11 +37,9 @@ func Specification(
 	resourceName,
 	resourceAddress,
 	address string,
-	groups,
-	units []string,
-	exportUnits []string,
-	extendedValues []string,
-	isVirtual bool,
+	groups []string,
+	units []Unit,
+	options ...adapter.SpecificationOption,
 ) *fimptype.Service {
 	specification := &fimptype.Service{
 		Address: fmt.Sprintf("/rt:dev/rn:%s/ad:%s/sv:%s/ad:%s", resourceName, resourceAddress, serviceName, address),
@@ -28,17 +48,13 @@ func Specification(
 		Enabled: true,
 		Props: map[string]interface{}{
 			PropertySupportedUnits: units,
-			PropertyIsVirtual:      isVirtual,
+			PropertyIsVirtual:      false,
 		},
 		Interfaces: requiredInterfaces(),
 	}
 
-	if len(exportUnits) > 0 {
-		specification.Props[PropertySupportedExportUnits] = exportUnits
-	}
-
-	if len(extendedValues) > 0 {
-		specification.Props[PropertySupportedExtendedValues] = extendedValues
+	for _, option := range options {
+		option.Apply(specification)
 	}
 
 	return specification

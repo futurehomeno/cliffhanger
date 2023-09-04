@@ -14,61 +14,6 @@ import (
 	"github.com/futurehomeno/cliffhanger/adapter/cache"
 )
 
-// Constants defining important properties specific for the service.
-const (
-	UnitKWh         = "kWh"
-	UnitW           = "W"
-	UnitA           = "A"
-	UnitV           = "V"
-	UnitKVAh        = "kVAh"
-	UnitHz          = "Hz"
-	UnitPowerFactor = "power_factor"
-	UnitPulseCount  = "pulse_c"
-	UnitCubicMeter  = "cub_m"
-	UnitCubicFeet   = "cub_f"
-	UnitGallon      = "gallon"
-
-	ValueEnergyImport        = "e_import"
-	ValueEnergyExport        = "e_export"
-	ValueLastEnergyExport    = "last_e_export"
-	ValueLastEnergyImport    = "last_e_import"
-	ValuePowerImport         = "p_import"
-	ValueReactivePowerImport = "p_import_react"
-	ValueApparentPowerImport = "p_import_apparent"
-	ValueAveragePowerImport  = "p_import_avg"
-	ValueMinimumPowerImport  = "p_import_min"
-	ValueMaximumPowerImport  = "p_import_max"
-	ValuePowerExport         = "p_export"
-	ValueReactivePowerExport = "p_export_react"
-	ValueMinimumPowerExport  = "p_export_min"
-	ValueMaximumPowerExport  = "p_export_max"
-	ValuePowerFactor         = "p_factor"
-	ValueFrequency           = "freq"
-	ValueMinimumFrequency    = "freq_min"
-	ValueMaximumFrequency    = "freq_max"
-	ValueVoltagePhase1       = "u1"
-	ValueVoltagePhase2       = "u2"
-	ValueVoltagePhase3       = "u3"
-	ValueCurrentPhase1       = "i1"
-	ValueCurrentPhase2       = "i2"
-	ValueCurrentPhase3       = "i3"
-	ValueDCPower             = "dc_p"
-	ValueMinimumDCPower      = "dc_p_min"
-	ValueMaximumDCPower      = "dc_p_max"
-	ValueDCVoltage           = "dc_u"
-	ValueMinimumDCVoltage    = "dc_u_min"
-	ValueMaximumDCVoltage    = "dc_u_max"
-	ValueDCCurrent           = "dc_i"
-	ValueMinimumDCCurrent    = "dc_i_min"
-	ValueMaximumDCCurrent    = "dc_i_max"
-
-	PropertyUnit                    = "unit"
-	PropertySupportedUnits          = "sup_units"
-	PropertySupportedExportUnits    = "sup_export_units"
-	PropertySupportedExtendedValues = "sup_extended_vals"
-	PropertyIsVirtual               = "is_virtual"
-)
-
 // DefaultReportingStrategy is the default reporting strategy used by the service for periodic reports.
 var DefaultReportingStrategy = cache.ReportAtLeastEvery(30 * time.Minute)
 
@@ -100,20 +45,16 @@ type ResettableReporter interface {
 }
 
 // Service is an interface representing a meter FIMP service.
+// Depending on a caching and reporting configuration the service might decide to skip a report.
+// To make sure report is being sent regardless of circumstances set the force argument to true.
 type Service interface {
 	adapter.Service
 
 	// SendMeterReport sends a simplified meter report based on requested unit. Returns true if a report was sent.
-	// Depending on a caching and reporting configuration the service might decide to skip a report.
-	// To make sure report is being sent regardless of circumstances set the force argument to true.
 	SendMeterReport(unit string, force bool) (bool, error)
 	// SendMeterExportReport sends a simplified meter export report based on requested unit. Returns true if a report was sent.
-	// Depending on a caching and reporting configuration the service might decide to skip a report.
-	// To make sure report is being sent regardless of circumstances set the force argument to true.
 	SendMeterExportReport(unit string, force bool) (bool, error)
 	// SendMeterExtendedReport sends an extended meter report based on requested values. Returns true if a report was sent.
-	// Depending on a caching and reporting configuration the service might decide to skip a report.
-	// To make sure report is being sent regardless of circumstances set the force argument to true.
 	SendMeterExtendedReport(values []string, force bool) (bool, error)
 	// ResetMeter resets the meter.
 	ResetMeter() error
@@ -181,8 +122,6 @@ type service struct {
 }
 
 // SendMeterReport sends a simplified meter report based on requested unit. Returns true if a report was sent.
-// Depending on a caching and reporting configuration the service might decide to skip a report.
-// To make sure report is being sent regardless of circumstances set the force argument to true.
 func (s *service) SendMeterReport(unit string, force bool) (bool, error) {
 	s.lock.Lock()
 	defer s.lock.Unlock()
@@ -224,19 +163,13 @@ func (s *service) SendMeterReport(unit string, force bool) (bool, error) {
 }
 
 // SendMeterExportReport sends a simplified meter export report based on requested unit. Returns true if a report was sent.
-// Depending on a caching and reporting configuration the service might decide to skip a report.
-// To make sure report is being sent regardless of circumstances set the force argument to true.
 func (s *service) SendMeterExportReport(unit string, force bool) (bool, error) {
 	s.lock.Lock()
 	defer s.lock.Unlock()
 
-	if !s.SupportsExportReport() {
-		return false, fmt.Errorf("%s: export meter report is unsupported", s.Name())
-	}
-
-	exportReporter, ok := s.reporter.(ExportReporter)
-	if !ok {
-		return false, fmt.Errorf("%s: export meter report is unsupported", s.Name())
+	exportReporter, err := s.exportReporter()
+	if err != nil {
+		return false, err
 	}
 
 	normalizedUnit, ok := s.normalizeUnit(unit, s.SupportedExportUnits())
@@ -276,23 +209,17 @@ func (s *service) SendMeterExportReport(unit string, force bool) (bool, error) {
 }
 
 // SendMeterExtendedReport sends an extended meter report. Returns true if a report was sent.
-// Depending on a caching and reporting configuration the service might decide to skip a report.
-// To make sure report is being sent regardless of circumstances set the force argument to true.
 func (s *service) SendMeterExtendedReport(extendedValues []string, force bool) (bool, error) {
 	s.lock.Lock()
 	defer s.lock.Unlock()
 
-	if !s.SupportsExtendedReport() {
-		return false, fmt.Errorf("%s: extended meter report is unsupported", s.Name())
-	}
-
-	extendedReporter, ok := s.reporter.(ExtendedReporter)
-	if !ok {
-		return false, fmt.Errorf("%s: extended meter report is unsupported", s.Name())
+	extendedReporter, err := s.extendedReporter()
+	if err != nil {
+		return false, err
 	}
 
 	normalizedExtendedValues, err := s.normalizeExtendedValues(extendedValues)
-	if !ok {
+	if err != nil {
 		return false, fmt.Errorf("%s: failed to normalize extended values: %w", s.Name(), err)
 	}
 
@@ -331,16 +258,12 @@ func (s *service) ResetMeter() error {
 	s.lock.Lock()
 	defer s.lock.Unlock()
 
-	if !s.SupportsMeterReset() {
-		return fmt.Errorf("%s: meter reset is unsupported", s.Name())
+	resettableMeter, err := s.resettableReporter()
+	if err != nil {
+		return err
 	}
 
-	resettableMeter, ok := s.reporter.(ResettableReporter)
-	if !ok {
-		return fmt.Errorf("%s: meter reset is unsupported", s.Name())
-	}
-
-	err := resettableMeter.MeterReset()
+	err = resettableMeter.MeterReset()
 	if err != nil {
 		return fmt.Errorf("%s: failed to reset meter: %w", s.Name(), err)
 	}
@@ -365,37 +288,61 @@ func (s *service) SupportedExtendedValues() []string {
 
 // SupportsExportReport returns true if meter supports the export report.
 func (s *service) SupportsExportReport() bool {
-	_, ok := s.reporter.(ExportReporter)
+	_, err := s.exportReporter()
+
+	return err == nil
+}
+
+// exportReporter returns the export reporter, if supported.
+func (s *service) exportReporter() (ExportReporter, error) {
+	reporter, ok := s.reporter.(ExportReporter)
 	if !ok {
-		return false
+		return nil, fmt.Errorf("%s: export meter report is not supported", s.Name())
 	}
 
 	if len(s.SupportedExportUnits()) == 0 {
-		return false
+		return nil, fmt.Errorf("%s: export meter report is not supported", s.Name())
 	}
 
-	return true
+	return reporter, nil
 }
 
 // SupportsExtendedReport returns true if meter supports the extended report.
 func (s *service) SupportsExtendedReport() bool {
-	_, ok := s.reporter.(ExtendedReporter)
+	_, err := s.extendedReporter()
+
+	return err == nil
+}
+
+// extendedReporter returns the extended reporter, if supported.
+func (s *service) extendedReporter() (ExtendedReporter, error) {
+	reporter, ok := s.reporter.(ExtendedReporter)
 	if !ok {
-		return false
+		return nil, fmt.Errorf("%s: extended meter report is not supported", s.Name())
 	}
 
 	if len(s.SupportedExtendedValues()) == 0 {
-		return false
+		return nil, fmt.Errorf("%s: extended meter report is not supported", s.Name())
 	}
 
-	return true
+	return reporter, nil
 }
 
 // SupportsMeterReset returns true if meter supports the reset.
 func (s *service) SupportsMeterReset() bool {
-	_, ok := s.reporter.(ResettableReporter)
+	_, err := s.resettableReporter()
 
-	return ok
+	return err == nil
+}
+
+// resettableReporter returns the resettable reporter, if supported.
+func (s *service) resettableReporter() (ResettableReporter, error) {
+	reporter, ok := s.reporter.(ResettableReporter)
+	if !ok {
+		return nil, fmt.Errorf("%s: meter reset is not supported", s.Name())
+	}
+
+	return reporter, nil
 }
 
 // normalizeUnit checks if unit is supported and returns its normalized form.

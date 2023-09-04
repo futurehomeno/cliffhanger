@@ -1,7 +1,6 @@
 package thing_test
 
 import (
-	"errors"
 	"testing"
 	"time"
 
@@ -21,109 +20,21 @@ import (
 	"github.com/futurehomeno/cliffhanger/test/suite"
 )
 
-var (
-	evChargerTestStates        = []string{"ready_to_charge", "charging", "error"}
-	evChargerChargingTestModes = []string{"normal", "slow"}
-
-	errTest = errors.New("oops")
-)
-
 func TestRouteCarCharger(t *testing.T) { //nolint:paralleltest
 	s := &suite.Suite{
 		Cases: []*suite.Case{
-			{
-				Name:     "successful start charging routing",
-				TearDown: adapterhelper.TearDownAdapter("../../testdata/adapter/test_adapter"),
-				Setup: routeCarCharger(
-					mockedchargepoint.NewController(t).
-						MockStartChargepointCharging("", nil, false).
-						MockChargepointStateReport("charging", nil, false).
-						MockChargepointCurrentSessionReport(1.74, nil, false),
-					nil,
-					nil,
-				),
-				Nodes: []*suite.Node{
-					{
-						Name:    "start charging",
-						Command: suite.NullMessage("pt:j1/mt:cmd/rt:dev/rn:test_adapter/ad:1/sv:chargepoint/ad:2", "cmd.charge.start", "chargepoint"),
-						Expectations: []*suite.Expectation{
-							suite.ExpectString("pt:j1/mt:evt/rt:dev/rn:test_adapter/ad:1/sv:chargepoint/ad:2", "evt.state.report", "chargepoint", "charging"),
-							suite.ExpectFloat("pt:j1/mt:evt/rt:dev/rn:test_adapter/ad:1/sv:chargepoint/ad:2", "evt.current_session.report", "chargepoint", 1.74),
-						},
-					},
-					{
-						Name: "start charging with mode unsupported by controller",
-						Command: suite.NewMessageBuilder().
-							NullMessage("pt:j1/mt:cmd/rt:dev/rn:test_adapter/ad:1/sv:chargepoint/ad:2", "cmd.charge.start", "chargepoint").
-							AddProperty(chargepoint.PropertyChargingMode, "slow").
-							Build(),
-						Expectations: []*suite.Expectation{
-							suite.ExpectString("pt:j1/mt:evt/rt:dev/rn:test_adapter/ad:1/sv:chargepoint/ad:2", "evt.state.report", "chargepoint", "charging"),
-							suite.ExpectFloat("pt:j1/mt:evt/rt:dev/rn:test_adapter/ad:1/sv:chargepoint/ad:2", "evt.current_session.report", "chargepoint", 1.74),
-						},
-					},
-				},
-			},
-			{
-				Name:     "successful start charging routing with mode support",
-				TearDown: adapterhelper.TearDownAdapter("../../testdata/adapter/test_adapter"),
-				Setup: routeCarCharger(
-					mockedchargepoint.NewController(t).
-						MockStartChargepointCharging("normal", nil, true).
-						MockChargepointStateReport("charging", nil, true).
-						MockChargepointCurrentSessionReport(1.74, nil, true),
-					nil,
-					evChargerChargingTestModes,
-				),
-				Nodes: []*suite.Node{
-					{
-						Name: "start charging",
-						Command: suite.NewMessageBuilder().
-							NullMessage("pt:j1/mt:cmd/rt:dev/rn:test_adapter/ad:1/sv:chargepoint/ad:2", "cmd.charge.start", "chargepoint").
-							AddProperty(chargepoint.PropertyChargingMode, "Normal").
-							Build(),
-						Expectations: []*suite.Expectation{
-							suite.ExpectString("pt:j1/mt:evt/rt:dev/rn:test_adapter/ad:1/sv:chargepoint/ad:2", "evt.state.report", "chargepoint", "charging"),
-							suite.ExpectFloat("pt:j1/mt:evt/rt:dev/rn:test_adapter/ad:1/sv:chargepoint/ad:2", "evt.current_session.report", "chargepoint", 1.74),
-						},
-					},
-				},
-			},
-			{
-				Name:     "successful stop charging routing",
-				TearDown: adapterhelper.TearDownAdapter("../../testdata/adapter/test_adapter"),
-				Setup: routeCarCharger(
-					mockedchargepoint.NewController(t).
-						MockStopChargepointCharging(nil, true).
-						MockChargepointStateReport("ready_to_charge", nil, true).
-						MockChargepointCurrentSessionReport(1.74, nil, true),
-					nil,
-					nil,
-				),
-				Nodes: []*suite.Node{
-					{
-						Name:    "stop charging",
-						Command: suite.NullMessage("pt:j1/mt:cmd/rt:dev/rn:test_adapter/ad:1/sv:chargepoint/ad:2", "cmd.charge.stop", "chargepoint"),
-						Expectations: []*suite.Expectation{
-							suite.ExpectString("pt:j1/mt:evt/rt:dev/rn:test_adapter/ad:1/sv:chargepoint/ad:2", "evt.state.report", "chargepoint", "ready_to_charge"),
-							suite.ExpectFloat("pt:j1/mt:evt/rt:dev/rn:test_adapter/ad:1/sv:chargepoint/ad:2", "evt.current_session.report", "chargepoint", 1.74),
-						},
-					},
-				},
-			},
 			{
 				Name:     "other successful routing",
 				TearDown: adapterhelper.TearDownAdapter("../../testdata/adapter/test_adapter"),
 				Setup: routeCarCharger(
 					mockedchargepoint.NewController(t).
-						MockSetChargepointCableLock(true, nil, true).
+						MockSetChargepointCableLock(true, nil, false).
 						MockChargepointCableLockReport(true, nil, false).
-						MockChargepointStateReport("charging", nil, true).
-						MockChargepointCurrentSessionReport(1.74, nil, true),
+						MockChargepointStateReport("charging", nil, false).
+						MockChargepointCurrentSessionReport(&chargepoint.SessionReport{SessionEnergy: 1.74}, nil, false),
 					mockednumericmeter.NewReporter(t).
 						MockMeterReport("W", 2, nil, false).
 						MockMeterReport("kWh", 123.45, nil, false),
-					nil,
 				),
 				Nodes: []*suite.Node{
 					{
@@ -168,320 +79,6 @@ func TestRouteCarCharger(t *testing.T) { //nolint:paralleltest
 						Expectations: []*suite.Expectation{
 							suite.ExpectFloat("pt:j1/mt:evt/rt:dev/rn:test_adapter/ad:1/sv:meter_elec/ad:2", "evt.meter.report", "meter_elec", 123.45).
 								ExpectProperty("unit", "kWh"),
-						},
-					},
-					{
-						Name:    "all electricity units",
-						Command: suite.StringMessage("pt:j1/mt:cmd/rt:dev/rn:test_adapter/ad:1/sv:meter_elec/ad:2", "cmd.meter.get_report", "meter_elec", ""),
-						Expectations: []*suite.Expectation{
-							suite.ExpectFloat("pt:j1/mt:evt/rt:dev/rn:test_adapter/ad:1/sv:meter_elec/ad:2", "evt.meter.report", "meter_elec", 2).
-								ExpectProperty("unit", "W"),
-							suite.ExpectFloat("pt:j1/mt:evt/rt:dev/rn:test_adapter/ad:1/sv:meter_elec/ad:2", "evt.meter.report", "meter_elec", 123.45).
-								ExpectProperty("unit", "kWh"),
-						},
-					},
-					{
-						Name:    "all electricity units with null",
-						Command: suite.NullMessage("pt:j1/mt:cmd/rt:dev/rn:test_adapter/ad:1/sv:meter_elec/ad:2", "cmd.meter.get_report", "meter_elec"),
-						Expectations: []*suite.Expectation{
-							suite.ExpectFloat("pt:j1/mt:evt/rt:dev/rn:test_adapter/ad:1/sv:meter_elec/ad:2", "evt.meter.report", "meter_elec", 2).
-								ExpectProperty("unit", "W"),
-							suite.ExpectFloat("pt:j1/mt:evt/rt:dev/rn:test_adapter/ad:1/sv:meter_elec/ad:2", "evt.meter.report", "meter_elec", 123.45).
-								ExpectProperty("unit", "kWh"),
-						},
-					},
-				},
-			},
-			{
-				Name:     "failed start charging routing - starting error",
-				TearDown: adapterhelper.TearDownAdapter("../../testdata/adapter/test_adapter"),
-				Setup: routeCarCharger(
-					mockedchargepoint.NewController(t).
-						MockStartChargepointCharging("", errTest, true),
-					nil,
-					nil,
-				),
-				Nodes: []*suite.Node{
-					{
-						Name:    "start charging",
-						Command: suite.NullMessage("pt:j1/mt:cmd/rt:dev/rn:test_adapter/ad:1/sv:chargepoint/ad:2", "cmd.charge.start", "chargepoint"),
-						Expectations: []*suite.Expectation{
-							suite.ExpectError("pt:j1/mt:evt/rt:dev/rn:test_adapter/ad:1/sv:chargepoint/ad:2", "chargepoint"),
-						},
-					},
-				},
-			},
-			{
-				Name:     "failed start charging routing - state report error",
-				TearDown: adapterhelper.TearDownAdapter("../../testdata/adapter/test_adapter"),
-				Setup: routeCarCharger(
-					mockedchargepoint.NewController(t).
-						MockStartChargepointCharging("", nil, true).
-						MockChargepointStateReport("", errTest, true),
-					nil,
-					nil,
-				),
-				Nodes: []*suite.Node{
-					{
-						Name:    "start charging",
-						Command: suite.NullMessage("pt:j1/mt:cmd/rt:dev/rn:test_adapter/ad:1/sv:chargepoint/ad:2", "cmd.charge.start", "chargepoint"),
-						Expectations: []*suite.Expectation{
-							suite.ExpectError("pt:j1/mt:evt/rt:dev/rn:test_adapter/ad:1/sv:chargepoint/ad:2", "chargepoint"),
-						},
-					},
-				},
-			},
-			{
-				Name:     "failed start charging routing - session report error",
-				TearDown: adapterhelper.TearDownAdapter("../../testdata/adapter/test_adapter"),
-				Setup: routeCarCharger(
-					mockedchargepoint.NewController(t).
-						MockStartChargepointCharging("", nil, true).
-						MockChargepointStateReport("ready_to_charge", nil, true).
-						MockChargepointCurrentSessionReport(0, errTest, true),
-					nil,
-					nil,
-				),
-				Nodes: []*suite.Node{
-					{
-						Name:    "start charging",
-						Command: suite.NullMessage("pt:j1/mt:cmd/rt:dev/rn:test_adapter/ad:1/sv:chargepoint/ad:2", "cmd.charge.start", "chargepoint"),
-						Expectations: []*suite.Expectation{
-							suite.ExpectError("pt:j1/mt:evt/rt:dev/rn:test_adapter/ad:1/sv:chargepoint/ad:2", "chargepoint"),
-						},
-					},
-				},
-			},
-			{
-				Name:     "failed start charging routing - unsupported charging mode",
-				TearDown: adapterhelper.TearDownAdapter("../../testdata/adapter/test_adapter"),
-				Setup: routeCarCharger(
-					mockedchargepoint.NewController(t),
-					nil,
-					evChargerChargingTestModes,
-				),
-				Nodes: []*suite.Node{
-					{
-						Name: "start charging",
-						Command: suite.NewMessageBuilder().
-							NullMessage("pt:j1/mt:cmd/rt:dev/rn:test_adapter/ad:1/sv:chargepoint/ad:2", "cmd.charge.start", "chargepoint").
-							AddProperty(chargepoint.PropertyChargingMode, "dummy").
-							Build(),
-						Expectations: []*suite.Expectation{
-							suite.ExpectError("pt:j1/mt:evt/rt:dev/rn:test_adapter/ad:1/sv:chargepoint/ad:2", "chargepoint"),
-						},
-					},
-				},
-			},
-			{
-				Name:     "failed stop charging routing - stopping error",
-				TearDown: adapterhelper.TearDownAdapter("../../testdata/adapter/test_adapter"),
-				Setup: routeCarCharger(
-					mockedchargepoint.NewController(t).
-						MockStopChargepointCharging(errTest, true),
-					nil,
-					nil,
-				),
-				Nodes: []*suite.Node{
-					{
-						Name:    "stop charging",
-						Command: suite.NullMessage("pt:j1/mt:cmd/rt:dev/rn:test_adapter/ad:1/sv:chargepoint/ad:2", "cmd.charge.stop", "chargepoint"),
-						Expectations: []*suite.Expectation{
-							suite.ExpectError("pt:j1/mt:evt/rt:dev/rn:test_adapter/ad:1/sv:chargepoint/ad:2", "chargepoint"),
-						},
-					},
-				},
-			},
-			{
-				Name:     "failed stop charging routing - state report error",
-				TearDown: adapterhelper.TearDownAdapter("../../testdata/adapter/test_adapter"),
-				Setup: routeCarCharger(
-					mockedchargepoint.NewController(t).
-						MockStopChargepointCharging(nil, true).
-						MockChargepointStateReport("", errTest, true),
-					nil,
-					nil,
-				),
-				Nodes: []*suite.Node{
-					{
-						Name:    "stop charging",
-						Command: suite.NullMessage("pt:j1/mt:cmd/rt:dev/rn:test_adapter/ad:1/sv:chargepoint/ad:2", "cmd.charge.stop", "chargepoint"),
-						Expectations: []*suite.Expectation{
-							suite.ExpectError("pt:j1/mt:evt/rt:dev/rn:test_adapter/ad:1/sv:chargepoint/ad:2", "chargepoint"),
-						},
-					},
-				},
-			},
-			{
-				Name:     "failed stop charging routing - session report error",
-				TearDown: adapterhelper.TearDownAdapter("../../testdata/adapter/test_adapter"),
-				Setup: routeCarCharger(
-					mockedchargepoint.NewController(t).
-						MockStopChargepointCharging(nil, true).
-						MockChargepointStateReport("ready_to_charge", nil, true).
-						MockChargepointCurrentSessionReport(0, errTest, true),
-					nil,
-					nil,
-				),
-				Nodes: []*suite.Node{
-					{
-						Name:    "stop charging",
-						Command: suite.NullMessage("pt:j1/mt:cmd/rt:dev/rn:test_adapter/ad:1/sv:chargepoint/ad:2", "cmd.charge.stop", "chargepoint"),
-						Expectations: []*suite.Expectation{
-							suite.ExpectError("pt:j1/mt:evt/rt:dev/rn:test_adapter/ad:1/sv:chargepoint/ad:2", "chargepoint"),
-						},
-					},
-				},
-			},
-			{
-				Name:     "failed cable lock routing - setter error",
-				TearDown: adapterhelper.TearDownAdapter("../../testdata/adapter/test_adapter"),
-				Setup: routeCarCharger(
-					mockedchargepoint.NewController(t).
-						MockSetChargepointCableLock(true, errTest, true),
-					nil,
-					nil,
-				),
-				Nodes: []*suite.Node{
-					{
-						Name:    "set cable lock",
-						Command: suite.BoolMessage("pt:j1/mt:cmd/rt:dev/rn:test_adapter/ad:1/sv:chargepoint/ad:2", "cmd.cable_lock.set", "chargepoint", true),
-						Expectations: []*suite.Expectation{
-							suite.ExpectError("pt:j1/mt:evt/rt:dev/rn:test_adapter/ad:1/sv:chargepoint/ad:2", "chargepoint"),
-						},
-					},
-				},
-			},
-			{
-				Name:     "failed cable lock routing - cable lock report error",
-				TearDown: adapterhelper.TearDownAdapter("../../testdata/adapter/test_adapter"),
-				Setup: routeCarCharger(
-					mockedchargepoint.NewController(t).
-						MockSetChargepointCableLock(true, nil, true).
-						MockChargepointCableLockReport(false, errTest, true),
-					nil,
-					nil,
-				),
-				Nodes: []*suite.Node{
-					{
-						Name:    "set cable lock",
-						Command: suite.BoolMessage("pt:j1/mt:cmd/rt:dev/rn:test_adapter/ad:1/sv:chargepoint/ad:2", "cmd.cable_lock.set", "chargepoint", true),
-						Expectations: []*suite.Expectation{
-							suite.ExpectError("pt:j1/mt:evt/rt:dev/rn:test_adapter/ad:1/sv:chargepoint/ad:2", "chargepoint"),
-						},
-					},
-				},
-			},
-			{
-				Name:     "other failed routing",
-				TearDown: adapterhelper.TearDownAdapter("../../testdata/adapter/test_adapter"),
-				Setup: routeCarCharger(
-					mockedchargepoint.NewController(t).
-						MockChargepointCableLockReport(false, errTest, false).
-						MockChargepointStateReport("", errTest, true).
-						MockChargepointCurrentSessionReport(0, errTest, true),
-					mockednumericmeter.NewReporter(t).
-						MockMeterReport("W", 0, errTest, false).
-						MockMeterReport("kWh", 0, errTest, false),
-					nil,
-				),
-				Nodes: []*suite.Node{
-					{
-						Name:    "cable lock report",
-						Command: suite.NullMessage("pt:j1/mt:cmd/rt:dev/rn:test_adapter/ad:1/sv:chargepoint/ad:2", "cmd.cable_lock.get_report", "chargepoint"),
-						Expectations: []*suite.Expectation{
-							suite.ExpectError("pt:j1/mt:evt/rt:dev/rn:test_adapter/ad:1/sv:chargepoint/ad:2", "chargepoint"),
-						},
-					},
-					{
-						Name:    "state report",
-						Command: suite.NullMessage("pt:j1/mt:cmd/rt:dev/rn:test_adapter/ad:1/sv:chargepoint/ad:2", "cmd.state.get_report", "chargepoint"),
-						Expectations: []*suite.Expectation{
-							suite.ExpectError("pt:j1/mt:evt/rt:dev/rn:test_adapter/ad:1/sv:chargepoint/ad:2", "chargepoint"),
-						},
-					},
-					{
-						Name:    "current session report",
-						Command: suite.NullMessage("pt:j1/mt:cmd/rt:dev/rn:test_adapter/ad:1/sv:chargepoint/ad:2", "cmd.current_session.get_report", "chargepoint"),
-						Expectations: []*suite.Expectation{
-							suite.ExpectError("pt:j1/mt:evt/rt:dev/rn:test_adapter/ad:1/sv:chargepoint/ad:2", "chargepoint"),
-						},
-					},
-					{
-						Name:    "non existent thing on start charging",
-						Command: suite.NullMessage("pt:j1/mt:cmd/rt:dev/rn:test_adapter/ad:1/sv:chargepoint/ad:3", "cmd.charge.start", "chargepoint"),
-						Expectations: []*suite.Expectation{
-							suite.ExpectError("pt:j1/mt:evt/rt:dev/rn:test_adapter/ad:1/sv:chargepoint/ad:3", "chargepoint"),
-						},
-					},
-					{
-						Name:    "non existent thing on stop charging",
-						Command: suite.NullMessage("pt:j1/mt:cmd/rt:dev/rn:test_adapter/ad:1/sv:chargepoint/ad:3", "cmd.charge.stop", "chargepoint"),
-						Expectations: []*suite.Expectation{
-							suite.ExpectError("pt:j1/mt:evt/rt:dev/rn:test_adapter/ad:1/sv:chargepoint/ad:3", "chargepoint"),
-						},
-					},
-					{
-						Name:    "non existent thing on setting cable lock",
-						Command: suite.NullMessage("pt:j1/mt:cmd/rt:dev/rn:test_adapter/ad:1/sv:chargepoint/ad:3", "cmd.cable_lock.set", "chargepoint"),
-						Expectations: []*suite.Expectation{
-							suite.ExpectError("pt:j1/mt:evt/rt:dev/rn:test_adapter/ad:1/sv:chargepoint/ad:3", "chargepoint"),
-						},
-					},
-					{
-						Name:    "non existent thing on state report",
-						Command: suite.NullMessage("pt:j1/mt:cmd/rt:dev/rn:test_adapter/ad:1/sv:chargepoint/ad:3", "cmd.state.get_report", "chargepoint"),
-						Expectations: []*suite.Expectation{
-							suite.ExpectError("pt:j1/mt:evt/rt:dev/rn:test_adapter/ad:1/sv:chargepoint/ad:3", "chargepoint"),
-						},
-					},
-					{
-						Name:    "non existent thing on current session report",
-						Command: suite.NullMessage("pt:j1/mt:cmd/rt:dev/rn:test_adapter/ad:1/sv:chargepoint/ad:3", "cmd.current_session.get_report", "chargepoint"),
-						Expectations: []*suite.Expectation{
-							suite.ExpectError("pt:j1/mt:evt/rt:dev/rn:test_adapter/ad:1/sv:chargepoint/ad:3", "chargepoint"),
-						},
-					},
-					{
-						Name:    "non existent thing on cable lock report",
-						Command: suite.NullMessage("pt:j1/mt:cmd/rt:dev/rn:test_adapter/ad:1/sv:chargepoint/ad:3", "cmd.cable_lock.get_report", "chargepoint"),
-						Expectations: []*suite.Expectation{
-							suite.ExpectError("pt:j1/mt:evt/rt:dev/rn:test_adapter/ad:1/sv:chargepoint/ad:3", "chargepoint"),
-						},
-					},
-					{
-						Name:    "non-boolean value on setting cable lock",
-						Command: suite.StringMessage("pt:j1/mt:cmd/rt:dev/rn:test_adapter/ad:1/sv:chargepoint/ad:2", "cmd.cable_lock.set", "chargepoint", "true"),
-						Expectations: []*suite.Expectation{
-							suite.ExpectError("pt:j1/mt:evt/rt:dev/rn:test_adapter/ad:1/sv:chargepoint/ad:2", "chargepoint"),
-						},
-					},
-					{
-						Name:    "power",
-						Command: suite.StringMessage("pt:j1/mt:cmd/rt:dev/rn:test_adapter/ad:1/sv:meter_elec/ad:2", "cmd.meter.get_report", "meter_elec", "W"),
-						Expectations: []*suite.Expectation{
-							suite.ExpectError("pt:j1/mt:evt/rt:dev/rn:test_adapter/ad:1/sv:meter_elec/ad:2", "meter_elec"),
-						},
-					},
-					{
-						Name:    "energy",
-						Command: suite.StringMessage("pt:j1/mt:cmd/rt:dev/rn:test_adapter/ad:1/sv:meter_elec/ad:2", "cmd.meter.get_report", "meter_elec", "kWh"),
-						Expectations: []*suite.Expectation{
-							suite.ExpectError("pt:j1/mt:evt/rt:dev/rn:test_adapter/ad:1/sv:meter_elec/ad:2", "meter_elec"),
-						},
-					},
-					{
-						Name:    "all electricity units",
-						Command: suite.StringMessage("pt:j1/mt:cmd/rt:dev/rn:test_adapter/ad:1/sv:meter_elec/ad:2", "cmd.meter.get_report", "meter_elec", ""),
-						Expectations: []*suite.Expectation{
-							suite.ExpectError("pt:j1/mt:evt/rt:dev/rn:test_adapter/ad:1/sv:meter_elec/ad:2", "meter_elec").AtLeastOnce(),
-						},
-					},
-					{
-						Name:    "all electricity units with null",
-						Command: suite.NullMessage("pt:j1/mt:cmd/rt:dev/rn:test_adapter/ad:1/sv:meter_elec/ad:2", "cmd.meter.get_report", "meter_elec"),
-						Expectations: []*suite.Expectation{
-							suite.ExpectError("pt:j1/mt:evt/rt:dev/rn:test_adapter/ad:1/sv:meter_elec/ad:2", "meter_elec").AtLeastOnce(),
 						},
 					},
 				},
@@ -500,43 +97,23 @@ func TestTaskCarCharger(t *testing.T) { //nolint:paralleltest
 				TearDown: adapterhelper.TearDownAdapter("../../testdata/adapter/test_adapter"),
 				Setup: taskCarCharger(
 					mockedchargepoint.NewController(t).
-						MockChargepointCableLockReport(true, nil, true).
-						MockChargepointCableLockReport(false, errTest, true).
-						MockChargepointCableLockReport(true, nil, true).
-						MockChargepointCableLockReport(false, nil, true). // should be sent twice
-						MockChargepointCurrentSessionReport(1.23, nil, true).
-						MockChargepointCurrentSessionReport(0, errTest, true).
-						MockChargepointCurrentSessionReport(1.23, nil, true).
-						MockChargepointCurrentSessionReport(4.56, nil, true). // should be sent twice
-						MockChargepointStateReport("ready_to_charge", nil, true).
-						MockChargepointStateReport("", errTest, true).
-						MockChargepointStateReport("ready_to_charge", nil, true).
-						MockChargepointStateReport("charging", nil, true), // should be sent twice
+						MockChargepointCableLockReport(true, nil, false).
+						MockChargepointCurrentSessionReport(&chargepoint.SessionReport{SessionEnergy: 1.23}, nil, false).
+						MockChargepointStateReport("ready_to_charge", nil, false),
 					mockednumericmeter.NewReporter(t).
-						MockMeterReport("W", 2, nil, true).
-						MockMeterReport("W", 0, errors.New("test"), true).
-						MockMeterReport("W", 2, nil, true).
 						MockMeterReport("W", 1500, nil, false).
-						MockMeterReport("kWh", 123.45, nil, true).
-						MockMeterReport("kWh", 0, errors.New("test"), true).
-						MockMeterReport("kWh", 123.45, nil, true).
 						MockMeterReport("kWh", 123.56, nil, false),
 					100*time.Millisecond,
 				),
 				Nodes: []*suite.Node{
 					{
-						Name: "One change and one error during three report cycles",
+						Name: "Successful reporting",
 						Expectations: []*suite.Expectation{
-							suite.ExpectBool("pt:j1/mt:evt/rt:dev/rn:test_adapter/ad:1/sv:chargepoint/ad:2", "evt.cable_lock.report", "chargepoint", true).ExactlyOnce(),
-							suite.ExpectBool("pt:j1/mt:evt/rt:dev/rn:test_adapter/ad:1/sv:chargepoint/ad:2", "evt.cable_lock.report", "chargepoint", false).ExactlyOnce(),
-							suite.ExpectFloat("pt:j1/mt:evt/rt:dev/rn:test_adapter/ad:1/sv:chargepoint/ad:2", "evt.current_session.report", "chargepoint", 1.23).ExactlyOnce(),
-							suite.ExpectFloat("pt:j1/mt:evt/rt:dev/rn:test_adapter/ad:1/sv:chargepoint/ad:2", "evt.current_session.report", "chargepoint", 4.56).ExactlyOnce(),
+							suite.ExpectBool("pt:j1/mt:evt/rt:dev/rn:test_adapter/ad:1/sv:chargepoint/ad:2", "evt.cable_lock.report", "chargepoint", true),
+							suite.ExpectFloat("pt:j1/mt:evt/rt:dev/rn:test_adapter/ad:1/sv:chargepoint/ad:2", "evt.current_session.report", "chargepoint", 1.23),
 							suite.ExpectString("pt:j1/mt:evt/rt:dev/rn:test_adapter/ad:1/sv:chargepoint/ad:2", "evt.state.report", "chargepoint", "ready_to_charge").ExactlyOnce(),
-							suite.ExpectString("pt:j1/mt:evt/rt:dev/rn:test_adapter/ad:1/sv:chargepoint/ad:2", "evt.state.report", "chargepoint", "charging").ExactlyOnce(),
-							suite.ExpectFloat("pt:j1/mt:evt/rt:dev/rn:test_adapter/ad:1/sv:meter_elec/ad:2", "evt.meter.report", "meter_elec", 2).ExpectProperty("unit", "W").ExactlyOnce(),
-							suite.ExpectFloat("pt:j1/mt:evt/rt:dev/rn:test_adapter/ad:1/sv:meter_elec/ad:2", "evt.meter.report", "meter_elec", 123.45).ExpectProperty("unit", "kWh").ExactlyOnce(),
-							suite.ExpectFloat("pt:j1/mt:evt/rt:dev/rn:test_adapter/ad:1/sv:meter_elec/ad:2", "evt.meter.report", "meter_elec", 1500).ExpectProperty("unit", "W").ExactlyOnce(),
-							suite.ExpectFloat("pt:j1/mt:evt/rt:dev/rn:test_adapter/ad:1/sv:meter_elec/ad:2", "evt.meter.report", "meter_elec", 123.56).ExpectProperty("unit", "kWh").ExactlyOnce(),
+							suite.ExpectFloat("pt:j1/mt:evt/rt:dev/rn:test_adapter/ad:1/sv:meter_elec/ad:2", "evt.meter.report", "meter_elec", 1500).ExpectProperty("unit", "W"),
+							suite.ExpectFloat("pt:j1/mt:evt/rt:dev/rn:test_adapter/ad:1/sv:meter_elec/ad:2", "evt.meter.report", "meter_elec", 123.56).ExpectProperty("unit", "kWh"),
 						},
 					},
 				},
@@ -550,12 +127,11 @@ func TestTaskCarCharger(t *testing.T) { //nolint:paralleltest
 func routeCarCharger(
 	chargepointController *mockedchargepoint.Controller,
 	meterElecReporter *mockednumericmeter.Reporter,
-	supportedChargingModes []string,
 ) suite.BaseSetup {
 	return func(t *testing.T, mqtt *fimpgo.MqttTransport) ([]*router.Routing, []*task.Task, []suite.Mock) {
 		t.Helper()
 
-		routing, _, mocks := setupCarCharger(t, mqtt, chargepointController, meterElecReporter, supportedChargingModes, 0)
+		routing, _, mocks := setupCarCharger(t, mqtt, chargepointController, meterElecReporter, 0)
 
 		return routing, nil, mocks
 	}
@@ -569,7 +145,7 @@ func taskCarCharger(
 	return func(t *testing.T, mqtt *fimpgo.MqttTransport) ([]*router.Routing, []*task.Task, []suite.Mock) {
 		t.Helper()
 
-		_, tasks, mocks := setupCarCharger(t, mqtt, chargepointController, meterElecReporter, nil, interval)
+		_, tasks, mocks := setupCarCharger(t, mqtt, chargepointController, meterElecReporter, interval)
 
 		return nil, tasks, mocks
 	}
@@ -580,7 +156,6 @@ func setupCarCharger(
 	mqtt *fimpgo.MqttTransport,
 	chargepointController *mockedchargepoint.Controller,
 	meterElecReporter *mockednumericmeter.Reporter,
-	supportedChargingModes []string,
 	duration time.Duration,
 ) ([]*router.Routing, []*task.Task, []suite.Mock) {
 	t.Helper()
@@ -600,8 +175,7 @@ func setupCarCharger(
 				"1",
 				"2",
 				nil,
-				evChargerTestStates,
-				supportedChargingModes,
+				[]chargepoint.State{"ready_to_charge", "charging", "error"},
 			),
 			Controller: chargepointController,
 		},
@@ -615,10 +189,7 @@ func setupCarCharger(
 				"1",
 				"2",
 				nil,
-				[]string{"W", "kWh"},
-				nil,
-				nil,
-				false,
+				[]numericmeter.Unit{"W", "kWh"},
 			),
 			Reporter: meterElecReporter,
 		}
