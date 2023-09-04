@@ -55,8 +55,10 @@ const (
 	PropertyIsVirtual               = "is_virtual"
 )
 
+// Units is a collection of units.
 type Units []Unit
 
+// NewUnits creates a new collection of units.
 func NewUnits[T string | Unit](input ...T) Units {
 	output := make(Units, len(input))
 
@@ -75,8 +77,10 @@ func (u Unit) String() string {
 	return string(u)
 }
 
+// ValuesReport is a collection of extended values report.
 type ValuesReport map[Value]float64
 
+// Map returns float map representation of the values report.
 func (r ValuesReport) Map() map[string]float64 {
 	output := make(map[string]float64, len(r))
 
@@ -90,6 +94,7 @@ func (r ValuesReport) Map() map[string]float64 {
 // Values is a collection of extended values.
 type Values []Value
 
+// NewValues creates a new collection of extended values.
 func NewValues[T string | Value](input ...T) Values {
 	output := make(Values, len(input))
 
