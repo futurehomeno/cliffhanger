@@ -191,7 +191,7 @@ func handleCmdMeterReset(serviceRegistry adapter.ServiceRegistry) router.Message
 }
 
 // unitsToReport is a helper method that determines which units should be reported.
-func unitsToReport(message *fimpgo.Message, supportedUnits []string) ([]string, error) {
+func unitsToReport(message *fimpgo.Message, supportedUnits Units) (Units, error) {
 	if message.Payload.ValueType == fimpgo.VTypeNull {
 		return supportedUnits, nil
 	}
@@ -205,11 +205,11 @@ func unitsToReport(message *fimpgo.Message, supportedUnits []string) ([]string, 
 		return supportedUnits, nil
 	}
 
-	return []string{unit}, nil
+	return NewUnits(unit), nil
 }
 
 // valuesToReport is a helper method that determines which values should be reported.
-func valuesToReport(message *fimpgo.Message, supportedValues []string) ([]string, error) {
+func valuesToReport(message *fimpgo.Message, supportedValues Values) (Values, error) {
 	if message.Payload.ValueType == fimpgo.VTypeNull {
 		return supportedValues, nil
 	}
@@ -223,7 +223,7 @@ func valuesToReport(message *fimpgo.Message, supportedValues []string) ([]string
 		return supportedValues, nil
 	}
 
-	return values, nil
+	return NewValues(values...), nil
 }
 
 // getService returns a service responsible for handling the message.

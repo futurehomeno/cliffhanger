@@ -21,21 +21,21 @@ var DefaultReportingStrategy = cache.ReportAtLeastEvery(30 * time.Minute)
 // In a polling scenario implementation might require some safeguards against excessive polling.
 type Reporter interface {
 	// MeterReport returns simplified meter report based on requested unit.
-	MeterReport(unit string) (float64, error)
+	MeterReport(unit Unit) (float64, error)
 }
 
 // ExportReporter is an optional interface representing an actual device reporting meter export values.
 // In a polling scenario implementation might require some safeguards against excessive polling.
 type ExportReporter interface {
 	// MeterExportReport returns simplified meter export report based on requested unit.
-	MeterExportReport(unit string) (float64, error)
+	MeterExportReport(unit Unit) (float64, error)
 }
 
 // ExtendedReporter is an optional interface representing an actual device reporting meter extended values.
 // In a polling scenario implementation might require some safeguards against excessive polling.
 type ExtendedReporter interface {
 	// MeterExtendedReport returns extended meter extended report for requested values.
-	MeterExtendedReport(values []string) (map[string]float64, error)
+	MeterExtendedReport(values []Value) (ValuesReport, error)
 }
 
 // ResettableReporter is an interface representing an actual device supporting meter reset functionality.
@@ -51,19 +51,19 @@ type Service interface {
 	adapter.Service
 
 	// SendMeterReport sends a simplified meter report based on requested unit. Returns true if a report was sent.
-	SendMeterReport(unit string, force bool) (bool, error)
+	SendMeterReport(unit Unit, force bool) (bool, error)
 	// SendMeterExportReport sends a simplified meter export report based on requested unit. Returns true if a report was sent.
-	SendMeterExportReport(unit string, force bool) (bool, error)
+	SendMeterExportReport(unit Unit, force bool) (bool, error)
 	// SendMeterExtendedReport sends an extended meter report based on requested values. Returns true if a report was sent.
-	SendMeterExtendedReport(values []string, force bool) (bool, error)
+	SendMeterExtendedReport(values Values, force bool) (bool, error)
 	// ResetMeter resets the meter.
 	ResetMeter() error
 	// SupportedUnits returns units that are supported by the simplified meter report.
-	SupportedUnits() []string
+	SupportedUnits() Units
 	// SupportedExportUnits returns units that are supported by the simplified meter export report.
-	SupportedExportUnits() []string
+	SupportedExportUnits() Units
 	// SupportedExtendedValues returns extended values that are supported by the extended meter report.
-	SupportedExtendedValues() []string
+	SupportedExtendedValues() Values
 	// SupportsExportReport returns true if meter supports the export report.
 	SupportsExportReport() bool
 	// SupportsExtendedReport returns true if meter supports the extended report.
@@ -122,7 +122,7 @@ type service struct {
 }
 
 // SendMeterReport sends a simplified meter report based on requested unit. Returns true if a report was sent.
-func (s *service) SendMeterReport(unit string, force bool) (bool, error) {
+func (s *service) SendMeterReport(unit Unit, force bool) (bool, error) {
 	s.lock.Lock()
 	defer s.lock.Unlock()
 
@@ -136,7 +136,7 @@ func (s *service) SendMeterReport(unit string, force bool) (bool, error) {
 		return false, fmt.Errorf("%s: failed to retrieve meter report: %w", s.Name(), err)
 	}
 
-	if !force && !s.reportingCache.ReportRequired(s.reportingStrategy, EvtMeterReport, normalizedUnit, value) {
+	if !force && !s.reportingCache.ReportRequired(s.reportingStrategy, EvtMeterReport, normalizedUnit.String(), value) {
 		return false, nil
 	}
 
@@ -145,25 +145,25 @@ func (s *service) SendMeterReport(unit string, force bool) (bool, error) {
 		s.Name(),
 		value,
 		map[string]string{
-			PropertyUnit:      normalizedUnit,
+			PropertyUnit:      normalizedUnit.String(),
 			PropertyIsVirtual: strconv.FormatBool(s.Specification().PropertyBool(PropertyIsVirtual)),
 		},
 		nil,
 		nil,
-	).WithStorageStrategy(fimpgo.StorageStrategyAggregate, normalizedUnit)
+	).WithStorageStrategy(fimpgo.StorageStrategyAggregate, normalizedUnit.String())
 
 	err = s.SendMessage(message)
 	if err != nil {
 		return false, fmt.Errorf("%s: failed to send meter report for unit %s: %w", s.Name(), normalizedUnit, err)
 	}
 
-	s.reportingCache.Reported(EvtMeterReport, normalizedUnit, value)
+	s.reportingCache.Reported(EvtMeterReport, normalizedUnit.String(), value)
 
 	return true, nil
 }
 
 // SendMeterExportReport sends a simplified meter export report based on requested unit. Returns true if a report was sent.
-func (s *service) SendMeterExportReport(unit string, force bool) (bool, error) {
+func (s *service) SendMeterExportReport(unit Unit, force bool) (bool, error) {
 	s.lock.Lock()
 	defer s.lock.Unlock()
 
@@ -182,7 +182,7 @@ func (s *service) SendMeterExportReport(unit string, force bool) (bool, error) {
 		return false, fmt.Errorf("%s: failed to retrieve meter export report: %w", s.Name(), err)
 	}
 
-	if !force && !s.reportingCache.ReportRequired(s.reportingStrategy, EvtMeterExportReport, normalizedUnit, value) {
+	if !force && !s.reportingCache.ReportRequired(s.reportingStrategy, EvtMeterExportReport, normalizedUnit.String(), value) {
 		return false, nil
 	}
 
@@ -191,25 +191,25 @@ func (s *service) SendMeterExportReport(unit string, force bool) (bool, error) {
 		s.Name(),
 		value,
 		map[string]string{
-			PropertyUnit:      normalizedUnit,
+			PropertyUnit:      normalizedUnit.String(),
 			PropertyIsVirtual: strconv.FormatBool(s.Specification().PropertyBool(PropertyIsVirtual)),
 		},
 		nil,
 		nil,
-	).WithStorageStrategy(fimpgo.StorageStrategyAggregate, normalizedUnit)
+	).WithStorageStrategy(fimpgo.StorageStrategyAggregate, normalizedUnit.String())
 
 	err = s.SendMessage(message)
 	if err != nil {
 		return false, fmt.Errorf("%s: failed to send meter report for unit %s: %w", s.Name(), normalizedUnit, err)
 	}
 
-	s.reportingCache.Reported(EvtMeterExportReport, normalizedUnit, value)
+	s.reportingCache.Reported(EvtMeterExportReport, normalizedUnit.String(), value)
 
 	return true, nil
 }
 
 // SendMeterExtendedReport sends an extended meter report. Returns true if a report was sent.
-func (s *service) SendMeterExtendedReport(extendedValues []string, force bool) (bool, error) {
+func (s *service) SendMeterExtendedReport(extendedValues Values, force bool) (bool, error) {
 	s.lock.Lock()
 	defer s.lock.Unlock()
 
@@ -235,7 +235,7 @@ func (s *service) SendMeterExtendedReport(extendedValues []string, force bool) (
 	message := fimpgo.NewFloatMapMessage(
 		EvtMeterExtReport,
 		s.Name(),
-		values,
+		values.Map(),
 		nil,
 		nil,
 		nil,
@@ -247,7 +247,7 @@ func (s *service) SendMeterExtendedReport(extendedValues []string, force bool) (
 	}
 
 	for extendedValue, value := range values {
-		s.reportingCache.Reported(EvtMeterExtReport, extendedValue, value)
+		s.reportingCache.Reported(EvtMeterExtReport, extendedValue.String(), value)
 	}
 
 	return true, nil
@@ -272,18 +272,18 @@ func (s *service) ResetMeter() error {
 }
 
 // SupportedUnits returns units that are supported by the simplified meter report.
-func (s *service) SupportedUnits() []string {
-	return s.Specification().PropertyStrings(PropertySupportedUnits)
+func (s *service) SupportedUnits() Units {
+	return NewUnits(s.Specification().PropertyStrings(PropertySupportedUnits)...)
 }
 
 // SupportedExportUnits returns units that are supported by the simplified meter export report.
-func (s *service) SupportedExportUnits() []string {
-	return s.Specification().PropertyStrings(PropertySupportedExportUnits)
+func (s *service) SupportedExportUnits() Units {
+	return NewUnits(s.Specification().PropertyStrings(PropertySupportedExportUnits)...)
 }
 
 // SupportedExtendedValues returns extended values that are supported by the extended meter report.
-func (s *service) SupportedExtendedValues() []string {
-	return s.Specification().PropertyStrings(PropertySupportedExtendedValues)
+func (s *service) SupportedExtendedValues() Values {
+	return NewValues(s.Specification().PropertyStrings(PropertySupportedExtendedValues)...)
 }
 
 // SupportsExportReport returns true if meter supports the export report.
@@ -346,9 +346,9 @@ func (s *service) resettableReporter() (ResettableReporter, error) {
 }
 
 // normalizeUnit checks if unit is supported and returns its normalized form.
-func (s *service) normalizeUnit(unit string, units []string) (string, bool) {
+func (s *service) normalizeUnit(unit Unit, units Units) (Unit, bool) {
 	for _, u := range units {
-		if strings.EqualFold(unit, u) {
+		if strings.EqualFold(string(unit), string(u)) {
 			return u, true
 		}
 	}
@@ -357,11 +357,11 @@ func (s *service) normalizeUnit(unit string, units []string) (string, bool) {
 }
 
 // normalizeExtendedValues checks if all values are supported and returns their normalized form.
-func (s *service) normalizeExtendedValues(values []string) ([]string, error) {
-	normalizedValues := make([]string, len(values))
+func (s *service) normalizeExtendedValues(values Values) (Values, error) {
+	normalizedValues := make(Values, len(values))
 
 	for i, v := range values {
-		normalizedValue, ok := s.normalizeUnit(v, s.SupportedExtendedValues())
+		normalizedValue, ok := s.normalizeValue(v, s.SupportedExtendedValues())
 		if !ok {
 			return nil, fmt.Errorf("%s: extended value %s is unsupported", s.Name(), v)
 		}
@@ -372,10 +372,21 @@ func (s *service) normalizeExtendedValues(values []string) ([]string, error) {
 	return normalizedValues, nil
 }
 
+// normalizeUnit checks if unit is supported and returns its normalized form.
+func (s *service) normalizeValue(value Value, values Values) (Value, bool) {
+	for _, u := range values {
+		if strings.EqualFold(string(value), string(u)) {
+			return u, true
+		}
+	}
+
+	return "", false
+}
+
 // isReportRequired checks if a report is required for any of the given values.
-func (s *service) isExtendedReportRequired(values map[string]float64) bool {
+func (s *service) isExtendedReportRequired(values map[Value]float64) bool {
 	for name, value := range values {
-		if s.reportingCache.ReportRequired(s.reportingStrategy, EvtMeterExtReport, name, value) {
+		if s.reportingCache.ReportRequired(s.reportingStrategy, EvtMeterExtReport, string(name), value) {
 			return true
 		}
 	}

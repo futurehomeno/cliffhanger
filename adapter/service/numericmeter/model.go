@@ -55,8 +55,55 @@ const (
 	PropertyIsVirtual               = "is_virtual"
 )
 
+type Units []Unit
+
+func NewUnits[T string | Unit](input ...T) Units {
+	output := make(Units, len(input))
+
+	for i, v := range input {
+		output[i] = Unit(v)
+	}
+
+	return output
+}
+
 // Unit defines metered unit.
 type Unit string
 
+// String returns string representation of the unit.
+func (u Unit) String() string {
+	return string(u)
+}
+
+type ValuesReport map[Value]float64
+
+func (r ValuesReport) Map() map[string]float64 {
+	output := make(map[string]float64, len(r))
+
+	for k, v := range r {
+		output[k.String()] = v
+	}
+
+	return output
+}
+
+// Values is a collection of extended values.
+type Values []Value
+
+func NewValues[T string | Value](input ...T) Values {
+	output := make(Values, len(input))
+
+	for i, v := range input {
+		output[i] = Value(v)
+	}
+
+	return output
+}
+
 // Value defines metered extended value.
 type Value string
+
+// String returns string representation of the value.
+func (v Value) String() string {
+	return string(v)
+}
