@@ -35,7 +35,7 @@ type ExportReporter interface {
 // In a polling scenario implementation might require some safeguards against excessive polling.
 type ExtendedReporter interface {
 	// MeterExtendedReport returns extended meter extended report for requested values.
-	MeterExtendedReport(values []Value) (ValuesReport, error)
+	MeterExtendedReport(values Values) (ValuesReport, error)
 }
 
 // ResettableReporter is an interface representing an actual device supporting meter reset functionality.

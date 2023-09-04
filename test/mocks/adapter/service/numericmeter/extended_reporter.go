@@ -13,15 +13,15 @@ type ExtendedReporter struct {
 }
 
 // MeterExtendedReport provides a mock function with given fields: values
-func (_m *ExtendedReporter) MeterExtendedReport(values []numericmeter.Value) (numericmeter.ValuesReport, error) {
+func (_m *ExtendedReporter) MeterExtendedReport(values numericmeter.Values) (numericmeter.ValuesReport, error) {
 	ret := _m.Called(values)
 
 	var r0 numericmeter.ValuesReport
 	var r1 error
-	if rf, ok := ret.Get(0).(func([]numericmeter.Value) (numericmeter.ValuesReport, error)); ok {
+	if rf, ok := ret.Get(0).(func(numericmeter.Values) (numericmeter.ValuesReport, error)); ok {
 		return rf(values)
 	}
-	if rf, ok := ret.Get(0).(func([]numericmeter.Value) numericmeter.ValuesReport); ok {
+	if rf, ok := ret.Get(0).(func(numericmeter.Values) numericmeter.ValuesReport); ok {
 		r0 = rf(values)
 	} else {
 		if ret.Get(0) != nil {
@@ -29,7 +29,7 @@ func (_m *ExtendedReporter) MeterExtendedReport(values []numericmeter.Value) (nu
 		}
 	}
 
-	if rf, ok := ret.Get(1).(func([]numericmeter.Value) error); ok {
+	if rf, ok := ret.Get(1).(func(numericmeter.Values) error); ok {
 		r1 = rf(values)
 	} else {
 		r1 = ret.Error(1)
