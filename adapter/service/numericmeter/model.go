@@ -58,6 +58,17 @@ const (
 // Units is a collection of units.
 type Units []Unit
 
+// Strings returns slice of string representation of the units.
+func (u Units) Strings() []string {
+	output := make([]string, len(u))
+
+	for i, v := range u {
+		output[i] = v.String()
+	}
+
+	return output
+}
+
 // NewUnits creates a new collection of units.
 func NewUnits[T string | Unit](input ...T) Units {
 	output := make(Units, len(input))
@@ -93,6 +104,17 @@ func (r ValuesReport) Map() map[string]float64 {
 
 // Values is a collection of extended values.
 type Values []Value
+
+// Strings returns slice of string representation of the values.
+func (v Values) Strings() []string {
+	output := make([]string, len(v))
+
+	for i, val := range v {
+		output[i] = val.String()
+	}
+
+	return output
+}
 
 // NewValues creates a new collection of extended values.
 func NewValues[T string | Value](input ...T) Values {
