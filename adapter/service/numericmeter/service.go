@@ -348,7 +348,7 @@ func (s *service) resettableReporter() (ResettableReporter, error) {
 // normalizeUnit checks if unit is supported and returns its normalized form.
 func (s *service) normalizeUnit(unit Unit, units Units) (Unit, bool) {
 	for _, u := range units {
-		if strings.EqualFold(string(unit), string(u)) {
+		if strings.EqualFold(unit.String(), u.String()) {
 			return u, true
 		}
 	}
@@ -375,7 +375,7 @@ func (s *service) normalizeExtendedValues(values Values) (Values, error) {
 // normalizeUnit checks if unit is supported and returns its normalized form.
 func (s *service) normalizeValue(value Value, values Values) (Value, bool) {
 	for _, u := range values {
-		if strings.EqualFold(string(value), string(u)) {
+		if strings.EqualFold(value.String(), u.String()) {
 			return u, true
 		}
 	}
