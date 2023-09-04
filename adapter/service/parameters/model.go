@@ -46,7 +46,7 @@ const (
 	WidgetTypeMultiSelect WidgetType = "multiselect"
 )
 
-var (
+var ( //nolint:gofumpt
 	// widgetTypeToValueTypeMapping maps widget types to allowed value types.
 	widgetTypeToValueTypeMapping = map[WidgetType][]ValueType{
 		WidgetTypeInput:       {ValueTypeInt, ValueTypeString, ValueTypeBool},
@@ -118,7 +118,7 @@ func (s ParameterSpecification) validateInput(p Parameter) error {
 func (s ParameterSpecification) validateSelect(p Parameter) error {
 	var value any
 
-	switch s.ValueType {
+	switch s.ValueType { //nolint:exhaustive
 	case ValueTypeInt:
 		v, err := p.IntValue()
 		if err != nil {
@@ -147,7 +147,7 @@ func (s ParameterSpecification) validateSelect(p Parameter) error {
 func (s ParameterSpecification) validateMultiSelect(p Parameter) error {
 	var vals []any
 
-	switch s.ValueType {
+	switch s.ValueType { //nolint:exhaustive
 	case ValueTypeIntArray:
 		v, err := p.IntArrayValue()
 		if err != nil {
@@ -221,11 +221,15 @@ func (p Parameter) IntValue() (int, error) {
 		return 0, fmt.Errorf("value type '%s' is not an integer", p.ValueType)
 	}
 
-	switch p.Value.(type) {
-	case int, int32, int64:
-		return p.Value.(int), nil
+	switch v := p.Value.(type) {
+	case int:
+		return v, nil
+	case int32:
+		return int(v), nil
+	case int64:
+		return int(v), nil
 	case float64:
-		return int(p.Value.(float64)), nil
+		return int(v), nil
 	default:
 		return 0, fmt.Errorf("value of type %T is not an integer", p.Value)
 	}
@@ -260,18 +264,20 @@ func (p Parameter) BoolValue() (bool, error) {
 }
 
 // IntArrayValue returns a value of the parameter as a slice of integers.
+//
+//nolint:cyclop
 func (p Parameter) IntArrayValue() ([]int, error) {
 	if p.ValueType != ValueTypeIntArray {
 		return nil, fmt.Errorf("value type '%s' is not an integer array", p.ValueType)
 	}
 
-	switch p.Value.(type) {
+	switch val := p.Value.(type) {
 	case []int:
-		return p.Value.([]int), nil
+		return val, nil
 	case []int32:
 		var result []int
 
-		for _, v := range p.Value.([]int32) {
+		for _, v := range val {
 			result = append(result, int(v))
 		}
 
@@ -279,7 +285,7 @@ func (p Parameter) IntArrayValue() ([]int, error) {
 	case []int64:
 		var result []int
 
-		for _, v := range p.Value.([]int64) {
+		for _, v := range val {
 			result = append(result, int(v))
 		}
 
@@ -287,16 +293,16 @@ func (p Parameter) IntArrayValue() ([]int, error) {
 	case []interface{}:
 		var result []int
 
-		for _, v := range p.Value.([]interface{}) {
-			switch v.(type) {
+		for _, v := range val {
+			switch r := v.(type) {
 			case int:
-				result = append(result, v.(int))
+				result = append(result, r)
 			case int32:
-				result = append(result, int(v.(int32)))
+				result = append(result, int(r))
 			case int64:
-				result = append(result, int(v.(int64)))
+				result = append(result, int(r))
 			case float64:
-				result = append(result, int(v.(float64)))
+				result = append(result, int(r))
 			default:
 				return nil, fmt.Errorf("value of type %T is not an integer or is unsupported", p.Value)
 			}
@@ -314,16 +320,16 @@ func (p Parameter) StringArrayValue() ([]string, error) {
 		return nil, fmt.Errorf("value type '%s' is not a string array", p.ValueType)
 	}
 
-	switch p.Value.(type) {
+	switch val := p.Value.(type) {
 	case []string:
-		return p.Value.([]string), nil
+		return val, nil
 	case []interface{}:
 		var result []string
 
-		for _, v := range p.Value.([]interface{}) {
-			switch v.(type) {
+		for _, v := range val {
+			switch r := v.(type) {
 			case string:
-				result = append(result, v.(string))
+				result = append(result, r)
 			default:
 				return nil, fmt.Errorf("value of type %T is not a string or is unsupported", p.Value)
 			}

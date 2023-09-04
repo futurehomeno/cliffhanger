@@ -17,7 +17,7 @@ import (
 	"github.com/futurehomeno/cliffhanger/test/suite"
 )
 
-var (
+var ( //nolint:gofumpt
 	errTest = errors.New("test error")
 )
 
