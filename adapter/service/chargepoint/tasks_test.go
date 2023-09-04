@@ -15,7 +15,7 @@ import (
 	"github.com/futurehomeno/cliffhanger/test/suite"
 )
 
-func TestTaskCarCharger(t *testing.T) { //nolint:paralleltest
+func TestTaskReporting(t *testing.T) { //nolint:paralleltest
 	s := &suite.Suite{
 		Cases: []*suite.Case{
 			{

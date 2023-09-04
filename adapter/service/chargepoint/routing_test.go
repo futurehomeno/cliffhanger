@@ -23,7 +23,7 @@ var (
 	errTest                    = errors.New("test")
 )
 
-func TestRouteCarCharger(t *testing.T) { //nolint:paralleltest
+func TestRouteService(t *testing.T) { //nolint:paralleltest
 	s := &suite.Suite{
 		Cases: []*suite.Case{
 			{
