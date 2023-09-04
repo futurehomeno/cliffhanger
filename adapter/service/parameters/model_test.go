@@ -411,6 +411,7 @@ func TestParameter_GetValue_JSONProcessing(t *testing.T) {
 		{
 			name: "int value",
 			param: parameters.Parameter{
+				ID:        "1",
 				ValueType: parameters.ValueTypeInt,
 				Value:     1,
 			},
@@ -424,6 +425,7 @@ func TestParameter_GetValue_JSONProcessing(t *testing.T) {
 		{
 			name: "int_array value",
 			param: parameters.Parameter{
+				ID:        "1",
 				ValueType: parameters.ValueTypeIntArray,
 				Value:     []int{1, 2},
 			},
@@ -437,6 +439,7 @@ func TestParameter_GetValue_JSONProcessing(t *testing.T) {
 		{
 			name: "string_array value",
 			param: parameters.Parameter{
+				ID:        "1",
 				ValueType: parameters.ValueTypeStringArray,
 				Value:     []string{"1", "2"},
 			},

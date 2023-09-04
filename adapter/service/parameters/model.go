@@ -271,28 +271,24 @@ func (p Parameter) IntArrayValue() ([]int, error) {
 		return nil, fmt.Errorf("value type '%s' is not an integer array", p.ValueType)
 	}
 
+	var result []int
+
 	switch val := p.Value.(type) {
 	case []int:
 		return val, nil
 	case []int32:
-		var result []int
-
 		for _, v := range val {
 			result = append(result, int(v))
 		}
 
 		return result, nil
 	case []int64:
-		var result []int
-
 		for _, v := range val {
 			result = append(result, int(v))
 		}
 
 		return result, nil
 	case []interface{}:
-		var result []int
-
 		for _, v := range val {
 			switch r := v.(type) {
 			case int:
@@ -359,7 +355,7 @@ func (p Parameter) Validate() error {
 }
 
 func (p Parameter) valueMatchesValueType() bool {
-	switch p.Value.(type) {
+	switch val := p.Value.(type) {
 	case int, int32, int64, float64:
 		return p.ValueType == ValueTypeInt
 	case string:
@@ -370,6 +366,15 @@ func (p Parameter) valueMatchesValueType() bool {
 		return p.ValueType == ValueTypeIntArray
 	case []string:
 		return p.ValueType == ValueTypeStringArray
+	case []interface{}:
+		for _, v := range val {
+			switch v.(type) {
+			case int, int32, int64, float64:
+				return p.ValueType == ValueTypeIntArray
+			case string:
+				return p.ValueType == ValueTypeStringArray
+			}
+		}
 	}
 
 	return false
