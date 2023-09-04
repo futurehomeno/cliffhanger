@@ -55,8 +55,82 @@ const (
 	PropertyIsVirtual               = "is_virtual"
 )
 
+// Units is a collection of units.
+type Units []Unit
+
+// Strings returns slice of string representation of the units.
+func (u Units) Strings() []string {
+	output := make([]string, len(u))
+
+	for i, v := range u {
+		output[i] = v.String()
+	}
+
+	return output
+}
+
+// NewUnits creates a new collection of units.
+func NewUnits[T string | Unit](input ...T) Units {
+	output := make(Units, len(input))
+
+	for i, v := range input {
+		output[i] = Unit(v)
+	}
+
+	return output
+}
+
 // Unit defines metered unit.
 type Unit string
 
+// String returns string representation of the unit.
+func (u Unit) String() string {
+	return string(u)
+}
+
+// ValuesReport is a collection of extended values report.
+type ValuesReport map[Value]float64
+
+// Map returns float map representation of the values report.
+func (r ValuesReport) Map() map[string]float64 {
+	output := make(map[string]float64, len(r))
+
+	for k, v := range r {
+		output[k.String()] = v
+	}
+
+	return output
+}
+
+// Values is a collection of extended values.
+type Values []Value
+
+// Strings returns slice of string representation of the values.
+func (v Values) Strings() []string {
+	output := make([]string, len(v))
+
+	for i, val := range v {
+		output[i] = val.String()
+	}
+
+	return output
+}
+
+// NewValues creates a new collection of extended values.
+func NewValues[T string | Value](input ...T) Values {
+	output := make(Values, len(input))
+
+	for i, v := range input {
+		output[i] = Value(v)
+	}
+
+	return output
+}
+
 // Value defines metered extended value.
 type Value string
+
+// String returns string representation of the value.
+func (v Value) String() string {
+	return string(v)
+}

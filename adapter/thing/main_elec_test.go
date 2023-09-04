@@ -125,7 +125,7 @@ func TestRouteMainElec(t *testing.T) { //nolint:paralleltest
 					mockednumericmeter.NewMockedMeter(
 						mockednumericmeter.NewReporter(t),
 						mockednumericmeter.NewExtendedReporter(t).
-							MockMeterExtendedReport(mock.Anything, map[string]float64{"p_import": 1500, "e_import": 165.78}, nil, true),
+							MockMeterExtendedReport(mock.Anything, numericmeter.ValuesReport{"p_import": 1500, "e_import": 165.78}, nil, true),
 					),
 				),
 				Nodes: []*suite.Node{
@@ -208,10 +208,10 @@ func TestTaskMainElec(t *testing.T) { //nolint:paralleltest
 					mockednumericmeter.NewMockedMeter(
 						mockednumericmeter.NewReporter(t),
 						mockednumericmeter.NewExtendedReporter(t).
-							MockMeterExtendedReport(mock.Anything, map[string]float64{"p_import": 1500, "e_import": 165.78}, nil, true).
-							MockMeterExtendedReport(mock.Anything, map[string]float64{"p_import": 1500, "e_import": 165.78}, nil, true).
+							MockMeterExtendedReport(mock.Anything, numericmeter.ValuesReport{"p_import": 1500, "e_import": 165.78}, nil, true).
+							MockMeterExtendedReport(mock.Anything, numericmeter.ValuesReport{"p_import": 1500, "e_import": 165.78}, nil, true).
 							MockMeterExtendedReport(mock.Anything, nil, errors.New("test"), true).
-							MockMeterExtendedReport(mock.Anything, map[string]float64{"p_import": 750, "e_import": 165.99}, nil, false),
+							MockMeterExtendedReport(mock.Anything, numericmeter.ValuesReport{"p_import": 750, "e_import": 165.99}, nil, false),
 					),
 					100*time.Millisecond,
 				),
