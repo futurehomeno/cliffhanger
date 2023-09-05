@@ -81,7 +81,7 @@ func handleCmdParamSet(serviceRegistry adapter.ServiceRegistry) router.MessageHa
 				return nil, fmt.Errorf("adapter: provided parameter has an incorrect format: %w", err)
 			}
 
-			if err := parameters.SetParameter(param); err != nil {
+			if err := parameters.SetParameter(&param); err != nil {
 				return nil, fmt.Errorf("adapter: failed to set a parameter: %w", err)
 			}
 

@@ -117,7 +117,7 @@ func TestRouteService(t *testing.T) { //nolint:paralleltest
 				Nodes: []*suite.Node{
 					{
 						Name:    "set parameter",
-						Command: suite.ObjectMessage("pt:j1/mt:cmd/rt:dev/rn:test_adapter/ad:1/sv:parameters/ad:2", "cmd.param.set", "parameters", parameters.Parameter{ID: "2", ValueType: parameters.ValueTypeInt, Value: float64(1)}),
+						Command: suite.ObjectMessage("pt:j1/mt:cmd/rt:dev/rn:test_adapter/ad:1/sv:parameters/ad:2", "cmd.param.set", "parameters", testReadOnlyParameter(t)),
 						Expectations: []*suite.Expectation{
 							suite.ExpectError("pt:j1/mt:evt/rt:dev/rn:test_adapter/ad:1/sv:parameters/ad:2", "parameters"),
 						},
@@ -172,10 +172,10 @@ func routeService(
 	}
 }
 
-func testSpecifications(t *testing.T) []parameters.ParameterSpecification {
+func testSpecifications(t *testing.T) []*parameters.ParameterSpecification {
 	t.Helper()
 
-	return []parameters.ParameterSpecification{
+	return []*parameters.ParameterSpecification{
 		{
 			ID:          "1",
 			Name:        "Example select parameter",
@@ -212,12 +212,14 @@ func testSpecifications(t *testing.T) []parameters.ParameterSpecification {
 	}
 }
 
-func testParameter(t *testing.T) parameters.Parameter {
+func testParameter(t *testing.T) *parameters.Parameter {
 	t.Helper()
 
-	return parameters.Parameter{
-		ID:        "1",
-		ValueType: parameters.ValueTypeInt,
-		Value:     float64(1),
-	}
+	return parameters.NewIntParameter("1", 1)
+}
+
+func testReadOnlyParameter(t *testing.T) *parameters.Parameter {
+	t.Helper()
+
+	return parameters.NewIntParameter("2", 2)
 }

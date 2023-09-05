@@ -14,11 +14,11 @@ import (
 // Controller is an interface representing a device holding parameters.
 type Controller interface {
 	// SetParameter sets a parameter.
-	SetParameter(p Parameter) error
+	SetParameter(p *Parameter) error
 	// GetParameter returns a parameter by ID.
-	GetParameter(id string) (Parameter, error)
+	GetParameter(id string) (*Parameter, error)
 	// GetParameterSpecifications returns a list of all parameter specifications/definitions.
-	GetParameterSpecifications() ([]ParameterSpecification, error)
+	GetParameterSpecifications() ([]*ParameterSpecification, error)
 }
 
 // Service is an interface representing a parameters FIMP service.
@@ -28,7 +28,7 @@ type Service interface {
 	adapter.Service
 
 	// SetParameter sets a parameter.
-	SetParameter(p Parameter) error
+	SetParameter(p *Parameter) error
 	// SendParameterReport sends a parameter report. Returns true if the report was sent.
 	SendParameterReport(id string, force bool) (bool, error)
 	// SendSupportedParamsReport sends a supported parameters report. Returns true if the report was sent.
@@ -68,12 +68,12 @@ type service struct {
 	reportingStrategy cache.ReportingStrategy
 }
 
-func (s *service) SetParameter(p Parameter) error {
+func (s *service) SetParameter(p *Parameter) error {
 	s.lock.Lock()
 	defer s.lock.Unlock()
 
 	if err := p.Validate(); err != nil {
-		return fmt.Errorf("%s: failed to validate parameter: %w", s.Name(), err)
+		return fmt.Errorf("%s: failed to Validate parameter: %w", s.Name(), err)
 	}
 
 	spec, err := s.getParameterSpecification(p.ID)
@@ -86,7 +86,7 @@ func (s *service) SetParameter(p Parameter) error {
 	}
 
 	if err = spec.ValidateParameter(p); err != nil {
-		return fmt.Errorf("%s: failed to validate parameter: %w", s.Name(), err)
+		return fmt.Errorf("%s: failed to Validate parameter: %w", s.Name(), err)
 	}
 
 	if err = s.controller.SetParameter(p); err != nil {
@@ -155,10 +155,10 @@ func (s *service) SendSupportedParamsReport(force bool) (bool, error) {
 	return true, nil
 }
 
-func (s *service) getParameterSpecification(id string) (ParameterSpecification, error) {
+func (s *service) getParameterSpecification(id string) (*ParameterSpecification, error) {
 	specs, err := s.controller.GetParameterSpecifications()
 	if err != nil {
-		return ParameterSpecification{}, fmt.Errorf("failed to get parameter specifications: %w", err)
+		return nil, fmt.Errorf("failed to get parameter specifications: %w", err)
 	}
 
 	for _, spec := range specs {
@@ -167,5 +167,5 @@ func (s *service) getParameterSpecification(id string) (ParameterSpecification, 
 		}
 	}
 
-	return ParameterSpecification{}, fmt.Errorf("parameter specification id '%s' not found", id)
+	return nil, fmt.Errorf("parameter specification id '%s' not found", id)
 }

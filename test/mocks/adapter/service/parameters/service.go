@@ -93,11 +93,11 @@ func (_m *Service) SendSupportedParamsReport(force bool) (bool, error) {
 }
 
 // SetParameter provides a mock function with given fields: p
-func (_m *Service) SetParameter(p parameters.Parameter) error {
+func (_m *Service) SetParameter(p *parameters.Parameter) error {
 	ret := _m.Called(p)
 
 	var r0 error
-	if rf, ok := ret.Get(0).(func(parameters.Parameter) error); ok {
+	if rf, ok := ret.Get(0).(func(*parameters.Parameter) error); ok {
 		r0 = rf(p)
 	} else {
 		r0 = ret.Error(0)

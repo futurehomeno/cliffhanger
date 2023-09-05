@@ -1,6 +1,7 @@
 package parameters
 
 import (
+	"encoding/json"
 	"fmt"
 )
 
@@ -16,6 +17,7 @@ const (
 	ValueTypeStringArray ValueType = "string_array"
 )
 
+// AllowedValueTypes returns a slice of allowed value types.
 func AllowedValueTypes() []ValueType {
 	return []ValueType{
 		ValueTypeInt,
@@ -26,6 +28,7 @@ func AllowedValueTypes() []ValueType {
 	}
 }
 
+// IsValueTypeAllowed checks if a value type is allowed.
 func IsValueTypeAllowed(t ValueType) bool {
 	for _, allowed := range AllowedValueTypes() {
 		if t == allowed {
@@ -46,15 +49,6 @@ const (
 	WidgetTypeMultiSelect WidgetType = "multiselect"
 )
 
-var ( //nolint:gofumpt
-	// widgetTypeToValueTypeMapping maps widget types to allowed value types.
-	widgetTypeToValueTypeMapping = map[WidgetType][]ValueType{
-		WidgetTypeInput:       {ValueTypeInt, ValueTypeString, ValueTypeBool},
-		WidgetTypeSelect:      {ValueTypeInt, ValueTypeString},
-		WidgetTypeMultiSelect: {ValueTypeIntArray, ValueTypeStringArray},
-	}
-)
-
 // ParameterSpecification represents a parameter specification that must be provided by the Controller.
 type ParameterSpecification struct {
 	ID           string        `json:"parameter_id"`
@@ -70,9 +64,9 @@ type ParameterSpecification struct {
 }
 
 // ValidateParameter validates a parameter against the specification.
-func (s ParameterSpecification) ValidateParameter(p Parameter) error {
-	if err := s.validateTypeMatching(p); err != nil {
-		return err
+func (s *ParameterSpecification) ValidateParameter(p *Parameter) error {
+	if s.ValueType != p.ValueType {
+		return fmt.Errorf("parameter value type '%s' does not match specification value type '%s'", p.ValueType, s.ValueType)
 	}
 
 	switch s.WidgetType {
@@ -87,18 +81,7 @@ func (s ParameterSpecification) ValidateParameter(p Parameter) error {
 	}
 }
 
-func (s ParameterSpecification) validateTypeMatching(p Parameter) error {
-	allowedTypes := widgetTypeToValueTypeMapping[s.WidgetType]
-	for _, allowedType := range allowedTypes {
-		if p.ValueType == allowedType {
-			return nil
-		}
-	}
-
-	return fmt.Errorf("parameter value type '%s' is not allowed for widget type '%s'", p.ValueType, s.WidgetType)
-}
-
-func (s ParameterSpecification) validateInput(p Parameter) error {
+func (s *ParameterSpecification) validateInput(p *Parameter) error {
 	if s.ValueType != ValueTypeInt {
 		return nil
 	}
@@ -115,7 +98,7 @@ func (s ParameterSpecification) validateInput(p Parameter) error {
 	return nil
 }
 
-func (s ParameterSpecification) validateSelect(p Parameter) error {
+func (s *ParameterSpecification) validateSelect(p *Parameter) error {
 	var value any
 
 	switch s.ValueType { //nolint:exhaustive
@@ -144,7 +127,7 @@ func (s ParameterSpecification) validateSelect(p Parameter) error {
 	return nil
 }
 
-func (s ParameterSpecification) validateMultiSelect(p Parameter) error {
+func (s *ParameterSpecification) validateMultiSelect(p *Parameter) error {
 	var vals []any
 
 	switch s.ValueType { //nolint:exhaustive
@@ -210,54 +193,103 @@ func (o SelectOptions) ContainValues(v []any) bool {
 
 // Parameter represents a parameter.
 type Parameter struct {
-	ID        string    `json:"parameter_id"`
-	ValueType ValueType `json:"value_type"`
-	Value     any       `json:"value"`
+	ID        string          `json:"parameter_id"`
+	ValueType ValueType       `json:"value_type"`
+	Value     json.RawMessage `json:"value"`
+}
+
+// NewIntParameter creates a new parameter of a value type: integer.
+func NewIntParameter(id string, value int) *Parameter {
+	b, _ := json.Marshal(value)
+
+	return &Parameter{
+		ID:        id,
+		ValueType: ValueTypeInt,
+		Value:     b,
+	}
+}
+
+// NewStringParameter creates a new parameter of a value type: string.
+func NewStringParameter(id string, value string) *Parameter {
+	b, _ := json.Marshal(value)
+
+	return &Parameter{
+		ID:        id,
+		ValueType: ValueTypeString,
+		Value:     b,
+	}
+}
+
+// NewBoolParameter creates a new parameter of a value type: boolean.
+func NewBoolParameter(id string, value bool) *Parameter {
+	b, _ := json.Marshal(value)
+
+	return &Parameter{
+		ID:        id,
+		ValueType: ValueTypeBool,
+		Value:     b,
+	}
+}
+
+// NewIntArrayParameter creates a new parameter of a value type: integer array.
+func NewIntArrayParameter(id string, value []int) *Parameter {
+	b, _ := json.Marshal(value)
+
+	return &Parameter{
+		ID:        id,
+		ValueType: ValueTypeIntArray,
+		Value:     b,
+	}
+}
+
+// NewStringArrayParameter creates a new parameter of a value type: string array.
+func NewStringArrayParameter(id string, value []string) *Parameter {
+	b, _ := json.Marshal(value)
+
+	return &Parameter{
+		ID:        id,
+		ValueType: ValueTypeStringArray,
+		Value:     b,
+	}
 }
 
 // IntValue returns an integer value of the parameter.
-func (p Parameter) IntValue() (int, error) {
+func (p *Parameter) IntValue() (int, error) {
 	if p.ValueType != ValueTypeInt {
 		return 0, fmt.Errorf("value type '%s' is not an integer", p.ValueType)
 	}
 
-	switch v := p.Value.(type) {
-	case int:
-		return v, nil
-	case int32:
-		return int(v), nil
-	case int64:
-		return int(v), nil
-	case float64:
-		return int(v), nil
-	default:
-		return 0, fmt.Errorf("value of type %T is not an integer", p.Value)
+	var v int
+	if err := json.Unmarshal(p.Value, &v); err != nil {
+		return 0, fmt.Errorf("value is not of type %T", v)
 	}
+
+	return v, nil
 }
 
 // StringValue returns a string value of the parameter.
-func (p Parameter) StringValue() (string, error) {
+func (p *Parameter) StringValue() (string, error) {
 	if p.ValueType != ValueTypeString {
 		return "", fmt.Errorf("value type '%s' is not a string", p.ValueType)
 	}
 
-	v, ok := p.Value.(string)
-	if !ok {
-		return "", fmt.Errorf("value of type %T is not a string", p.Value)
+	var v string
+	if err := json.Unmarshal(p.Value, &v); err != nil {
+		return "", fmt.Errorf("value is not of type %T", v)
 	}
 
 	return v, nil
 }
 
 // BoolValue returns a boolean value of the parameter.
-func (p Parameter) BoolValue() (bool, error) {
+func (p *Parameter) BoolValue() (bool, error) {
 	if p.ValueType != ValueTypeBool {
 		return false, fmt.Errorf("value type '%s' is not a boolean", p.ValueType)
 	}
 
-	v, ok := p.Value.(bool)
-	if !ok {
-		return false, fmt.Errorf("value of type %T is not a boolean", p.Value)
+	var v bool
+	if err := json.Unmarshal(p.Value, &v); err != nil {
+		return false, fmt.Errorf("value is not of type %T", v)
 	}
 
 	return v, nil
@@ -266,79 +298,35 @@ func (p Parameter) BoolValue() (bool, error) {
 // IntArrayValue returns a value of the parameter as a slice of integers.
 //
 //nolint:cyclop
-func (p Parameter) IntArrayValue() ([]int, error) {
+func (p *Parameter) IntArrayValue() ([]int, error) {
 	if p.ValueType != ValueTypeIntArray {
 		return nil, fmt.Errorf("value type '%s' is not an integer array", p.ValueType)
 	}
 
-	var result []int
-
-	switch val := p.Value.(type) {
-	case []int:
-		return val, nil
-	case []int32:
-		for _, v := range val {
-			result = append(result, int(v))
-		}
-
-		return result, nil
-	case []int64:
-		for _, v := range val {
-			result = append(result, int(v))
-		}
-
-		return result, nil
-	case []interface{}:
-		for _, v := range val {
-			switch r := v.(type) {
-			case int:
-				result = append(result, r)
-			case int32:
-				result = append(result, int(r))
-			case int64:
-				result = append(result, int(r))
-			case float64:
-				result = append(result, int(r))
-			default:
-				return nil, fmt.Errorf("value of type %T is not an integer or is unsupported", p.Value)
-			}
-		}
-
-		return result, nil
-	default:
-		return nil, fmt.Errorf("value of type %T is not an integer array or is unsupported", p.Value)
+	var v []int
+	if err := json.Unmarshal(p.Value, &v); err != nil {
+		return nil, fmt.Errorf("value is not of type %T", v)
 	}
+
+	return v, nil
 }
 
 // StringArrayValue returns a value of the parameter as a slice of strings.
-func (p Parameter) StringArrayValue() ([]string, error) {
+func (p *Parameter) StringArrayValue() ([]string, error) {
 	if p.ValueType != ValueTypeStringArray {
 		return nil, fmt.Errorf("value type '%s' is not a string array", p.ValueType)
 	}
 
-	switch val := p.Value.(type) {
-	case []string:
-		return val, nil
-	case []interface{}:
-		var result []string
-
-		for _, v := range val {
-			switch r := v.(type) {
-			case string:
-				result = append(result, r)
-			default:
-				return nil, fmt.Errorf("value of type %T is not a string or is unsupported", p.Value)
-			}
-		}
-
-		return result, nil
-	default:
-		return nil, fmt.Errorf("value of type %T is not a string array or is unsupported", p.Value)
+	var v []string
+	if err := json.Unmarshal(p.Value, &v); err != nil {
+		return nil, fmt.Errorf("value is not of type %T", v)
 	}
+
+	return v, nil
 }
 
 // Validate validates a parameter.
-func (p Parameter) Validate() error {
+func (p *Parameter) Validate() error {
 	if p.ID == "" {
 		return fmt.Errorf("parameter id cannot be empty")
 	}
@@ -354,28 +342,21 @@ func (p Parameter) Validate() error {
 	return nil
 }
 
-func (p Parameter) valueMatchesValueType() bool {
-	switch val := p.Value.(type) {
-	case int, int32, int64, float64:
-		return p.ValueType == ValueTypeInt
-	case string:
-		return p.ValueType == ValueTypeString
-	case bool:
-		return p.ValueType == ValueTypeBool
-	case []int, []int32, []int64:
-		return p.ValueType == ValueTypeIntArray
-	case []string:
-		return p.ValueType == ValueTypeStringArray
-	case []interface{}:
-		for _, v := range val {
-			switch v.(type) {
-			case int, int32, int64, float64:
-				return p.ValueType == ValueTypeIntArray
-			case string:
-				return p.ValueType == ValueTypeStringArray
-			}
-		}
+func (p *Parameter) valueMatchesValueType() bool {
+	var err error
+
+	switch p.ValueType {
+	case ValueTypeInt:
+		_, err = p.IntValue()
+	case ValueTypeString:
+		_, err = p.StringValue()
+	case ValueTypeBool:
+		_, err = p.BoolValue()
+	case ValueTypeIntArray:
+		_, err = p.IntArrayValue()
+	case ValueTypeStringArray:
+		_, err = p.StringArrayValue()
 	}
 
-	return false
+	return err == nil
 }

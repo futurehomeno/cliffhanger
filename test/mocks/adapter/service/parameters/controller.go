@@ -13,18 +13,20 @@ type Controller struct {
 }
 
 // GetParameter provides a mock function with given fields: id
-func (_m *Controller) GetParameter(id string) (parameters.Parameter, error) {
+func (_m *Controller) GetParameter(id string) (*parameters.Parameter, error) {
 	ret := _m.Called(id)
 
-	var r0 parameters.Parameter
+	var r0 *parameters.Parameter
 	var r1 error
-	if rf, ok := ret.Get(0).(func(string) (parameters.Parameter, error)); ok {
+	if rf, ok := ret.Get(0).(func(string) (*parameters.Parameter, error)); ok {
 		return rf(id)
 	}
-	if rf, ok := ret.Get(0).(func(string) parameters.Parameter); ok {
+	if rf, ok := ret.Get(0).(func(string) *parameters.Parameter); ok {
 		r0 = rf(id)
 	} else {
-		r0 = ret.Get(0).(parameters.Parameter)
+		if ret.Get(0) != nil {
+			r0 = ret.Get(0).(*parameters.Parameter)
+		}
 	}
 
 	if rf, ok := ret.Get(1).(func(string) error); ok {
@@ -37,19 +39,19 @@ func (_m *Controller) GetParameter(id string) (parameters.Parameter, error) {
 }
 
 // GetParameterSpecifications provides a mock function with given fields:
-func (_m *Controller) GetParameterSpecifications() ([]parameters.ParameterSpecification, error) {
+func (_m *Controller) GetParameterSpecifications() ([]*parameters.ParameterSpecification, error) {
 	ret := _m.Called()
 
-	var r0 []parameters.ParameterSpecification
+	var r0 []*parameters.ParameterSpecification
 	var r1 error
-	if rf, ok := ret.Get(0).(func() ([]parameters.ParameterSpecification, error)); ok {
+	if rf, ok := ret.Get(0).(func() ([]*parameters.ParameterSpecification, error)); ok {
 		return rf()
 	}
-	if rf, ok := ret.Get(0).(func() []parameters.ParameterSpecification); ok {
+	if rf, ok := ret.Get(0).(func() []*parameters.ParameterSpecification); ok {
 		r0 = rf()
 	} else {
 		if ret.Get(0) != nil {
-			r0 = ret.Get(0).([]parameters.ParameterSpecification)
+			r0 = ret.Get(0).([]*parameters.ParameterSpecification)
 		}
 	}
 
@@ -63,11 +65,11 @@ func (_m *Controller) GetParameterSpecifications() ([]parameters.ParameterSpecif
 }
 
 // SetParameter provides a mock function with given fields: p
-func (_m *Controller) SetParameter(p parameters.Parameter) error {
+func (_m *Controller) SetParameter(p *parameters.Parameter) error {
 	ret := _m.Called(p)
 
 	var r0 error
-	if rf, ok := ret.Get(0).(func(parameters.Parameter) error); ok {
+	if rf, ok := ret.Get(0).(func(*parameters.Parameter) error); ok {
 		r0 = rf(p)
 	} else {
 		r0 = ret.Error(0)
