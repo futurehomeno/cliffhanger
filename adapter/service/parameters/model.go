@@ -99,8 +99,6 @@ func (s *ParameterSpecification) validateInput(p *Parameter) error {
 }
 
 func (s *ParameterSpecification) validateSelect(p *Parameter) error {
-	var value any
-
 	switch s.ValueType { //nolint:exhaustive
 	case ValueTypeInt:
 		v, err := p.IntValue()
@@ -108,28 +106,24 @@ func (s *ParameterSpecification) validateSelect(p *Parameter) error {
 			return err
 		}
 
-		value = v
+		if !contains[int](s.Options.IntValues(), v) {
+			return fmt.Errorf("parameter value '%d' is not allowed", v)
+		}
 	case ValueTypeString:
 		v, err := p.StringValue()
 		if err != nil {
 			return err
 		}
 
-		value = v
-	default:
-		return nil
-	}
-
-	if !s.Options.HaveValue(value) {
-		return fmt.Errorf("parameter value '%v' is not allowed", value)
+		if !contains[string](s.Options.StringValues(), v) {
+			return fmt.Errorf("parameter value '%s' is not allowed", v)
+		}
 	}
 
 	return nil
 }
 
 func (s *ParameterSpecification) validateMultiSelect(p *Parameter) error {
-	var vals []any
-
 	switch s.ValueType { //nolint:exhaustive
 	case ValueTypeIntArray:
 		v, err := p.IntArrayValue()
@@ -137,8 +131,8 @@ func (s *ParameterSpecification) validateMultiSelect(p *Parameter) error {
 			return err
 		}
 
-		for _, val := range v {
-			vals = append(vals, val)
+		if !includes[int](s.Options.IntValues(), v) {
+			return fmt.Errorf("parameter value '%d' is not allowed", v)
 		}
 	case ValueTypeStringArray:
 		v, err := p.StringArrayValue()
@@ -146,15 +140,9 @@ func (s *ParameterSpecification) validateMultiSelect(p *Parameter) error {
 			return err
 		}
 
-		for _, val := range v {
-			vals = append(vals, val)
+		if !includes[string](s.Options.StringValues(), v) {
+			return fmt.Errorf("parameter value '%s' is not allowed", v)
 		}
-	default:
-		return nil
-	}
-
-	if !s.Options.ContainValues(vals) {
-		return fmt.Errorf("parameter value '%v' is not allowed", vals)
 	}
 
 	return nil
@@ -169,26 +157,56 @@ type SelectOption struct {
 // SelectOptions represents a slice of select options.
 type SelectOptions []SelectOption
 
-// HaveValue checks if the slice of select options contains a value.
-func (o SelectOptions) HaveValue(v any) bool {
+// IntValues returns a slice of integer values.
+//
+//nolint:cyclop
+func (o SelectOptions) IntValues() []int {
+	var values []int
+
 	for _, option := range o {
-		if option.Value == v {
-			return true
+		switch v := option.Value.(type) {
+		case int:
+			values = append(values, v)
+		case int8:
+			values = append(values, int(v))
+		case int16:
+			values = append(values, int(v))
+		case int32:
+			values = append(values, int(v))
+		case int64:
+			values = append(values, int(v))
+		case float32:
+			values = append(values, int(v))
+		case float64:
+			values = append(values, int(v))
+		case uint:
+			values = append(values, int(v))
+		case uint8:
+			values = append(values, int(v))
+		case uint16:
+			values = append(values, int(v))
+		case uint32:
+			values = append(values, int(v))
+		case uint64:
+			values = append(values, int(v))
 		}
 	}
 
-	return false
+	return values
 }
 
-// ContainValues checks if the slice of select options contains provided values.
-func (o SelectOptions) ContainValues(v []any) bool {
-	for _, value := range v {
-		if !o.HaveValue(value) {
-			return false
+// StringValues returns a slice of string values.
+func (o SelectOptions) StringValues() []string {
+	var values []string
+
+	for _, option := range o {
+		v, ok := option.Value.(string)
+		if ok {
+			values = append(values, v)
 		}
 	}
 
-	return true
+	return values
 }
 
 // Parameter represents a parameter.
@@ -357,4 +375,26 @@ func (p *Parameter) valueMatchesValueType() bool {
 	}
 
 	return err == nil
+}
+
+// contains checks if the slice contains provided value.
+func contains[T comparable](s []T, v T) bool {
+	for _, e := range s {
+		if e == v {
+			return true
+		}
+	}
+
+	return false
+}
+
+// includes checks if the first slice includes the second slice.
+func includes[T comparable](s1 []T, s2 []T) bool {
+	for _, v := range s2 {
+		if !contains(s1, v) {
+			return false
+		}
+	}
+
+	return true
 }
