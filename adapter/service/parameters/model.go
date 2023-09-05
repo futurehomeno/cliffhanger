@@ -296,8 +296,6 @@ func (p *Parameter) BoolValue() (bool, error) {
 }
 
 // IntArrayValue returns a value of the parameter as a slice of integers.
-//
-//nolint:cyclop
 func (p *Parameter) IntArrayValue() ([]int, error) {
 	if p.ValueType != ValueTypeIntArray {
 		return nil, fmt.Errorf("value type '%s' is not an integer array", p.ValueType)
