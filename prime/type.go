@@ -150,7 +150,7 @@ func (d Devices) FindByTopic(topic string) *Device {
 }
 
 type Device struct {
-	FIMP          FIMP                   `json:"fimp"`
+	FIMP          DeviceFIMP             `json:"fimp"`
 	Client        ClientType             `json:"client"`
 	Functionality *string                `json:"functionality"`
 	Services      map[string]*Service    `json:"services"`
@@ -378,10 +378,12 @@ type Service struct {
 	Props      map[string]interface{} `json:"props"`
 }
 
-type FIMP struct {
-	Adapter string `json:"adapter"`
-	Address string `json:"address"`
-	Group   string `json:"group"`
+type DeviceFIMP struct {
+	Adapter         string `json:"adapter"`
+	Address         string `json:"address"`
+	AdapterResource string `json:"adapter_resource"`
+	AdapterAddress  string `json:"adapter_address"`
+	Group           string `json:"group"`
 }
 
 type ClientType struct {
@@ -403,11 +405,19 @@ func (t Things) FindByID(id int) *Thing {
 
 type Thing struct {
 	ID      int                    `json:"id"`
+	FIMP    ThingFIMP              `json:"fimp"`
 	Address string                 `json:"addr"`
 	Name    string                 `json:"name"`
 	Devices []int                  `json:"devices,omitempty"`
 	Props   map[string]interface{} `json:"props,omitempty"`
 	RoomID  int                    `json:"room"`
+}
+
+type ThingFIMP struct {
+	Address         string `json:"address"`
+	AdapterService  string `json:"adapter_service"`
+	AdapterResource string `json:"adapter_resource"`
+	AdapterAddress  string `json:"adapter_address"`
 }
 
 type Rooms []*Room
