@@ -1,6 +1,7 @@
 package config
 
 import (
+	"context"
 	"encoding/json"
 	"fmt"
 	"time"
@@ -36,7 +37,7 @@ func RouteCmdLogGetLevel(serviceName string, logGetter func() string) *router.Ro
 // HandleCmdLogGetLevel returns a handler responsible for handling the command.
 func HandleCmdLogGetLevel(serviceName string, logGetter func() string) router.MessageHandler {
 	return router.NewMessageHandler(
-		router.MessageProcessorFn(func(message *fimpgo.Message) (reply *fimpgo.FimpMessage, err error) {
+		router.MessageProcessorFn(func(ctx context.Context, message *fimpgo.Message) (reply *fimpgo.FimpMessage, err error) {
 			return fimpgo.NewStringMessage(
 				EvtLogLevelReport,
 				serviceName,
@@ -60,7 +61,7 @@ func RouteCmdLogSetLevel(serviceName string, logSetter func(string) error) *rout
 // HandleCmdLogSetLevel returns a handler responsible for handling the command.
 func HandleCmdLogSetLevel(serviceName string, logSetter func(string) error) router.MessageHandler {
 	return router.NewMessageHandler(
-		router.MessageProcessorFn(func(message *fimpgo.Message) (reply *fimpgo.FimpMessage, err error) {
+		router.MessageProcessorFn(func(ctx context.Context, message *fimpgo.Message) (reply *fimpgo.FimpMessage, err error) {
 			level, err := message.Payload.GetStringValue()
 			if err != nil {
 				return nil, err
@@ -272,7 +273,7 @@ func routeCmdConfigGet[T any](serviceName, setting, valueType string, getter fun
 // handleCmdConfigGet returns a handler responsible for handling the command.
 func handleCmdConfigGet[T any](serviceName, settingInterface, valueType string, getter func() T) router.MessageHandler {
 	return router.NewMessageHandler(
-		router.MessageProcessorFn(func(message *fimpgo.Message) (reply *fimpgo.FimpMessage, err error) {
+		router.MessageProcessorFn(func(ctx context.Context, message *fimpgo.Message) (reply *fimpgo.FimpMessage, err error) {
 			value := getter()
 
 			return fimpgo.NewMessage(
@@ -299,7 +300,7 @@ func routeCmdConfigSet[T any](serviceName, setting, valueType string, setter fun
 // handleCmdConfigSet returns a handler responsible for handling the command.
 func handleCmdConfigSet[T any](serviceName, settingInterface, valueType string, setter func(T) error) router.MessageHandler {
 	return router.NewMessageHandler(
-		router.MessageProcessorFn(func(message *fimpgo.Message) (reply *fimpgo.FimpMessage, err error) {
+		router.MessageProcessorFn(func(ctx context.Context, message *fimpgo.Message) (reply *fimpgo.FimpMessage, err error) {
 			if valueType != message.Payload.ValueType {
 				return nil, fmt.Errorf("config: message value type %s does not match the expected type %s", message.Payload.ValueType, valueType)
 			}

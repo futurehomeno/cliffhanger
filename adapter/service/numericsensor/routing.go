@@ -1,6 +1,7 @@
 package numericsensor
 
 import (
+	"context"
 	"fmt"
 
 	"github.com/futurehomeno/fimpgo"
@@ -75,7 +76,7 @@ func RouteCmdSensorGetReport(serviceRegistry adapter.ServiceRegistry) *router.Ro
 // HandleCmdSensorGetReport returns a handler responsible for handling the command.
 func HandleCmdSensorGetReport(serviceRegistry adapter.ServiceRegistry) router.MessageHandler {
 	return router.NewMessageHandler(
-		router.MessageProcessorFn(func(message *fimpgo.Message) (reply *fimpgo.FimpMessage, err error) {
+		router.MessageProcessorFn(func(ctx context.Context, message *fimpgo.Message) (reply *fimpgo.FimpMessage, err error) {
 			s := serviceRegistry.ServiceByTopic(message.Topic)
 			if s == nil {
 				return nil, fmt.Errorf("adapter: service not found under the provided address: %s", message.Addr.ServiceAddress)

@@ -1,15 +1,20 @@
 package router
 
 import (
+	"context"
 	"errors"
 	"sync"
 
 	"github.com/futurehomeno/fimpgo"
 	log "github.com/sirupsen/logrus"
+
+	"github.com/futurehomeno/cliffhanger/tracing"
 )
 
-// DefaultChannelID is a constant defining a default channel ID used by the router.
-const DefaultChannelID = "main_router"
+const (
+	// DefaultChannelID is a constant defining a default channel ID used by the router.
+	DefaultChannelID = "main_router"
+)
 
 // Router is an interface representing a service responsible for routing messages.
 type Router interface {
@@ -30,6 +35,7 @@ func NewRouter(mqtt *fimpgo.MqttTransport, channelID string, routing ...*Routing
 		lock:      &sync.Mutex{},
 		wg:        &sync.WaitGroup{},
 		cfg:       defaultConfig(),
+		tracer:    tracing.NewNoOpTracer(),
 	}
 }
 
@@ -39,6 +45,7 @@ type router struct {
 	channelID string
 	routing   []*Routing
 	mqtt      *fimpgo.MqttTransport
+	tracer    tracing.Tracer
 	lock      *sync.Mutex
 	wg        *sync.WaitGroup
 	stopCh    chan struct{}
@@ -46,8 +53,8 @@ type router struct {
 
 // WithOptions applies options to the router configuration.
 func (r *router) WithOptions(options ...Option) Router {
-	for _, option := range options {
-		option.apply(r.cfg)
+	for _, o := range options {
+		o(r)
 	}
 
 	return r
@@ -124,10 +131,27 @@ func (r *router) processMessage(message *fimpgo.Message) {
 			continue
 		}
 
-		response := routing.handler.Handle(message)
+		span, ctx := r.tracer.StartSpanFromContext(context.Background(), OperationNameRouteMessage, tracing.WithSpanType(SpanTypeMqtt))
+		span.SetTag(TagMessageType, message.Payload.Type)
+		span.SetTag(TagMessageService, message.Payload.Service)
+		span.SetTag(TagMessageTopic, message.Topic)
+
+		if message.Payload.Source != "" {
+			span.SetTag(TagMessageSource, message.Payload.Source)
+		}
+
+		response := routing.handler.Handle(ctx, message)
 		if response == nil {
+			span.Finish()
+
 			continue
 		}
+
+		if response.Payload.Type == EvtErrorReport {
+			span.SetTag(TagError, response.Payload.Properties[PropertyMsg])
+		}
+
+		span.Finish()
 
 		responseAddress := r.getResponseAddress(message, response)
 		if responseAddress == nil {
@@ -196,52 +220,48 @@ type config struct {
 	preserveGlobalPrefix bool
 }
 
-// Option is an interface representing a message router configuration option.
-type Option interface {
-	// apply applies option to the message router.
-	apply(cfg *config)
-}
-
-// messageHandlerOptionFn is an adapter allowing usage of anonymous function as a service meeting message router option interface.
-type optionFn func(cfg *config)
-
-// apply applies option to the message router.
-func (f optionFn) apply(cfg *config) {
-	f(cfg)
-}
+// Option represents an option for the router.
+type Option func(r *router)
 
 // WithSyncProcessing returns an option that enables synchronous processing of incoming messages.
 func WithSyncProcessing() Option {
-	return optionFn(func(cfg *config) {
-		cfg.concurrency = 1
-	})
+	return func(r *router) {
+		r.cfg.concurrency = 1
+	}
 }
 
 // WithAsyncProcessing returns an option that sets the number of concurrent workers processing incoming messages.
 func WithAsyncProcessing(concurrency int) Option {
-	return optionFn(func(cfg *config) {
+	return func(r *router) {
 		if concurrency < 2 {
 			return
 		}
 
-		cfg.concurrency = concurrency
-	})
+		r.cfg.concurrency = concurrency
+	}
 }
 
 // WithMessageBuffer returns an option that sets the buffer size for incoming messages.
 func WithMessageBuffer(buffer int) Option {
-	return optionFn(func(cfg *config) {
+	return func(r *router) {
 		if buffer < 0 {
 			return
 		}
 
-		cfg.buffer = buffer
-	})
+		r.cfg.buffer = buffer
+	}
 }
 
 // WithPreservedGlobalPrefix returns an option that enables preserving global prefix in the reply topic address.
 func WithPreservedGlobalPrefix() Option {
-	return optionFn(func(cfg *config) {
-		cfg.preserveGlobalPrefix = true
-	})
+	return func(r *router) {
+		r.cfg.preserveGlobalPrefix = true
+	}
+}
+
+// WithTracer returns an option that sets the tracer for the router.
+func WithTracer(t tracing.Tracer) Option {
+	return func(r *router) {
+		r.tracer = t
+	}
 }

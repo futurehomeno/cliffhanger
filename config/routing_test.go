@@ -1,6 +1,7 @@
 package config_test
 
 import (
+	"context"
 	"encoding/json"
 	"errors"
 	"testing"
@@ -68,7 +69,7 @@ func TestHandleCmdLogGetLevel(t *testing.T) { //nolint:paralleltest
 		t.Run(tt.name, func(t *testing.T) {
 			f := config.HandleCmdLogSetLevel("test", tt.logSetter)
 
-			got := f.Handle(tt.msg)
+			got := f.Handle(context.Background(), tt.msg)
 
 			if tt.wantErr {
 				assert.NotNil(t, got)

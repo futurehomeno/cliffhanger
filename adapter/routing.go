@@ -1,6 +1,7 @@
 package adapter
 
 import (
+	"context"
 	"fmt"
 
 	"github.com/futurehomeno/fimpgo"
@@ -47,7 +48,7 @@ func routeCmdThingGetInclusionReport(adapter Adapter) *router.Routing {
 // handleCmdThingGetInclusionReport returns a handler responsible for handling the command.
 func handleCmdThingGetInclusionReport(adapter Adapter) router.MessageHandler {
 	return router.NewMessageHandler(
-		router.MessageProcessorFn(func(message *fimpgo.Message) (reply *fimpgo.FimpMessage, err error) {
+		router.MessageProcessorFn(func(ctx context.Context, message *fimpgo.Message) (reply *fimpgo.FimpMessage, err error) {
 			t, err := getThingByMessage(adapter, message)
 			if err != nil {
 				return nil, err
@@ -75,7 +76,7 @@ func routeCmdThingDelete(adapter Adapter) *router.Routing {
 // handleCmdThingDelete returns a handler responsible for handling the command.
 func handleCmdThingDelete(adapter Adapter) router.MessageHandler {
 	return router.NewMessageHandler(
-		router.MessageProcessorFn(func(message *fimpgo.Message) (reply *fimpgo.FimpMessage, err error) {
+		router.MessageProcessorFn(func(ctx context.Context, message *fimpgo.Message) (reply *fimpgo.FimpMessage, err error) {
 			value, err := message.Payload.GetStrMapValue()
 			if err != nil {
 				return nil, fmt.Errorf("adapter: provided address has an incorrect format: %w", err)
@@ -105,7 +106,7 @@ func routeCmdNetworkReset(adapter Adapter) *router.Routing {
 // handleCmdNetworkReset returns a handler responsible for handling the command.
 func handleCmdNetworkReset(adapter Adapter) router.MessageHandler {
 	return router.NewMessageHandler(
-		router.MessageProcessorFn(func(message *fimpgo.Message) (reply *fimpgo.FimpMessage, err error) {
+		router.MessageProcessorFn(func(ctx context.Context, message *fimpgo.Message) (reply *fimpgo.FimpMessage, err error) {
 			err = adapter.DestroyAllThings()
 			if err != nil {
 				return nil, fmt.Errorf("adapter: failed to reset all things: %w", err)
@@ -134,7 +135,7 @@ func routeCmdNetworkGetNode(adapter Adapter) *router.Routing {
 // handleCmdNetworkGetNode returns a handler responsible for handling the command.
 func handleCmdNetworkGetNode(adapter Adapter) router.MessageHandler {
 	return router.NewMessageHandler(
-		router.MessageProcessorFn(func(message *fimpgo.Message) (reply *fimpgo.FimpMessage, err error) {
+		router.MessageProcessorFn(func(ctx context.Context, message *fimpgo.Message) (reply *fimpgo.FimpMessage, err error) {
 			t, err := getThingByMessage(adapter, message)
 			if err != nil {
 				return nil, err
@@ -162,7 +163,7 @@ func routeCmdNetworkGetAllNodes(adapter Adapter) *router.Routing {
 // handleCmdNetworkGetAllNodes returns a handler responsible for handling the command.
 func handleCmdNetworkGetAllNodes(adapter Adapter) router.MessageHandler {
 	return router.NewMessageHandler(
-		router.MessageProcessorFn(func(message *fimpgo.Message) (reply *fimpgo.FimpMessage, err error) {
+		router.MessageProcessorFn(func(ctx context.Context, message *fimpgo.Message) (reply *fimpgo.FimpMessage, err error) {
 			err = adapter.SendConnectivityReport()
 			if err != nil {
 				return nil, fmt.Errorf("adapter: failed to send connectivity report: %w", err)
@@ -185,7 +186,7 @@ func routeCmdPingSend(adapter Adapter) *router.Routing {
 // handleCmdPingSend returns a handler responsible for handling the command.
 func handleCmdPingSend(adapter Adapter) router.MessageHandler {
 	return router.NewMessageHandler(
-		router.MessageProcessorFn(func(message *fimpgo.Message) (reply *fimpgo.FimpMessage, err error) {
+		router.MessageProcessorFn(func(ctx context.Context, message *fimpgo.Message) (reply *fimpgo.FimpMessage, err error) {
 			t, err := getThingByMessage(adapter, message)
 			if err != nil {
 				return nil, err

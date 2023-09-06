@@ -1,6 +1,7 @@
 package chargepoint
 
 import (
+	"context"
 	"fmt"
 
 	"github.com/futurehomeno/fimpgo"
@@ -55,7 +56,7 @@ func routeCmdChargeStart(serviceRegistry adapter.ServiceRegistry) *router.Routin
 // handleCmdChargeStart returns a handler responsible for handling the command.
 func handleCmdChargeStart(serviceRegistry adapter.ServiceRegistry) router.MessageHandler {
 	return router.NewMessageHandler(
-		router.MessageProcessorFn(func(message *fimpgo.Message) (*fimpgo.FimpMessage, error) {
+		router.MessageProcessorFn(func(ctx context.Context, message *fimpgo.Message) (*fimpgo.FimpMessage, error) {
 			chargepoint, err := getService(serviceRegistry, message)
 			if err != nil {
 				return nil, err
@@ -97,7 +98,7 @@ func routeCmdChargeStop(serviceRegistry adapter.ServiceRegistry) *router.Routing
 // handleCmdChargeStop returns a handler responsible for handling the command.
 func handleCmdChargeStop(serviceRegistry adapter.ServiceRegistry) router.MessageHandler {
 	return router.NewMessageHandler(
-		router.MessageProcessorFn(func(message *fimpgo.Message) (*fimpgo.FimpMessage, error) {
+		router.MessageProcessorFn(func(ctx context.Context, message *fimpgo.Message) (*fimpgo.FimpMessage, error) {
 			chargepoint, err := getService(serviceRegistry, message)
 			if err != nil {
 				return nil, err
@@ -135,7 +136,7 @@ func routeCmdCableLockSet(serviceRegistry adapter.ServiceRegistry) *router.Routi
 // handleCmdCableLockSet returns a handler responsible for handling the command.
 func handleCmdCableLockSet(serviceRegistry adapter.ServiceRegistry) router.MessageHandler {
 	return router.NewMessageHandler(
-		router.MessageProcessorFn(func(message *fimpgo.Message) (*fimpgo.FimpMessage, error) {
+		router.MessageProcessorFn(func(ctx context.Context, message *fimpgo.Message) (*fimpgo.FimpMessage, error) {
 			chargepoint, err := getService(serviceRegistry, message)
 			if err != nil {
 				return nil, err
@@ -173,7 +174,7 @@ func routeCmdStateGetReport(serviceRegistry adapter.ServiceRegistry) *router.Rou
 // handleCmdStateGetReport returns a handler responsible for handling the command.
 func handleCmdStateGetReport(serviceRegistry adapter.ServiceRegistry) router.MessageHandler {
 	return router.NewMessageHandler(
-		router.MessageProcessorFn(func(message *fimpgo.Message) (*fimpgo.FimpMessage, error) {
+		router.MessageProcessorFn(func(ctx context.Context, message *fimpgo.Message) (*fimpgo.FimpMessage, error) {
 			chargepoint, err := getService(serviceRegistry, message)
 			if err != nil {
 				return nil, err
@@ -201,7 +202,7 @@ func routeCmdCableLockGetReport(serviceRegistry adapter.ServiceRegistry) *router
 // handleCmdCableLockGetReport returns a handler responsible for handling the command.
 func handleCmdCableLockGetReport(serviceRegistry adapter.ServiceRegistry) router.MessageHandler {
 	return router.NewMessageHandler(
-		router.MessageProcessorFn(func(message *fimpgo.Message) (*fimpgo.FimpMessage, error) {
+		router.MessageProcessorFn(func(ctx context.Context, message *fimpgo.Message) (*fimpgo.FimpMessage, error) {
 			chargepoint, err := getService(serviceRegistry, message)
 			if err != nil {
 				return nil, err
@@ -229,7 +230,7 @@ func routeCmdCurrentSessionSetCurrent(serviceRegistry adapter.ServiceRegistry) *
 // handleCmdCurrentSessionSetCurrent returns a handler responsible for handling the command.
 func handleCmdCurrentSessionSetCurrent(serviceRegistry adapter.ServiceRegistry) router.MessageHandler {
 	return router.NewMessageHandler(
-		router.MessageProcessorFn(func(message *fimpgo.Message) (*fimpgo.FimpMessage, error) {
+		router.MessageProcessorFn(func(ctx context.Context, message *fimpgo.Message) (*fimpgo.FimpMessage, error) {
 			chargepoint, err := getService(serviceRegistry, message)
 			if err != nil {
 				return nil, err
@@ -267,7 +268,7 @@ func routeCmdCurrentSessionGetReport(serviceRegistry adapter.ServiceRegistry) *r
 // handleCmdCurrentSessionGetReport returns a handler responsible for handling the command.
 func handleCmdCurrentSessionGetReport(serviceRegistry adapter.ServiceRegistry) router.MessageHandler {
 	return router.NewMessageHandler(
-		router.MessageProcessorFn(func(message *fimpgo.Message) (*fimpgo.FimpMessage, error) {
+		router.MessageProcessorFn(func(ctx context.Context, message *fimpgo.Message) (*fimpgo.FimpMessage, error) {
 			chargepoint, err := getService(serviceRegistry, message)
 			if err != nil {
 				return nil, err
@@ -295,7 +296,7 @@ func routeCmdMaxCurrentSet(serviceRegistry adapter.ServiceRegistry) *router.Rout
 // handleCmdMaxCurrentSet returns a handler responsible for handling the command.
 func handleCmdMaxCurrentSet(serviceRegistry adapter.ServiceRegistry) router.MessageHandler {
 	return router.NewMessageHandler(
-		router.MessageProcessorFn(func(message *fimpgo.Message) (*fimpgo.FimpMessage, error) {
+		router.MessageProcessorFn(func(ctx context.Context, message *fimpgo.Message) (*fimpgo.FimpMessage, error) {
 			chargepoint, err := getService(serviceRegistry, message)
 			if err != nil {
 				return nil, err
@@ -333,7 +334,7 @@ func routeCmdMaxCurrentGetReport(serviceRegistry adapter.ServiceRegistry) *route
 // handleCmdMaxCurrentGetReport returns a handler responsible for handling the command.
 func handleCmdMaxCurrentGetReport(serviceRegistry adapter.ServiceRegistry) router.MessageHandler {
 	return router.NewMessageHandler(
-		router.MessageProcessorFn(func(message *fimpgo.Message) (*fimpgo.FimpMessage, error) {
+		router.MessageProcessorFn(func(ctx context.Context, message *fimpgo.Message) (*fimpgo.FimpMessage, error) {
 			chargepoint, err := getService(serviceRegistry, message)
 			if err != nil {
 				return nil, err

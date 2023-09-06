@@ -1,6 +1,7 @@
 package numericmeter
 
 import (
+	"context"
 	"fmt"
 
 	"github.com/futurehomeno/fimpgo"
@@ -50,7 +51,7 @@ func routeCmdMeterGetReport(serviceRegistry adapter.ServiceRegistry) *router.Rou
 // handleCmdMeterGetReport returns a handler responsible for handling the command.
 func handleCmdMeterGetReport(serviceRegistry adapter.ServiceRegistry) router.MessageHandler {
 	return router.NewMessageHandler(
-		router.MessageProcessorFn(func(message *fimpgo.Message) (reply *fimpgo.FimpMessage, err error) {
+		router.MessageProcessorFn(func(ctx context.Context, message *fimpgo.Message) (reply *fimpgo.FimpMessage, err error) {
 			meter, err := getService(serviceRegistry, message)
 			if err != nil {
 				return nil, err
@@ -92,7 +93,7 @@ func routeCmdMeterExportGetReport(serviceRegistry adapter.ServiceRegistry) *rout
 // handleCmdMeterGetReport returns a handler responsible for handling the command.
 func handleCmdMeterExportGetReport(serviceRegistry adapter.ServiceRegistry) router.MessageHandler {
 	return router.NewMessageHandler(
-		router.MessageProcessorFn(func(message *fimpgo.Message) (reply *fimpgo.FimpMessage, err error) {
+		router.MessageProcessorFn(func(ctx context.Context, message *fimpgo.Message) (reply *fimpgo.FimpMessage, err error) {
 			meter, err := getService(serviceRegistry, message)
 			if err != nil {
 				return nil, err
@@ -134,7 +135,7 @@ func routeCmdMeterExtGetReport(serviceRegistry adapter.ServiceRegistry) *router.
 // handleCmdMeterExtGetReport returns a handler responsible for handling the command.
 func handleCmdMeterExtGetReport(serviceRegistry adapter.ServiceRegistry) router.MessageHandler {
 	return router.NewMessageHandler(
-		router.MessageProcessorFn(func(message *fimpgo.Message) (reply *fimpgo.FimpMessage, err error) {
+		router.MessageProcessorFn(func(ctx context.Context, message *fimpgo.Message) (reply *fimpgo.FimpMessage, err error) {
 			meter, err := getService(serviceRegistry, message)
 			if err != nil {
 				return nil, err
@@ -174,7 +175,7 @@ func routeCmdMeterReset(serviceRegistry adapter.ServiceRegistry) *router.Routing
 // handleCmdMeterReset returns a handler responsible for handling the command.
 func handleCmdMeterReset(serviceRegistry adapter.ServiceRegistry) router.MessageHandler {
 	return router.NewMessageHandler(
-		router.MessageProcessorFn(func(message *fimpgo.Message) (reply *fimpgo.FimpMessage, err error) {
+		router.MessageProcessorFn(func(ctx context.Context, message *fimpgo.Message) (reply *fimpgo.FimpMessage, err error) {
 			meter, err := getService(serviceRegistry, message)
 			if err != nil {
 				return nil, err

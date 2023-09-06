@@ -1,6 +1,7 @@
 package router_test
 
 import (
+	"context"
 	"errors"
 	"sync"
 	"testing"
@@ -16,7 +17,7 @@ import (
 func Test_Router(t *testing.T) { //nolint:paralleltest
 	panicRouting := router.NewRouting(router.NewMessageHandler(
 		router.MessageProcessorFn(
-			func(message *fimpgo.Message) (reply *fimpgo.FimpMessage, err error) {
+			func(ctx context.Context, message *fimpgo.Message) (reply *fimpgo.FimpMessage, err error) {
 				panic("test panic")
 			})),
 		router.ForService("test_service"),
@@ -54,7 +55,7 @@ func Test_Router_Concurrency(t *testing.T) { //nolint:paralleltest
 	routeMessage := func(command string, delay time.Duration, options ...router.MessageHandlerOption) *router.Routing {
 		return router.NewRouting(router.NewMessageHandler(
 			router.MessageProcessorFn(
-				func(message *fimpgo.Message) (reply *fimpgo.FimpMessage, err error) {
+				func(ctx context.Context, message *fimpgo.Message) (reply *fimpgo.FimpMessage, err error) {
 					time.Sleep(delay)
 					lock.Lock()
 					defer lock.Unlock()
@@ -234,7 +235,7 @@ func Test_Router_Concurrency(t *testing.T) { //nolint:paralleltest
 func Test_Router_OptionalSuccessConfirmation(t *testing.T) { //nolint:paralleltest
 	successConfirmationRouting := func(messageType string, message *fimpgo.FimpMessage, err error) *router.Routing {
 		return router.NewRouting(router.NewMessageHandler(router.MessageProcessorFn(
-			func(*fimpgo.Message) (*fimpgo.FimpMessage, error) {
+			func(context.Context, *fimpgo.Message) (*fimpgo.FimpMessage, error) {
 				return message, err
 			}), router.WithSuccessConfirmation()),
 			router.ForService("test_service"),
@@ -244,7 +245,7 @@ func Test_Router_OptionalSuccessConfirmation(t *testing.T) { //nolint:parallelte
 
 	noConfirmationRouting := func(messageType string, message *fimpgo.FimpMessage, err error) *router.Routing {
 		return router.NewRouting(router.NewMessageHandler(router.MessageProcessorFn(
-			func(*fimpgo.Message) (*fimpgo.FimpMessage, error) {
+			func(context.Context, *fimpgo.Message) (*fimpgo.FimpMessage, error) {
 				return message, err
 			})),
 			router.ForService("test_service"),

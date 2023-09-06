@@ -1,6 +1,7 @@
 package outlvlswitch
 
 import (
+	"context"
 	"fmt"
 	"time"
 
@@ -44,7 +45,7 @@ func RouteCmdLvlSet(serviceRegistry adapter.ServiceRegistry) *router.Routing {
 // HandleCmdLvlSet returns a handler responsible for handling the command.
 func HandleCmdLvlSet(serviceRegistry adapter.ServiceRegistry) router.MessageHandler {
 	return router.NewMessageHandler(
-		router.MessageProcessorFn(func(message *fimpgo.Message) (*fimpgo.FimpMessage, error) {
+		router.MessageProcessorFn(func(ctx context.Context, message *fimpgo.Message) (*fimpgo.FimpMessage, error) {
 			s := serviceRegistry.ServiceByTopic(message.Topic)
 			if s == nil {
 				return nil, fmt.Errorf("adapter: service not found under the provided address: %s", message.Addr.ServiceAddress)
@@ -105,7 +106,7 @@ func RouteCmdBinarySet(serviceRegistry adapter.ServiceRegistry) *router.Routing 
 // HandleCmdBinarySet returns a handler responsible for handling the command.
 func HandleCmdBinarySet(serviceRegistry adapter.ServiceRegistry) router.MessageHandler {
 	return router.NewMessageHandler(
-		router.MessageProcessorFn(func(message *fimpgo.Message) (*fimpgo.FimpMessage, error) {
+		router.MessageProcessorFn(func(ctx context.Context, message *fimpgo.Message) (*fimpgo.FimpMessage, error) {
 			s := serviceRegistry.ServiceByTopic(message.Topic)
 			if s == nil {
 				return nil, fmt.Errorf("adapter: service not found under the provided address: %s", message.Addr.ServiceAddress)
@@ -148,7 +149,7 @@ func RouteCmdLvlGetReport(serviceRegistry adapter.ServiceRegistry) *router.Routi
 // HandleCmdLvlGetReport returns a handler responsible for handling the command.
 func HandleCmdLvlGetReport(serviceRegistry adapter.ServiceRegistry) router.MessageHandler {
 	return router.NewMessageHandler(
-		router.MessageProcessorFn(func(message *fimpgo.Message) (*fimpgo.FimpMessage, error) {
+		router.MessageProcessorFn(func(ctx context.Context, message *fimpgo.Message) (*fimpgo.FimpMessage, error) {
 			s := serviceRegistry.ServiceByTopic(message.Topic)
 			if s == nil {
 				return nil, fmt.Errorf("adapter: service not found under the provided address: %s", message.Addr.ServiceAddress)

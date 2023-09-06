@@ -1,6 +1,7 @@
 package app
 
 import (
+	"context"
 	"fmt"
 
 	"github.com/futurehomeno/fimpgo"
@@ -88,7 +89,7 @@ func RouteCmdAppGetState(serviceName string, appLifecycle *lifecycle.Lifecycle) 
 // HandleCmdAppGetState returns a handler responsible for handling the command.
 func HandleCmdAppGetState(serviceName string, appLifecycle *lifecycle.Lifecycle) router.MessageHandler {
 	return router.NewMessageHandler(
-		router.MessageProcessorFn(func(message *fimpgo.Message) (reply *fimpgo.FimpMessage, err error) {
+		router.MessageProcessorFn(func(ctx context.Context, message *fimpgo.Message) (reply *fimpgo.FimpMessage, err error) {
 			msg := fimpgo.NewMessage(
 				EvtAppStateReport,
 				serviceName,
@@ -115,7 +116,7 @@ func RouteCmdConfigGetExtendedReport(serviceName string, storage storage.Storage
 // HandleCmdConfigGetExtendedReport returns a handler responsible for handling the command.
 func HandleCmdConfigGetExtendedReport(serviceName string, storage storage.Storage) router.MessageHandler {
 	return router.NewMessageHandler(
-		router.MessageProcessorFn(func(message *fimpgo.Message) (reply *fimpgo.FimpMessage, err error) {
+		router.MessageProcessorFn(func(ctx context.Context, message *fimpgo.Message) (reply *fimpgo.FimpMessage, err error) {
 			msg := fimpgo.NewMessage(
 				EvtConfigExtendedReport,
 				serviceName,
@@ -152,7 +153,7 @@ func HandleCmdAppGetManifest(
 	app App,
 ) router.MessageHandler {
 	return router.NewMessageHandler(
-		router.MessageProcessorFn(func(message *fimpgo.Message) (*fimpgo.FimpMessage, error) {
+		router.MessageProcessorFn(func(ctx context.Context, message *fimpgo.Message) (*fimpgo.FimpMessage, error) {
 			mode, err := message.Payload.GetStringValue()
 			if err != nil {
 				return nil, fmt.Errorf("provided value has an incorrect format: %w", err)
@@ -201,7 +202,7 @@ func HandleCmdConfigExtendedSet(
 	locker router.MessageHandlerLocker,
 ) router.MessageHandler {
 	return router.NewMessageHandler(
-		router.MessageProcessorFn(func(message *fimpgo.Message) (*fimpgo.FimpMessage, error) {
+		router.MessageProcessorFn(func(ctx context.Context, message *fimpgo.Message) (*fimpgo.FimpMessage, error) {
 			cfg := configFactory()
 
 			err := message.Payload.GetObjectValue(cfg)
@@ -244,7 +245,7 @@ func HandleCmdAppUninstall(
 	locker router.MessageHandlerLocker,
 ) router.MessageHandler {
 	return router.NewMessageHandler(
-		router.MessageProcessorFn(func(message *fimpgo.Message) (*fimpgo.FimpMessage, error) {
+		router.MessageProcessorFn(func(ctx context.Context, message *fimpgo.Message) (*fimpgo.FimpMessage, error) {
 			err := app.Uninstall()
 			if err != nil {
 				return makeConfigurationReply(serviceName, EvtAppUninstallReport, message, appLifecycle, err), nil
@@ -314,7 +315,7 @@ func HandleConfigActionCommand(
 	locker router.MessageHandlerLocker,
 ) router.MessageHandler {
 	return router.NewMessageHandler(
-		router.MessageProcessorFn(func(message *fimpgo.Message) (*fimpgo.FimpMessage, error) {
+		router.MessageProcessorFn(func(ctx context.Context, message *fimpgo.Message) (*fimpgo.FimpMessage, error) {
 			parameter, _ := message.Payload.GetStringValue()
 
 			response := action(parameter)
@@ -391,7 +392,7 @@ func HandleCmdAuthLogin(
 	app LogginableApp,
 ) router.MessageHandler {
 	return router.NewMessageHandler(
-		router.MessageProcessorFn(func(message *fimpgo.Message) (*fimpgo.FimpMessage, error) {
+		router.MessageProcessorFn(func(ctx context.Context, message *fimpgo.Message) (*fimpgo.FimpMessage, error) {
 			credentials := &LoginCredentials{}
 
 			err := message.Payload.GetObjectValue(credentials)
@@ -451,7 +452,7 @@ func HandleCmdAuthSetTokens(
 	app AuthorizableApp,
 ) router.MessageHandler {
 	return router.NewMessageHandler(
-		router.MessageProcessorFn(func(message *fimpgo.Message) (*fimpgo.FimpMessage, error) {
+		router.MessageProcessorFn(func(ctx context.Context, message *fimpgo.Message) (*fimpgo.FimpMessage, error) {
 			credentials := &auth.OAuth2TokenResponse{}
 
 			err := message.Payload.GetObjectValue(credentials)
@@ -506,7 +507,7 @@ func HandleCmdAuthLogout(
 	app LogoutableApp,
 ) router.MessageHandler {
 	return router.NewMessageHandler(
-		router.MessageProcessorFn(func(message *fimpgo.Message) (*fimpgo.FimpMessage, error) {
+		router.MessageProcessorFn(func(ctx context.Context, message *fimpgo.Message) (*fimpgo.FimpMessage, error) {
 			report := &AuthenticationReport{}
 
 			if err := app.Logout(); err != nil {

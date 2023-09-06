@@ -1,6 +1,7 @@
 package router
 
 import (
+	"context"
 	"fmt"
 	"sync"
 
@@ -11,29 +12,29 @@ import (
 // MessageHandler is an interface representing a message handler service.
 type MessageHandler interface {
 	// Handle handles the incoming message and optionally returns a response. If no response is expected a nil message should be returned.
-	Handle(message *fimpgo.Message) (reply *fimpgo.Message)
+	Handle(ctx context.Context, message *fimpgo.Message) (reply *fimpgo.Message)
 }
 
 // MessageHandlerFn is an adapter allowing usage of anonymous function as a service meeting message handler interface.
-type MessageHandlerFn func(message *fimpgo.Message) (reply *fimpgo.Message)
+type MessageHandlerFn func(ctx context.Context, message *fimpgo.Message) (reply *fimpgo.Message)
 
 // Handle handles the incoming message and optionally returns a response. If no response is expected a nil message should be returned.
-func (f MessageHandlerFn) Handle(message *fimpgo.Message) (reply *fimpgo.Message) {
-	return f(message)
+func (f MessageHandlerFn) Handle(ctx context.Context, message *fimpgo.Message) (reply *fimpgo.Message) {
+	return f(ctx, message)
 }
 
 // MessageProcessor is an interface representing a message processor service.
 type MessageProcessor interface {
 	// Process is responsible for processing incoming message and returning response payload and optionally an error.
-	Process(message *fimpgo.Message) (reply *fimpgo.FimpMessage, err error)
+	Process(ctx context.Context, message *fimpgo.Message) (reply *fimpgo.FimpMessage, err error)
 }
 
 // MessageProcessorFn is an adapter allowing usage of anonymous function as a service meeting message processor interface.
-type MessageProcessorFn func(message *fimpgo.Message) (reply *fimpgo.FimpMessage, err error)
+type MessageProcessorFn func(ctx context.Context, message *fimpgo.Message) (reply *fimpgo.FimpMessage, err error)
 
 // Process is responsible for processing incoming message and returning response payload and optionally an error.
-func (f MessageProcessorFn) Process(message *fimpgo.Message) (reply *fimpgo.FimpMessage, err error) {
-	return f(message)
+func (f MessageProcessorFn) Process(ctx context.Context, message *fimpgo.Message) (reply *fimpgo.FimpMessage, err error) {
+	return f(ctx, message)
 }
 
 // MessageHandlerLocker is an interface representing a locker used to prevent concurrent message processing.
@@ -88,7 +89,7 @@ func NewMessageHandler(processor MessageProcessor, options ...MessageHandlerOpti
 	}
 
 	for _, o := range options {
-		o.apply(h)
+		o(h)
 	}
 
 	return h
@@ -105,7 +106,7 @@ type messageHandler struct {
 }
 
 // Handle handles the incoming message and optionally returns a response.
-func (m *messageHandler) Handle(message *fimpgo.Message) *fimpgo.Message {
+func (m *messageHandler) Handle(ctx context.Context, message *fimpgo.Message) *fimpgo.Message {
 	if m.locker != nil {
 		if !m.locker.Lock() {
 			return m.handleError(
@@ -115,7 +116,7 @@ func (m *messageHandler) Handle(message *fimpgo.Message) *fimpgo.Message {
 		defer m.locker.Unlock()
 	}
 
-	reply, err := m.processor.Process(message)
+	reply, err := m.processor.Process(ctx, message)
 	if err != nil {
 		return m.handleError(message, err)
 	}
@@ -211,51 +212,40 @@ func (m *messageHandler) getResponseAddress(requestAddress *fimpgo.Address) *fim
 	}
 }
 
-// MessageHandlerOption is an interface representing a message handler configuration option.
-type MessageHandlerOption interface {
-	// apply applies option to the message handler.
-	apply(h *messageHandler)
-}
-
-// messageHandlerOptionFn is an adapter allowing usage of anonymous function as a service meeting message handler option interface.
-type messageHandlerOptionFn func(h *messageHandler)
-
-// apply applies option to the message handler.
-func (f messageHandlerOptionFn) apply(h *messageHandler) {
-	f(h)
-}
+// MessageHandlerOption is an option that can alter the message handler configuration.
+type MessageHandlerOption func(h *messageHandler)
 
 // WithSilentErrors makes handler only log errors and not respond with error messages.
 func WithSilentErrors() MessageHandlerOption {
-	return messageHandlerOptionFn(func(h *messageHandler) {
+	return func(h *messageHandler) {
 		h.silentErrors = true
-	})
+	}
 }
 
 // WithDefaultAddress makes handler use a provided address, instead of inferring a response address out of request message address.
 func WithDefaultAddress(defaultAddress *fimpgo.Address) MessageHandlerOption {
-	return messageHandlerOptionFn(func(h *messageHandler) {
+	return func(h *messageHandler) {
 		h.defaultAddress = defaultAddress
-	})
+	}
 }
 
 // WithLock makes sure handler will process only one message at a time, ignoring other ones.
 func WithLock() MessageHandlerOption {
-	return messageHandlerOptionFn(func(h *messageHandler) {
+	return func(h *messageHandler) {
 		h.locker = NewMessageHandlerLocker()
-	})
+	}
 }
 
 // WithExternalLock makes sure handler will process message only if an external lock allows for it.
 func WithExternalLock(locker MessageHandlerLocker) MessageHandlerOption {
-	return messageHandlerOptionFn(func(h *messageHandler) {
+	return func(h *messageHandler) {
 		h.locker = locker
-	})
+	}
 }
 
 // WithSuccessConfirmation makes handler respond with success report if message processor do not reply with a message.
 func WithSuccessConfirmation() MessageHandlerOption {
-	return messageHandlerOptionFn(func(h *messageHandler) {
+	return func(h *messageHandler) {
 		h.confirmSuccess = true
-	})
+	}
 }

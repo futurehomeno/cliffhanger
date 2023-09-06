@@ -1,6 +1,7 @@
 package parameters
 
 import (
+	"context"
 	"fmt"
 
 	"github.com/futurehomeno/fimpgo"
@@ -41,7 +42,7 @@ func routeCmdSupParamsGetReport(serviceRegistry adapter.ServiceRegistry) *router
 // handleCmdSupParamsGetReport returns a handler responsible for handling the command.
 func handleCmdSupParamsGetReport(serviceRegistry adapter.ServiceRegistry) router.MessageHandler {
 	return router.NewMessageHandler(
-		router.MessageProcessorFn(func(message *fimpgo.Message) (*fimpgo.FimpMessage, error) {
+		router.MessageProcessorFn(func(ctx context.Context, message *fimpgo.Message) (*fimpgo.FimpMessage, error) {
 			parameters, err := getService(serviceRegistry, message)
 			if err != nil {
 				return nil, err
@@ -69,7 +70,7 @@ func routeCmdParamSet(serviceRegistry adapter.ServiceRegistry) *router.Routing {
 // handleCmdParamSet returns a handler responsible for handling the command.
 func handleCmdParamSet(serviceRegistry adapter.ServiceRegistry) router.MessageHandler {
 	return router.NewMessageHandler(
-		router.MessageProcessorFn(func(message *fimpgo.Message) (*fimpgo.FimpMessage, error) {
+		router.MessageProcessorFn(func(ctx context.Context, message *fimpgo.Message) (*fimpgo.FimpMessage, error) {
 			parameters, err := getService(serviceRegistry, message)
 			if err != nil {
 				return nil, err
@@ -106,7 +107,7 @@ func routeCmdParamGetReport(serviceRegistry adapter.ServiceRegistry) *router.Rou
 // handleCmdParamGetReport returns a handler responsible for handling the command.
 func handleCmdParamGetReport(serviceRegistry adapter.ServiceRegistry) router.MessageHandler {
 	return router.NewMessageHandler(
-		router.MessageProcessorFn(func(message *fimpgo.Message) (*fimpgo.FimpMessage, error) {
+		router.MessageProcessorFn(func(ctx context.Context, message *fimpgo.Message) (*fimpgo.FimpMessage, error) {
 			parameters, err := getService(serviceRegistry, message)
 			if err != nil {
 				return nil, err

@@ -1,6 +1,7 @@
 package waterheater
 
 import (
+	"context"
 	"fmt"
 
 	"github.com/futurehomeno/fimpgo"
@@ -46,7 +47,7 @@ func RouteCmdModeSet(adapter adapter.ServiceRegistry) *router.Routing {
 // HandleCmdModeSet returns a handler responsible for handling the command.
 func HandleCmdModeSet(adapter adapter.ServiceRegistry) router.MessageHandler {
 	return router.NewMessageHandler(
-		router.MessageProcessorFn(func(message *fimpgo.Message) (*fimpgo.FimpMessage, error) {
+		router.MessageProcessorFn(func(ctx context.Context, message *fimpgo.Message) (*fimpgo.FimpMessage, error) {
 			s := adapter.ServiceByTopic(message.Topic)
 			if s == nil {
 				return nil, fmt.Errorf("adapter: service not found under the provided address: %s", message.Addr.ServiceAddress)
@@ -96,7 +97,7 @@ func RouteCmdSetpointSet(adapter adapter.ServiceRegistry) *router.Routing {
 // HandleCmdSetpointSet returns a handler responsible for handling the command.
 func HandleCmdSetpointSet(adapter adapter.ServiceRegistry) router.MessageHandler {
 	return router.NewMessageHandler(
-		router.MessageProcessorFn(func(message *fimpgo.Message) (*fimpgo.FimpMessage, error) {
+		router.MessageProcessorFn(func(ctx context.Context, message *fimpgo.Message) (*fimpgo.FimpMessage, error) {
 			s := adapter.ServiceByTopic(message.Topic)
 			if s == nil {
 				return nil, fmt.Errorf("adapter: service not found under the provided address: %s", message.Addr.ServiceAddress)
@@ -141,7 +142,7 @@ func RouteCmdModeGetReport(adapter adapter.ServiceRegistry) *router.Routing {
 // HandleCmdModeGetReport returns a handler responsible for handling the command.
 func HandleCmdModeGetReport(adapter adapter.ServiceRegistry) router.MessageHandler {
 	return router.NewMessageHandler(
-		router.MessageProcessorFn(func(message *fimpgo.Message) (*fimpgo.FimpMessage, error) {
+		router.MessageProcessorFn(func(ctx context.Context, message *fimpgo.Message) (*fimpgo.FimpMessage, error) {
 			s := adapter.ServiceByTopic(message.Topic)
 			if s == nil {
 				return nil, fmt.Errorf("adapter: service not found under the provided address: %s", message.Addr.ServiceAddress)
@@ -174,7 +175,7 @@ func RouteCmdSetpointGetReport(adapter adapter.ServiceRegistry) *router.Routing 
 // HandleCmdSetpointGetReport returns a handler responsible for handling the command.
 func HandleCmdSetpointGetReport(adapter adapter.ServiceRegistry) router.MessageHandler {
 	return router.NewMessageHandler(
-		router.MessageProcessorFn(func(message *fimpgo.Message) (*fimpgo.FimpMessage, error) {
+		router.MessageProcessorFn(func(ctx context.Context, message *fimpgo.Message) (*fimpgo.FimpMessage, error) {
 			s := adapter.ServiceByTopic(message.Topic)
 			if s == nil {
 				return nil, fmt.Errorf("adapter: service not found under the provided address: %s", message.Addr.ServiceAddress)
@@ -212,7 +213,7 @@ func RouteCmdStateGetReport(adapter adapter.ServiceRegistry) *router.Routing {
 // HandleCmdStateGetReport returns a handler responsible for handling the command.
 func HandleCmdStateGetReport(adapter adapter.ServiceRegistry) router.MessageHandler {
 	return router.NewMessageHandler(
-		router.MessageProcessorFn(func(message *fimpgo.Message) (*fimpgo.FimpMessage, error) {
+		router.MessageProcessorFn(func(ctx context.Context, message *fimpgo.Message) (*fimpgo.FimpMessage, error) {
 			s := adapter.ServiceByTopic(message.Topic)
 			if s == nil {
 				return nil, fmt.Errorf("adapter: service not found under the provided address: %s", message.Addr.ServiceAddress)

@@ -1,6 +1,7 @@
 package observer
 
 import (
+	"context"
 	"fmt"
 
 	"github.com/futurehomeno/fimpgo"
@@ -29,7 +30,7 @@ func RouteEvtPD7Notify(observer Observer) *router.Routing {
 // HandleEvtPD7Notify returns a handler responsible for handling the event.
 func HandleEvtPD7Notify(observer Observer) router.MessageHandler {
 	return router.NewMessageHandler(
-		router.MessageProcessorFn(func(message *fimpgo.Message) (*fimpgo.FimpMessage, error) {
+		router.MessageProcessorFn(func(ctx context.Context, message *fimpgo.Message) (*fimpgo.FimpMessage, error) {
 			notify, err := prime.NotifyFromMessage(message)
 			if err != nil {
 				return nil, fmt.Errorf("observer: failed to read a prime notification: %w", err)

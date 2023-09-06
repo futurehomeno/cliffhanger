@@ -1,6 +1,7 @@
 package suite
 
 import (
+	"context"
 	"fmt"
 	"sync"
 	"testing"
@@ -142,7 +143,7 @@ func (n *Node) prepareExpectationRouting(t *testing.T, mqtt *fimpgo.MqttTranspor
 	t.Helper()
 
 	return router.NewRouting(router.NewMessageHandler(
-		router.MessageProcessorFn(func(message *fimpgo.Message) (*fimpgo.FimpMessage, error) {
+		router.MessageProcessorFn(func(ctx context.Context, message *fimpgo.Message) (*fimpgo.FimpMessage, error) {
 			return n.processMessage(t, mqtt, message)
 		}),
 	))

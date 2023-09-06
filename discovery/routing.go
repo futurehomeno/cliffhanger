@@ -1,6 +1,8 @@
 package discovery
 
 import (
+	"context"
+
 	"github.com/futurehomeno/fimpgo"
 
 	"github.com/futurehomeno/cliffhanger/router"
@@ -27,7 +29,7 @@ func Route(resource *Resource) *router.Routing {
 // Handle returns a handler responsible for handling the command.
 func Handle(resource *Resource) router.MessageHandler {
 	return router.NewMessageHandler(
-		router.MessageProcessorFn(func(message *fimpgo.Message) (*fimpgo.FimpMessage, error) {
+		router.MessageProcessorFn(func(ctx context.Context, message *fimpgo.Message) (*fimpgo.FimpMessage, error) {
 			return fimpgo.NewObjectMessage(
 				EvtDiscoveryReport,
 				Service,

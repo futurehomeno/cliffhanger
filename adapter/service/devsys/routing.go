@@ -1,6 +1,7 @@
 package devsys
 
 import (
+	"context"
 	"fmt"
 
 	"github.com/futurehomeno/fimpgo"
@@ -35,7 +36,7 @@ func routeCmdThingReboot(serviceRegistry adapter.ServiceRegistry) *router.Routin
 // handleCmdThingReboot returns a handler responsible for handling the command.
 func handleCmdThingReboot(serviceRegistry adapter.ServiceRegistry) router.MessageHandler {
 	return router.NewMessageHandler(
-		router.MessageProcessorFn(func(message *fimpgo.Message) (*fimpgo.FimpMessage, error) {
+		router.MessageProcessorFn(func(ctx context.Context, message *fimpgo.Message) (*fimpgo.FimpMessage, error) {
 			devSys, err := getService(serviceRegistry, message)
 			if err != nil {
 				return nil, err
