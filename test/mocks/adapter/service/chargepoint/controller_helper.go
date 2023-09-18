@@ -24,7 +24,7 @@ func (_m *Controller) MockStopChargepointCharging(err error, once bool) *Control
 	return _m
 }
 
-func (_m *Controller) MockChargepointStateReport(state string, err error, once bool) *Controller {
+func (_m *Controller) MockChargepointStateReport(state chargepoint.State, err error, once bool) *Controller {
 	c := _m.On("ChargepointStateReport").Return(state, err)
 
 	if once {
