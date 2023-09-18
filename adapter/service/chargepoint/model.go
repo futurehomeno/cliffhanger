@@ -38,8 +38,18 @@ const (
 // State represents a chargepoint state.
 type State string
 
+// String returns a string representation of the state.
+func (s State) String() string {
+	return string(s)
+}
+
 // GridType represents a configured grid type.
 type GridType string
+
+// String returns a string representation of the grid type.
+func (t GridType) String() string {
+	return string(t)
+}
 
 // ChargingSettings represents optional charging settings.
 type ChargingSettings struct {

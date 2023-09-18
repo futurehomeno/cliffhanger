@@ -34,7 +34,7 @@ type Controller interface {
 	// ChargepointCurrentSessionReport returns cumulative energy charged during the current session.
 	ChargepointCurrentSessionReport() (*SessionReport, error)
 	// ChargepointStateReport returns a current state of the chargepoint.
-	ChargepointStateReport() (string, error)
+	ChargepointStateReport() (State, error)
 }
 
 // AdjustableCurrentController is an interface representing capability of a charger device to adjust charging current.
@@ -304,7 +304,7 @@ func (s *service) SendStateReport(force bool) (bool, error) {
 	message := fimpgo.NewStringMessage(
 		EvtStateReport,
 		s.Name(),
-		value,
+		value.String(),
 		nil,
 		nil,
 		nil,
