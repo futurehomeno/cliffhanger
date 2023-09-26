@@ -57,10 +57,24 @@ type ParameterSpecification struct {
 	ValueType    ValueType     `json:"value_type"`
 	WidgetType   WidgetType    `json:"widget_type"`
 	Options      SelectOptions `json:"options,omitempty"`
-	Min          int           `json:"min,omitempty"`
-	Max          int           `json:"max,omitempty"`
+	Min          *int          `json:"min,omitempty"`
+	Max          *int          `json:"max,omitempty"`
 	DefaultValue any           `json:"default_value"`
 	ReadOnly     bool          `json:"read_only"`
+}
+
+// WithMin sets a minimum value.
+func (s *ParameterSpecification) WithMin(min int) *ParameterSpecification {
+	s.Min = &min
+
+	return s
+}
+
+// WithMax sets a maximum value.
+func (s *ParameterSpecification) WithMax(max int) *ParameterSpecification {
+	s.Max = &max
+
+	return s
 }
 
 // ValidateParameter validates a parameter against the specification.
@@ -91,8 +105,12 @@ func (s *ParameterSpecification) validateInput(p *Parameter) error {
 		return err
 	}
 
-	if v < s.Min || v > s.Max {
-		return fmt.Errorf("parameter value '%d' is out of range [%d, %d]", v, s.Min, s.Max)
+	if s.Min != nil && v < *s.Min {
+		return fmt.Errorf("parameter value '%d' lower than allowed minimum '%d'", v, *s.Min)
+	}
+
+	if s.Max != nil && v > *s.Max {
+		return fmt.Errorf("parameter value '%d' higher than allowed maximum '%d'", v, *s.Max)
 	}
 
 	return nil

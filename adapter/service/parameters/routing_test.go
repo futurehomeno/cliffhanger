@@ -198,17 +198,15 @@ func testSpecifications(t *testing.T) []*parameters.ParameterSpecification {
 			DefaultValue: 0,
 			ReadOnly:     false,
 		},
-		{
+		(&parameters.ParameterSpecification{
 			ID:           "2",
 			Name:         "Example input parameter",
 			Description:  "Example long description of the parameter.",
 			ValueType:    parameters.ValueTypeInt,
 			WidgetType:   parameters.WidgetTypeInput,
-			Min:          -5,
-			Max:          5,
 			DefaultValue: 0,
 			ReadOnly:     true,
-		},
+		}).WithMin(-5).WithMax(5),
 	}
 }
 
