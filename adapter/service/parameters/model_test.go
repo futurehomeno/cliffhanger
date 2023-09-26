@@ -19,36 +19,30 @@ func TestParameterSpecification_ValidateParameter(t *testing.T) {
 	}{
 		{
 			name: "spec: input, int - param: int",
-			spec: &parameters.ParameterSpecification{
+			spec: (&parameters.ParameterSpecification{
 				ID:         "1",
 				WidgetType: parameters.WidgetTypeInput,
 				ValueType:  parameters.ValueTypeInt,
-				Min:        0,
-				Max:        10,
-			},
+			}).WithMin(0).WithMax(10),
 			param: parameters.NewIntParameter("1", 5),
 		},
 		{
 			name: "spec: input, int - param: int - lower than allowed",
-			spec: &parameters.ParameterSpecification{
+			spec: (&parameters.ParameterSpecification{
 				ID:         "1",
 				WidgetType: parameters.WidgetTypeInput,
 				ValueType:  parameters.ValueTypeInt,
-				Min:        0,
-				Max:        10,
-			},
+			}).WithMin(0).WithMax(10),
 			param:   parameters.NewIntParameter("1", -1),
 			wantErr: true,
 		},
 		{
 			name: "spec: input, int - param: int - higher than allowed",
-			spec: &parameters.ParameterSpecification{
+			spec: (&parameters.ParameterSpecification{
 				ID:         "1",
 				WidgetType: parameters.WidgetTypeInput,
 				ValueType:  parameters.ValueTypeInt,
-				Min:        0,
-				Max:        10,
-			},
+			}).WithMin(0).WithMax(10),
 			param:   parameters.NewIntParameter("1", 11),
 			wantErr: true,
 		},
