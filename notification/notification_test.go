@@ -55,6 +55,36 @@ func TestNotification(t *testing.T) { //nolint:paralleltest
 						},
 					},
 					{
+						Name: "Event with props",
+						Callbacks: []suite.Callback{
+							func(t *testing.T) {
+								t.Helper()
+
+								err := service.EventWithProps(&notification.Event{EventName: "test_event_name"}, map[string]string{"foo": "bar", "bar": "foo"})
+
+								assert.NoError(t, err)
+							},
+						},
+						Expectations: []*suite.Expectation{
+							suite.NewExpectation(router.MessageVoterFn(func(msg *fimpgo.Message) bool {
+								if msg.Payload.Properties["foo"] != "bar" || msg.Payload.Properties["bar"] != "foo" {
+									return false
+								}
+
+								m, err := msg.Payload.GetStrMapValue()
+								if err != nil {
+									return false
+								}
+
+								if m["EventName"] != "test_event_name" {
+									return false
+								}
+
+								return true
+							})),
+						},
+					},
+					{
 						Name: "Message",
 						Callbacks: []suite.Callback{
 							func(t *testing.T) {

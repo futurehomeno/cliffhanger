@@ -24,6 +24,7 @@ type Event struct {
 type Notification interface {
 	Event(event *Event) error
 	Message(message string) error
+	EventWithProps(event *Event, props map[string]string) error
 }
 
 func NewNotification(mqtt *fimpgo.MqttTransport) Notification {
@@ -38,6 +39,19 @@ type notification struct {
 
 // Event sends a push notification event.
 func (n *notification) Event(event *Event) error {
+	return n.EventWithProps(event, nil)
+}
+
+// Message sends custom push notification event with the provided message.
+func (n *notification) Message(message string) error {
+	return n.Event(&Event{
+		EventName:      CustomEventName,
+		MessageContent: message,
+	})
+}
+
+// EventWithProps sends a push notification event with the provided properties.
+func (n *notification) EventWithProps(event *Event, props map[string]string) error {
 	payload := map[string]string{
 		"EventName":      event.EventName,
 		"MessageContent": event.MessageContent,
@@ -50,7 +64,7 @@ func (n *notification) Event(event *Event) error {
 		"AreaType":       event.AreaType,
 	}
 
-	message := fimpgo.NewStrMapMessage("evt.notification.report", "kind_owl", payload, nil, nil, nil)
+	message := fimpgo.NewStrMapMessage("evt.notification.report", "kind_owl", payload, props, nil, nil)
 
 	err := n.mqtt.PublishToTopic("pt:j1/mt:evt/rt:app/rn:kind_owl/ad:1", message)
 	if err != nil {
@@ -58,14 +72,6 @@ func (n *notification) Event(event *Event) error {
 	}
 
 	return nil
-}
-
-// Message sends custom push notification event with the provided message.
-func (n *notification) Message(message string) error {
-	return n.Event(&Event{
-		EventName:      CustomEventName,
-		MessageContent: message,
-	})
 }
 
 func idToString(id int) string {
