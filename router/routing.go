@@ -50,18 +50,11 @@ func Combine[T []*Routing | *Routing](parts ...T) []*Routing {
 	var combined []*Routing
 
 	for _, p := range parts {
-		r, ok := any(p).(*Routing)
-		if ok {
-			combined = append(combined, r)
-
-			continue
-		}
-
-		rs, ok := any(p).([]*Routing)
-		if ok {
-			combined = append(combined, rs...)
-
-			continue
+		switch p := any(p).(type) {
+		case *Routing:
+			combined = append(combined, p)
+		case []*Routing:
+			combined = append(combined, p...)
 		}
 	}
 

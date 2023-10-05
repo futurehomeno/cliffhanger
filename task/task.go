@@ -45,18 +45,11 @@ func Combine[T []*Task | *Task](parts ...T) []*Task {
 	var combined []*Task
 
 	for _, part := range parts {
-		p, ok := any(part).(*Task)
-		if ok {
+		switch p := any(part).(type) {
+		case *Task:
 			combined = append(combined, p)
-
-			continue
-		}
-
-		ps, ok := any(part).([]*Task)
-		if ok {
-			combined = append(combined, ps...)
-
-			continue
+		case []*Task:
+			combined = append(combined, p...)
 		}
 	}
 
