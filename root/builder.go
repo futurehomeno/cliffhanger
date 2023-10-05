@@ -2,10 +2,10 @@ package root
 
 import (
 	"errors"
-	"sync"
 
 	"github.com/futurehomeno/fimpgo"
 
+	"github.com/futurehomeno/cliffhanger/config"
 	"github.com/futurehomeno/cliffhanger/discovery"
 	"github.com/futurehomeno/cliffhanger/lifecycle"
 	"github.com/futurehomeno/cliffhanger/router"
@@ -29,39 +29,21 @@ func newBuilder(edge bool) *Builder {
 	}
 }
 
+type mqttFunc func(*fimpgo.MqttTransport)
+type resourceFunc func(*discovery.Resource)
+
 // Builder is a root app builder that helps to set up and run root application on a hub.
 type Builder struct {
 	edge               bool
-	mqtt               *fimpgo.MqttTransport
-	resource           *discovery.Resource
-	lifecycle          *lifecycle.Lifecycle
 	topicSubscriptions []string
 	routing            []*router.Routing
 	routerOptions      []router.Option
 	tasks              []*task.Task
 	services           []Service
 	resetters          []Resetter
-}
 
-// WithMQTT sets the MQTT broker.
-func (b *Builder) WithMQTT(mqtt *fimpgo.MqttTransport) *Builder {
-	b.mqtt = mqtt
-
-	return b
-}
-
-// WithServiceDiscovery sets the service discovery resource.
-func (b *Builder) WithServiceDiscovery(resource *discovery.Resource) *Builder {
-	b.resource = resource
-
-	return b
-}
-
-// WithLifecycle sets the lifecycle service. Required only for building edge application.
-func (b *Builder) WithLifecycle(l *lifecycle.Lifecycle) *Builder {
-	b.lifecycle = l
-
-	return b
+	mqttFunc     mqttFunc
+	resourceFunc resourceFunc
 }
 
 // WithTopicSubscription sets topic that should be subscribed to.
@@ -105,37 +87,50 @@ func (b *Builder) WithResetter(resetter ...Resetter) *Builder {
 	return b
 }
 
-// Build builds the root application.
-func (b *Builder) Build() (App, error) {
-	if err := b.check(); err != nil {
-		return nil, err
-	}
-
-	return b.doBuild(), nil
+func (b *Builder) ConfigureMqtt(f mqttFunc) *Builder {
+	b.mqttFunc = f
+	return b
 }
 
-// doBuild assembles the root application.
-func (b *Builder) doBuild() App {
-	rootApp := &app{
-		lock:  &sync.Mutex{},
-		errCh: make(chan error),
+func (b *Builder) ConfigureResource(f resourceFunc) *Builder {
+	b.resourceFunc = f
+	return b
+}
 
-		mqtt:        b.mqtt,
-		lifecycle:   b.lifecycle,
+// Build assembles the root application.
+func (b *Builder) Build(resourceName string, cfg *config.Default) App {
+	app := &app{
+		errCh:       make(chan error),
+		mqtt:        defaultMqtt(cfg),
 		taskManager: task.NewManager(b.tasks...),
 		services:    b.services,
 		resetters:   b.resetters,
 	}
+	if b.edge {
+		app.lifecycle = lifecycle.New()
+	}
+	if b.mqttFunc != nil {
+		b.mqttFunc(app.mqtt)
+	}
 
-	b.prepareRouting(rootApp)
+	b.prepareRouting(resourceName, app)
 
-	return rootApp
+	return app
 }
 
 // prepareRouting prepares routing for the root application.
-func (b *Builder) prepareRouting(rootApp *app) {
-	topicSubscriptions := append(b.topicSubscriptions, discovery.Topic) //nolint:gocritic
-	routing := append(b.routing, discovery.Route(b.resource))           //nolint:gocritic
+func (b *Builder) prepareRouting(resourceName string, rootApp *app) {
+	var resource *discovery.Resource
+	if b.edge {
+		resource = discovery.EdgeResource(resourceName)
+	} else {
+		resource = discovery.CoreResource(resourceName)
+	}
+	if b.resourceFunc != nil {
+		b.resourceFunc(resource)
+	}
+	routing := append(b.routing, discovery.Route(resource))
+	topicSubscriptions := append(b.topicSubscriptions, discovery.Topic)
 
 	// Include application factory reset routing only if resetters are provided.
 	if len(rootApp.resetters) > 0 {
@@ -144,26 +139,17 @@ func (b *Builder) prepareRouting(rootApp *app) {
 	}
 
 	rootApp.topicSubscriptions = topicSubscriptions
-	rootApp.messageRouter = router.NewRouter(b.mqtt, router.DefaultChannelID, routing...).WithOptions(b.routerOptions...)
+	rootApp.messageRouter = router.NewRouter(rootApp.mqtt, router.DefaultChannelID, routing...).WithOptions(b.routerOptions...)
 }
 
-// check performs checks if all required components have been provided to the builder.
-func (b *Builder) check() error {
-	if b.mqtt == nil {
-		return errors.New("builder: it is required to provide MQTT broker instance")
-	}
-
-	if b.resource == nil {
-		return errors.New("builder: it is required to provide service discovery resource instance")
-	}
-
-	if b.edge && b.lifecycle == nil {
-		return errors.New("builder: it is required for an edge app to provide a lifecycle service instance")
-	}
-
-	if !b.edge && b.lifecycle != nil {
-		return errors.New("builder: it is not allowed for a core app to provide a lifecycle service instance")
-	}
-
-	return nil
+func defaultMqtt(cfg *config.Default) *fimpgo.MqttTransport {
+	return fimpgo.NewMqttTransport(
+		cfg.MQTTServerURI,
+		cfg.MQTTClientIDPrefix,
+		cfg.MQTTUsername,
+		cfg.MQTTPassword,
+		true,
+		1,
+		1,
+	)
 }

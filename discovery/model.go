@@ -4,6 +4,8 @@ package discovery
 const (
 	ResourceTypeApp = "app"
 	ResourceTypeAd  = "ad"
+
+	DefaultAuthor = "support@futurehome.no"
 )
 
 type Resource struct {
@@ -34,4 +36,26 @@ type AdapterInfo struct {
 	Technology            string            `json:"technology"`              // Technology of communication, e.g.: "cloud"
 	HwDependency          map[string]string `json:"hw_dependency"`           // Hardware dependencies, e.g.: "serialPort": "/dev/ttyUSB0"
 	NetworkManagementType string            `json:"network_management_type"` // Possible values: "inclusion_exclusion", "inclusion_dev_remove", "full_sync"
+}
+
+func CoreResource(name string) *Resource {
+	return &Resource{
+		ResourceName:           name,
+		ResourceType:           ResourceTypeApp,
+		Author:                 DefaultAuthor,
+		IsInstanceConfigurable: false,
+		InstanceID:             "1",
+		Version:                "1",
+	}
+}
+
+func EdgeResource(name string) *Resource {
+	return &Resource{
+		ResourceName:           name,
+		ResourceType:           ResourceTypeAd,
+		Author:                 DefaultAuthor,
+		IsInstanceConfigurable: false,
+		InstanceID:             "1",
+		Version:                "1",
+	}
 }

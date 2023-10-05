@@ -47,7 +47,7 @@ type Resetter interface {
 // app is an implementation of root application interface.
 type app struct {
 	running bool
-	lock    *sync.Mutex
+	lock    sync.Mutex
 	errCh   chan error
 
 	mqtt               *fimpgo.MqttTransport
