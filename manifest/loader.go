@@ -7,30 +7,30 @@ import (
 )
 
 // Loader is an interface representing a manifest loader service.
-type Loader interface {
+type Loader[C any] interface {
 	// Load loads a manifest from a configured path.
-	Load() (*Manifest, error)
+	Load() (*Manifest[C], error)
 }
 
 // NewLoader creates new instance of a loader service.
-func NewLoader(workDir string) Loader {
-	return &loader{
+func NewLoader[C any](workDir string) Loader[C] {
+	return &loader[C]{
 		workDir: workDir,
 	}
 }
 
 // loader is an implementation of a loader service.
-type loader struct {
+type loader[C any] struct {
 	workDir string
 }
 
 // Load loads a manifest from a configured path.
-func (l *loader) Load() (*Manifest, error) {
-	s := storage.New(New(), l.workDir, Name)
+func (l *loader[C]) Load() (*Manifest[C], error) {
+	s := storage.New(New[C](), l.workDir, Name)
 
 	if err := s.Load(); err != nil {
 		return nil, fmt.Errorf("manifest loader: failed to load the manifest: %w", err)
 	}
 
-	return s.Model().(*Manifest), nil //nolint:forcetypeassert
+	return s.Model(), nil //nolint:forcetypeassert
 }

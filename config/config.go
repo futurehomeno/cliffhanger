@@ -1,5 +1,7 @@
 package config
 
+import "github.com/futurehomeno/cliffhanger/bootstrap"
+
 // Name is a default name used by configuration file.
 const Name = "config.json"
 
@@ -16,6 +18,10 @@ type Default struct {
 	LogLevel           string `json:"log_level"`
 	LogFormat          string `json:"log_format"`
 	ConfiguredAt       string `json:"configured_at"`
+}
+
+func NewDefaultConfig() Default {
+	return NewDefault(bootstrap.GetWorkingDirectory())
 }
 
 // NewDefault creates a new instance of a default configuration.

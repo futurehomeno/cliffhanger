@@ -8,6 +8,7 @@ import (
 	"path/filepath"
 	"sync"
 
+	"github.com/futurehomeno/cliffhanger/bootstrap"
 	log "github.com/sirupsen/logrus"
 )
 
@@ -19,7 +20,7 @@ const (
 )
 
 // Storage is an interface representing a service responsible for loading JSON configuration from provided location.
-type Storage interface {
+type Storage[T any] interface {
 	// Load loads the configuration. First a default configuration is loaded if present and then an actual configuration is used to override the defaults.
 	Load() error
 	// Save saves configuration to the configured location.
@@ -27,13 +28,16 @@ type Storage interface {
 	// Reset deletes the configuration file and reloads default configuration.
 	Reset() error
 	// Model returns a configuration model object.
-	Model() interface{}
+	Model() T
+}
+
+func NewDefault[T any](model T, name string) Storage[T] {
+	return New(model, bootstrap.GetWorkingDirectory(), name)
 }
 
 // New creates a new storage service in accordance to Thingsplex layout. Provided model should be a pointer.
-func New(model interface{}, workDir string, name string) Storage {
-	return &storage{
-		lock:         &sync.Mutex{},
+func New[T any](model T, workDir string, name string) Storage[T] {
+	return &storage[T]{
 		dataPath:     filepath.Join(workDir, dataDirectory, name),
 		backupPath:   filepath.Join(workDir, dataDirectory, name) + backupExtension,
 		defaultsPath: filepath.Join(workDir, defaultsDirectory, name),
@@ -42,9 +46,8 @@ func New(model interface{}, workDir string, name string) Storage {
 }
 
 // NewCanonical creates a new storage service allowing canonical separate paths for defaults and data. Provided model should be a pointer.
-func NewCanonical(model interface{}, workDir, defaultsDir, name string) Storage {
-	return &storage{
-		lock:         &sync.Mutex{},
+func NewCanonical[T any](model T, workDir, defaultsDir, name string) Storage[T] {
+	return &storage[T]{
 		dataPath:     filepath.Join(workDir, name),
 		backupPath:   filepath.Join(workDir, name) + backupExtension,
 		defaultsPath: filepath.Join(defaultsDir, name),
@@ -52,9 +55,8 @@ func NewCanonical(model interface{}, workDir, defaultsDir, name string) Storage 
 	}
 }
 
-func NewState(model interface{}, workDir, name string) Storage {
-	return &storage{
-		lock:         &sync.Mutex{},
+func NewState[T any](model T, workDir, name string) Storage[T] {
+	return &storage[T]{
 		dataPath:     filepath.Join(workDir, dataDirectory, name),
 		backupPath:   filepath.Join(workDir, dataDirectory, name) + backupExtension,
 		defaultsPath: "",
@@ -62,9 +64,8 @@ func NewState(model interface{}, workDir, name string) Storage {
 	}
 }
 
-func NewCanonicalState(model interface{}, workDir, name string) Storage {
-	return &storage{
-		lock:         &sync.Mutex{},
+func NewCanonicalState[T any](model T, workDir, name string) Storage[T] {
+	return &storage[T]{
 		dataPath:     filepath.Join(workDir, name),
 		backupPath:   filepath.Join(workDir, name) + backupExtension,
 		defaultsPath: "",
@@ -73,21 +74,21 @@ func NewCanonicalState(model interface{}, workDir, name string) Storage {
 }
 
 // storage is an implementation of the storage service.
-type storage struct {
-	lock         *sync.Mutex
+type storage[T any] struct {
 	dataPath     string
 	backupPath   string
 	defaultsPath string
-	model        interface{}
+	model        T
+	lock         sync.Mutex
 }
 
 // Model returns a configuration model object.
-func (s *storage) Model() interface{} {
+func (s *storage[T]) Model() T {
 	return s.model
 }
 
 // Load loads the configuration. First a default configuration is loaded if present and then an actual configuration is used to override the defaults.
-func (s *storage) Load() error {
+func (s *storage[T]) Load() error {
 	s.lock.Lock()
 	defer s.lock.Unlock()
 
@@ -115,7 +116,7 @@ func (s *storage) Load() error {
 }
 
 // load performs loading of the configuration files in the right order and performs fallback if allowed.
-func (s *storage) load(defaultsExists, dataExists bool) error {
+func (s *storage[T]) load(defaultsExists, dataExists bool) error {
 	if !dataExists && !defaultsExists && s.defaultsPath == "" {
 		return nil
 	}
@@ -146,7 +147,7 @@ func (s *storage) load(defaultsExists, dataExists bool) error {
 }
 
 // loadData loads the configuration files and performs fallback to a last backup if possible.
-func (s *storage) loadData() error {
+func (s *storage[T]) loadData() error {
 	err := s.loadFile(s.dataPath)
 	if err == nil {
 		return nil
@@ -172,7 +173,7 @@ func (s *storage) loadData() error {
 }
 
 // Save saves configuration to the configured location.
-func (s *storage) Save() error {
+func (s *storage[T]) Save() error {
 	s.lock.Lock()
 	defer s.lock.Unlock()
 
@@ -201,7 +202,7 @@ func (s *storage) Save() error {
 }
 
 // makeBackup copies contents of an existing configuration to a backup file.
-func (s *storage) makeBackup() error {
+func (s *storage[T]) makeBackup() error {
 	cfgExists, err := s.fileExists(s.dataPath)
 	if err != nil {
 		return err
@@ -226,7 +227,7 @@ func (s *storage) makeBackup() error {
 }
 
 // Reset deletes the configuration file and reloads default configuration.
-func (s *storage) Reset() error {
+func (s *storage[T]) Reset() error {
 	s.lock.Lock()
 	defer s.lock.Unlock()
 
@@ -257,7 +258,7 @@ func (s *storage) Reset() error {
 }
 
 // fileExists checks if the file exists.
-func (s *storage) fileExists(path string) (bool, error) {
+func (s *storage[T]) fileExists(path string) (bool, error) {
 	info, err := os.Stat(path)
 	if os.IsNotExist(err) {
 		return false, nil
@@ -268,7 +269,7 @@ func (s *storage) fileExists(path string) (bool, error) {
 	return !info.IsDir(), nil
 }
 
-func (s *storage) removeFile(path string) error {
+func (s *storage[T]) removeFile(path string) error {
 	cfgExists, err := s.fileExists(path)
 	if err != nil {
 		return err
@@ -285,7 +286,7 @@ func (s *storage) removeFile(path string) error {
 }
 
 // loadFile loads a provided file and unmarshalls it using the configured model.
-func (s *storage) loadFile(path string) error {
+func (s *storage[T]) loadFile(path string) error {
 	body, err := os.ReadFile(path)
 	if err != nil {
 		return fmt.Errorf("storage: cannot load a configuration file from path %s: %w", path, err)

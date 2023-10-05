@@ -34,13 +34,13 @@ const (
 )
 
 // RouteApp creates routing for an application.
-func RouteApp(
+func RouteApp[C any](
 	serviceName string,
 	appLifecycle *lifecycle.Lifecycle,
-	configStorage storage.Storage,
+	configStorage storage.Storage[C],
 	configFactory func() interface{},
 	locker router.MessageHandlerLocker,
-	app App,
+	app App[C],
 ) []*router.Routing {
 	routing := []*router.Routing{
 		RouteCmdAppGetState(serviceName, appLifecycle),
@@ -50,13 +50,11 @@ func RouteApp(
 		RouteCmdAppUninstall(serviceName, appLifecycle, app, locker),
 	}
 
-	resettable, ok := app.(ResettableApp)
-	if ok {
+	if resettable, ok := app.(ResettableApp); ok {
 		routing = append(routing, RouteCmdAppReset(serviceName, locker, resettable))
 	}
 
-	logginable, ok := app.(LogginableApp)
-	if ok {
+	if logginable, ok := app.(LogginableApp); ok {
 		routing = append(
 			routing,
 			RouteCmdAuthLogin(serviceName, appLifecycle, locker, logginable),
@@ -64,8 +62,7 @@ func RouteApp(
 		)
 	}
 
-	authorizable, ok := app.(AuthorizableApp)
-	if ok {
+	if authorizable, ok := app.(AuthorizableApp); ok {
 		routing = append(
 			routing,
 			RouteCmdAuthSetTokens(serviceName, appLifecycle, locker, authorizable),
@@ -104,7 +101,7 @@ func HandleCmdAppGetState(serviceName string, appLifecycle *lifecycle.Lifecycle)
 }
 
 // RouteCmdConfigGetExtendedReport returns a routing responsible for handling the command.
-func RouteCmdConfigGetExtendedReport(serviceName string, storage storage.Storage) *router.Routing {
+func RouteCmdConfigGetExtendedReport[C any](serviceName string, storage storage.Storage[C]) *router.Routing {
 	return router.NewRouting(
 		HandleCmdConfigGetExtendedReport(serviceName, storage),
 		router.ForService(serviceName),
@@ -113,7 +110,7 @@ func RouteCmdConfigGetExtendedReport(serviceName string, storage storage.Storage
 }
 
 // HandleCmdConfigGetExtendedReport returns a handler responsible for handling the command.
-func HandleCmdConfigGetExtendedReport(serviceName string, storage storage.Storage) router.MessageHandler {
+func HandleCmdConfigGetExtendedReport[C any](serviceName string, storage storage.Storage[C]) router.MessageHandler {
 	return router.NewMessageHandler(
 		router.MessageProcessorFn(func(message *fimpgo.Message) (reply *fimpgo.FimpMessage, err error) {
 			msg := fimpgo.NewMessage(
@@ -131,11 +128,11 @@ func HandleCmdConfigGetExtendedReport(serviceName string, storage storage.Storag
 }
 
 // RouteCmdAppGetManifest returns a routing responsible for handling the command.
-func RouteCmdAppGetManifest(
+func RouteCmdAppGetManifest[C any](
 	serviceName string,
 	appLifecycle *lifecycle.Lifecycle,
-	configStorage storage.Storage,
-	app App,
+	configStorage storage.Storage[C],
+	app App[C],
 ) *router.Routing {
 	return router.NewRouting(
 		HandleCmdAppGetManifest(serviceName, appLifecycle, configStorage, app),
@@ -145,11 +142,11 @@ func RouteCmdAppGetManifest(
 }
 
 // HandleCmdAppGetManifest returns a handler responsible for handling the command.
-func HandleCmdAppGetManifest(
+func HandleCmdAppGetManifest[C any](
 	serviceName string,
 	appLifecycle *lifecycle.Lifecycle,
-	configStorage storage.Storage,
-	app App,
+	configStorage storage.Storage[C],
+	app App[C],
 ) router.MessageHandler {
 	return router.NewMessageHandler(
 		router.MessageProcessorFn(func(message *fimpgo.Message) (*fimpgo.FimpMessage, error) {
@@ -177,11 +174,11 @@ func HandleCmdAppGetManifest(
 
 // RouteCmdConfigExtendedSet returns a routing responsible for handling the command.
 // Provided locker is optional.
-func RouteCmdConfigExtendedSet(
+func RouteCmdConfigExtendedSet[C any](
 	serviceName string,
 	appLifecycle *lifecycle.Lifecycle,
 	configFactory func() interface{},
-	app App,
+	app App[C],
 	locker router.MessageHandlerLocker,
 ) *router.Routing {
 	return router.NewRouting(
@@ -193,11 +190,11 @@ func RouteCmdConfigExtendedSet(
 
 // HandleCmdConfigExtendedSet returns a handler responsible for handling the command.
 // Provided locker is optional.
-func HandleCmdConfigExtendedSet(
+func HandleCmdConfigExtendedSet[C any](
 	serviceName string,
 	appLifecycle *lifecycle.Lifecycle,
 	configFactory func() interface{},
-	app App,
+	app App[C],
 	locker router.MessageHandlerLocker,
 ) router.MessageHandler {
 	return router.NewMessageHandler(
@@ -222,10 +219,10 @@ func HandleCmdConfigExtendedSet(
 
 // RouteCmdAppUninstall returns a routing responsible for handling the command.
 // Provided locker is optional.
-func RouteCmdAppUninstall(
+func RouteCmdAppUninstall[C any](
 	serviceName string,
 	appLifecycle *lifecycle.Lifecycle,
-	app App,
+	app App[C],
 	locker router.MessageHandlerLocker,
 ) *router.Routing {
 	return router.NewRouting(
@@ -237,10 +234,10 @@ func RouteCmdAppUninstall(
 
 // HandleCmdAppUninstall returns a handler responsible for handling the command.
 // Provided locker is optional.
-func HandleCmdAppUninstall(
+func HandleCmdAppUninstall[C any](
 	serviceName string,
 	appLifecycle *lifecycle.Lifecycle,
-	app App,
+	app App[C],
 	locker router.MessageHandlerLocker,
 ) router.MessageHandler {
 	return router.NewMessageHandler(

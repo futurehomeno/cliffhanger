@@ -136,9 +136,9 @@ func TestStorage_Save(t *testing.T) { //nolint:paralleltest
 		SettingC: "F",
 	}
 
-	store.Model().(*testConfig).SettingA = newCfg.SettingA //nolint:forcetypeassert
-	store.Model().(*testConfig).SettingB = newCfg.SettingB //nolint:forcetypeassert
-	store.Model().(*testConfig).SettingC = newCfg.SettingC //nolint:forcetypeassert
+	store.Model().SettingA = newCfg.SettingA //nolint:forcetypeassert
+	store.Model().SettingB = newCfg.SettingB //nolint:forcetypeassert
+	store.Model().SettingC = newCfg.SettingC //nolint:forcetypeassert
 
 	err = store.Save()
 	assert.NoError(t, err)
@@ -182,11 +182,11 @@ func TestStorage_Reset(t *testing.T) { //nolint:paralleltest
 
 	err = store.Load()
 	assert.NoError(t, err)
-	assert.Equal(t, &testConfig{"A", "B", "C"}, store.Model().(*testConfig)) //nolint:forcetypeassert
+	assert.Equal(t, &testConfig{"A", "B", "C"}, store.Model()) //nolint:forcetypeassert
 
 	err = store.Reset()
 	assert.NoError(t, err)
-	assert.Equal(t, &testConfig{"X", "X", "X"}, store.Model().(*testConfig)) //nolint:forcetypeassert
+	assert.Equal(t, &testConfig{"X", "X", "X"}, store.Model()) //nolint:forcetypeassert
 
 	_, err = os.Stat(path.Join(p, "data", config.Name+".bak"))
 	assert.True(t, os.IsNotExist(err))

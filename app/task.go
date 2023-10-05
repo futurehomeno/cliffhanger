@@ -16,7 +16,7 @@ const (
 )
 
 // TaskApp creates application tasks.
-func TaskApp(app App, appLifecycle *lifecycle.Lifecycle) []*task.Task {
+func TaskApp[C any](app App[C], appLifecycle *lifecycle.Lifecycle) []*task.Task {
 	var tasks []*task.Task
 
 	initializable, ok := app.(InitializableApp)
