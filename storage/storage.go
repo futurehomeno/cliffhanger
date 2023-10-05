@@ -39,7 +39,6 @@ func NewDefault[T any](model T, name string) Storage[T] {
 func New[T any](model T, workDir string, name string) Storage[T] {
 	return &storage[T]{
 		dataPath:     filepath.Join(workDir, dataDirectory, name),
-		backupPath:   filepath.Join(workDir, dataDirectory, name) + backupExtension,
 		defaultsPath: filepath.Join(workDir, defaultsDirectory, name),
 		model:        model,
 	}
@@ -49,7 +48,6 @@ func New[T any](model T, workDir string, name string) Storage[T] {
 func NewCanonical[T any](model T, workDir, defaultsDir, name string) Storage[T] {
 	return &storage[T]{
 		dataPath:     filepath.Join(workDir, name),
-		backupPath:   filepath.Join(workDir, name) + backupExtension,
 		defaultsPath: filepath.Join(defaultsDir, name),
 		model:        model,
 	}
@@ -58,7 +56,6 @@ func NewCanonical[T any](model T, workDir, defaultsDir, name string) Storage[T] 
 func NewState[T any](model T, workDir, name string) Storage[T] {
 	return &storage[T]{
 		dataPath:     filepath.Join(workDir, dataDirectory, name),
-		backupPath:   filepath.Join(workDir, dataDirectory, name) + backupExtension,
 		defaultsPath: "",
 		model:        model,
 	}
@@ -67,7 +64,6 @@ func NewState[T any](model T, workDir, name string) Storage[T] {
 func NewCanonicalState[T any](model T, workDir, name string) Storage[T] {
 	return &storage[T]{
 		dataPath:     filepath.Join(workDir, name),
-		backupPath:   filepath.Join(workDir, name) + backupExtension,
 		defaultsPath: "",
 		model:        model,
 	}
@@ -76,7 +72,6 @@ func NewCanonicalState[T any](model T, workDir, name string) Storage[T] {
 // storage is an implementation of the storage service.
 type storage[T any] struct {
 	dataPath     string
-	backupPath   string
 	defaultsPath string
 	model        T
 	lock         sync.Mutex
@@ -153,7 +148,7 @@ func (s *storage[T]) loadData() error {
 		return nil
 	}
 
-	backupExists, existsErr := s.fileExists(s.backupPath)
+	backupExists, existsErr := s.fileExists(s.backupPath())
 	if existsErr != nil {
 		return existsErr
 	}
@@ -162,7 +157,7 @@ func (s *storage[T]) loadData() error {
 		return err
 	}
 
-	err = s.loadFile(s.backupPath)
+	err = s.loadFile(s.backupPath())
 	if err != nil {
 		return err
 	}
@@ -218,7 +213,7 @@ func (s *storage[T]) makeBackup() error {
 	}
 
 	//nolint:gosec
-	err = os.WriteFile(s.backupPath, body, 0664) //nolint:gofumpt
+	err = os.WriteFile(s.backupPath(), body, 0664) //nolint:gofumpt
 	if err != nil {
 		return err
 	}
@@ -245,7 +240,7 @@ func (s *storage[T]) Reset() error {
 		return err
 	}
 
-	err = s.removeFile(s.backupPath)
+	err = s.removeFile(s.backupPath())
 	if err != nil {
 		return err
 	}
@@ -298,4 +293,7 @@ func (s *storage[T]) loadFile(path string) error {
 	}
 
 	return nil
+}
+func (s *storage[T]) backupPath() string {
+	return s.dataPath + backupExtension
 }
