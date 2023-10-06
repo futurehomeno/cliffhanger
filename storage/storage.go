@@ -294,6 +294,7 @@ func (s *storage[T]) loadFile(path string) error {
 
 	return nil
 }
+
 func (s *storage[T]) backupPath() string {
 	return s.dataPath + backupExtension
 }

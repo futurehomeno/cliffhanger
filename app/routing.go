@@ -34,13 +34,13 @@ const (
 )
 
 // RouteApp creates routing for an application.
-func RouteApp[C any](
+func RouteApp(
 	serviceName string,
 	appLifecycle *lifecycle.Lifecycle,
-	configStorage storage.Storage[C],
+	configStorage storage.Storage[any],
 	configFactory func() interface{},
 	locker router.MessageHandlerLocker,
-	app App[C],
+	app App,
 ) []*router.Routing {
 	routing := []*router.Routing{
 		RouteCmdAppGetState(serviceName, appLifecycle),
@@ -101,7 +101,7 @@ func HandleCmdAppGetState(serviceName string, appLifecycle *lifecycle.Lifecycle)
 }
 
 // RouteCmdConfigGetExtendedReport returns a routing responsible for handling the command.
-func RouteCmdConfigGetExtendedReport[C any](serviceName string, storage storage.Storage[C]) *router.Routing {
+func RouteCmdConfigGetExtendedReport[T any](serviceName string, storage storage.Storage[T]) *router.Routing {
 	return router.NewRouting(
 		HandleCmdConfigGetExtendedReport(serviceName, storage),
 		router.ForService(serviceName),
@@ -110,7 +110,7 @@ func RouteCmdConfigGetExtendedReport[C any](serviceName string, storage storage.
 }
 
 // HandleCmdConfigGetExtendedReport returns a handler responsible for handling the command.
-func HandleCmdConfigGetExtendedReport[C any](serviceName string, storage storage.Storage[C]) router.MessageHandler {
+func HandleCmdConfigGetExtendedReport[T any](serviceName string, storage storage.Storage[T]) router.MessageHandler {
 	return router.NewMessageHandler(
 		router.MessageProcessorFn(func(message *fimpgo.Message) (reply *fimpgo.FimpMessage, err error) {
 			msg := fimpgo.NewMessage(
@@ -128,11 +128,11 @@ func HandleCmdConfigGetExtendedReport[C any](serviceName string, storage storage
 }
 
 // RouteCmdAppGetManifest returns a routing responsible for handling the command.
-func RouteCmdAppGetManifest[C any](
+func RouteCmdAppGetManifest[T any](
 	serviceName string,
 	appLifecycle *lifecycle.Lifecycle,
-	configStorage storage.Storage[C],
-	app App[C],
+	configStorage storage.Storage[T],
+	app App,
 ) *router.Routing {
 	return router.NewRouting(
 		HandleCmdAppGetManifest(serviceName, appLifecycle, configStorage, app),
@@ -142,11 +142,11 @@ func RouteCmdAppGetManifest[C any](
 }
 
 // HandleCmdAppGetManifest returns a handler responsible for handling the command.
-func HandleCmdAppGetManifest[C any](
+func HandleCmdAppGetManifest[T any](
 	serviceName string,
 	appLifecycle *lifecycle.Lifecycle,
-	configStorage storage.Storage[C],
-	app App[C],
+	configStorage storage.Storage[T],
+	app App,
 ) router.MessageHandler {
 	return router.NewMessageHandler(
 		router.MessageProcessorFn(func(message *fimpgo.Message) (*fimpgo.FimpMessage, error) {
@@ -174,11 +174,11 @@ func HandleCmdAppGetManifest[C any](
 
 // RouteCmdConfigExtendedSet returns a routing responsible for handling the command.
 // Provided locker is optional.
-func RouteCmdConfigExtendedSet[C any](
+func RouteCmdConfigExtendedSet(
 	serviceName string,
 	appLifecycle *lifecycle.Lifecycle,
 	configFactory func() interface{},
-	app App[C],
+	app App,
 	locker router.MessageHandlerLocker,
 ) *router.Routing {
 	return router.NewRouting(
@@ -190,11 +190,11 @@ func RouteCmdConfigExtendedSet[C any](
 
 // HandleCmdConfigExtendedSet returns a handler responsible for handling the command.
 // Provided locker is optional.
-func HandleCmdConfigExtendedSet[C any](
+func HandleCmdConfigExtendedSet(
 	serviceName string,
 	appLifecycle *lifecycle.Lifecycle,
 	configFactory func() interface{},
-	app App[C],
+	app App,
 	locker router.MessageHandlerLocker,
 ) router.MessageHandler {
 	return router.NewMessageHandler(
@@ -219,10 +219,10 @@ func HandleCmdConfigExtendedSet[C any](
 
 // RouteCmdAppUninstall returns a routing responsible for handling the command.
 // Provided locker is optional.
-func RouteCmdAppUninstall[C any](
+func RouteCmdAppUninstall(
 	serviceName string,
 	appLifecycle *lifecycle.Lifecycle,
-	app App[C],
+	app App,
 	locker router.MessageHandlerLocker,
 ) *router.Routing {
 	return router.NewRouting(
@@ -234,10 +234,10 @@ func RouteCmdAppUninstall[C any](
 
 // HandleCmdAppUninstall returns a handler responsible for handling the command.
 // Provided locker is optional.
-func HandleCmdAppUninstall[C any](
+func HandleCmdAppUninstall(
 	serviceName string,
 	appLifecycle *lifecycle.Lifecycle,
-	app App[C],
+	app App,
 	locker router.MessageHandlerLocker,
 ) router.MessageHandler {
 	return router.NewMessageHandler(

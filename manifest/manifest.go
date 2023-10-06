@@ -10,11 +10,11 @@ import (
 const Name = "app-manifest.json"
 
 // New creates new instance of a manifest.
-func New[C any]() *Manifest[C] {
-	return &Manifest[C]{}
+func New() *Manifest {
+	return &Manifest{}
 }
 
-type Manifest[C any] struct {
+type Manifest struct {
 	Configs     []AppConfig         `json:"configs"`
 	UIBlocks    []AppUBLock         `json:"ui_blocks"`
 	UIButtons   []UIButton          `json:"ui_buttons"`
@@ -22,7 +22,7 @@ type Manifest[C any] struct {
 	InitFlow    []string            `json:"init_flow"`
 	Services    []AppService        `json:"services"`
 	AppState    lifecycle.AppStates `json:"app_state"`
-	ConfigState C                   `json:"config_state"`
+	ConfigState any                 `json:"config_state"`
 }
 
 type AppConfig struct {
@@ -122,7 +122,7 @@ func (b *AppUBLock) Show() {
 	b.Hidden = false
 }
 
-func (m *Manifest[C]) GetUIBlock(id string) *AppUBLock {
+func (m *Manifest) GetUIBlock(id string) *AppUBLock {
 	for i, b := range m.UIBlocks {
 		if b.ID == id {
 			return &m.UIBlocks[i]
@@ -132,7 +132,7 @@ func (m *Manifest[C]) GetUIBlock(id string) *AppUBLock {
 	return nil
 }
 
-func (m *Manifest[C]) GetButton(id string) *UIButton {
+func (m *Manifest) GetButton(id string) *UIButton {
 	for i, b := range m.UIButtons {
 		if b.ID == id {
 			return &m.UIButtons[i]
@@ -142,7 +142,7 @@ func (m *Manifest[C]) GetButton(id string) *UIButton {
 	return nil
 }
 
-func (m *Manifest[C]) GetAppConfig(id string) *AppConfig {
+func (m *Manifest) GetAppConfig(id string) *AppConfig {
 	for i, c := range m.Configs {
 		if c.ID == id {
 			return &m.Configs[i]
