@@ -34,11 +34,11 @@ const (
 )
 
 // RouteApp creates routing for an application.
-func RouteApp(
+func RouteApp[C any](
 	serviceName string,
 	appLifecycle *lifecycle.Lifecycle,
-	configStorage storage.Storage,
-	configFactory func() interface{},
+	configStorage storage.Storage[C],
+	configFactory func() C,
 	locker router.MessageHandlerLocker,
 	app App,
 ) []*router.Routing {
@@ -104,7 +104,7 @@ func HandleCmdAppGetState(serviceName string, appLifecycle *lifecycle.Lifecycle)
 }
 
 // RouteCmdConfigGetExtendedReport returns a routing responsible for handling the command.
-func RouteCmdConfigGetExtendedReport(serviceName string, storage storage.Storage) *router.Routing {
+func RouteCmdConfigGetExtendedReport[C any](serviceName string, storage storage.Storage[C]) *router.Routing {
 	return router.NewRouting(
 		HandleCmdConfigGetExtendedReport(serviceName, storage),
 		router.ForService(serviceName),
@@ -113,7 +113,7 @@ func RouteCmdConfigGetExtendedReport(serviceName string, storage storage.Storage
 }
 
 // HandleCmdConfigGetExtendedReport returns a handler responsible for handling the command.
-func HandleCmdConfigGetExtendedReport(serviceName string, storage storage.Storage) router.MessageHandler {
+func HandleCmdConfigGetExtendedReport[C any](serviceName string, storage storage.Storage[C]) router.MessageHandler {
 	return router.NewMessageHandler(
 		router.MessageProcessorFn(func(message *fimpgo.Message) (reply *fimpgo.FimpMessage, err error) {
 			msg := fimpgo.NewMessage(
@@ -131,10 +131,10 @@ func HandleCmdConfigGetExtendedReport(serviceName string, storage storage.Storag
 }
 
 // RouteCmdAppGetManifest returns a routing responsible for handling the command.
-func RouteCmdAppGetManifest(
+func RouteCmdAppGetManifest[C any](
 	serviceName string,
 	appLifecycle *lifecycle.Lifecycle,
-	configStorage storage.Storage,
+	configStorage storage.Storage[C],
 	app App,
 ) *router.Routing {
 	return router.NewRouting(
@@ -145,10 +145,10 @@ func RouteCmdAppGetManifest(
 }
 
 // HandleCmdAppGetManifest returns a handler responsible for handling the command.
-func HandleCmdAppGetManifest(
+func HandleCmdAppGetManifest[C any](
 	serviceName string,
 	appLifecycle *lifecycle.Lifecycle,
-	configStorage storage.Storage,
+	configStorage storage.Storage[C],
 	app App,
 ) router.MessageHandler {
 	return router.NewMessageHandler(
@@ -177,10 +177,10 @@ func HandleCmdAppGetManifest(
 
 // RouteCmdConfigExtendedSet returns a routing responsible for handling the command.
 // Provided locker is optional.
-func RouteCmdConfigExtendedSet(
+func RouteCmdConfigExtendedSet[C any](
 	serviceName string,
 	appLifecycle *lifecycle.Lifecycle,
-	configFactory func() interface{},
+	configFactory func() C,
 	app App,
 	locker router.MessageHandlerLocker,
 ) *router.Routing {
@@ -193,10 +193,10 @@ func RouteCmdConfigExtendedSet(
 
 // HandleCmdConfigExtendedSet returns a handler responsible for handling the command.
 // Provided locker is optional.
-func HandleCmdConfigExtendedSet(
+func HandleCmdConfigExtendedSet[C any](
 	serviceName string,
 	appLifecycle *lifecycle.Lifecycle,
-	configFactory func() interface{},
+	configFactory func() C,
 	app App,
 	locker router.MessageHandlerLocker,
 ) router.MessageHandler {
