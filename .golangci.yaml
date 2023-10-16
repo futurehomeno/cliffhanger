@@ -35,7 +35,6 @@ linters:
     - bodyclose
     - asciicheck
     - dupl
-    - depguard
     - errorlint
     - dogsled
     - durationcheck
@@ -95,6 +94,7 @@ linters:
     - interfacer # Deprecated.
     - maligned # Deprecated.
     - scopelint # Deprecated.
+    - depguard # Works wrong.
   fast: false
 linters-settings:
   lll:

@@ -2,6 +2,7 @@ package bootstrap
 
 import (
 	"flag"
+	"fmt"
 	"os"
 	"os/signal"
 	"syscall"
@@ -9,6 +10,9 @@ import (
 	log "github.com/sirupsen/logrus"
 	"gopkg.in/natefinch/lumberjack.v2"
 )
+
+// ServiceLogField is a log field name for a service name.
+const ServiceLogField = "service"
 
 // GetConfigurationDirectory returns a configuration directory passed through the -c option with a fallback to a relative path.
 func GetConfigurationDirectory() string {
@@ -45,6 +49,8 @@ func InitializeLogger(logFile string, level string, logFormat string) {
 		log.SetFormatter(&log.TextFormatter{FullTimestamp: true, ForceColors: true, TimestampFormat: "2006-01-02T15:04:05.999"})
 	}
 
+	log.AddHook(loggerServiceHook{})
+
 	logLevel, err := log.ParseLevel(level)
 	if err == nil {
 		log.SetLevel(logLevel)
@@ -71,4 +77,33 @@ func WaitForShutdown() {
 	defer signal.Stop(signals)
 
 	<-signals
+}
+
+type loggerServiceHook struct{}
+
+// Levels returns a list of all log levels.
+func (m loggerServiceHook) Levels() []log.Level {
+	return []log.Level{
+		log.TraceLevel,
+		log.DebugLevel,
+		log.InfoLevel,
+		log.WarnLevel,
+		log.ErrorLevel,
+		log.FatalLevel,
+		log.PanicLevel,
+	}
+}
+
+// Fire adds a service name to a log entry.
+func (m loggerServiceHook) Fire(entry *log.Entry) error {
+	service, ok := entry.Data[ServiceLogField]
+	if !ok {
+		return nil
+	}
+
+	delete(entry.Data, ServiceLogField)
+
+	entry.Message = fmt.Sprintf("[%s] %s", service, entry.Message)
+
+	return nil
 }
