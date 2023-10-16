@@ -54,8 +54,8 @@ func (_m *Controller) MockSetChargepointCableLock(lock bool, err error, once boo
 	return _m
 }
 
-func (_m *Controller) MockChargepointCableLockReport(lock bool, err error, once bool) *Controller {
-	c := _m.On("ChargepointCableLockReport").Return(lock, err)
+func (_m *Controller) MockChargepointCableLockReport(cableReport *chargepoint.CableReport, err error, once bool) *Controller {
+	c := _m.On("ChargepointCableLockReport").Return(cableReport, err)
 
 	if once {
 		c.Once()

@@ -30,7 +30,7 @@ type Controller interface {
 	// SetChargepointCableLock locks and unlocks the cable connector.
 	SetChargepointCableLock(bool) error
 	// ChargepointCableLockReport returns a current state of the chargepoint cable lock.
-	ChargepointCableLockReport() (bool, error)
+	ChargepointCableLockReport() (*CableReport, error)
 	// ChargepointCurrentSessionReport returns cumulative energy charged during the current session.
 	ChargepointCurrentSessionReport() (*SessionReport, error)
 	// ChargepointStateReport returns a current state of the chargepoint.
@@ -271,8 +271,8 @@ func (s *service) SendCableLockReport(force bool) (bool, error) {
 	message := fimpgo.NewBoolMessage(
 		EvtCableLockReport,
 		s.Name(),
-		value,
-		nil,
+		value.CableLock,
+		value.reportProperties(),
 		nil,
 		nil,
 	)
