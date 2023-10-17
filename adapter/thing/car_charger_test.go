@@ -29,7 +29,7 @@ func TestRouteCarCharger(t *testing.T) { //nolint:paralleltest
 				Setup: routeCarCharger(
 					mockedchargepoint.NewController(t).
 						MockSetChargepointCableLock(true, nil, false).
-						MockChargepointCableLockReport(true, nil, false).
+						MockChargepointCableLockReport(&chargepoint.CableReport{CableLock: true}, nil, false).
 						MockChargepointStateReport("charging", nil, false).
 						MockChargepointCurrentSessionReport(&chargepoint.SessionReport{SessionEnergy: 1.74}, nil, false),
 					mockednumericmeter.NewReporter(t).
@@ -97,7 +97,7 @@ func TestTaskCarCharger(t *testing.T) { //nolint:paralleltest
 				TearDown: adapterhelper.TearDownAdapter("../../testdata/adapter/test_adapter"),
 				Setup: taskCarCharger(
 					mockedchargepoint.NewController(t).
-						MockChargepointCableLockReport(true, nil, false).
+						MockChargepointCableLockReport(&chargepoint.CableReport{CableLock: true}, nil, false).
 						MockChargepointCurrentSessionReport(&chargepoint.SessionReport{SessionEnergy: 1.23}, nil, false).
 						MockChargepointStateReport("ready_to_charge", nil, false),
 					mockednumericmeter.NewReporter(t).

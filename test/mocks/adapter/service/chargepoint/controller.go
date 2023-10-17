@@ -13,18 +13,20 @@ type Controller struct {
 }
 
 // ChargepointCableLockReport provides a mock function with given fields:
-func (_m *Controller) ChargepointCableLockReport() (bool, error) {
+func (_m *Controller) ChargepointCableLockReport() (*chargepoint.CableReport, error) {
 	ret := _m.Called()
 
-	var r0 bool
+	var r0 *chargepoint.CableReport
 	var r1 error
-	if rf, ok := ret.Get(0).(func() (bool, error)); ok {
+	if rf, ok := ret.Get(0).(func() (*chargepoint.CableReport, error)); ok {
 		return rf()
 	}
-	if rf, ok := ret.Get(0).(func() bool); ok {
+	if rf, ok := ret.Get(0).(func() *chargepoint.CableReport); ok {
 		r0 = rf()
 	} else {
-		r0 = ret.Get(0).(bool)
+		if ret.Get(0) != nil {
+			r0 = ret.Get(0).(*chargepoint.CableReport)
+		}
 	}
 
 	if rf, ok := ret.Get(1).(func() error); ok {

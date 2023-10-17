@@ -110,7 +110,7 @@ func TestRouteService(t *testing.T) { //nolint:paralleltest
 					mockedchargepoint.NewMockedChargepoint(
 						mockedchargepoint.NewController(t).
 							MockSetChargepointCableLock(true, nil, true).
-							MockChargepointCableLockReport(true, nil, false).
+							MockChargepointCableLockReport(&chargepoint.CableReport{CableLock: true}, nil, false).
 							MockChargepointStateReport("charging", nil, true).
 							MockChargepointCurrentSessionReport(&chargepoint.SessionReport{
 								SessionEnergy:         1.74,
@@ -340,7 +340,7 @@ func TestRouteService(t *testing.T) { //nolint:paralleltest
 				Setup: routeService(
 					mockedchargepoint.NewController(t).
 						MockSetChargepointCableLock(true, nil, true).
-						MockChargepointCableLockReport(false, errTest, true),
+						MockChargepointCableLockReport(&chargepoint.CableReport{CableLock: false}, errTest, true),
 					nil,
 				),
 				Nodes: []*suite.Node{
@@ -459,7 +459,7 @@ func TestRouteService(t *testing.T) { //nolint:paralleltest
 				Setup: routeService(
 					mockedchargepoint.NewMockedChargepoint(
 						mockedchargepoint.NewController(t).
-							MockChargepointCableLockReport(false, errTest, false).
+							MockChargepointCableLockReport(&chargepoint.CableReport{CableLock: false}, errTest, false).
 							MockChargepointStateReport("", errTest, true).
 							MockChargepointCurrentSessionReport(nil, errTest, true),
 						mockedchargepoint.NewAdjustableCurrentController(t).
