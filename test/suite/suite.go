@@ -39,8 +39,8 @@ func (s *Suite) WithCases(cases ...*Case) *Suite {
 func (s *Suite) Run(t *testing.T) {
 	t.Helper()
 
-	s.init(t)
-	defer s.tearDown(t)
+	s.Init(t)
+	defer s.TearDown(t)
 
 	for _, tc := range s.Cases {
 		c := tc
@@ -52,7 +52,8 @@ func (s *Suite) Run(t *testing.T) {
 	}
 }
 
-func (s *Suite) init(t *testing.T) {
+// Init initializes the test suite.
+func (s *Suite) Init(t *testing.T) {
 	t.Helper()
 
 	s.Config.configure()
@@ -75,10 +76,16 @@ func (s *Suite) init(t *testing.T) {
 	}
 }
 
-func (s *Suite) tearDown(t *testing.T) {
+// TearDown tears down the test suite.
+func (s *Suite) TearDown(t *testing.T) {
 	t.Helper()
 
 	s.mqtt.Stop()
+}
+
+// MQTT returns the MQTT transport.
+func (s *Suite) MQTT() *fimpgo.MqttTransport {
+	return s.mqtt
 }
 
 func DefaultMQTT(clientID, url, user, pass string) *fimpgo.MqttTransport {
