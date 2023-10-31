@@ -139,6 +139,7 @@ func (r *refresher[T]) Refresh() (T, error) {
 
 	if r.shouldBackoff() {
 		var def T
+
 		return def, fmt.Errorf("refresher: backoff is in effect")
 	}
 
@@ -148,6 +149,7 @@ func (r *refresher[T]) Refresh() (T, error) {
 		r.failureCount++
 
 		var def T
+
 		return def, fmt.Errorf("refresher: failed to refresh data: %w", err)
 	}
 
