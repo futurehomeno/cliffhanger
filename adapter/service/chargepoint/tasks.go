@@ -48,6 +48,13 @@ func handleReporting(serviceRegistry adapter.ServiceRegistry) func() {
 					log.WithError(err).Errorf("adapter: failed to send chargepoint max current report")
 				}
 			}
+
+			if chargepoint.SupportsAdjustingPhaseModes() {
+				_, err = chargepoint.SendPhaseModeReport(false)
+				if err != nil {
+					log.WithError(err).Errorf("adapter: failed to send chargepoint phase mode report")
+				}
+			}
 		}
 	}
 }
