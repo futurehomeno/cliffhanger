@@ -37,14 +37,17 @@ type Controller interface {
 	ChargepointStateReport() (State, error)
 }
 
-// AdjustableCurrentController is an interface representing capability of a charger device to adjust charging current.
-type AdjustableCurrentController interface {
-	// SetChargepointOfferedCurrent sets offered current of a current session.
-	SetChargepointOfferedCurrent(int64) error
+// AdjustableMaxCurrentController is an interface representing capability of a charger device to adjust charging current.
+type AdjustableMaxCurrentController interface {
 	// SetChargepointMaxCurrent sets max current of a chargepoint.
 	SetChargepointMaxCurrent(int64) error
 	// ChargepointMaxCurrentReport returns max current of a chargepoint.
 	ChargepointMaxCurrentReport() (int64, error)
+}
+
+type AdjustableOfferedCurrentController interface {
+	// SetChargepointOfferedCurrent sets offered current of a current session.
+	SetChargepointOfferedCurrent(int64) error
 }
 
 // AdjustablePhaseModeController is an interface representing capability of a charger device to adjust phase mode.
@@ -85,8 +88,8 @@ type Service interface {
 	SendPhaseModeReport(force bool) (bool, error)
 	// SupportedStates returns states that are supported by the chargepoint.
 	SupportedStates() []string
-	// SupportsAdjustingCurrent returns true if the chargepoint supports adjusting current.
-	SupportsAdjustingCurrent() bool
+	// SupportsAdjustingMaxCurrent returns true if the chargepoint supports adjusting current.
+	SupportsAdjustingMaxCurrent() bool
 	// SupportsAdjustingPhaseModes returns true if the chargepoint supports adjusting phase modes.
 	SupportsAdjustingPhaseModes() bool
 }
@@ -125,8 +128,12 @@ func NewService(
 		stateReportingStrategy:   cfg.StateReportingStrategy,
 	}
 
-	if s.SupportsAdjustingCurrent() {
-		cfg.Specification.EnsureInterfaces(adjustableCurrentInterfaces()...)
+	if s.SupportsAdjustingMaxCurrent() {
+		cfg.Specification.EnsureInterfaces(adjustableMaxCurrentInterfaces()...)
+	}
+
+	if s.SupportsAdjustingOfferedCurrent() {
+		cfg.Specification.EnsureInterfaces(adjustableOfferedCurrentInterfaces()...)
 	}
 
 	if s.SupportsAdjustingPhaseModes() {
@@ -198,7 +205,7 @@ func (s *service) SetOfferedCurrent(current int64) error {
 	s.lock.Lock()
 	defer s.lock.Unlock()
 
-	controller, err := s.adjustableCurrentController()
+	controller, err := s.adjustableOfferedCurrentController()
 	if err != nil {
 		return err
 	}
@@ -221,7 +228,7 @@ func (s *service) SetMaxCurrent(current int64) error {
 	s.lock.Lock()
 	defer s.lock.Unlock()
 
-	controller, err := s.adjustableCurrentController()
+	controller, err := s.adjustableMaxCurrentController()
 	if err != nil {
 		return err
 	}
@@ -280,7 +287,7 @@ func (s *service) SendCurrentSessionReport(force bool) (bool, error) {
 		EvtCurrentSessionReport,
 		s.Name(),
 		value.SessionEnergy,
-		value.reportProperties(s.SupportsAdjustingCurrent()),
+		value.reportProperties(s.SupportsAdjustingMaxCurrent()),
 		nil,
 		nil,
 	)
@@ -366,7 +373,7 @@ func (s *service) SendMaxCurrentReport(force bool) (bool, error) {
 	s.lock.Lock()
 	defer s.lock.Unlock()
 
-	controller, err := s.adjustableCurrentController()
+	controller, err := s.adjustableMaxCurrentController()
 	if err != nil {
 		return false, err
 	}
@@ -442,9 +449,16 @@ func (s *service) SupportedStates() []string {
 	return s.Service.Specification().PropertyStrings(PropertySupportedStates)
 }
 
-// SupportsAdjustingCurrent returns true if the chargepoint supports adjusting current.
-func (s *service) SupportsAdjustingCurrent() bool {
-	_, err := s.adjustableCurrentController()
+// SupportsAdjustingMaxCurrent returns true if the chargepoint supports adjusting current.
+func (s *service) SupportsAdjustingMaxCurrent() bool {
+	_, err := s.adjustableMaxCurrentController()
+
+	return err == nil
+}
+
+// SupportsAdjustingOfferedCurrent returns true if the chargepoint supports adjusting current.
+func (s *service) SupportsAdjustingOfferedCurrent() bool {
+	_, err := s.adjustableOfferedCurrentController()
 
 	return err == nil
 }
@@ -456,14 +470,29 @@ func (s *service) SupportsAdjustingPhaseModes() bool {
 	return err == nil
 }
 
-// adjustableCurrentController returns the AdjustableCurrentController, if supported.
-func (s *service) adjustableCurrentController() (AdjustableCurrentController, error) {
+// adjustableMaxCurrentController returns the AdjustableMaxCurrentController, if supported.
+func (s *service) adjustableMaxCurrentController() (AdjustableMaxCurrentController, error) {
 	_, ok := s.Specification().PropertyInteger(PropertySupportedMaxCurrent)
 	if !ok {
 		return nil, fmt.Errorf("%s: adjusting current is not supported", s.Name())
 	}
 
-	controller, ok := s.controller.(AdjustableCurrentController)
+	controller, ok := s.controller.(AdjustableMaxCurrentController)
+	if !ok {
+		return nil, fmt.Errorf("%s: adjusting current is not supported", s.Name())
+	}
+
+	return controller, nil
+}
+
+// adjustableOfferedCurrentController returns the AdjustableOfferedCurrentController, if supported.
+func (s *service) adjustableOfferedCurrentController() (AdjustableOfferedCurrentController, error) {
+	_, ok := s.Specification().PropertyInteger(PropertySupportedMaxCurrent)
+	if !ok {
+		return nil, fmt.Errorf("%s: adjusting current is not supported", s.Name())
+	}
+
+	controller, ok := s.controller.(AdjustableOfferedCurrentController)
 	if !ok {
 		return nil, fmt.Errorf("%s: adjusting current is not supported", s.Name())
 	}
