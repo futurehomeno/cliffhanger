@@ -41,11 +41,17 @@ func TestTaskReporting(t *testing.T) { //nolint:paralleltest
 							MockChargepointMaxCurrentReport(0, errTest, true).
 							MockChargepointMaxCurrentReport(10, nil, true).
 							MockChargepointMaxCurrentReport(8, nil, true),
+						mockedchargepoint.NewAdjustablePhaseModeController(t).
+							MockChargepointPhaseModeReport(chargepoint.PhaseModeNL1L2L3, nil, true).
+							MockChargepointPhaseModeReport("", errTest, true).
+							MockChargepointPhaseModeReport(chargepoint.PhaseModeNL1L2L3, nil, true).
+							MockChargepointPhaseModeReport(chargepoint.PhaseModeNL1, nil, true),
 					),
 					[]adapter.SpecificationOption{
 						chargepoint.WithSupportedMaxCurrent(16),
 						chargepoint.WithGridType(chargepoint.GridTypeTN),
 						chargepoint.WithPhases(3),
+						chargepoint.WithSupportedPhaseModes(chargepoint.PhaseModeNL1L2L3, chargepoint.PhaseModeNL1, chargepoint.PhaseModeNL2, chargepoint.PhaseModeNL3),
 					},
 					100*time.Millisecond,
 				),
@@ -61,6 +67,8 @@ func TestTaskReporting(t *testing.T) { //nolint:paralleltest
 							suite.ExpectString("pt:j1/mt:evt/rt:dev/rn:test_adapter/ad:1/sv:chargepoint/ad:2", "evt.state.report", "chargepoint", "charging").ExactlyOnce(),
 							suite.ExpectInt("pt:j1/mt:evt/rt:dev/rn:test_adapter/ad:1/sv:chargepoint/ad:2", "evt.max_current.report", "chargepoint", 10).ExactlyOnce(),
 							suite.ExpectInt("pt:j1/mt:evt/rt:dev/rn:test_adapter/ad:1/sv:chargepoint/ad:2", "evt.max_current.report", "chargepoint", 8).ExactlyOnce(),
+							suite.ExpectString("pt:j1/mt:evt/rt:dev/rn:test_adapter/ad:1/sv:chargepoint/ad:2", "evt.phase_mode.report", "chargepoint", "NL1L2L3").ExactlyOnce(),
+							suite.ExpectString("pt:j1/mt:evt/rt:dev/rn:test_adapter/ad:1/sv:chargepoint/ad:2", "evt.phase_mode.report", "chargepoint", "NL1").ExactlyOnce(),
 						},
 					},
 				},
