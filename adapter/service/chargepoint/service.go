@@ -474,12 +474,12 @@ func (s *service) SupportsAdjustingPhaseModes() bool {
 func (s *service) adjustableMaxCurrentController() (AdjustableMaxCurrentController, error) {
 	_, ok := s.Specification().PropertyInteger(PropertySupportedMaxCurrent)
 	if !ok {
-		return nil, fmt.Errorf("%s: adjusting current is not supported", s.Name())
+		return nil, fmt.Errorf("%s: adjusting max current is not supported", s.Name())
 	}
 
 	controller, ok := s.controller.(AdjustableMaxCurrentController)
 	if !ok {
-		return nil, fmt.Errorf("%s: adjusting current is not supported", s.Name())
+		return nil, fmt.Errorf("%s: adjusting max current is not supported", s.Name())
 	}
 
 	return controller, nil
@@ -487,14 +487,14 @@ func (s *service) adjustableMaxCurrentController() (AdjustableMaxCurrentControll
 
 // adjustableOfferedCurrentController returns the AdjustableOfferedCurrentController, if supported.
 func (s *service) adjustableOfferedCurrentController() (AdjustableOfferedCurrentController, error) {
-	_, ok := s.Specification().PropertyInteger(PropertySupportedMaxCurrent)
+	_, ok := s.Specification().PropertyInteger(PropertyOfferedCurrent)
 	if !ok {
-		return nil, fmt.Errorf("%s: adjusting current is not supported", s.Name())
+		return nil, fmt.Errorf("%s: adjusting offered current is not supported", s.Name())
 	}
 
 	controller, ok := s.controller.(AdjustableOfferedCurrentController)
 	if !ok {
-		return nil, fmt.Errorf("%s: adjusting current is not supported", s.Name())
+		return nil, fmt.Errorf("%s: adjusting offered current is not supported", s.Name())
 	}
 
 	return controller, nil
