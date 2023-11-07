@@ -66,7 +66,7 @@ type Service interface {
 
 	// StartCharging starts car charging.
 	StartCharging(settings *ChargingSettings) error
-	// StopCharging stops car charging.
+	// StopCharging stops car charging.c
 	StopCharging() error
 	// SetCableLock locks and unlocks the cable connector.
 	SetCableLock(bool) error
@@ -487,7 +487,7 @@ func (s *service) adjustableMaxCurrentController() (AdjustableMaxCurrentControll
 
 // adjustableOfferedCurrentController returns the AdjustableOfferedCurrentController, if supported.
 func (s *service) adjustableOfferedCurrentController() (AdjustableOfferedCurrentController, error) {
-	_, ok := s.Specification().PropertyInteger(PropertyOfferedCurrent)
+	_, ok := s.Specification().PropertyInteger(PropertySupportedMaxCurrent)
 	if !ok {
 		return nil, fmt.Errorf("%s: adjusting offered current is not supported", s.Name())
 	}
