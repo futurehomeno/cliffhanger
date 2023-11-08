@@ -88,10 +88,12 @@ type Service interface {
 	SendPhaseModeReport(force bool) (bool, error)
 	// SupportedStates returns states that are supported by the chargepoint.
 	SupportedStates() []string
-	// SupportsAdjustingMaxCurrent returns true if the chargepoint supports adjusting current.
+	// SupportsAdjustingMaxCurrent returns true if the chargepoint supports adjusting max current.
 	SupportsAdjustingMaxCurrent() bool
 	// SupportsAdjustingPhaseModes returns true if the chargepoint supports adjusting phase modes.
 	SupportsAdjustingPhaseModes() bool
+	// SupportsAdjustingOfferedCurrent returns true if the chargepoint supports adjusting offered current.
+	SupportsAdjustingOfferedCurrent() bool
 }
 
 // Config represents a service configuration.
