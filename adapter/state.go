@@ -42,25 +42,21 @@ type State interface {
 
 // NewState creates new instance of the adapter state.
 func NewState(workDir string) (State, error) {
-	model := &adapterStateModel{}
-	storageService := storage.NewState(model, workDir, "adapter.json")
+	storageService := storage.NewState(&adapterStateModel{}, workDir, "adapter.json")
 
 	if err := storageService.Load(); err != nil {
 		return nil, fmt.Errorf("state: failed to load the initial adapter state: %w", err)
 	}
 
 	return &state{
-		model:   model,
-		storage: storageService,
-		lock:    &sync.RWMutex{},
+		Storage: storageService,
 	}, nil
 }
 
 // state is a private implementation of the adapter state service.
 type state struct {
-	storage storage.Storage
-	model   *adapterStateModel
-	lock    *sync.RWMutex
+	storage.Storage[*adapterStateModel]
+	lock sync.RWMutex
 }
 
 // acquireAddress increments address index and returns its current value.
@@ -68,13 +64,13 @@ func (s *state) acquireAddress() (string, error) {
 	s.lock.Lock()
 	defer s.lock.Unlock()
 
-	s.model.AddressIndex++
+	s.Model().AddressIndex++
 
-	if err := s.storage.Save(); err != nil {
+	if err := s.Save(); err != nil {
 		return "", fmt.Errorf("state: failed to persist address index: %w", err)
 	}
 
-	return strconv.Itoa(s.model.AddressIndex), nil
+	return strconv.Itoa(s.Model().AddressIndex), nil
 }
 
 // all returns all persisted thing states.
@@ -84,7 +80,7 @@ func (s *state) all() []ThingState {
 
 	var thingStates []ThingState
 
-	for _, m := range s.model.Things {
+	for _, m := range s.Model().Things {
 		thingStates = append(thingStates, newThingState(s, m))
 	}
 
@@ -96,13 +92,13 @@ func (s *state) add(model *thingStateModel) (ThingState, error) {
 	s.lock.Lock()
 	defer s.lock.Unlock()
 
-	if s.model.Things == nil {
-		s.model.Things = make(map[string]*thingStateModel)
+	if s.Model().Things == nil {
+		s.Model().Things = make(map[string]*thingStateModel)
 	}
 
-	s.model.Things[model.ID] = model
+	s.Model().Things[model.ID] = model
 
-	if err := s.storage.Save(); err != nil {
+	if err := s.Save(); err != nil {
 		return nil, fmt.Errorf("state: failed to persist state of a thing with ID %s: %w", model.ID, err)
 	}
 
@@ -114,9 +110,9 @@ func (s *state) remove(id string) error {
 	s.lock.Lock()
 	defer s.lock.Unlock()
 
-	delete(s.model.Things, id)
+	delete(s.Model().Things, id)
 
-	if err := s.storage.Save(); err != nil {
+	if err := s.Save(); err != nil {
 		return fmt.Errorf("state: failed to remove state of a thing with ID %s: %w", id, err)
 	}
 
@@ -128,7 +124,7 @@ func (s *state) byID(id string) ThingState {
 	s.lock.RLock()
 	defer s.lock.RUnlock()
 
-	ts, ok := s.model.Things[id]
+	ts, ok := s.Model().Things[id]
 	if !ok {
 		return nil
 	}
@@ -141,7 +137,7 @@ func (s *state) byAddress(address string) ThingState {
 	s.lock.RLock()
 	defer s.lock.RUnlock()
 
-	for _, ts := range s.model.Things {
+	for _, ts := range s.Model().Things {
 		if ts.Address == address {
 			return newThingState(s, ts)
 		}
@@ -244,7 +240,7 @@ func (s *thingState) SetState(model interface{}) error {
 
 	s.model.State = b
 
-	err = s.state.storage.Save()
+	err = s.state.Save()
 	if err != nil {
 		return fmt.Errorf("thing state: failed to persist state of a thing with ID %s: %w", s.ID(), err)
 	}
@@ -267,7 +263,7 @@ func (s *thingState) SetInclusionChecksum(checksum uint32) error {
 
 	s.model.InclusionChecksum = checksum
 
-	err := s.state.storage.Save()
+	err := s.state.Save()
 	if err != nil {
 		return fmt.Errorf("thing state: failed to persist inclusion checksum of a thing with ID %s: %w", s.ID(), err)
 	}
