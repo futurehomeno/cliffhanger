@@ -138,15 +138,9 @@ func requiredInterfaces() []fimptype.Interface { //nolint:funlen
 	}
 }
 
-// adjustableCurrentInterfaces returns interfaces for adjustable current controller.
-func adjustableCurrentInterfaces() []fimptype.Interface {
+// adjustableMaxCurrentInterfaces returns interfaces for adjustable max current controller.
+func adjustableMaxCurrentInterfaces() []fimptype.Interface {
 	return []fimptype.Interface{
-		{
-			Type:      fimptype.TypeIn,
-			MsgType:   CmdCurrentSessionSetCurrent,
-			ValueType: fimpgo.VTypeInt,
-			Version:   "1",
-		},
 		{
 			Type:      fimptype.TypeIn,
 			MsgType:   CmdMaxCurrentSet,
@@ -187,6 +181,18 @@ func adjustablePhaseModeInterfaces() []fimptype.Interface {
 			Type:      fimptype.TypeOut,
 			MsgType:   EvtPhaseModeReport,
 			ValueType: fimpgo.VTypeString,
+			Version:   "1",
+		},
+	}
+}
+
+// adjustableOfferedCurrentInterfaces returns interfaces for adjustable offered current controller.
+func adjustableOfferedCurrentInterfaces() []fimptype.Interface {
+	return []fimptype.Interface{
+		{
+			Type:      fimptype.TypeIn,
+			MsgType:   CmdCurrentSessionSetCurrent,
+			ValueType: fimpgo.VTypeInt,
 			Version:   "1",
 		},
 	}

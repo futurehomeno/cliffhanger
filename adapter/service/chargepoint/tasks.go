@@ -48,7 +48,7 @@ func sendChargepointReports(s Service) {
 		}
 	}
 
-	if s.SupportsAdjustingCurrent() {
+	if s.SupportsAdjustingMaxCurrent() {
 		_, err = s.SendMaxCurrentReport(false)
 		if err != nil {
 			log.WithError(err).Errorf("adapter: failed to send chargepoint max current report")
