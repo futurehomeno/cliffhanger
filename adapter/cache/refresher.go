@@ -16,12 +16,12 @@ const (
 	defaultFinalBackoff     = 5 * time.Minute
 )
 
-type Refresh func() (interface{}, error)
+type Refresh[T any] func() (T, error)
 
 // Refresher is a helper service that performs refreshing if the a configured interval has passed.
-type Refresher interface {
+type Refresher[T any] interface {
 	// Refresh refreshes data if required and returns it.
-	Refresh() (interface{}, error)
+	Refresh() (T, error)
 	// Reset cache so next invocation will result in execution of provided refresh function.
 	Reset()
 	// IsFailing returns true if the refreshers failure count exceeded configured threshold and false otherwise.
@@ -31,14 +31,14 @@ type Refresher interface {
 // RefresherOption is an option for refresher service.
 type RefresherOption interface {
 	// apply applies refresher option to the provided refresher.
-	apply(*refresher)
+	apply(*refresherOptions)
 }
 
 // refresherOptionFn is a function adapter that allows to use anonymous functions as refresher option.
-type refresherOptionFn func(*refresher)
+type refresherOptionFn func(*refresherOptions)
 
 // apply applies refresher option to the provided refresher.
-func (f refresherOptionFn) apply(r *refresher) {
+func (f refresherOptionFn) apply(r *refresherOptions) {
 	f(r)
 }
 
@@ -49,7 +49,7 @@ func WithDefaultBackoff() RefresherOption {
 
 // WithBackoff sets backoff parameters for the refresher.
 func WithBackoff(initialBackoff, repeatedBackoff, finalBackoff time.Duration, backoffThreshold int) RefresherOption {
-	return refresherOptionFn(func(r *refresher) {
+	return refresherOptionFn(func(r *refresherOptions) {
 		r.initialBackoff = initialBackoff
 		r.repeatedBackoff = repeatedBackoff
 		r.finalBackoff = finalBackoff
@@ -64,7 +64,7 @@ func WithDefaultFailureThreshold() RefresherOption {
 
 // WithFailureThreshold sets failure threshold for the refresher.
 func WithFailureThreshold(threshold int) RefresherOption {
-	return refresherOptionFn(func(r *refresher) {
+	return refresherOptionFn(func(r *refresherOptions) {
 		r.failureThreshold = threshold
 	})
 }
@@ -76,14 +76,14 @@ func WithDefaultIntervalOffset() RefresherOption {
 
 // WithIntervalOffset sets interval offset for the refresher.
 func WithIntervalOffset(offset float64) RefresherOption {
-	return refresherOptionFn(func(r *refresher) {
+	return refresherOptionFn(func(r *refresherOptions) {
 		r.interval = time.Duration((1 - offset) * float64(r.interval))
 	})
 }
 
 // WithDefaultOptions sets default options for the refresher.
 func WithDefaultOptions() RefresherOption {
-	return refresherOptionFn(func(r *refresher) {
+	return refresherOptionFn(func(r *refresherOptions) {
 		WithDefaultBackoff().apply(r)
 		WithDefaultFailureThreshold().apply(r)
 		WithDefaultIntervalOffset().apply(r)
@@ -91,40 +91,45 @@ func WithDefaultOptions() RefresherOption {
 }
 
 // NewRefresher creates new instance of a refresher service.
-func NewRefresher(refresh Refresh, interval time.Duration, options ...RefresherOption) Refresher {
-	r := &refresher{
-		lock:     &sync.Mutex{},
-		interval: interval,
-		refresh:  refresh,
+func NewRefresher[T any](refresh Refresh[T], interval time.Duration, options ...RefresherOption) Refresher[T] {
+	r := &refresher[T]{
+		refresherOptions: refresherOptions{
+			interval: interval,
+		},
+		refresh: refresh,
 	}
 
 	for _, option := range options {
-		option.apply(r)
+		option.apply(&r.refresherOptions)
 	}
 
 	return r
 }
 
 // refresher is a private implementation of the refresher service.
-type refresher struct {
-	lock             *sync.Mutex
+type refresher[T any] struct {
+	lock sync.Mutex
+	refresherOptions
+
+	value        T
+	lastRefresh  time.Time
+	lastFailure  time.Time
+	failureCount int
+
+	refresh Refresh[T]
+}
+
+type refresherOptions struct {
 	interval         time.Duration
 	failureThreshold int
 	backoffThreshold int
 	initialBackoff   time.Duration
 	repeatedBackoff  time.Duration
 	finalBackoff     time.Duration
-
-	value        interface{}
-	lastRefresh  time.Time
-	lastFailure  time.Time
-	failureCount int
-
-	refresh Refresh
 }
 
 // Refresh refreshes data if required and returns it.
-func (r *refresher) Refresh() (interface{}, error) {
+func (r *refresher[T]) Refresh() (T, error) {
 	r.lock.Lock()
 	defer r.lock.Unlock()
 
@@ -133,7 +138,9 @@ func (r *refresher) Refresh() (interface{}, error) {
 	}
 
 	if r.shouldBackoff() {
-		return nil, fmt.Errorf("refresher: backoff is in effect")
+		var def T
+
+		return def, fmt.Errorf("refresher: backoff is in effect")
 	}
 
 	val, err := r.refresh()
@@ -141,7 +148,9 @@ func (r *refresher) Refresh() (interface{}, error) {
 		r.lastFailure = time.Now()
 		r.failureCount++
 
-		return nil, fmt.Errorf("refresher: failed to refresh data: %w", err)
+		var def T
+
+		return def, fmt.Errorf("refresher: failed to refresh data: %w", err)
 	}
 
 	r.value = val
@@ -153,16 +162,17 @@ func (r *refresher) Refresh() (interface{}, error) {
 }
 
 // Reset cache so next invocation will result in execution of provided refresh function.
-func (r *refresher) Reset() {
+func (r *refresher[T]) Reset() {
 	r.lock.Lock()
 	defer r.lock.Unlock()
 
-	r.value = nil
+	var def T
+	r.value = def
 	r.lastRefresh = time.Time{}
 }
 
 // IsFailing returns true if the refreshers failure count exceeded configured threshold and false otherwise.
-func (r *refresher) IsFailing() bool {
+func (r *refresher[T]) IsFailing() bool {
 	r.lock.Lock()
 	defer r.lock.Unlock()
 
@@ -170,7 +180,7 @@ func (r *refresher) IsFailing() bool {
 }
 
 // shouldBackoff returns true if the backoff is in effect and false otherwise.
-func (r *refresher) shouldBackoff() bool {
+func (r *refresher[T]) shouldBackoff() bool {
 	if r.backoffThreshold == 0 {
 		return false
 	}
@@ -183,7 +193,7 @@ func (r *refresher) shouldBackoff() bool {
 }
 
 // getBackoff returns backoff duration based on the provided failure count.
-func (r *refresher) getBackoff(failureCount int) time.Duration {
+func (r *refresher[T]) getBackoff(failureCount int) time.Duration {
 	if failureCount <= r.backoffThreshold {
 		return r.initialBackoff
 	}
