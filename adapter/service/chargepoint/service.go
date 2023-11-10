@@ -30,7 +30,7 @@ type Controller interface {
 	// SetChargepointCableLock locks and unlocks the cable connector.
 	SetChargepointCableLock(bool) error
 	// ChargepointCableLockReport returns a current state of the chargepoint cable lock.
-	ChargepointCableLockReport() (bool, error)
+	ChargepointCableLockReport() (*CableReport, error)
 	// ChargepointCurrentSessionReport returns cumulative energy charged during the current session.
 	ChargepointCurrentSessionReport() (*SessionReport, error)
 	// ChargepointStateReport returns a current state of the chargepoint.
@@ -45,6 +45,14 @@ type AdjustableCurrentController interface {
 	SetChargepointMaxCurrent(int64) error
 	// ChargepointMaxCurrentReport returns max current of a chargepoint.
 	ChargepointMaxCurrentReport() (int64, error)
+}
+
+// AdjustablePhaseModeController is an interface representing capability of a charger device to adjust phase mode.
+type AdjustablePhaseModeController interface {
+	// SetChargepointPhaseMode sets phase mode of a chargepoint.
+	SetChargepointPhaseMode(PhaseMode) error
+	// ChargepointPhaseModeReport returns phase mode of a chargepoint.
+	ChargepointPhaseModeReport() (PhaseMode, error)
 }
 
 // Service is an interface representing a waterHeater FIMP service.
@@ -63,6 +71,8 @@ type Service interface {
 	SetOfferedCurrent(int64) error
 	// SetMaxCurrent sets max current of a chargepoint.
 	SetMaxCurrent(int64) error
+	// SetPhaseMode sets phase mode of a chargepoint.
+	SetPhaseMode(PhaseMode) error
 	// SendCurrentSessionReport sends a current charging session report. Returns true if a report was sent.
 	SendCurrentSessionReport(force bool) (bool, error)
 	// SendCableLockReport sends a cable lock report. Returns true if a report was sent.
@@ -71,10 +81,14 @@ type Service interface {
 	SendStateReport(force bool) (bool, error)
 	// SendMaxCurrentReport sends a max current report. Returns true if a report was sent.
 	SendMaxCurrentReport(force bool) (bool, error)
+	// SendPhaseModeReport sends a phase mode report. Returns true if a report was sent.
+	SendPhaseModeReport(force bool) (bool, error)
 	// SupportedStates returns states that are supported by the chargepoint.
 	SupportedStates() []string
 	// SupportsAdjustingCurrent returns true if the chargepoint supports adjusting current.
 	SupportsAdjustingCurrent() bool
+	// SupportsAdjustingPhaseModes returns true if the chargepoint supports adjusting phase modes.
+	SupportsAdjustingPhaseModes() bool
 }
 
 // Config represents a service configuration.
@@ -113,6 +127,10 @@ func NewService(
 
 	if s.SupportsAdjustingCurrent() {
 		cfg.Specification.EnsureInterfaces(adjustableCurrentInterfaces()...)
+	}
+
+	if s.SupportsAdjustingPhaseModes() {
+		cfg.Specification.EnsureInterfaces(adjustablePhaseModeInterfaces()...)
 	}
 
 	return s
@@ -221,6 +239,29 @@ func (s *service) SetMaxCurrent(current int64) error {
 	return nil
 }
 
+// SetPhaseMode sets phase mode of a chargepoint.
+func (s *service) SetPhaseMode(mode PhaseMode) error {
+	s.lock.Lock()
+	defer s.lock.Unlock()
+
+	controller, err := s.adjustablePhaseModeController()
+	if err != nil {
+		return err
+	}
+
+	err = s.validatePhaseMode(mode)
+	if err != nil {
+		return err
+	}
+
+	err = controller.SetChargepointPhaseMode(mode)
+	if err != nil {
+		return fmt.Errorf("%s: failed to set phase mode to %s: %w", s.Name(), mode.String(), err)
+	}
+
+	return nil
+}
+
 // SendCurrentSessionReport sends a current charging session report. Returns true if a report was sent.
 func (s *service) SendCurrentSessionReport(force bool) (bool, error) {
 	s.lock.Lock()
@@ -271,8 +312,8 @@ func (s *service) SendCableLockReport(force bool) (bool, error) {
 	message := fimpgo.NewBoolMessage(
 		EvtCableLockReport,
 		s.Name(),
-		value,
-		nil,
+		value.CableLock,
+		value.reportProperties(),
 		nil,
 		nil,
 	)
@@ -358,6 +399,44 @@ func (s *service) SendMaxCurrentReport(force bool) (bool, error) {
 	return true, nil
 }
 
+// SendPhaseModeReport sends a phase mode report. Returns true if a report was sent.
+func (s *service) SendPhaseModeReport(force bool) (bool, error) {
+	s.lock.Lock()
+	defer s.lock.Unlock()
+
+	controller, err := s.adjustablePhaseModeController()
+	if err != nil {
+		return false, err
+	}
+
+	value, err := controller.ChargepointPhaseModeReport()
+	if err != nil {
+		return false, fmt.Errorf("%s: failed to retrieve phase mode report: %w", s.Name(), err)
+	}
+
+	if !force && !s.reportingCache.ReportRequired(s.stateReportingStrategy, EvtPhaseModeReport, "", value) {
+		return false, nil
+	}
+
+	message := fimpgo.NewStringMessage(
+		EvtPhaseModeReport,
+		s.Name(),
+		value.String(),
+		nil,
+		nil,
+		nil,
+	)
+
+	err = s.SendMessage(message)
+	if err != nil {
+		return false, fmt.Errorf("%s: failed to send phase mode report: %w", s.Name(), err)
+	}
+
+	s.reportingCache.Reported(EvtPhaseModeReport, "", value)
+
+	return true, nil
+}
+
 // SupportedStates returns states that are supported by the chargepoint.
 func (s *service) SupportedStates() []string {
 	return s.Service.Specification().PropertyStrings(PropertySupportedStates)
@@ -366,6 +445,13 @@ func (s *service) SupportedStates() []string {
 // SupportsAdjustingCurrent returns true if the chargepoint supports adjusting current.
 func (s *service) SupportsAdjustingCurrent() bool {
 	_, err := s.adjustableCurrentController()
+
+	return err == nil
+}
+
+// SupportsAdjustingPhaseModes returns true if the chargepoint supports adjusting phase modes.
+func (s *service) SupportsAdjustingPhaseModes() bool {
+	_, err := s.adjustablePhaseModeController()
 
 	return err == nil
 }
@@ -380,6 +466,21 @@ func (s *service) adjustableCurrentController() (AdjustableCurrentController, er
 	controller, ok := s.controller.(AdjustableCurrentController)
 	if !ok {
 		return nil, fmt.Errorf("%s: adjusting current is not supported", s.Name())
+	}
+
+	return controller, nil
+}
+
+// adjustablePhaseModeController returns the AdjustablePhaseModeController, if supported.
+func (s *service) adjustablePhaseModeController() (AdjustablePhaseModeController, error) {
+	phaseModes := s.Specification().PropertyStrings(PropertySupportedPhaseModes)
+	if len(phaseModes) == 0 {
+		return nil, fmt.Errorf("%s: adjusting phase modes is not supported", s.Name())
+	}
+
+	controller, ok := s.controller.(AdjustablePhaseModeController)
+	if !ok {
+		return nil, fmt.Errorf("%s: adjusting phase modes is not supported", s.Name())
 	}
 
 	return controller, nil
@@ -420,4 +521,17 @@ func (s *service) validateCurrent(current int64) error {
 	}
 
 	return nil
+}
+
+// validatePhaseMode validates provided phase mode.
+func (s *service) validatePhaseMode(mode PhaseMode) error {
+	supportedModes := s.Specification().PropertyStrings(PropertySupportedPhaseModes)
+
+	for _, supportedMode := range supportedModes {
+		if mode.String() == supportedMode {
+			return nil
+		}
+	}
+
+	return fmt.Errorf("%s: unsupported phase mode: %s", s.Name(), mode.String())
 }

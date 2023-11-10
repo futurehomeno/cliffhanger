@@ -24,6 +24,13 @@ func WithSupportedMaxCurrent(current int64) adapter.SpecificationOption {
 	})
 }
 
+// WithSupportedPhaseModes adds phases to the service specification.
+func WithSupportedPhaseModes(modes ...PhaseMode) adapter.SpecificationOption {
+	return adapter.SpecificationOptionFn(func(f *fimptype.Service) {
+		f.Props[PropertySupportedPhaseModes] = modes
+	})
+}
+
 // WithGridType adds grid type to the service specification.
 func WithGridType(gridType GridType) adapter.SpecificationOption {
 	return adapter.SpecificationOptionFn(func(f *fimptype.Service) {
@@ -156,6 +163,30 @@ func adjustableCurrentInterfaces() []fimptype.Interface {
 			Type:      fimptype.TypeOut,
 			MsgType:   EvtMaxCurrentReport,
 			ValueType: fimpgo.VTypeInt,
+			Version:   "1",
+		},
+	}
+}
+
+// adjustableCurrentInterfaces returns interfaces for adjustable current controller.
+func adjustablePhaseModeInterfaces() []fimptype.Interface {
+	return []fimptype.Interface{
+		{
+			Type:      fimptype.TypeIn,
+			MsgType:   CmdPhaseModeSet,
+			ValueType: fimpgo.VTypeString,
+			Version:   "1",
+		},
+		{
+			Type:      fimptype.TypeIn,
+			MsgType:   CmdPhaseModeGetReport,
+			ValueType: fimpgo.VTypeNull,
+			Version:   "1",
+		},
+		{
+			Type:      fimptype.TypeOut,
+			MsgType:   EvtPhaseModeReport,
+			ValueType: fimpgo.VTypeString,
 			Version:   "1",
 		},
 	}

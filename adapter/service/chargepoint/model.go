@@ -14,7 +14,9 @@ const (
 	PropertyStartedAt              = "started_at"
 	PropertyFinishedAt             = "finished_at"
 	PropertyOfferedCurrent         = "offered_current"
+	PropertyCableCurrent           = "cable_current"
 	PropertySupportedMaxCurrent    = "sup_max_current"
+	PropertySupportedPhaseModes    = "sup_phase_modes"
 	PropertyGridType               = "grid_type"
 	PropertyPhases                 = "phases"
 
@@ -33,6 +35,15 @@ const (
 	GridTypeIT GridType = "IT"
 	GridTypeTT GridType = "TT"
 	GridTypeTN GridType = "TN"
+
+	PhaseModeNL1L2L3 PhaseMode = "NL1L2L3"
+	PhaseModeNL1     PhaseMode = "NL1"
+	PhaseModeNL2     PhaseMode = "NL2"
+	PhaseModeNL3     PhaseMode = "NL3"
+	PhaseModeL1L2L3  PhaseMode = "L1L2L3"
+	PhaseModeL1L2    PhaseMode = "L1L2"
+	PhaseModeL2L3    PhaseMode = "L2L3"
+	PhaseModeL3L1    PhaseMode = "L3L1"
 )
 
 // State represents a chargepoint state.
@@ -51,9 +62,34 @@ func (t GridType) String() string {
 	return string(t)
 }
 
+// PhaseMode represents a configured grid type.
+type PhaseMode string
+
+// String returns a string representation of the grid type.
+func (t PhaseMode) String() string {
+	return string(t)
+}
+
 // ChargingSettings represents optional charging settings.
 type ChargingSettings struct {
 	Mode string
+}
+
+// CableReport represents an extended cable status report.
+type CableReport struct {
+	CableLock    bool
+	CableCurrent int64
+}
+
+// reportProperties returns a map of report properties.
+func (r *CableReport) reportProperties() map[string]string {
+	if r.CableCurrent == 0 {
+		return nil
+	}
+
+	return map[string]string{
+		PropertyCableCurrent: strconv.Itoa(int(r.CableCurrent)),
+	}
 }
 
 // SessionReport represents an extended session report.

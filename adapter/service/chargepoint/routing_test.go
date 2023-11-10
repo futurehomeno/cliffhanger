@@ -110,7 +110,7 @@ func TestRouteService(t *testing.T) { //nolint:paralleltest
 					mockedchargepoint.NewMockedChargepoint(
 						mockedchargepoint.NewController(t).
 							MockSetChargepointCableLock(true, nil, true).
-							MockChargepointCableLockReport(true, nil, false).
+							MockChargepointCableLockReport(&chargepoint.CableReport{CableLock: true}, nil, false).
 							MockChargepointStateReport("charging", nil, true).
 							MockChargepointCurrentSessionReport(&chargepoint.SessionReport{
 								SessionEnergy:         1.74,
@@ -123,8 +123,14 @@ func TestRouteService(t *testing.T) { //nolint:paralleltest
 							MockSetChargepointOfferedCurrent(10, nil, true).
 							MockSetChargepointMaxCurrent(16, nil, true).
 							MockChargepointMaxCurrentReport(16, nil, false),
+						mockedchargepoint.NewAdjustablePhaseModeController(t).
+							MockSetChargepointPhaseMode(chargepoint.PhaseModeNL1L2L3, nil, true).
+							MockChargepointPhaseModeReport(chargepoint.PhaseModeNL1L2L3, nil, false),
 					),
-					[]adapter.SpecificationOption{chargepoint.WithSupportedMaxCurrent(16)},
+					[]adapter.SpecificationOption{
+						chargepoint.WithSupportedMaxCurrent(16),
+						chargepoint.WithSupportedPhaseModes(chargepoint.PhaseModeNL1L2L3, chargepoint.PhaseModeNL1, chargepoint.PhaseModeNL2, chargepoint.PhaseModeNL3),
+					},
 				),
 				Nodes: []*suite.Node{
 					{
@@ -178,6 +184,20 @@ func TestRouteService(t *testing.T) { //nolint:paralleltest
 						Command: suite.NullMessage("pt:j1/mt:cmd/rt:dev/rn:test_adapter/ad:1/sv:chargepoint/ad:2", "cmd.max_current.get_report", "chargepoint"),
 						Expectations: []*suite.Expectation{
 							suite.ExpectInt("pt:j1/mt:evt/rt:dev/rn:test_adapter/ad:1/sv:chargepoint/ad:2", "evt.max_current.report", "chargepoint", 16),
+						},
+					},
+					{
+						Name:    "set phase mode",
+						Command: suite.StringMessage("pt:j1/mt:cmd/rt:dev/rn:test_adapter/ad:1/sv:chargepoint/ad:2", "cmd.phase_mode.set", "chargepoint", "NL1L2L3"),
+						Expectations: []*suite.Expectation{
+							suite.ExpectString("pt:j1/mt:evt/rt:dev/rn:test_adapter/ad:1/sv:chargepoint/ad:2", "evt.phase_mode.report", "chargepoint", "NL1L2L3"),
+						},
+					},
+					{
+						Name:    "get phase mode",
+						Command: suite.NullMessage("pt:j1/mt:cmd/rt:dev/rn:test_adapter/ad:1/sv:chargepoint/ad:2", "cmd.phase_mode.get_report", "chargepoint"),
+						Expectations: []*suite.Expectation{
+							suite.ExpectString("pt:j1/mt:evt/rt:dev/rn:test_adapter/ad:1/sv:chargepoint/ad:2", "evt.phase_mode.report", "chargepoint", "NL1L2L3"),
 						},
 					},
 				},
@@ -340,7 +360,7 @@ func TestRouteService(t *testing.T) { //nolint:paralleltest
 				Setup: routeService(
 					mockedchargepoint.NewController(t).
 						MockSetChargepointCableLock(true, nil, true).
-						MockChargepointCableLockReport(false, errTest, true),
+						MockChargepointCableLockReport(&chargepoint.CableReport{CableLock: false}, errTest, true),
 					nil,
 				),
 				Nodes: []*suite.Node{
@@ -362,6 +382,7 @@ func TestRouteService(t *testing.T) { //nolint:paralleltest
 							MockChargepointCurrentSessionReport(nil, errTest, false),
 						mockedchargepoint.NewAdjustableCurrentController(t).
 							MockSetChargepointOfferedCurrent(10, nil, false),
+						nil,
 					),
 					[]adapter.SpecificationOption{chargepoint.WithSupportedMaxCurrent(16)},
 				),
@@ -384,6 +405,7 @@ func TestRouteService(t *testing.T) { //nolint:paralleltest
 						mockedchargepoint.NewAdjustableCurrentController(t).
 							MockChargepointMaxCurrentReport(0, errTest, false).
 							MockSetChargepointMaxCurrent(14, nil, false),
+						nil,
 					),
 					[]adapter.SpecificationOption{chargepoint.WithSupportedMaxCurrent(16)},
 				),
@@ -454,18 +476,130 @@ func TestRouteService(t *testing.T) { //nolint:paralleltest
 				},
 			},
 			{
+				Name:     "adjustable phase mode controller - unsupported phase mode on set",
+				TearDown: adapterhelper.TearDownAdapter("../../testdata/adapter/test_adapter"),
+				Setup: routeService(
+					mockedchargepoint.NewMockedChargepoint(
+						mockedchargepoint.NewController(t),
+						nil,
+						mockedchargepoint.NewAdjustablePhaseModeController(t),
+					),
+					[]adapter.SpecificationOption{chargepoint.WithSupportedPhaseModes(chargepoint.PhaseModeNL1)},
+				),
+				Nodes: []*suite.Node{
+					{
+						Command: suite.StringMessage("pt:j1/mt:cmd/rt:dev/rn:test_adapter/ad:1/sv:chargepoint/ad:2", "cmd.phase_mode.set", "chargepoint", "L1L2"),
+						Expectations: []*suite.Expectation{
+							suite.ExpectError("pt:j1/mt:evt/rt:dev/rn:test_adapter/ad:1/sv:chargepoint/ad:2", "chargepoint"),
+						},
+					},
+				},
+			},
+			{
+				Name:     "adjustable phase mode controller - set error",
+				TearDown: adapterhelper.TearDownAdapter("../../testdata/adapter/test_adapter"),
+				Setup: routeService(
+					mockedchargepoint.NewMockedChargepoint(
+						mockedchargepoint.NewController(t),
+						nil,
+						mockedchargepoint.NewAdjustablePhaseModeController(t).
+							MockSetChargepointPhaseMode(chargepoint.PhaseModeNL1, errTest, true),
+					),
+					[]adapter.SpecificationOption{chargepoint.WithSupportedPhaseModes(chargepoint.PhaseModeNL1L2L3, chargepoint.PhaseModeNL1, chargepoint.PhaseModeNL2, chargepoint.PhaseModeNL3)},
+				),
+				Nodes: []*suite.Node{
+					{
+						Command: suite.StringMessage("pt:j1/mt:cmd/rt:dev/rn:test_adapter/ad:1/sv:chargepoint/ad:2", "cmd.phase_mode.set", "chargepoint", "NL1"),
+						Expectations: []*suite.Expectation{
+							suite.ExpectError("pt:j1/mt:evt/rt:dev/rn:test_adapter/ad:1/sv:chargepoint/ad:2", "chargepoint"),
+						},
+					},
+				},
+			},
+			{
+				Name:     "adjustable phase mode controller - get error",
+				TearDown: adapterhelper.TearDownAdapter("../../testdata/adapter/test_adapter"),
+				Setup: routeService(
+					mockedchargepoint.NewMockedChargepoint(
+						mockedchargepoint.NewController(t),
+						nil,
+						mockedchargepoint.NewAdjustablePhaseModeController(t).
+							MockChargepointPhaseModeReport(chargepoint.PhaseModeNL1, errTest, true),
+					),
+					[]adapter.SpecificationOption{chargepoint.WithSupportedPhaseModes(chargepoint.PhaseModeNL1L2L3, chargepoint.PhaseModeNL1, chargepoint.PhaseModeNL2, chargepoint.PhaseModeNL3)},
+				),
+				Nodes: []*suite.Node{
+					{
+						Command: suite.NullMessage("pt:j1/mt:cmd/rt:dev/rn:test_adapter/ad:1/sv:chargepoint/ad:2", "cmd.phase_mode.get_report", "chargepoint"),
+						Expectations: []*suite.Expectation{
+							suite.ExpectError("pt:j1/mt:evt/rt:dev/rn:test_adapter/ad:1/sv:chargepoint/ad:2", "chargepoint"),
+						},
+					},
+				},
+			},
+			{
+				Name:     "no adjustable phase mode controller - missing implementation",
+				TearDown: adapterhelper.TearDownAdapter("../../testdata/adapter/test_adapter"),
+				Setup:    routeService(mockedchargepoint.NewController(t), nil),
+				Nodes: []*suite.Node{
+					{
+						Name:    "set phase mode",
+						Command: suite.StringMessage("pt:j1/mt:cmd/rt:dev/rn:test_adapter/ad:1/sv:chargepoint/ad:2", "cmd.phase_mode.set", "chargepoint", "NL1"),
+						Expectations: []*suite.Expectation{
+							suite.ExpectError("pt:j1/mt:evt/rt:dev/rn:test_adapter/ad:1/sv:chargepoint/ad:2", "chargepoint"),
+						},
+					},
+					{
+						Name:    "get phase mode",
+						Command: suite.NullMessage("pt:j1/mt:cmd/rt:dev/rn:test_adapter/ad:1/sv:chargepoint/ad:2", "cmd.phase_mode.get_report", "chargepoint"),
+						Expectations: []*suite.Expectation{
+							suite.ExpectError("pt:j1/mt:evt/rt:dev/rn:test_adapter/ad:1/sv:chargepoint/ad:2", "chargepoint"),
+						},
+					},
+				},
+			},
+			{
+				Name:     "no adjustable phase mode controller - implementation exists, but supported phase modes are not provided",
+				TearDown: adapterhelper.TearDownAdapter("../../testdata/adapter/test_adapter"),
+				Setup: routeService(
+					mockedchargepoint.NewMockedChargepoint(
+						mockedchargepoint.NewController(t),
+						nil,
+						mockedchargepoint.NewAdjustablePhaseModeController(t),
+					),
+					nil,
+				),
+				Nodes: []*suite.Node{
+					{
+						Name:    "set phase mode",
+						Command: suite.StringMessage("pt:j1/mt:cmd/rt:dev/rn:test_adapter/ad:1/sv:chargepoint/ad:2", "cmd.phase_mode.set", "chargepoint", "NL1"),
+						Expectations: []*suite.Expectation{
+							suite.ExpectError("pt:j1/mt:evt/rt:dev/rn:test_adapter/ad:1/sv:chargepoint/ad:2", "chargepoint"),
+						},
+					},
+					{
+						Name:    "get phase mode",
+						Command: suite.NullMessage("pt:j1/mt:cmd/rt:dev/rn:test_adapter/ad:1/sv:chargepoint/ad:2", "cmd.phase_mode.get_report", "chargepoint"),
+						Expectations: []*suite.Expectation{
+							suite.ExpectError("pt:j1/mt:evt/rt:dev/rn:test_adapter/ad:1/sv:chargepoint/ad:2", "chargepoint"),
+						},
+					},
+				},
+			},
+			{
 				Name:     "other failed routing",
 				TearDown: adapterhelper.TearDownAdapter("../../testdata/adapter/test_adapter"),
 				Setup: routeService(
 					mockedchargepoint.NewMockedChargepoint(
 						mockedchargepoint.NewController(t).
-							MockChargepointCableLockReport(false, errTest, false).
+							MockChargepointCableLockReport(&chargepoint.CableReport{CableLock: false}, errTest, false).
 							MockChargepointStateReport("", errTest, true).
 							MockChargepointCurrentSessionReport(nil, errTest, true),
 						mockedchargepoint.NewAdjustableCurrentController(t).
 							MockChargepointMaxCurrentReport(0, errTest, true).
 							MockSetChargepointOfferedCurrent(10, errTest, true).
 							MockSetChargepointMaxCurrent(14, errTest, true),
+						nil,
 					),
 					[]adapter.SpecificationOption{chargepoint.WithSupportedMaxCurrent(16)},
 				),

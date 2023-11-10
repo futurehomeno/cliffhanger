@@ -6,7 +6,8 @@ import (
 
 type MockedChargepoint struct {
 	*Controller
-	*AdjustableCurrentController
+	*AdjustableCurrentController   // optional
+	*AdjustablePhaseModeController // optional
 }
 
 func (m *MockedChargepoint) AssertExpectations(t mock.TestingT) bool {
@@ -14,12 +15,25 @@ func (m *MockedChargepoint) AssertExpectations(t mock.TestingT) bool {
 		return false
 	}
 
-	return m.AdjustableCurrentController.AssertExpectations(t)
+	if m.AdjustableCurrentController != nil && !m.AdjustableCurrentController.AssertExpectations(t) {
+		return false
+	}
+
+	if m.AdjustablePhaseModeController != nil && !m.AdjustablePhaseModeController.AssertExpectations(t) {
+		return false
+	}
+
+	return true
 }
 
-func NewMockedChargepoint(controller *Controller, adjustableCurrentController *AdjustableCurrentController) *MockedChargepoint {
+func NewMockedChargepoint(
+	controller *Controller,
+	currentController *AdjustableCurrentController,
+	phaseModeController *AdjustablePhaseModeController,
+) *MockedChargepoint {
 	return &MockedChargepoint{
-		Controller:                  controller,
-		AdjustableCurrentController: adjustableCurrentController,
+		Controller:                    controller,
+		AdjustableCurrentController:   currentController,
+		AdjustablePhaseModeController: phaseModeController,
 	}
 }

@@ -153,7 +153,7 @@ func TestRouteConfig(t *testing.T) { //nolint:paralleltest
 						config.RouteCmdLogSetLevel("test_service", mLog.setter),
 					)
 
-					return
+					return routing, tasks, mocks
 				}),
 				Nodes: []*suite.Node{
 					{

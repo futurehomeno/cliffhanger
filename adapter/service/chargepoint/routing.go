@@ -24,6 +24,9 @@ const (
 	CmdMaxCurrentSet            = "cmd.max_current.set"
 	CmdMaxCurrentGetReport      = "cmd.max_current.get_report"
 	EvtMaxCurrentReport         = "evt.max_current.report"
+	CmdPhaseModeSet             = "cmd.phase_mode.set"
+	CmdPhaseModeGetReport       = "cmd.phase_mode.get_report"
+	EvtPhaseModeReport          = "evt.phase_mode.report"
 
 	Chargepoint = "chargepoint"
 )
@@ -40,6 +43,8 @@ func RouteService(serviceRegistry adapter.ServiceRegistry) []*router.Routing {
 		routeCmdCurrentSessionGetReport(serviceRegistry),
 		routeCmdMaxCurrentSet(serviceRegistry),
 		routeCmdMaxCurrentGetReport(serviceRegistry),
+		routeCmdPhaseModeSet(serviceRegistry),
+		routeCmdPhaseModeGetReport(serviceRegistry),
 	}
 }
 
@@ -342,6 +347,72 @@ func handleCmdMaxCurrentGetReport(serviceRegistry adapter.ServiceRegistry) route
 			_, err = chargepoint.SendMaxCurrentReport(true)
 			if err != nil {
 				return nil, fmt.Errorf("adapter: failed to send chargepoint max current report: %w", err)
+			}
+
+			return nil, nil
+		}),
+	)
+}
+
+// routeCmdPhaseModeSet returns a routing responsible for handling the command.
+func routeCmdPhaseModeSet(serviceRegistry adapter.ServiceRegistry) *router.Routing {
+	return router.NewRouting(
+		handleCmdPhaseModeSet(serviceRegistry),
+		router.ForService(Chargepoint),
+		router.ForType(CmdPhaseModeSet),
+	)
+}
+
+// handleCmdPhaseModeSet returns a handler responsible for handling the command.
+func handleCmdPhaseModeSet(serviceRegistry adapter.ServiceRegistry) router.MessageHandler {
+	return router.NewMessageHandler(
+		router.MessageProcessorFn(func(message *fimpgo.Message) (*fimpgo.FimpMessage, error) {
+			chargepoint, err := getService(serviceRegistry, message)
+			if err != nil {
+				return nil, err
+			}
+
+			phaseMode, err := message.Payload.GetStringValue()
+			if err != nil {
+				return nil, fmt.Errorf("adapter: provided phase mode has an incorrect format: %w", err)
+			}
+
+			err = chargepoint.SetPhaseMode(PhaseMode(phaseMode))
+			if err != nil {
+				return nil, fmt.Errorf("adapter: failed to set chargepoint phase mode: %w", err)
+			}
+
+			_, err = chargepoint.SendPhaseModeReport(true)
+			if err != nil {
+				return nil, fmt.Errorf("adapter: failed to send chargepoint phase mode report: %w", err)
+			}
+
+			return nil, nil
+		}),
+	)
+}
+
+// routeCmdPhaseModeGetReport returns a routing responsible for handling the command.
+func routeCmdPhaseModeGetReport(serviceRegistry adapter.ServiceRegistry) *router.Routing {
+	return router.NewRouting(
+		handleCmdPhaseModeGetReport(serviceRegistry),
+		router.ForService(Chargepoint),
+		router.ForType(CmdPhaseModeGetReport),
+	)
+}
+
+// handleCmdPhaseModeGetReport returns a handler responsible for handling the command.
+func handleCmdPhaseModeGetReport(serviceRegistry adapter.ServiceRegistry) router.MessageHandler {
+	return router.NewMessageHandler(
+		router.MessageProcessorFn(func(message *fimpgo.Message) (*fimpgo.FimpMessage, error) {
+			chargepoint, err := getService(serviceRegistry, message)
+			if err != nil {
+				return nil, err
+			}
+
+			_, err = chargepoint.SendPhaseModeReport(true)
+			if err != nil {
+				return nil, fmt.Errorf("adapter: failed to send chargepoint phase mode report: %w", err)
 			}
 
 			return nil, nil
