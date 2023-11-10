@@ -24,6 +24,7 @@ const (
 	StateRequesting      State = "requesting"
 	StateReadyToCharge   State = "ready_to_charge"
 	StateCharging        State = "charging"
+	StateSwitchingPhases State = "switching_phases"
 	StateSuspendedByEVSE State = "suspended_by_evse"
 	StateSuspendedByEV   State = "suspended_by_ev"
 	StateFinished        State = "finished"
