@@ -257,16 +257,16 @@ func TestDevice(t *testing.T) {
 			want: []string{"W", "kWh"},
 		},
 		{
-			name:   "get service property strings - invalid property type",
-			device: &prime.Device{Services: map[string]*prime.Service{"meter_elec": {Props: map[string]interface{}{"sup_units": []interface{}{"W", 1}}}}},
+			name:   "get service property strings - property is well typed",
+			device: &prime.Device{Services: map[string]*prime.Service{"meter_elec": {Props: map[string]interface{}{"sup_units": []string{"W", "kWh"}}}}},
 			call: func(d *prime.Device) interface{} {
 				return d.GetServicePropertyStrings("meter_elec", "sup_units")
 			},
-			want: ([]string)(nil),
+			want: []string{"W", "kWh"},
 		},
 		{
 			name:   "get service property strings - invalid property type",
-			device: &prime.Device{Services: map[string]*prime.Service{"meter_elec": {Props: map[string]interface{}{"sup_units": []string{"W", "kWh"}}}}},
+			device: &prime.Device{Services: map[string]*prime.Service{"meter_elec": {Props: map[string]interface{}{"sup_units": []interface{}{"W", 1}}}}},
 			call: func(d *prime.Device) interface{} {
 				return d.GetServicePropertyStrings("meter_elec", "sup_units")
 			},
@@ -312,7 +312,30 @@ func TestDevice(t *testing.T) {
 			},
 			want: "",
 		},
-
+		{
+			name:   "get service property integer",
+			device: &prime.Device{Services: map[string]*prime.Service{"chargepoint": {Props: map[string]interface{}{"phases": 1}}}},
+			call: func(d *prime.Device) interface{} {
+				return d.GetServicePropertyInteger("chargepoint", "phases")
+			},
+			want: int64(1),
+		},
+		{
+			name:   "get service property integer - invalid property type",
+			device: &prime.Device{Services: map[string]*prime.Service{"chargepoint": {Props: map[string]interface{}{"phases": "1"}}}},
+			call: func(d *prime.Device) interface{} {
+				return d.GetServicePropertyInteger("chargepoint", "phases")
+			},
+			want: int64(0),
+		},
+		{
+			name:   "get service property integer - missing service",
+			device: &prime.Device{},
+			call: func(d *prime.Device) interface{} {
+				return d.GetServicePropertyInteger("chargepoint", "phases")
+			},
+			want: int64(0),
+		},
 		{
 			name:   "get addresses",
 			device: &prime.Device{Services: map[string]*prime.Service{"s1": {Addr: "address1"}, "s2": {Addr: "address2"}}},

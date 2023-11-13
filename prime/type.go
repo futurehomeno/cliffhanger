@@ -311,42 +311,55 @@ func (d *Device) GetServiceProperty(serviceName string, property string) interfa
 }
 
 func (d *Device) GetServicePropertyString(serviceName string, property string) string {
-	v := d.GetServiceProperty(serviceName, property)
-	if v == nil {
-		return ""
-	}
+	var val string
 
-	s, ok := v.(string)
+	ok := d.GetServicePropertyObject(serviceName, property, &val)
 	if !ok {
 		return ""
 	}
 
-	return s
+	return val
 }
 
-func (d *Device) GetServicePropertyStrings(serviceName string, property string) []string {
-	v := d.GetServiceProperty(serviceName, property)
-	if v == nil {
-		return nil
-	}
+func (d *Device) GetServicePropertyStrings(serviceName, property string) []string {
+	var val []string
 
-	values, ok := v.([]interface{})
+	ok := d.GetServicePropertyObject(serviceName, property, &val)
 	if !ok {
 		return nil
 	}
 
-	var properties []string
+	return val
+}
 
-	for _, i := range values {
-		v, ok := i.(string)
-		if !ok {
-			return nil
-		}
+func (d *Device) GetServicePropertyInteger(serviceName, property string) int64 {
+	var val int64
 
-		properties = append(properties, v)
+	ok := d.GetServicePropertyObject(serviceName, property, &val)
+	if !ok {
+		return 0
 	}
 
-	return properties
+	return val
+}
+
+func (d *Device) GetServicePropertyObject(serviceName, property string, object interface{}) (ok bool) {
+	v := d.GetServiceProperty(serviceName, property)
+	if v == nil {
+		return false
+	}
+
+	b, err := json.Marshal(v)
+	if err != nil {
+		return false
+	}
+
+	err = json.Unmarshal(b, object)
+	if err != nil {
+		return false
+	}
+
+	return true
 }
 
 func (d *Device) MatchesTopic(topic string) bool {
