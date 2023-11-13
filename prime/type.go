@@ -4,8 +4,11 @@ import (
 	"encoding/json"
 	"fmt"
 	"sort"
+	"strconv"
 	"strings"
 	"time"
+
+	"github.com/futurehomeno/fimpgo"
 )
 
 const (
@@ -862,9 +865,9 @@ func (v *StateAttributeValue) GetTime() (time.Time, error) {
 		return time.Time{}, nil
 	}
 
-	t, err := time.Parse("2006-01-02 15:04:05 -0700", v.Timestamp)
-	if err != nil {
-		return time.Time{}, fmt.Errorf("state: failed to parse timestamp: %w", err)
+	t := fimpgo.ParseTime(v.Timestamp)
+	if t.IsZero() {
+		return time.Time{}, fmt.Errorf("state: failed to parse timestamp: %s", v.Timestamp)
 	}
 
 	return t, nil
@@ -886,4 +889,61 @@ func (v *StateAttributeValue) HasProperty(property, value string) bool {
 	}
 
 	return v.Props[property] == value
+}
+
+func (v *StateAttributeValue) GetPropertyString(property string) string {
+	if v == nil {
+		return ""
+	}
+
+	return v.Props[property]
+}
+
+func (v *StateAttributeValue) GetPropertyInteger(property string) int64 {
+	if v == nil {
+		return 0
+	}
+
+	p, ok := v.Props[property]
+	if !ok {
+		return 0
+	}
+
+	i, err := strconv.ParseInt(p, 10, 64)
+	if err != nil {
+		return 0
+	}
+
+	return i
+}
+
+func (v *StateAttributeValue) GetPropertyFloat(property string) float64 {
+	if v == nil {
+		return 0
+	}
+
+	p, ok := v.Props[property]
+	if !ok {
+		return 0
+	}
+
+	i, err := strconv.ParseFloat(p, 64)
+	if err != nil {
+		return 0
+	}
+
+	return i
+}
+
+func (v *StateAttributeValue) GetPropertyTimestamp(property string) time.Time {
+	if v == nil {
+		return time.Time{}
+	}
+
+	p, ok := v.Props[property]
+	if !ok {
+		return time.Time{}
+	}
+
+	return fimpgo.ParseTime(p)
 }
