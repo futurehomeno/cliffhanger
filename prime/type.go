@@ -358,11 +358,8 @@ func (d *Device) GetServicePropertyObject(serviceName, property string, object i
 	}
 
 	err = json.Unmarshal(b, object)
-	if err != nil {
-		return false
-	}
 
-	return true
+	return err == nil
 }
 
 func (d *Device) MatchesTopic(topic string) bool {
