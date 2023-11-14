@@ -4,8 +4,11 @@ import (
 	"encoding/json"
 	"fmt"
 	"sort"
+	"strconv"
 	"strings"
 	"time"
+
+	"github.com/futurehomeno/fimpgo"
 )
 
 const (
@@ -311,42 +314,52 @@ func (d *Device) GetServiceProperty(serviceName string, property string) interfa
 }
 
 func (d *Device) GetServicePropertyString(serviceName string, property string) string {
-	v := d.GetServiceProperty(serviceName, property)
-	if v == nil {
-		return ""
-	}
+	var val string
 
-	s, ok := v.(string)
+	ok := d.GetServicePropertyObject(serviceName, property, &val)
 	if !ok {
 		return ""
 	}
 
-	return s
+	return val
 }
 
-func (d *Device) GetServicePropertyStrings(serviceName string, property string) []string {
-	v := d.GetServiceProperty(serviceName, property)
-	if v == nil {
-		return nil
-	}
+func (d *Device) GetServicePropertyStrings(serviceName, property string) []string {
+	var val []string
 
-	values, ok := v.([]interface{})
+	ok := d.GetServicePropertyObject(serviceName, property, &val)
 	if !ok {
 		return nil
 	}
 
-	var properties []string
+	return val
+}
 
-	for _, i := range values {
-		v, ok := i.(string)
-		if !ok {
-			return nil
-		}
+func (d *Device) GetServicePropertyInteger(serviceName, property string) int64 {
+	var val int64
 
-		properties = append(properties, v)
+	ok := d.GetServicePropertyObject(serviceName, property, &val)
+	if !ok {
+		return 0
 	}
 
-	return properties
+	return val
+}
+
+func (d *Device) GetServicePropertyObject(serviceName, property string, object interface{}) (ok bool) {
+	v := d.GetServiceProperty(serviceName, property)
+	if v == nil {
+		return false
+	}
+
+	b, err := json.Marshal(v)
+	if err != nil {
+		return false
+	}
+
+	err = json.Unmarshal(b, object)
+
+	return err == nil
 }
 
 func (d *Device) MatchesTopic(topic string) bool {
@@ -849,9 +862,9 @@ func (v *StateAttributeValue) GetTime() (time.Time, error) {
 		return time.Time{}, nil
 	}
 
-	t, err := time.Parse("2006-01-02 15:04:05 -0700", v.Timestamp)
-	if err != nil {
-		return time.Time{}, fmt.Errorf("state: failed to parse timestamp: %w", err)
+	t := fimpgo.ParseTime(v.Timestamp)
+	if t.IsZero() {
+		return time.Time{}, fmt.Errorf("state: failed to parse timestamp: %s", v.Timestamp)
 	}
 
 	return t, nil
@@ -873,4 +886,61 @@ func (v *StateAttributeValue) HasProperty(property, value string) bool {
 	}
 
 	return v.Props[property] == value
+}
+
+func (v *StateAttributeValue) GetPropertyString(property string) string {
+	if v == nil {
+		return ""
+	}
+
+	return v.Props[property]
+}
+
+func (v *StateAttributeValue) GetPropertyInteger(property string) int64 {
+	if v == nil {
+		return 0
+	}
+
+	p, ok := v.Props[property]
+	if !ok {
+		return 0
+	}
+
+	i, err := strconv.ParseInt(p, 10, 64)
+	if err != nil {
+		return 0
+	}
+
+	return i
+}
+
+func (v *StateAttributeValue) GetPropertyFloat(property string) float64 {
+	if v == nil {
+		return 0
+	}
+
+	p, ok := v.Props[property]
+	if !ok {
+		return 0
+	}
+
+	i, err := strconv.ParseFloat(p, 64)
+	if err != nil {
+		return 0
+	}
+
+	return i
+}
+
+func (v *StateAttributeValue) GetPropertyTimestamp(property string) time.Time {
+	if v == nil {
+		return time.Time{}
+	}
+
+	p, ok := v.Props[property]
+	if !ok {
+		return time.Time{}
+	}
+
+	return fimpgo.ParseTime(p)
 }

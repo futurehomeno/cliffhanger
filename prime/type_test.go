@@ -257,16 +257,16 @@ func TestDevice(t *testing.T) {
 			want: []string{"W", "kWh"},
 		},
 		{
-			name:   "get service property strings - invalid property type",
-			device: &prime.Device{Services: map[string]*prime.Service{"meter_elec": {Props: map[string]interface{}{"sup_units": []interface{}{"W", 1}}}}},
+			name:   "get service property strings - property is well typed",
+			device: &prime.Device{Services: map[string]*prime.Service{"meter_elec": {Props: map[string]interface{}{"sup_units": []string{"W", "kWh"}}}}},
 			call: func(d *prime.Device) interface{} {
 				return d.GetServicePropertyStrings("meter_elec", "sup_units")
 			},
-			want: ([]string)(nil),
+			want: []string{"W", "kWh"},
 		},
 		{
 			name:   "get service property strings - invalid property type",
-			device: &prime.Device{Services: map[string]*prime.Service{"meter_elec": {Props: map[string]interface{}{"sup_units": []string{"W", "kWh"}}}}},
+			device: &prime.Device{Services: map[string]*prime.Service{"meter_elec": {Props: map[string]interface{}{"sup_units": []interface{}{"W", 1}}}}},
 			call: func(d *prime.Device) interface{} {
 				return d.GetServicePropertyStrings("meter_elec", "sup_units")
 			},
@@ -312,7 +312,46 @@ func TestDevice(t *testing.T) {
 			},
 			want: "",
 		},
-
+		{
+			name:   "get service property integer",
+			device: &prime.Device{Services: map[string]*prime.Service{"chargepoint": {Props: map[string]interface{}{"phases": 1}}}},
+			call: func(d *prime.Device) interface{} {
+				return d.GetServicePropertyInteger("chargepoint", "phases")
+			},
+			want: int64(1),
+		},
+		{
+			name:   "get service property integer - invalid property type",
+			device: &prime.Device{Services: map[string]*prime.Service{"chargepoint": {Props: map[string]interface{}{"phases": "1"}}}},
+			call: func(d *prime.Device) interface{} {
+				return d.GetServicePropertyInteger("chargepoint", "phases")
+			},
+			want: int64(0),
+		},
+		{
+			name:   "get service property integer - missing service",
+			device: &prime.Device{},
+			call: func(d *prime.Device) interface{} {
+				return d.GetServicePropertyInteger("chargepoint", "phases")
+			},
+			want: int64(0),
+		},
+		{
+			name:   "get service property object",
+			device: &prime.Device{Services: map[string]*prime.Service{"chargepoint": {Props: map[string]interface{}{"object": json.RawMessage(`{"a":1}`)}}}},
+			call: func(d *prime.Device) interface{} {
+				return d.GetServicePropertyObject("chargepoint", "object", &struct{ A int }{})
+			},
+			want: true,
+		},
+		{
+			name:   "get service property object - invalid JSON",
+			device: &prime.Device{Services: map[string]*prime.Service{"chargepoint": {Props: map[string]interface{}{"object": json.RawMessage(`{a":1}`)}}}},
+			call: func(d *prime.Device) interface{} {
+				return d.GetServicePropertyObject("chargepoint", "object", &struct{ A int }{})
+			},
+			want: false,
+		},
 		{
 			name:   "get addresses",
 			device: &prime.Device{Services: map[string]*prime.Service{"s1": {Addr: "address1"}, "s2": {Addr: "address2"}}},
@@ -1163,6 +1202,141 @@ func TestStateAttributeValue_Get(t *testing.T) {
 				return a.HasProperties(map[string]string{"a": "3", "b": "4"}), nil
 			},
 			want:    false,
+			wantErr: false,
+		},
+		{
+			name:      "get property string",
+			attribute: &prime.StateAttributeValue{Props: map[string]string{"a": "1"}},
+			call: func(a *prime.StateAttributeValue) (interface{}, error) {
+				return a.GetPropertyString("a"), nil
+			},
+			want:    "1",
+			wantErr: false,
+		},
+		{
+			name:      "get property string - missing",
+			attribute: &prime.StateAttributeValue{Props: map[string]string{"a": "1"}},
+			call: func(a *prime.StateAttributeValue) (interface{}, error) {
+				return a.GetPropertyString("c"), nil
+			},
+			want:    "",
+			wantErr: false,
+		},
+		{
+			name:      "get property string - nil value",
+			attribute: nil,
+			call: func(a *prime.StateAttributeValue) (interface{}, error) {
+				return a.GetPropertyString("a"), nil
+			},
+			want:    "",
+			wantErr: false,
+		},
+		{
+			name:      "get property integer",
+			attribute: &prime.StateAttributeValue{Props: map[string]string{"a": "1"}},
+			call: func(a *prime.StateAttributeValue) (interface{}, error) {
+				return a.GetPropertyInteger("a"), nil
+			},
+			want:    int64(1),
+			wantErr: false,
+		},
+		{
+			name:      "get property integer - wrong type",
+			attribute: &prime.StateAttributeValue{Props: map[string]string{"a": "x"}},
+			call: func(a *prime.StateAttributeValue) (interface{}, error) {
+				return a.GetPropertyInteger("a"), nil
+			},
+			want:    int64(0),
+			wantErr: false,
+		},
+		{
+			name:      "get property integer - missing",
+			attribute: &prime.StateAttributeValue{Props: map[string]string{"a": "1"}},
+			call: func(a *prime.StateAttributeValue) (interface{}, error) {
+				return a.GetPropertyInteger("c"), nil
+			},
+			want:    int64(0),
+			wantErr: false,
+		},
+		{
+			name:      "get property integer - nil value",
+			attribute: nil,
+			call: func(a *prime.StateAttributeValue) (interface{}, error) {
+				return a.GetPropertyInteger("a"), nil
+			},
+			want:    int64(0),
+			wantErr: false,
+		},
+		{
+			name:      "get property float",
+			attribute: &prime.StateAttributeValue{Props: map[string]string{"a": "1"}},
+			call: func(a *prime.StateAttributeValue) (interface{}, error) {
+				return a.GetPropertyFloat("a"), nil
+			},
+			want:    float64(1),
+			wantErr: false,
+		},
+		{
+			name:      "get property float - wrong type",
+			attribute: &prime.StateAttributeValue{Props: map[string]string{"a": "x"}},
+			call: func(a *prime.StateAttributeValue) (interface{}, error) {
+				return a.GetPropertyFloat("a"), nil
+			},
+			want:    float64(0),
+			wantErr: false,
+		},
+		{
+			name:      "get property float - missing",
+			attribute: &prime.StateAttributeValue{Props: map[string]string{"a": "1"}},
+			call: func(a *prime.StateAttributeValue) (interface{}, error) {
+				return a.GetPropertyFloat("c"), nil
+			},
+			want:    float64(0),
+			wantErr: false,
+		},
+		{
+			name:      "get property float - nil value",
+			attribute: nil,
+			call: func(a *prime.StateAttributeValue) (interface{}, error) {
+				return a.GetPropertyFloat("a"), nil
+			},
+			want:    float64(0),
+			wantErr: false,
+		},
+		{
+			name:      "get property timestamp",
+			attribute: &prime.StateAttributeValue{Props: map[string]string{"a": "2022-08-15 12:30:10 +0100"}},
+			call: func(a *prime.StateAttributeValue) (interface{}, error) {
+				return a.GetPropertyTimestamp("a"), nil
+			},
+			want:    time.Date(2022, 8, 15, 12, 30, 10, 0, time.FixedZone("", 1*60*60)),
+			wantErr: false,
+		},
+		{
+			name:      "get property timestamp - wrong type",
+			attribute: &prime.StateAttributeValue{Props: map[string]string{"a": "x"}},
+			call: func(a *prime.StateAttributeValue) (interface{}, error) {
+				return a.GetPropertyTimestamp("a"), nil
+			},
+			want:    time.Time{},
+			wantErr: false,
+		},
+		{
+			name:      "get property timestamp - missing",
+			attribute: &prime.StateAttributeValue{Props: map[string]string{"a": "2022-08-15 12:30:10 +0100"}},
+			call: func(a *prime.StateAttributeValue) (interface{}, error) {
+				return a.GetPropertyTimestamp("c"), nil
+			},
+			want:    time.Time{},
+			wantErr: false,
+		},
+		{
+			name:      "get property timestamp - nil value",
+			attribute: nil,
+			call: func(a *prime.StateAttributeValue) (interface{}, error) {
+				return a.GetPropertyTimestamp("a"), nil
+			},
+			want:    time.Time{},
 			wantErr: false,
 		},
 	}

@@ -209,7 +209,7 @@ func (t *thing) ConnectivityReport() *ConnectivityReport {
 	report := &ConnectivityReport{
 		Address:             t.Address(),
 		Hash:                t.inclusionReport.ProductHash,
-		Alias:               t.inclusionReport.Alias,
+		Alias:               t.inclusionReport.ProductName,
 		PowerSource:         t.inclusionReport.PowerSource,
 		WakeupInterval:      t.inclusionReport.WakeUpInterval,
 		CommTechnology:      t.inclusionReport.CommTechnology,
