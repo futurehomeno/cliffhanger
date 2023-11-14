@@ -1,6 +1,8 @@
 package mockedoutlvlswitch
 
-import time "time"
+import (
+	time "time"
+)
 
 func (_m *Controller) MockLevelSwitchLevelReport(value int64, err error, once bool) *Controller {
 	c := _m.On("LevelSwitchLevelReport").Return(value, err)

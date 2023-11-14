@@ -7,6 +7,7 @@ import (
 
 	"github.com/futurehomeno/fimpgo"
 	"github.com/futurehomeno/fimpgo/fimptype"
+	"github.com/pkg/errors"
 
 	"github.com/futurehomeno/cliffhanger/adapter"
 	"github.com/futurehomeno/cliffhanger/adapter/cache"
@@ -22,6 +23,7 @@ const (
 	SwitchTypeUpAndDown = "up_down"
 
 	Duration = "duration"
+	StartLvl = "start_lvl"
 )
 
 // DefaultReportingStrategy is the default reporting strategy used by the service for periodic reports.
@@ -38,6 +40,14 @@ type Controller interface {
 	SetLevelSwitchBinaryState(bool) error
 }
 
+// LevelTransitionController represents a controller over a single device for level transitioning.
+type LevelTransitionController interface {
+	// StartLevelTransition starts a transition. Supported values are: "up" and "down"
+	StartLevelTransition(string, int, time.Duration) error
+	// StopLevelTransition stops a transition
+	StopLevelTransition() error
+}
+
 // Service is an interface representing a output level switch FIMP service.
 type Service interface {
 	adapter.Service
@@ -50,6 +60,10 @@ type Service interface {
 	SetLevel(value int64, duration time.Duration) error
 	// SetBinaryState sets a binary value.
 	SetBinaryState(value bool) error
+	// StartLevelTransition starts a transition. Supported values are: "up" and "down"
+	StartLevelTransition(string, int, time.Duration) error
+	// StopLevelTransition stops a transition
+	StopLevelTransition() error
 }
 
 // Config represents a service configuration.
@@ -156,6 +170,40 @@ func (s *service) SetBinaryState(value bool) error {
 	err := s.controller.SetLevelSwitchBinaryState(value)
 	if err != nil {
 		return fmt.Errorf("%s: failed to set binary: %w", s.Name(), err)
+	}
+
+	return nil
+}
+
+// StartLevelTransition implements starting of the transition with validations and concurrent safety.
+func (s *service) StartLevelTransition(value string, startLvl int, duration time.Duration) error {
+	s.lock.Lock()
+	defer s.lock.Unlock()
+
+	ctr, ok := s.controller.(LevelTransitionController)
+	if !ok {
+		return fmt.Errorf("failed to cast controller into LevelTransitionController when starting level transition")
+	}
+
+	if err := ctr.StartLevelTransition(value, startLvl, duration); err != nil {
+		return errors.Wrap(err, "failed to start level transition")
+	}
+
+	return nil
+}
+
+// StopLevelTransition implements stopping of the transition with validations and concurrent safety.
+func (s *service) StopLevelTransition() error {
+	s.lock.Lock()
+	defer s.lock.Unlock()
+
+	ctr, ok := s.controller.(LevelTransitionController)
+	if !ok {
+		return fmt.Errorf("failed to cast controller into LevelTransitionController when stopping level transition")
+	}
+
+	if err := ctr.StopLevelTransition(); err != nil {
+		return errors.Wrap(err, "failed to start level transition")
 	}
 
 	return nil
