@@ -100,11 +100,6 @@ func HandleCmdLvlStart(serviceRegistry adapter.ServiceRegistry) router.MessageHa
 				return nil, errors.Wrap(err, "adapter: failed to start level transitioning")
 			}
 
-			_, err = service.SendLevelReport(true)
-			if err != nil {
-				return nil, fmt.Errorf("adapter: error while sending level report: %w", err)
-			}
-
 			return nil, nil
 		}),
 	)
