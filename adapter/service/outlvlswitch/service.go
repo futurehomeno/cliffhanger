@@ -19,11 +19,17 @@ const (
 	PropertyMinLvl     = "min_lvl"
 	PropertySwitchType = "sw_type" // "on_off" or "up_down"
 
+	PropertySupportDuration   = "sup_duration"
+	PropertySupportStartLevel = "sup_start_lvl"
+
 	SwitchTypeOnAndOff  = "on_off"
 	SwitchTypeUpAndDown = "up_down"
 
 	Duration = "duration"
 	StartLvl = "start_lvl"
+
+	TransitionUp   = "up"
+	TransitionDown = "down"
 )
 
 // DefaultReportingStrategy is the default reporting strategy used by the service for periodic reports.
@@ -180,6 +186,19 @@ func (s *service) StartLevelTransition(value string, startLvl int, duration time
 	s.lock.Lock()
 	defer s.lock.Unlock()
 
+	if value != TransitionUp && value != TransitionDown {
+		return fmt.Errorf("received incorrect value to start level transition. Received: %s Supported: %s, %s", value, TransitionUp, TransitionDown)
+	}
+
+	startLvl, err := s.validateStartLevelOption(startLvl)
+	if err != nil {
+		return errors.Wrap(err, fmt.Sprintf("failed to validate start_lvl property: %d", startLvl))
+	}
+
+	if !s.Specification().PropertyBool(PropertySupportDuration) {
+		duration = 0
+	}
+
 	ctr, ok := s.controller.(LevelTransitionController)
 	if !ok {
 		return fmt.Errorf("failed to cast controller into LevelTransitionController when starting level transition")
@@ -207,4 +226,26 @@ func (s *service) StopLevelTransition() error {
 	}
 
 	return nil
+}
+
+func (s *service) validateStartLevelOption(startLvl int) (int, error) {
+	if !s.Specification().PropertyBool(PropertySupportStartLevel) {
+		return 0, nil
+	}
+
+	lvlMax, ok := s.Specification().PropertyInteger(PropertyMaxLvl)
+	if !ok {
+		return startLvl, fmt.Errorf("invalid service specification property: %s should be int", PropertyMaxLvl)
+	}
+
+	lvlMin, ok := s.Specification().PropertyInteger(PropertyMinLvl)
+	if !ok {
+		return startLvl, fmt.Errorf("invalid service specification property: %s should be int", PropertyMinLvl)
+	}
+
+	if startLvl < int(lvlMin) || int(lvlMax) < startLvl {
+		return startLvl, fmt.Errorf("invalid startLvl received: %d. Should be in range: %d - %d", startLvl, lvlMin, lvlMax)
+	}
+
+	return startLvl, nil
 }
