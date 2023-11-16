@@ -35,6 +35,8 @@ const (
 // DefaultReportingStrategy is the default reporting strategy used by the service for periodic reports.
 var DefaultReportingStrategy = cache.ReportOnChangeOnly()
 
+// LevelTransitionParams keeps all properties of the transition controller.
+// nil value of the field means the property isn't supported.
 type LevelTransitionParams struct {
 	StartLvl *int
 	Duration *time.Duration
