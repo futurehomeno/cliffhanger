@@ -1,9 +1,11 @@
 package mockedoutlvlswitch
 
-import "time"
+import (
+	"github.com/futurehomeno/cliffhanger/adapter/service/outlvlswitch"
+)
 
-func (_m *LevelTransitionController) MockStartLevelTransition(value string, startLevel int, duration time.Duration, err error) *LevelTransitionController {
-	_m.On("StartLevelTransition", value, startLevel, duration).Return(err)
+func (_m *LevelTransitionController) MockStartLevelTransition(value string, params outlvlswitch.LevelTransitionParams, err error) *LevelTransitionController {
+	_m.On("StartLevelTransition", value, params).Return(err)
 
 	return _m
 }

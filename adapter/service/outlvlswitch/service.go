@@ -35,6 +35,11 @@ const (
 // DefaultReportingStrategy is the default reporting strategy used by the service for periodic reports.
 var DefaultReportingStrategy = cache.ReportOnChangeOnly()
 
+type LevelTransitionParams struct {
+	StartLvl *int
+	Duration *time.Duration
+}
+
 // Controller is an interface representing an actual device.
 // In a polling scenario implementation might require some safeguards against excessive polling.
 type Controller interface {
@@ -49,7 +54,7 @@ type Controller interface {
 // LevelTransitionController represents a controller over a single device for level transitioning.
 type LevelTransitionController interface {
 	// StartLevelTransition starts a transition. Supported values are: "up" and "down"
-	StartLevelTransition(string, int, time.Duration) error
+	StartLevelTransition(string, LevelTransitionParams) error
 	// StopLevelTransition stops a transition
 	StopLevelTransition() error
 }
@@ -190,13 +195,19 @@ func (s *service) StartLevelTransition(value string, startLvl int, duration time
 		return fmt.Errorf("received incorrect value to start level transition. Received: %s Supported: %s, %s", value, TransitionUp, TransitionDown)
 	}
 
-	startLvl, err := s.validateStartLevelOption(startLvl)
+	transitionParams := LevelTransitionParams{}
+
+	err := s.validateStartLevelOption(startLvl)
 	if err != nil {
 		return errors.Wrap(err, fmt.Sprintf("failed to validate start_lvl property: %d", startLvl))
 	}
 
-	if !s.Specification().PropertyBool(PropertySupportDuration) {
-		duration = 0
+	if s.Specification().PropertyBool(PropertySupportStartLevel) {
+		transitionParams.StartLvl = &startLvl
+	}
+
+	if s.Specification().PropertyBool(PropertySupportDuration) {
+		transitionParams.Duration = &duration
 	}
 
 	ctr, ok := s.controller.(LevelTransitionController)
@@ -204,7 +215,7 @@ func (s *service) StartLevelTransition(value string, startLvl int, duration time
 		return fmt.Errorf("failed to cast controller into LevelTransitionController when starting level transition")
 	}
 
-	if err := ctr.StartLevelTransition(value, startLvl, duration); err != nil {
+	if err := ctr.StartLevelTransition(value, transitionParams); err != nil {
 		return errors.Wrap(err, "failed to start level transition")
 	}
 
@@ -228,24 +239,24 @@ func (s *service) StopLevelTransition() error {
 	return nil
 }
 
-func (s *service) validateStartLevelOption(startLvl int) (int, error) {
+func (s *service) validateStartLevelOption(startLvl int) error {
 	if !s.Specification().PropertyBool(PropertySupportStartLevel) {
-		return 0, nil
+		return nil
 	}
 
 	lvlMax, ok := s.Specification().PropertyInteger(PropertyMaxLvl)
 	if !ok {
-		return startLvl, fmt.Errorf("invalid service specification property: %s should be int", PropertyMaxLvl)
+		return fmt.Errorf("invalid service specification property: %s should be int", PropertyMaxLvl)
 	}
 
 	lvlMin, ok := s.Specification().PropertyInteger(PropertyMinLvl)
 	if !ok {
-		return startLvl, fmt.Errorf("invalid service specification property: %s should be int", PropertyMinLvl)
+		return fmt.Errorf("invalid service specification property: %s should be int", PropertyMinLvl)
 	}
 
 	if startLvl < int(lvlMin) || int(lvlMax) < startLvl {
-		return startLvl, fmt.Errorf("invalid startLvl received: %d. Should be in range: %d - %d", startLvl, lvlMin, lvlMax)
+		return fmt.Errorf("invalid startLvl received: %d. Should be in range: %d - %d", startLvl, lvlMin, lvlMax)
 	}
 
-	return startLvl, nil
+	return nil
 }

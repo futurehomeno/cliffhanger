@@ -30,11 +30,6 @@ func RouteService(serviceRegistry adapter.ServiceRegistry) []*router.Routing {
 		RouteCmdLvlSet(serviceRegistry),
 		RouteCmdBinarySet(serviceRegistry),
 		RouteCmdLvlGetReport(serviceRegistry),
-	}
-}
-
-func RouteServiceLevelTransitioning(serviceRegistry adapter.ServiceRegistry) []*router.Routing {
-	return []*router.Routing{
 		RouteCmdLvlStart(serviceRegistry),
 		RouteCmdLvlStop(serviceRegistry),
 	}

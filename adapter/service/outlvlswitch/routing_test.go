@@ -16,6 +16,7 @@ import (
 	mockedadapter "github.com/futurehomeno/cliffhanger/test/mocks/adapter"
 	mockedoutlvlswitch "github.com/futurehomeno/cliffhanger/test/mocks/adapter/service/outlvlswitch"
 	"github.com/futurehomeno/cliffhanger/test/suite"
+	"github.com/futurehomeno/cliffhanger/utils"
 )
 
 func TestRouteService(t *testing.T) { //nolint:paralleltest
@@ -33,7 +34,7 @@ func TestRouteService(t *testing.T) { //nolint:paralleltest
 							MockSetLevelSwitchBinaryState(true, nil, false).
 							MockSetLevelSwitchLevel(1, 0, nil, false),
 						mockedoutlvlswitch.NewLevelTransitionController(t).
-							MockStartLevelTransition("up", 0, 0, nil).
+							MockStartLevelTransition("up", outlvlswitch.LevelTransitionParams{}, nil).
 							MockStopLevelTransition(nil),
 					),
 				),
@@ -84,7 +85,7 @@ func TestRouteService(t *testing.T) { //nolint:paralleltest
 							MockLevelSwitchLevelReport(3, nil, false).
 							MockSetLevelSwitchLevel(1, time.Second, nil, false),
 						mockedoutlvlswitch.NewLevelTransitionController(t).
-							MockStartLevelTransition("up", 4, 5*time.Second, nil),
+							MockStartLevelTransition("up", outlvlswitch.LevelTransitionParams{StartLvl: utils.Ptr(4), Duration: utils.Ptr(5. * time.Second)}, nil),
 					),
 					outlvlswitch.WithSupportedDuration(),
 					outlvlswitch.WithSupportedStartLevel(),
@@ -120,7 +121,7 @@ func TestRouteService(t *testing.T) { //nolint:paralleltest
 							MockSetLevelSwitchBinaryState(true, fmt.Errorf("some error"), false).
 							MockSetLevelSwitchLevel(1, 0, fmt.Errorf("error"), false),
 						mockedoutlvlswitch.NewLevelTransitionController(t).
-							MockStartLevelTransition("up", 0, 0, fmt.Errorf("error")).
+							MockStartLevelTransition("up", outlvlswitch.LevelTransitionParams{}, fmt.Errorf("error")).
 							MockStopLevelTransition(fmt.Errorf("some error")),
 					),
 				),
@@ -285,8 +286,5 @@ func setupService(
 
 	ad := adapterhelper.PrepareSeededAdapter(t, "../../testdata/adapter/test_adapter", mqtt, factory, adapter.ThingSeeds{seed})
 
-	routing := outlvlswitch.RouteService(ad)
-	routing = append(routing, outlvlswitch.RouteServiceLevelTransitioning(ad)...)
-
-	return routing, task.Combine(outlvlswitch.TaskReporting(ad, duration)), mocks
+	return outlvlswitch.RouteService(ad), task.Combine(outlvlswitch.TaskReporting(ad, duration)), mocks
 }
