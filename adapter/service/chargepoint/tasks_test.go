@@ -4,8 +4,6 @@ import (
 	"testing"
 	"time"
 
-	"github.com/futurehomeno/fimpgo"
-
 	"github.com/futurehomeno/cliffhanger/adapter"
 	"github.com/futurehomeno/cliffhanger/adapter/service/chargepoint"
 	"github.com/futurehomeno/cliffhanger/router"
@@ -13,6 +11,7 @@ import (
 	adapterhelper "github.com/futurehomeno/cliffhanger/test/helper/adapter"
 	mockedchargepoint "github.com/futurehomeno/cliffhanger/test/mocks/adapter/service/chargepoint"
 	"github.com/futurehomeno/cliffhanger/test/suite"
+	"github.com/futurehomeno/fimpgo"
 )
 
 func TestTaskReporting(t *testing.T) { //nolint:paralleltest
@@ -36,11 +35,12 @@ func TestTaskReporting(t *testing.T) { //nolint:paralleltest
 							MockChargepointStateReport("", errTest, true).
 							MockChargepointStateReport("ready_to_charge", nil, true).
 							MockChargepointStateReport("charging", nil, true), // should be sent twice
-						mockedchargepoint.NewAdjustableCurrentController(t).
+						mockedchargepoint.NewAdjustableMaxCurrentController(t).
 							MockChargepointMaxCurrentReport(10, nil, true).
 							MockChargepointMaxCurrentReport(0, errTest, true).
 							MockChargepointMaxCurrentReport(10, nil, true).
 							MockChargepointMaxCurrentReport(8, nil, true),
+						nil,
 						mockedchargepoint.NewAdjustablePhaseModeController(t).
 							MockChargepointPhaseModeReport(chargepoint.PhaseModeNL1L2L3, nil, true).
 							MockChargepointPhaseModeReport("", errTest, true).

@@ -3,10 +3,9 @@ package chargepoint
 import (
 	"time"
 
-	log "github.com/sirupsen/logrus"
-
 	"github.com/futurehomeno/cliffhanger/adapter"
 	"github.com/futurehomeno/cliffhanger/task"
+	log "github.com/sirupsen/logrus"
 )
 
 // TaskReporting creates a reporting task.

@@ -1,6 +1,6 @@
 package mockedchargepoint
 
-func (_m *AdjustableCurrentController) MockChargepointMaxCurrentReport(value int64, err error, once bool) *AdjustableCurrentController {
+func (_m *AdjustableMaxCurrentController) MockChargepointMaxCurrentReport(value int64, err error, once bool) *AdjustableMaxCurrentController {
 	c := _m.On("ChargepointMaxCurrentReport").Return(value, err)
 
 	if once {
@@ -10,7 +10,7 @@ func (_m *AdjustableCurrentController) MockChargepointMaxCurrentReport(value int
 	return _m
 }
 
-func (_m *AdjustableCurrentController) MockSetChargepointMaxCurrent(value int64, err error, once bool) *AdjustableCurrentController {
+func (_m *AdjustableMaxCurrentController) MockSetChargepointMaxCurrent(value int64, err error, once bool) *AdjustableMaxCurrentController {
 	c := _m.On("SetChargepointMaxCurrent", value).Return(err)
 
 	if once {
@@ -20,7 +20,7 @@ func (_m *AdjustableCurrentController) MockSetChargepointMaxCurrent(value int64,
 	return _m
 }
 
-func (_m *AdjustableCurrentController) MockSetChargepointOfferedCurrent(value int64, err error, once bool) *AdjustableCurrentController {
+func (_m *AdjustableOfferedCurrentController) MockSetChargepointOfferedCurrent(value int64, err error, once bool) *AdjustableOfferedCurrentController {
 	c := _m.On("SetChargepointOfferedCurrent", value).Return(err)
 
 	if once {

@@ -5,9 +5,6 @@ import (
 	"testing"
 	"time"
 
-	"github.com/futurehomeno/fimpgo"
-	"github.com/futurehomeno/fimpgo/fimptype"
-
 	"github.com/futurehomeno/cliffhanger/adapter"
 	"github.com/futurehomeno/cliffhanger/adapter/service/chargepoint"
 	"github.com/futurehomeno/cliffhanger/router"
@@ -16,6 +13,8 @@ import (
 	mockedadapter "github.com/futurehomeno/cliffhanger/test/mocks/adapter"
 	mockedchargepoint "github.com/futurehomeno/cliffhanger/test/mocks/adapter/service/chargepoint"
 	"github.com/futurehomeno/cliffhanger/test/suite"
+	"github.com/futurehomeno/fimpgo"
+	"github.com/futurehomeno/fimpgo/fimptype"
 )
 
 var (
@@ -119,10 +118,12 @@ func TestRouteService(t *testing.T) { //nolint:paralleltest
 								FinishedAt:            time.Date(2023, 8, 31, 2, 0, 0, 0, time.UTC),
 								OfferedCurrent:        10,
 							}, nil, false),
-						mockedchargepoint.NewAdjustableCurrentController(t).
-							MockSetChargepointOfferedCurrent(10, nil, true).
+						mockedchargepoint.NewAdjustableMaxCurrentController(t).
 							MockSetChargepointMaxCurrent(16, nil, true).
 							MockChargepointMaxCurrentReport(16, nil, false),
+						mockedchargepoint.NewAdjustableOfferedCurrentController(t).
+							MockSetChargepointOfferedCurrent(10, nil, true),
+
 						mockedchargepoint.NewAdjustablePhaseModeController(t).
 							MockSetChargepointPhaseMode(chargepoint.PhaseModeNL1L2L3, nil, true).
 							MockChargepointPhaseModeReport(chargepoint.PhaseModeNL1L2L3, nil, false),
@@ -380,7 +381,8 @@ func TestRouteService(t *testing.T) { //nolint:paralleltest
 					mockedchargepoint.NewMockedChargepoint(
 						mockedchargepoint.NewController(t).
 							MockChargepointCurrentSessionReport(nil, errTest, false),
-						mockedchargepoint.NewAdjustableCurrentController(t).
+						nil,
+						mockedchargepoint.NewAdjustableOfferedCurrentController(t).
 							MockSetChargepointOfferedCurrent(10, nil, false),
 						nil,
 					),
@@ -402,9 +404,10 @@ func TestRouteService(t *testing.T) { //nolint:paralleltest
 				Setup: routeService(
 					mockedchargepoint.NewMockedChargepoint(
 						mockedchargepoint.NewController(t),
-						mockedchargepoint.NewAdjustableCurrentController(t).
+						mockedchargepoint.NewAdjustableMaxCurrentController(t).
 							MockChargepointMaxCurrentReport(0, errTest, false).
 							MockSetChargepointMaxCurrent(14, nil, false),
+						nil,
 						nil,
 					),
 					[]adapter.SpecificationOption{chargepoint.WithSupportedMaxCurrent(16)},
@@ -482,6 +485,7 @@ func TestRouteService(t *testing.T) { //nolint:paralleltest
 					mockedchargepoint.NewMockedChargepoint(
 						mockedchargepoint.NewController(t),
 						nil,
+						nil,
 						mockedchargepoint.NewAdjustablePhaseModeController(t),
 					),
 					[]adapter.SpecificationOption{chargepoint.WithSupportedPhaseModes(chargepoint.PhaseModeNL1)},
@@ -501,6 +505,7 @@ func TestRouteService(t *testing.T) { //nolint:paralleltest
 				Setup: routeService(
 					mockedchargepoint.NewMockedChargepoint(
 						mockedchargepoint.NewController(t),
+						nil,
 						nil,
 						mockedchargepoint.NewAdjustablePhaseModeController(t).
 							MockSetChargepointPhaseMode(chargepoint.PhaseModeNL1, errTest, true),
@@ -522,6 +527,7 @@ func TestRouteService(t *testing.T) { //nolint:paralleltest
 				Setup: routeService(
 					mockedchargepoint.NewMockedChargepoint(
 						mockedchargepoint.NewController(t),
+						nil,
 						nil,
 						mockedchargepoint.NewAdjustablePhaseModeController(t).
 							MockChargepointPhaseModeReport(chargepoint.PhaseModeNL1, errTest, true),
@@ -565,6 +571,7 @@ func TestRouteService(t *testing.T) { //nolint:paralleltest
 					mockedchargepoint.NewMockedChargepoint(
 						mockedchargepoint.NewController(t),
 						nil,
+						nil,
 						mockedchargepoint.NewAdjustablePhaseModeController(t),
 					),
 					nil,
@@ -595,10 +602,11 @@ func TestRouteService(t *testing.T) { //nolint:paralleltest
 							MockChargepointCableLockReport(&chargepoint.CableReport{CableLock: false}, errTest, false).
 							MockChargepointStateReport("", errTest, true).
 							MockChargepointCurrentSessionReport(nil, errTest, true),
-						mockedchargepoint.NewAdjustableCurrentController(t).
+						mockedchargepoint.NewAdjustableMaxCurrentController(t).
 							MockChargepointMaxCurrentReport(0, errTest, true).
-							MockSetChargepointOfferedCurrent(10, errTest, true).
 							MockSetChargepointMaxCurrent(14, errTest, true),
+						mockedchargepoint.NewAdjustableOfferedCurrentController(t).
+							MockSetChargepointOfferedCurrent(10, errTest, true),
 						nil,
 					),
 					[]adapter.SpecificationOption{chargepoint.WithSupportedMaxCurrent(16)},

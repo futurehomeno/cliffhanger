@@ -6,11 +6,10 @@ import (
 	"sync"
 	"time"
 
-	"github.com/futurehomeno/fimpgo"
-	"github.com/futurehomeno/fimpgo/fimptype"
-
 	"github.com/futurehomeno/cliffhanger/adapter"
 	"github.com/futurehomeno/cliffhanger/adapter/cache"
+	"github.com/futurehomeno/fimpgo"
+	"github.com/futurehomeno/fimpgo/fimptype"
 )
 
 var (

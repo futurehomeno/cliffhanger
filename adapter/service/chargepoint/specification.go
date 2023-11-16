@@ -3,11 +3,10 @@ package chargepoint
 import (
 	"fmt"
 
-	"github.com/futurehomeno/fimpgo"
-	"github.com/futurehomeno/fimpgo/fimptype"
-
 	"github.com/futurehomeno/cliffhanger/adapter"
 	"github.com/futurehomeno/cliffhanger/router"
+	"github.com/futurehomeno/fimpgo"
+	"github.com/futurehomeno/fimpgo/fimptype"
 )
 
 // WithChargingModes adds supported charging modes to the service specification.
