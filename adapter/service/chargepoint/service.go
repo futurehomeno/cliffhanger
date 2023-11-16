@@ -289,7 +289,7 @@ func (s *service) SendCurrentSessionReport(force bool) (bool, error) {
 		EvtCurrentSessionReport,
 		s.Name(),
 		value.SessionEnergy,
-		value.reportProperties(s.SupportsAdjustingMaxCurrent()),
+		value.reportProperties(s.SupportsAdjustingOfferedCurrent()),
 		nil,
 		nil,
 	)
