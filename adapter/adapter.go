@@ -433,7 +433,7 @@ func (a *adapter) destroyThing(address string) error {
 
 	err = a.sendExclusionReport(address)
 	if err != nil {
-		return fmt.Errorf("adapter: failed to send exclusion report for thing with address %s: %w", ts.Address(), err)
+		return fmt.Errorf("adapter: failed to send exclusion report for thing with address %s: %w", address, err)
 	}
 
 	return nil
