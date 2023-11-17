@@ -431,7 +431,7 @@ func (a *adapter) destroyThing(address string) error {
 		a.unregisterThing(t)
 	}
 
-	err = a.sendExclusionReport(ts.Address())
+	err = a.sendExclusionReport(address)
 	if err != nil {
 		return fmt.Errorf("adapter: failed to send exclusion report for thing with address %s: %w", ts.Address(), err)
 	}
