@@ -70,11 +70,11 @@ type Service interface {
 	// To make sure report is being sent regardless of circumstances set the force argument to true.
 	SendLevelReport(force bool) (bool, error)
 	// SetLevel sets a level value.
-	SetLevel(value int64, duration time.Duration) error
+	SetLevel(value int64, duration *time.Duration) error
 	// SetBinaryState sets a binary value.
 	SetBinaryState(value bool) error
 	// StartLevelTransition starts a transition. Supported values are: "up" and "down"
-	StartLevelTransition(string, int, time.Duration) error
+	StartLevelTransition(string, LevelTransitionParams) error
 	// StopLevelTransition stops a transition
 	StopLevelTransition() error
 }
@@ -103,6 +103,10 @@ func NewService(
 		controller:        cfg.Controller,
 		reportingStrategy: cfg.ReportingStrategy,
 		reportingCache:    cache.NewReportingCache(),
+	}
+
+	if s.supportsLevelTransition() {
+		s.Specification().EnsureInterfaces(levelTransitionInterfaces()...)
 	}
 
 	return s
@@ -154,12 +158,12 @@ func (s *service) SendLevelReport(force bool) (bool, error) {
 }
 
 // SetLevel sets a level value.
-func (s *service) SetLevel(value int64, duration time.Duration) error {
+func (s *service) SetLevel(value int64, duration *time.Duration) error {
 	s.lock.Lock()
 	defer s.lock.Unlock()
 
-	if duration > 0 {
-		err := s.controller.SetLevelSwitchLevel(value, duration)
+	if duration != nil {
+		err := s.controller.SetLevelSwitchLevel(value, *duration)
 		if err != nil {
 			return fmt.Errorf("%s: failed to set level: %w", s.Name(), err)
 		}
@@ -189,7 +193,7 @@ func (s *service) SetBinaryState(value bool) error {
 }
 
 // StartLevelTransition implements starting of the transition with validations and concurrent safety.
-func (s *service) StartLevelTransition(value string, startLvl int, duration time.Duration) error {
+func (s *service) StartLevelTransition(value string, params LevelTransitionParams) error {
 	s.lock.Lock()
 	defer s.lock.Unlock()
 
@@ -197,19 +201,17 @@ func (s *service) StartLevelTransition(value string, startLvl int, duration time
 		return fmt.Errorf("received incorrect value to start level transition. Received: %s Supported: %s, %s", value, TransitionUp, TransitionDown)
 	}
 
-	transitionParams := LevelTransitionParams{}
-
-	err := s.validateStartLevelOption(startLvl)
+	err := s.validateStartLevelOption(params.StartLvl)
 	if err != nil {
-		return errors.Wrap(err, fmt.Sprintf("failed to validate start_lvl property: %d", startLvl))
+		return errors.Wrap(err, "validation of the start_lvl property has failed")
 	}
 
-	if s.Specification().PropertyBool(PropertySupportStartLevel) {
-		transitionParams.StartLvl = &startLvl
+	if !s.Specification().PropertyBool(PropertySupportStartLevel) {
+		params.StartLvl = nil
 	}
 
-	if s.Specification().PropertyBool(PropertySupportDuration) {
-		transitionParams.Duration = &duration
+	if !s.Specification().PropertyBool(PropertySupportDuration) {
+		params.Duration = nil
 	}
 
 	ctr, ok := s.controller.(LevelTransitionController)
@@ -217,7 +219,7 @@ func (s *service) StartLevelTransition(value string, startLvl int, duration time
 		return fmt.Errorf("failed to cast controller into LevelTransitionController when starting level transition")
 	}
 
-	if err := ctr.StartLevelTransition(value, transitionParams); err != nil {
+	if err := ctr.StartLevelTransition(value, params); err != nil {
 		return errors.Wrap(err, "failed to start level transition")
 	}
 
@@ -241,8 +243,14 @@ func (s *service) StopLevelTransition() error {
 	return nil
 }
 
-func (s *service) validateStartLevelOption(startLvl int) error {
-	if !s.Specification().PropertyBool(PropertySupportStartLevel) {
+func (s *service) supportsLevelTransition() bool {
+	_, ok := s.controller.(LevelTransitionController)
+
+	return ok
+}
+
+func (s *service) validateStartLevelOption(startLvl *int) error {
+	if startLvl == nil {
 		return nil
 	}
 
@@ -256,7 +264,7 @@ func (s *service) validateStartLevelOption(startLvl int) error {
 		return fmt.Errorf("invalid service specification property: %s should be int", PropertyMinLvl)
 	}
 
-	if startLvl < int(lvlMin) || int(lvlMax) < startLvl {
+	if *startLvl < int(lvlMin) || int(lvlMax) < *startLvl {
 		return fmt.Errorf("invalid startLvl received: %d. Should be in range: %d - %d", startLvl, lvlMin, lvlMax)
 	}
 

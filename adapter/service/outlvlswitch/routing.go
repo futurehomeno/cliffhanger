@@ -6,10 +6,10 @@ import (
 
 	"github.com/futurehomeno/fimpgo"
 	"github.com/pkg/errors"
-	log "github.com/sirupsen/logrus"
 
 	"github.com/futurehomeno/cliffhanger/adapter"
 	"github.com/futurehomeno/cliffhanger/router"
+	"github.com/futurehomeno/cliffhanger/utils"
 )
 
 // Constants defining routing service, commands and events.
@@ -91,8 +91,13 @@ func HandleCmdLvlStart(serviceRegistry adapter.ServiceRegistry) router.MessageHa
 				return nil, errors.Wrap(err, "adapter: error while getting start_lvl value from message")
 			}
 
-			if err := service.StartLevelTransition(direction, startLvl, duration); err != nil {
+			if err := service.StartLevelTransition(direction, LevelTransitionParams{StartLvl: startLvl, Duration: duration}); err != nil {
 				return nil, errors.Wrap(err, "adapter: failed to start level transitioning")
+			}
+
+			_, err = service.SendLevelReport(true)
+			if err != nil {
+				return nil, errors.Wrap(err, "adapter: error while sending level report")
 			}
 
 			return nil, nil
@@ -120,7 +125,7 @@ func HandleCmdLvlStop(serviceRegistry adapter.ServiceRegistry) router.MessageHan
 
 			_, err := service.SendLevelReport(true)
 			if err != nil {
-				return nil, fmt.Errorf("adapter: error while sending level report: %w", err)
+				return nil, errors.Wrap(err, "adapter: error while sending level report")
 			}
 
 			return nil, nil
@@ -243,28 +248,24 @@ func HandleCmdLvlGetReport(serviceRegistry adapter.ServiceRegistry) router.Messa
 	)
 }
 
-func getStartLvl(message *fimpgo.Message) (int, error) {
+func getStartLvl(message *fimpgo.Message) (*int, error) {
 	switch d, ok, err := message.Payload.Properties.GetIntValue(StartLvl); {
 	case !ok:
-		log.Info("adapter: start_lvl not found in message properties")
-
-		return 0, nil
+		return nil, nil
 	case err != nil:
-		return 0, err
+		return nil, err
 	default:
-		return int(d), nil
+		return utils.Ptr(int(d)), nil
 	}
 }
 
-func getDurationInSeconds(message *fimpgo.Message) (time.Duration, error) {
+func getDurationInSeconds(message *fimpgo.Message) (*time.Duration, error) {
 	switch d, ok, err := message.Payload.Properties.GetIntValue(Duration); {
 	case !ok:
-		log.Info("adapter: duration not found in message properties")
-
-		return time.Duration(0), nil
+		return nil, nil
 	case err != nil:
-		return time.Duration(0), err
+		return nil, err
 	default:
-		return time.Duration(d) * time.Second, nil
+		return utils.Ptr(time.Duration(d) * time.Second), nil
 	}
 }

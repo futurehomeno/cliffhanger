@@ -66,18 +66,6 @@ func requiredInterfaces() []fimptype.Interface {
 		},
 		{
 			Type:      fimptype.TypeIn,
-			MsgType:   CmdLvlStart,
-			ValueType: fimpgo.VTypeString,
-			Version:   "1",
-		},
-		{
-			Type:      fimptype.TypeIn,
-			MsgType:   CmdLvlStop,
-			ValueType: fimpgo.VTypeNull,
-			Version:   "1",
-		},
-		{
-			Type:      fimptype.TypeIn,
 			MsgType:   CmdBinarySet,
 			ValueType: fimpgo.VTypeBool,
 			Version:   "1",
@@ -98,6 +86,23 @@ func requiredInterfaces() []fimptype.Interface {
 			Type:      fimptype.TypeOut,
 			MsgType:   router.EvtErrorReport,
 			ValueType: fimpgo.VTypeString,
+			Version:   "1",
+		},
+	}
+}
+
+func levelTransitionInterfaces() []fimptype.Interface {
+	return []fimptype.Interface{
+		{
+			Type:      fimptype.TypeIn,
+			MsgType:   CmdLvlStart,
+			ValueType: fimpgo.VTypeString,
+			Version:   "1",
+		},
+		{
+			Type:      fimptype.TypeIn,
+			MsgType:   CmdLvlStop,
+			ValueType: fimpgo.VTypeNull,
 			Version:   "1",
 		},
 	}

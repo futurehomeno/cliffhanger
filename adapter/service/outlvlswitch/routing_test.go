@@ -28,9 +28,11 @@ func TestRouteService(t *testing.T) { //nolint:paralleltest
 				Setup: routeService(
 					mockedoutlvlswitch.NewMockedOutSwitchLvl(
 						mockedoutlvlswitch.NewController(t).
+							MockLevelSwitchLevelReport(1, nil, true).
 							MockLevelSwitchLevelReport(2, nil, true).
 							MockLevelSwitchLevelReport(3, nil, true).
 							MockLevelSwitchLevelReport(4, nil, true).
+							MockLevelSwitchLevelReport(5, nil, true).
 							MockSetLevelSwitchBinaryState(true, nil, false).
 							MockSetLevelSwitchLevel(1, 0, nil, false),
 						mockedoutlvlswitch.NewLevelTransitionController(t).
@@ -40,9 +42,11 @@ func TestRouteService(t *testing.T) { //nolint:paralleltest
 				),
 				Nodes: []*suite.Node{
 					{
-						Name:         "Start level transition",
-						Command:      suite.StringMessage("pt:j1/mt:cmd/rt:dev/rn:test_adapter/ad:1/sv:out_lvl_switch/ad:2", "cmd.lvl.start", "out_lvl_switch", "up"),
-						Expectations: []*suite.Expectation{},
+						Name:    "Start level transition",
+						Command: suite.StringMessage("pt:j1/mt:cmd/rt:dev/rn:test_adapter/ad:1/sv:out_lvl_switch/ad:2", "cmd.lvl.start", "out_lvl_switch", "up"),
+						Expectations: []*suite.Expectation{
+							suite.ExpectInt("pt:j1/mt:evt/rt:dev/rn:test_adapter/ad:1/sv:out_lvl_switch/ad:2", "evt.lvl.report", "out_lvl_switch", 1),
+						},
 					},
 					{
 						Name:    "Stop level transition",
@@ -72,7 +76,9 @@ func TestRouteService(t *testing.T) { //nolint:paralleltest
 							AddProperty("duration", "5").
 							AddProperty("start_lvl", "4").
 							Build(),
-						Expectations: []*suite.Expectation{},
+						Expectations: []*suite.Expectation{
+							suite.ExpectInt("pt:j1/mt:evt/rt:dev/rn:test_adapter/ad:1/sv:out_lvl_switch/ad:2", "evt.lvl.report", "out_lvl_switch", 5),
+						},
 					},
 				},
 			},
@@ -82,6 +88,7 @@ func TestRouteService(t *testing.T) { //nolint:paralleltest
 				Setup: routeService(
 					mockedoutlvlswitch.NewMockedOutSwitchLvl(
 						mockedoutlvlswitch.NewController(t).
+							MockLevelSwitchLevelReport(2, nil, true).
 							MockLevelSwitchLevelReport(3, nil, false).
 							MockSetLevelSwitchLevel(1, time.Second, nil, false),
 						mockedoutlvlswitch.NewLevelTransitionController(t).
@@ -98,7 +105,9 @@ func TestRouteService(t *testing.T) { //nolint:paralleltest
 							AddProperty("duration", "5").
 							AddProperty("start_lvl", "4").
 							Build(),
-						Expectations: []*suite.Expectation{},
+						Expectations: []*suite.Expectation{
+							suite.ExpectInt("pt:j1/mt:evt/rt:dev/rn:test_adapter/ad:1/sv:out_lvl_switch/ad:2", "evt.lvl.report", "out_lvl_switch", 2),
+						},
 					},
 					{
 						Name: "Set level",
