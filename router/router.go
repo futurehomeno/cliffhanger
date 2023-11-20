@@ -111,17 +111,28 @@ func (r *router) routeMessages(messageCh fimpgo.MessageCh) {
 // processMessage executes handlers responsible for processing the incoming message and send response if applicable.
 func (r *router) processMessage(message *fimpgo.Message) {
 	defer func() {
-		if r := recover(); r != nil {
-			log.WithField("topic", message.Addr.Serialize()).
-				WithField("service", message.Payload.Service).
-				WithField("type", message.Payload.Type).
-				Errorf("message router: panic occurred while processing message: %+v", r)
+		rc := recover()
+		if rc == nil {
+			return
+		}
+
+		log.WithField("topic", message.Addr.Serialize()).
+			WithField("service", message.Payload.Service).
+			WithField("type", message.Payload.Type).
+			Errorf("message router: panic occurred while processing message: %+v", rc)
+
+		if r.cfg.panicCallback != nil {
+			r.cfg.panicCallback(message, rc)
 		}
 	}()
 
 	for _, routing := range r.routing {
 		if !routing.vote(message) {
 			continue
+		}
+
+		if r.cfg.processingCallback != nil {
+			r.cfg.processingCallback(message)
 		}
 
 		response := routing.handler.Handle(message)
@@ -136,6 +147,10 @@ func (r *router) processMessage(message *fimpgo.Message) {
 
 		if response.Payload.CorrelationID == "" {
 			response.Payload.CorrelationID = message.Payload.UID
+		}
+
+		if r.cfg.responseCallback != nil {
+			r.cfg.responseCallback(message, response)
 		}
 
 		err := r.mqtt.Publish(responseAddress, response.Payload)
@@ -194,6 +209,9 @@ type config struct {
 	buffer               int
 	concurrency          int
 	preserveGlobalPrefix bool
+	panicCallback        func(message *fimpgo.Message, panicErr any)
+	processingCallback   func(message *fimpgo.Message)
+	responseCallback     func(in, out *fimpgo.Message)
 }
 
 // Option is an interface representing a message router configuration option.
@@ -243,5 +261,26 @@ func WithMessageBuffer(buffer int) Option {
 func WithPreservedGlobalPrefix() Option {
 	return optionFn(func(cfg *config) {
 		cfg.preserveGlobalPrefix = true
+	})
+}
+
+// WithPanicCallback returns an option that sets a callback function that will be called when a panic occurs.
+func WithPanicCallback(f func(message *fimpgo.Message, err any)) Option {
+	return optionFn(func(cfg *config) {
+		cfg.panicCallback = f
+	})
+}
+
+// WithMessageProcessingCallback returns an option that sets a callback function that will be called when a message is processed.
+func WithMessageProcessingCallback(f func(message *fimpgo.Message)) Option {
+	return optionFn(func(cfg *config) {
+		cfg.processingCallback = f
+	})
+}
+
+// WithResponseCallback returns an option that sets a callback function that will be called before a response is sent.
+func WithResponseCallback(f func(in, out *fimpgo.Message)) Option {
+	return optionFn(func(cfg *config) {
+		cfg.responseCallback = f
 	})
 }

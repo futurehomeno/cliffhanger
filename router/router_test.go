@@ -333,3 +333,270 @@ func Test_Router_OptionalSuccessConfirmation(t *testing.T) { //nolint:parallelte
 
 	s.Run(t)
 }
+
+var ()
+
+func Test_Router_PanicCallback(t *testing.T) { //nolint:paralleltest
+	var panicCallbackCalled bool
+
+	tearDownFn := func(t *testing.T) {
+		t.Helper()
+
+		panicCallbackCalled = false
+	}
+
+	panicCallback := func(msg *fimpgo.Message, err interface{}) {
+		panicCallbackCalled = true
+	}
+
+	panicRouting := router.NewRouting(router.NewMessageHandler(
+		router.MessageProcessorFn(
+			func(message *fimpgo.Message) (reply *fimpgo.FimpMessage, err error) {
+				panic("oops")
+			})),
+		router.ForService("test_service"),
+	)
+	noPanicRouting := router.NewRouting(router.NewMessageHandler(
+		router.MessageProcessorFn(
+			func(message *fimpgo.Message) (reply *fimpgo.FimpMessage, err error) {
+				return nil, nil
+			})),
+		router.ForService("test_service"),
+	)
+
+	s := &suite.Suite{
+		Cases: []*suite.Case{
+			{
+				Name:     "panic callback",
+				TearDown: []suite.Callback{tearDownFn},
+				Routing:  []*router.Routing{panicRouting},
+				RouterOptions: []router.Option{
+					router.WithPanicCallback(panicCallback),
+				},
+				Nodes: []*suite.Node{
+					{
+						Name:    "send a command raising panic",
+						Command: suite.NullMessage("pt:j1/mt:cmd/rt:app/rn:test/ad:1", "cmd.test.test_command", "test_service"),
+						Timeout: -1,
+					},
+					suite.SleepNode(10 * time.Millisecond),
+					{
+						Name:    "verify panic callback was called",
+						Timeout: -1,
+						Callbacks: []suite.Callback{
+							func(t *testing.T) {
+								t.Helper()
+
+								assert.True(t, panicCallbackCalled)
+							},
+						},
+					},
+				},
+			},
+			{
+				Name:     "no panic callback",
+				TearDown: []suite.Callback{tearDownFn},
+				Routing:  []*router.Routing{noPanicRouting},
+				RouterOptions: []router.Option{
+					router.WithPanicCallback(panicCallback),
+				},
+				Nodes: []*suite.Node{
+					{
+						Name:    "send a command not raising panic",
+						Command: suite.NullMessage("pt:j1/mt:cmd/rt:app/rn:test/ad:1", "cmd.test.test_command", "test_service"),
+						Timeout: -1,
+					},
+					suite.SleepNode(10 * time.Millisecond),
+					{
+						Name:    "panic callback cannot be called",
+						Timeout: -1,
+						Callbacks: []suite.Callback{
+							func(t *testing.T) {
+								t.Helper()
+
+								assert.False(t, panicCallbackCalled)
+							},
+						},
+					},
+				},
+			},
+		},
+	}
+
+	s.Run(t)
+}
+
+func Test_Router_ProcessingCallback(t *testing.T) { //nolint:paralleltest
+	var callbackCalled bool
+
+	tearDownFn := func(t *testing.T) {
+		t.Helper()
+
+		callbackCalled = false
+	}
+
+	callbackFn := func(msg *fimpgo.Message) {
+		callbackCalled = true
+	}
+
+	routing := router.NewRouting(router.NewMessageHandler(
+		router.MessageProcessorFn(
+			func(message *fimpgo.Message) (reply *fimpgo.FimpMessage, err error) {
+				return nil, nil
+			})),
+		router.ForService("test_service"),
+	)
+
+	s := &suite.Suite{
+		Cases: []*suite.Case{
+			{
+				Name:     "processing callback",
+				TearDown: []suite.Callback{tearDownFn},
+				Routing:  []*router.Routing{routing},
+				RouterOptions: []router.Option{
+					router.WithMessageProcessingCallback(callbackFn),
+				},
+				Nodes: []*suite.Node{
+					{
+						Name:    "send a command that should be processed",
+						Command: suite.NullMessage("pt:j1/mt:cmd/rt:app/rn:test/ad:1", "cmd.test.test_command", "test_service"),
+						Timeout: -1,
+					},
+					suite.SleepNode(10 * time.Millisecond),
+					{
+						Name:    "verify processing callback was called",
+						Timeout: -1,
+						Callbacks: []suite.Callback{
+							func(t *testing.T) {
+								t.Helper()
+
+								assert.True(t, callbackCalled)
+							},
+						},
+					},
+				},
+			},
+			{
+				Name:     "no processing callback",
+				TearDown: []suite.Callback{tearDownFn},
+				Routing:  []*router.Routing{routing},
+				RouterOptions: []router.Option{
+					router.WithMessageProcessingCallback(callbackFn),
+				},
+				Nodes: []*suite.Node{
+					{
+						Name:    "send a command that should not be processed",
+						Command: suite.NullMessage("pt:j1/mt:cmd/rt:app/rn:test/ad:2", "cmd.test.do_not_process", "non_test_service"),
+						Timeout: -1,
+					},
+					suite.SleepNode(10 * time.Millisecond),
+					{
+						Name:    "processing callback cannot be called",
+						Timeout: -1,
+						Callbacks: []suite.Callback{
+							func(t *testing.T) {
+								t.Helper()
+
+								assert.False(t, callbackCalled)
+							},
+						},
+					},
+				},
+			},
+		},
+	}
+
+	s.Run(t)
+}
+
+func Test_Router_ResponseCallback(t *testing.T) { //nolint:paralleltest
+	var callbackCalled bool
+
+	tearDownFn := func(t *testing.T) {
+		t.Helper()
+
+		callbackCalled = false
+	}
+
+	callbackFn := func(in, out *fimpgo.Message) {
+		callbackCalled = true
+	}
+
+	responseRouting := router.NewRouting(router.NewMessageHandler(
+		router.MessageProcessorFn(
+			func(message *fimpgo.Message) (reply *fimpgo.FimpMessage, err error) {
+				return fimpgo.NewStringMessage("evt.test.test_event", "test_service", "test_value", nil, nil, message.Payload), nil
+			})),
+		router.ForService("test_service"),
+		router.ForType("cmd.test.test_command"),
+	)
+	noResponseRouting := router.NewRouting(router.NewMessageHandler(
+		router.MessageProcessorFn(
+			func(message *fimpgo.Message) (reply *fimpgo.FimpMessage, err error) {
+				return nil, nil
+			})),
+		router.ForService("test_service"),
+		router.ForType("cmd.test.test_command"),
+	)
+
+	s := &suite.Suite{
+		Cases: []*suite.Case{
+			{
+				Name:     "processing callback",
+				TearDown: []suite.Callback{tearDownFn},
+				Routing:  []*router.Routing{responseRouting},
+				RouterOptions: []router.Option{
+					router.WithResponseCallback(callbackFn),
+				},
+				Nodes: []*suite.Node{
+					{
+						Name:    "send a command that should result with a response",
+						Command: suite.NullMessage("pt:j1/mt:cmd/rt:app/rn:test/ad:1", "cmd.test.test_command", "test_service"),
+						Timeout: -1,
+					},
+					suite.SleepNode(10 * time.Millisecond),
+					{
+						Name:    "verify response callback was called",
+						Timeout: -1,
+						Callbacks: []suite.Callback{
+							func(t *testing.T) {
+								t.Helper()
+
+								assert.True(t, callbackCalled)
+							},
+						},
+					},
+				},
+			},
+			{
+				Name:     "no processing callback",
+				TearDown: []suite.Callback{tearDownFn},
+				Routing:  []*router.Routing{noResponseRouting},
+				RouterOptions: []router.Option{
+					router.WithResponseCallback(callbackFn),
+				},
+				Nodes: []*suite.Node{
+					{
+						Name:    "send a command that should not result with a response",
+						Command: suite.NullMessage("pt:j1/mt:cmd/rt:app/rn:test/ad:2", "cmd.test.test_command", "test_service"),
+						Timeout: -1,
+					},
+					suite.SleepNode(10 * time.Millisecond),
+					{
+						Name:    "response callback cannot be called",
+						Timeout: -1,
+						Callbacks: []suite.Callback{
+							func(t *testing.T) {
+								t.Helper()
+
+								assert.False(t, callbackCalled)
+							},
+						},
+					},
+				},
+			},
+		},
+	}
+
+	s.Run(t)
+}
