@@ -3,6 +3,7 @@ package adapter
 import (
 	"encoding/json"
 	"fmt"
+	"github.com/pkg/errors"
 	"hash/crc32"
 	"strings"
 	"time"
@@ -62,8 +63,40 @@ type ThingConfig struct {
 	ConnectivityReportingStrategy cache.ReportingStrategy
 }
 
+// Update options
+type ThingUpdate func(*thing)
+
+func (o ThingUpdate) Apply(t *thing) {
+	o(t)
+}
+
+func ThingUpdateAddService(s Service) ThingUpdate {
+	return func(t *thing) {
+		t.services[s.Topic()] = s
+		t.inclusionReport.Services = append(t.inclusionReport.Services, *s.Specification())
+	}
+}
+
+func ThingUpdateRemoveService(s Service) ThingUpdate {
+	return func(t *thing) {
+		delete(t.services, s.Topic())
+
+		newServices := make([]fimptype.Service, 0, len(t.inclusionReport.Services))
+		for _, srv := range t.inclusionReport.Services {
+			if s.Name() != srv.Name {
+				newServices = append(newServices, srv)
+			}
+		}
+
+		t.inclusionReport.Services = newServices
+	}
+}
+
 // Thing is an interface representing FIMP thing.
 type Thing interface {
+	// Update updates the thing by applying the list of ThingUpdate functions. Sending report is optional.
+	// Returns error if failed to send report.
+	Update(bool, ...ThingUpdate) error
 	// Address returns address of the thing.
 	Address() string
 	// Services returns all services from the thing that match the provided name. If empty all services are returned.
@@ -298,4 +331,18 @@ func (t *thing) Disconnect() {
 	}
 
 	c.Disconnect(t)
+}
+
+func (t *thing) Update(report bool, options ...ThingUpdate) error {
+	for _, o := range options {
+		o.Apply(t)
+	}
+
+	if report {
+		if _, err := t.SendInclusionReport(true); err != nil {
+			return errors.Wrap(err, "failed to send inclusion report")
+		}
+	}
+
+	return nil
 }

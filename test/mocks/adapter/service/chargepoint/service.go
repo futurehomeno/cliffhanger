@@ -280,8 +280,22 @@ func (_m *Service) SupportedStates() []string {
 	return r0
 }
 
-// SupportsAdjustingCurrent provides a mock function with given fields:
-func (_m *Service) SupportsAdjustingCurrent() bool {
+// SupportsAdjustingMaxCurrent provides a mock function with given fields:
+func (_m *Service) SupportsAdjustingMaxCurrent() bool {
+	ret := _m.Called()
+
+	var r0 bool
+	if rf, ok := ret.Get(0).(func() bool); ok {
+		r0 = rf()
+	} else {
+		r0 = ret.Get(0).(bool)
+	}
+
+	return r0
+}
+
+// SupportsAdjustingOfferedCurrent provides a mock function with given fields:
+func (_m *Service) SupportsAdjustingOfferedCurrent() bool {
 	ret := _m.Called()
 
 	var r0 bool

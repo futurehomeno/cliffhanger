@@ -117,6 +117,8 @@ func (m *messageHandler) Handle(message *fimpgo.Message) *fimpgo.Message {
 
 	reply, err := m.processor.Process(message)
 	if err != nil {
+		log.Infof("recieived error: %s", err.Error())
+
 		return m.handleError(message, err)
 	}
 

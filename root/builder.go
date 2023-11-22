@@ -39,6 +39,7 @@ type Builder struct {
 	routing            []*router.Routing
 	routerOptions      []router.Option
 	tasks              []*task.Task
+	taskManager        task.Manager
 	services           []Service
 	resetters          []Resetter
 }
@@ -92,6 +93,14 @@ func (b *Builder) WithTask(tasks ...*task.Task) *Builder {
 	return b
 }
 
+// WithTaskManager sets initialised a task manager.
+// It's an alternative to WithTask method with a default manager.
+func (b *Builder) WithTaskManager(manager task.Manager) *Builder {
+	b.taskManager = manager
+
+	return b
+}
+
 // WithServices sets the application services.
 func (b *Builder) WithServices(services ...Service) *Builder {
 	b.services = append(b.services, services...)
@@ -116,13 +125,18 @@ func (b *Builder) Build() (App, error) {
 
 // doBuild assembles the root application.
 func (b *Builder) doBuild() App {
+	taskManager := b.taskManager
+	if taskManager == nil {
+		taskManager = task.NewManager(b.tasks...)
+	}
+
 	rootApp := &app{
 		lock:  &sync.Mutex{},
 		errCh: make(chan error),
 
 		mqtt:        b.mqtt,
 		lifecycle:   b.lifecycle,
-		taskManager: task.NewManager(b.tasks...),
+		taskManager: b.taskManager,
 		services:    b.services,
 		resetters:   b.resetters,
 	}

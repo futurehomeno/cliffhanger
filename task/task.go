@@ -4,20 +4,38 @@ import (
 	"time"
 )
 
+const (
+	Anonymous = "anonymos"
+)
+
 // New creates new task. If duration is set to 0 the task will run only once on startup.
 func New(handler func(), duration time.Duration, voters ...Voter) *Task {
 	return &Task{
 		handler:  handler,
 		duration: duration,
 		voters:   voters,
+		name:     Anonymous,
+		stopCh:   make(chan struct{}),
+	}
+}
+
+func NewNamedTask(name string, handler func(), duration time.Duration, voters ...Voter) *Task {
+	return &Task{
+		handler:  handler,
+		duration: duration,
+		voters:   voters,
+		name:     name,
+		stopCh:   make(chan struct{}),
 	}
 }
 
 // Task is an object representing a task including its running interval and condition voters for being executed.
 type Task struct {
+	name     string
 	handler  func()
 	duration time.Duration
 	voters   []Voter
+	stopCh   chan struct{}
 }
 
 // run runs the task if all set conditions are met.
