@@ -13,6 +13,30 @@ type Controller struct {
 	mock.Mock
 }
 
+// LevelSwitchBinaryStateReport provides a mock function with given fields:
+func (_m *Controller) LevelSwitchBinaryStateReport() (bool, error) {
+	ret := _m.Called()
+
+	var r0 bool
+	var r1 error
+	if rf, ok := ret.Get(0).(func() (bool, error)); ok {
+		return rf()
+	}
+	if rf, ok := ret.Get(0).(func() bool); ok {
+		r0 = rf()
+	} else {
+		r0 = ret.Get(0).(bool)
+	}
+
+	if rf, ok := ret.Get(1).(func() error); ok {
+		r1 = rf()
+	} else {
+		r1 = ret.Error(1)
+	}
+
+	return r0, r1
+}
+
 // LevelSwitchLevelReport provides a mock function with given fields:
 func (_m *Controller) LevelSwitchLevelReport() (int64, error) {
 	ret := _m.Called()

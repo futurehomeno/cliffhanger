@@ -2,6 +2,7 @@ package outlvlswitch
 
 import (
 	"fmt"
+	"github.com/futurehomeno/cliffhanger/adapter/service/virtualmeter"
 	"sync"
 	"time"
 
@@ -48,6 +49,8 @@ type LevelTransitionParams struct {
 type Controller interface {
 	// LevelSwitchLevelReport returns a current level value.
 	LevelSwitchLevelReport() (int64, error)
+	// LevelSwitchBinaryStateReport returns the current binary state value.
+	LevelSwitchBinaryStateReport() (bool, error)
 	// SetLevelSwitchLevel sets a level value.
 	SetLevelSwitchLevel(value int64, duration time.Duration) error
 	// SetLevelSwitchBinaryState sets a binary value.
@@ -82,9 +85,10 @@ type Service interface {
 
 // Config represents a service configuration.
 type Config struct {
-	Specification     *fimptype.Service
-	Controller        Controller
-	ReportingStrategy cache.ReportingStrategy
+	Specification       *fimptype.Service
+	Controller          Controller
+	ReportingStrategy   cache.ReportingStrategy
+	VirtualMeterManager virtualmeter.VirtualMeterManager
 }
 
 // NewService creates new instance of a output level switch FIMP service.
@@ -99,11 +103,12 @@ func NewService(
 	}
 
 	s := &service{
-		Service:           adapter.NewService(publisher, cfg.Specification),
-		lock:              &sync.Mutex{},
-		controller:        cfg.Controller,
-		reportingStrategy: cfg.ReportingStrategy,
-		reportingCache:    cache.NewReportingCache(),
+		Service:             adapter.NewService(publisher, cfg.Specification),
+		lock:                &sync.Mutex{},
+		controller:          cfg.Controller,
+		virtualMeterManager: cfg.VirtualMeterManager,
+		reportingStrategy:   cfg.ReportingStrategy,
+		reportingCache:      cache.NewReportingCache(),
 	}
 
 	if s.supportsLevelTransition() {
@@ -117,10 +122,11 @@ func NewService(
 type service struct {
 	adapter.Service
 
-	controller        Controller
-	lock              *sync.Mutex
-	reportingCache    cache.ReportingCache
-	reportingStrategy cache.ReportingStrategy
+	controller          Controller
+	lock                *sync.Mutex
+	virtualMeterManager virtualmeter.VirtualMeterManager
+	reportingCache      cache.ReportingCache
+	reportingStrategy   cache.ReportingStrategy
 }
 
 // SendLevelReport sends a level report. Returns true if a report was sent.

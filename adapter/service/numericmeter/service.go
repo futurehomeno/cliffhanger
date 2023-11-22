@@ -2,6 +2,7 @@ package numericmeter
 
 import (
 	"fmt"
+	"github.com/futurehomeno/cliffhanger/adapter/service/virtualmeter"
 	"strconv"
 	"strings"
 	"sync"
@@ -72,9 +73,10 @@ type Service interface {
 
 // Config represents a service configuration.
 type Config struct {
-	Specification     *fimptype.Service
-	Reporter          Reporter
-	ReportingStrategy cache.ReportingStrategy
+	Specification       *fimptype.Service
+	Reporter            Reporter
+	ReportingStrategy   cache.ReportingStrategy
+	VirtualMeterManager virtualmeter.VirtualMeterManager
 }
 
 // NewService creates new instance of a meter FIMP service.
@@ -89,11 +91,12 @@ func NewService(
 	}
 
 	s := &service{
-		Service:           adapter.NewService(publisher, cfg.Specification),
-		reporter:          cfg.Reporter,
-		lock:              &sync.Mutex{},
-		reportingStrategy: cfg.ReportingStrategy,
-		reportingCache:    cache.NewReportingCache(),
+		Service:             adapter.NewService(publisher, cfg.Specification),
+		reporter:            cfg.Reporter,
+		lock:                &sync.Mutex{},
+		reportingStrategy:   cfg.ReportingStrategy,
+		reportingCache:      cache.NewReportingCache(),
+		virtualMeterManager: cfg.VirtualMeterManager,
 	}
 
 	if s.SupportsExportReport() {
@@ -115,10 +118,11 @@ func NewService(
 type service struct {
 	adapter.Service
 
-	reporter          Reporter
-	lock              *sync.Mutex
-	reportingCache    cache.ReportingCache
-	reportingStrategy cache.ReportingStrategy
+	reporter            Reporter
+	lock                *sync.Mutex
+	reportingCache      cache.ReportingCache
+	reportingStrategy   cache.ReportingStrategy
+	virtualMeterManager virtualmeter.VirtualMeterManager
 }
 
 // SendMeterReport sends a simplified meter report based on requested unit. Returns true if a report was sent.
@@ -131,7 +135,8 @@ func (s *service) SendMeterReport(unit Unit, force bool) (bool, error) {
 		return false, fmt.Errorf("%s: unit is unsupported: %s", s.Name(), unit)
 	}
 
-	value, err := s.reporter.MeterReport(unit)
+	value, err := s.getReport(unit)
+
 	if err != nil {
 		return false, fmt.Errorf("%s: failed to retrieve meter report: %w", s.Name(), err)
 	}
@@ -312,6 +317,15 @@ func (s *service) SupportsExtendedReport() bool {
 	_, err := s.extendedReporter()
 
 	return err == nil
+}
+
+func (s *service) getReport(unit Unit) (float64, error) {
+
+	if s.Specification().PropertyBool(PropertyIsVirtual) {
+		return s.virtualMeterManager.Report(s.Specification().Address, unit.String())
+	}
+
+	return s.reporter.MeterReport(unit)
 }
 
 // extendedReporter returns the extended reporter, if supported.

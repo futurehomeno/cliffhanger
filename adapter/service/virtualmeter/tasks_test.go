@@ -1,0 +1,94 @@
+package virtualmeter_test
+
+import (
+	"github.com/futurehomeno/cliffhanger/adapter/service/virtualmeter"
+	adapterhelper "github.com/futurehomeno/cliffhanger/test/helper/adapter"
+	"github.com/futurehomeno/cliffhanger/test/suite"
+	"testing"
+	"time"
+)
+
+func TestTaskReporting(t *testing.T) {
+	s := &suite.Suite{
+		Cases: []*suite.Case{
+			{
+				Name:     "",
+				TearDown: adapterhelper.TearDownAdapter(workdir),
+				Setup:    routeService(time.Millisecond * 50),
+				Nodes: []*suite.Node{
+					{
+						Name: "should report empty modes when nothing set",
+						Expectations: []*suite.Expectation{
+							suite.ExpectFloatMap(
+								"pt:j1/mt:evt/rt:dev/rn:test_adapter/ad:1/sv:virtual_meter_elec/ad:2",
+								"evt.meter.report",
+								"virtual_meter_elec",
+								map[string]float64{},
+							),
+						},
+					},
+					{
+						Name: "Cmd meter add",
+						Command: suite.NewMessageBuilder().
+							FloatMapMessage(
+								"pt:j1/mt:cmd/rt:dev/rn:test_adapter/ad:1/sv:virtual_meter_elec/ad:2",
+								"cmd.meter.add",
+								"virtual_meter_elec",
+								map[string]float64{"on": 100, "off": 1},
+							).
+							AddProperty(virtualmeter.PropertyNameUnit, "W").
+							Build(),
+						Expectations: []*suite.Expectation{
+							suite.ExpectFloatMap(
+								"pt:j1/mt:evt/rt:dev/rn:test_adapter/ad:1/sv:virtual_meter_elec/ad:2",
+								"evt.meter.report",
+								"virtual_meter_elec",
+								map[string]float64{"on": 100, "off": 1},
+							),
+						},
+					},
+					{
+						Name: "should report latest set modes",
+						Expectations: []*suite.Expectation{
+							suite.ExpectFloatMap(
+								"pt:j1/mt:evt/rt:dev/rn:test_adapter/ad:1/sv:virtual_meter_elec/ad:2",
+								"evt.meter.report",
+								"virtual_meter_elec",
+								map[string]float64{"on": 100, "off": 1},
+							),
+						},
+					},
+					{
+						Name: "Cmd meter remove",
+						Command: suite.NullMessage(
+							"pt:j1/mt:cmd/rt:dev/rn:test_adapter/ad:1/sv:virtual_meter_elec/ad:2",
+							"cmd.meter.remove",
+							"virtual_meter_elec",
+						),
+						Expectations: []*suite.Expectation{
+							suite.ExpectFloatMap(
+								"pt:j1/mt:evt/rt:dev/rn:test_adapter/ad:1/sv:virtual_meter_elec/ad:2",
+								"evt.meter.report",
+								"virtual_meter_elec",
+								map[string]float64{},
+							),
+						},
+					},
+					{
+						Name: "should report empty when modes removed",
+						Expectations: []*suite.Expectation{
+							suite.ExpectFloatMap(
+								"pt:j1/mt:evt/rt:dev/rn:test_adapter/ad:1/sv:virtual_meter_elec/ad:2",
+								"evt.meter.report",
+								"virtual_meter_elec",
+								map[string]float64{},
+							),
+						},
+					},
+				},
+			},
+		},
+	}
+
+	s.Run(t)
+}

@@ -61,11 +61,17 @@ func PrepareSeededAdapter(
 func TearDownAdapter(path string) []suite.Callback {
 	return []suite.Callback{
 		func(t *testing.T) {
+			pathDB := filepath.Join(path, "data.db")
 			path = filepath.Join(path, "data")
 
 			err := os.RemoveAll(path)
 			if err != nil {
 				t.Fatal(fmt.Errorf("adapter helpers: failed to remove adapter data directory at path %s: %w", path, err))
+			}
+
+			err = os.RemoveAll(pathDB)
+			if err != nil {
+				t.Fatal(fmt.Errorf("adapter helpers: failed to remove adapter data.db file %s: %w", pathDB, err))
 			}
 		},
 	}
