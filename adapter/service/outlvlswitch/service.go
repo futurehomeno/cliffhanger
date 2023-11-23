@@ -11,6 +11,7 @@ import (
 
 	"github.com/futurehomeno/cliffhanger/adapter"
 	"github.com/futurehomeno/cliffhanger/adapter/cache"
+	"github.com/futurehomeno/cliffhanger/utils"
 )
 
 // Constants defining important properties specific for the service.
@@ -162,16 +163,11 @@ func (s *service) SetLevel(value int64, duration *time.Duration) error {
 	s.lock.Lock()
 	defer s.lock.Unlock()
 
-	if duration != nil {
-		err := s.controller.SetLevelSwitchLevel(value, *duration)
-		if err != nil {
-			return fmt.Errorf("%s: failed to set level: %w", s.Name(), err)
-		}
-
-		return nil
+	if duration == nil {
+		duration = utils.Ptr(time.Duration(0))
 	}
 
-	err := s.controller.SetLevelSwitchLevel(value, time.Duration(0))
+	err := s.controller.SetLevelSwitchLevel(value, *duration)
 	if err != nil {
 		return fmt.Errorf("%s: failed to set level: %w", s.Name(), err)
 	}
@@ -196,6 +192,10 @@ func (s *service) SetBinaryState(value bool) error {
 func (s *service) StartLevelTransition(value string, params LevelTransitionParams) error {
 	s.lock.Lock()
 	defer s.lock.Unlock()
+
+	if !s.supportsLevelTransition() {
+		return fmt.Errorf("level transition isn't supported, can't start")
+	}
 
 	if value != TransitionUp && value != TransitionDown {
 		return fmt.Errorf("received incorrect value to start level transition. Received: %s Supported: %s, %s", value, TransitionUp, TransitionDown)
@@ -230,6 +230,10 @@ func (s *service) StartLevelTransition(value string, params LevelTransitionParam
 func (s *service) StopLevelTransition() error {
 	s.lock.Lock()
 	defer s.lock.Unlock()
+
+	if !s.supportsLevelTransition() {
+		return fmt.Errorf("level transition isn't supported, can't stop")
+	}
 
 	ctr, ok := s.controller.(LevelTransitionController)
 	if !ok {
