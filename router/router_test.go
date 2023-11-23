@@ -334,8 +334,6 @@ func Test_Router_OptionalSuccessConfirmation(t *testing.T) { //nolint:parallelte
 	s.Run(t)
 }
 
-var ()
-
 func Test_Router_PanicCallback(t *testing.T) { //nolint:paralleltest
 	var panicCallbackCalled bool
 

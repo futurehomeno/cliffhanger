@@ -100,66 +100,67 @@ func (r *router) routeMessages(messageCh fimpgo.MessageCh) {
 
 	for {
 		select {
-		case message := <-messageCh:
-			r.processMessage(message)
 		case <-r.stopCh:
 			return
+		case message := <-messageCh:
+			for _, routing := range r.routing {
+				r.processMessage(routing, message)
+			}
 		}
 	}
 }
 
 // processMessage executes handlers responsible for processing the incoming message and send response if applicable.
-func (r *router) processMessage(message *fimpgo.Message) {
+func (r *router) processMessage(routing *Routing, message *fimpgo.Message) {
 	defer func() {
-		rc := recover()
-		if rc == nil {
-			return
-		}
-
-		log.WithField("topic", message.Addr.Serialize()).
-			WithField("service", message.Payload.Service).
-			WithField("type", message.Payload.Type).
-			Errorf("message router: panic occurred while processing message: %+v", rc)
-
-		if r.cfg.panicCallback != nil {
-			r.cfg.panicCallback(message, rc)
+		if rc := recover(); rc != nil {
+			r.handleProcessingPanic(message, rc)
 		}
 	}()
 
-	for _, routing := range r.routing {
-		if !routing.vote(message) {
-			continue
-		}
+	if !routing.vote(message) {
+		return
+	}
 
-		if r.cfg.processingCallback != nil {
-			r.cfg.processingCallback(message)
-		}
+	if r.cfg.processingCallback != nil {
+		r.cfg.processingCallback(message)
+	}
 
-		response := routing.handler.Handle(message)
-		if response == nil {
-			continue
-		}
+	response := routing.handler.Handle(message)
+	if response == nil {
+		return
+	}
 
-		responseAddress := r.getResponseAddress(message, response)
-		if responseAddress == nil {
-			continue
-		}
+	responseAddress := r.getResponseAddress(message, response)
+	if responseAddress == nil {
+		return
+	}
 
-		if response.Payload.CorrelationID == "" {
-			response.Payload.CorrelationID = message.Payload.UID
-		}
+	if response.Payload.CorrelationID == "" {
+		response.Payload.CorrelationID = message.Payload.UID
+	}
 
-		if r.cfg.responseCallback != nil {
-			r.cfg.responseCallback(message, response)
-		}
+	if r.cfg.responseCallback != nil {
+		r.cfg.responseCallback(message, response)
+	}
 
-		err := r.mqtt.Publish(responseAddress, response.Payload)
-		if err != nil {
-			log.WithError(err).
-				WithField("topic", response.Addr.Serialize()).
-				WithField("message", response.Payload).
-				Error("failed to publish response")
-		}
+	err := r.mqtt.Publish(responseAddress, response.Payload)
+	if err != nil {
+		log.WithError(err).
+			WithField("topic", response.Addr.Serialize()).
+			WithField("message", response.Payload).
+			Error("failed to publish response")
+	}
+}
+
+func (r *router) handleProcessingPanic(message *fimpgo.Message, panicErr any) {
+	log.WithField("topic", message.Addr.Serialize()).
+		WithField("service", message.Payload.Service).
+		WithField("type", message.Payload.Type).
+		Errorf("message router: panic occurred while processing message: %+v", panicErr)
+
+	if r.cfg.panicCallback != nil {
+		r.cfg.panicCallback(message, panicErr)
 	}
 }
 
