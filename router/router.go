@@ -3,6 +3,7 @@ package router
 import (
 	"errors"
 	"sync"
+	"time"
 
 	"github.com/futurehomeno/fimpgo"
 	log "github.com/sirupsen/logrus"
@@ -94,7 +95,7 @@ func (r *router) Stop() error {
 	return nil
 }
 
-// routeMessages routes incoming message.
+// routeMessages routes incoming messages.
 func (r *router) routeMessages(messageCh fimpgo.MessageCh) {
 	defer r.wg.Done()
 
@@ -110,7 +111,7 @@ func (r *router) routeMessages(messageCh fimpgo.MessageCh) {
 	}
 }
 
-// processMessage executes handlers responsible for processing the incoming message and send response if applicable.
+// processMessage allows a routing to process the incoming message.
 func (r *router) processMessage(routing *Routing, message *fimpgo.Message) {
 	defer func() {
 		if rc := recover(); rc != nil {
@@ -122,11 +123,20 @@ func (r *router) processMessage(routing *Routing, message *fimpgo.Message) {
 		return
 	}
 
-	if r.cfg.processingCallback != nil {
-		r.cfg.processingCallback(message)
-	}
-
+	startTime := time.Now()
 	response := routing.handler.Handle(message)
+	elapsed := time.Since(startTime)
+
+	defer func() {
+		if r.cfg.statsCallback != nil {
+			r.cfg.statsCallback(Stats{
+				InputMessage:       message,
+				OutputMessage:      response,
+				ProcessingDuration: elapsed,
+			})
+		}
+	}()
+
 	if response == nil {
 		return
 	}
@@ -138,10 +148,6 @@ func (r *router) processMessage(routing *Routing, message *fimpgo.Message) {
 
 	if response.Payload.CorrelationID == "" {
 		response.Payload.CorrelationID = message.Payload.UID
-	}
-
-	if r.cfg.responseCallback != nil {
-		r.cfg.responseCallback(message, response)
 	}
 
 	err := r.mqtt.Publish(responseAddress, response.Payload)
@@ -211,8 +217,7 @@ type config struct {
 	concurrency          int
 	preserveGlobalPrefix bool
 	panicCallback        func(message *fimpgo.Message, panicErr any)
-	processingCallback   func(message *fimpgo.Message)
-	responseCallback     func(in, out *fimpgo.Message)
+	statsCallback        func(stats Stats)
 }
 
 // Option is an interface representing a message router configuration option.
@@ -272,16 +277,16 @@ func WithPanicCallback(f func(message *fimpgo.Message, err any)) Option {
 	})
 }
 
-// WithMessageProcessingCallback returns an option that sets a callback function that will be called when a message is processed.
-func WithMessageProcessingCallback(f func(message *fimpgo.Message)) Option {
+// WithStatsCallback returns an option that sets a callback function that provides message processing statistics.
+func WithStatsCallback(f func(Stats)) Option {
 	return optionFn(func(cfg *config) {
-		cfg.processingCallback = f
+		cfg.statsCallback = f
 	})
 }
 
-// WithResponseCallback returns an option that sets a callback function that will be called before a response is sent.
-func WithResponseCallback(f func(in, out *fimpgo.Message)) Option {
-	return optionFn(func(cfg *config) {
-		cfg.responseCallback = f
-	})
+// Stats is a structure representing statistics of a processed message.
+type Stats struct {
+	InputMessage       *fimpgo.Message
+	OutputMessage      *fimpgo.Message // nil if no response was sent
+	ProcessingDuration time.Duration
 }

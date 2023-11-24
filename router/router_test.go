@@ -337,37 +337,34 @@ func Test_Router_OptionalSuccessConfirmation(t *testing.T) { //nolint:parallelte
 func Test_Router_PanicCallback(t *testing.T) { //nolint:paralleltest
 	var panicCallbackCalled bool
 
+	panicCallback := func(msg *fimpgo.Message, err interface{}) {
+		panicCallbackCalled = true
+
+		assert.Equal(t, "oops", err)
+		assert.Equal(t, "cmd.test.test_command", msg.Payload.Type)
+		assert.Equal(t, "test_service", msg.Payload.Service)
+	}
+
 	tearDownFn := func(t *testing.T) {
 		t.Helper()
 
 		panicCallbackCalled = false
 	}
 
-	panicCallback := func(msg *fimpgo.Message, err interface{}) {
-		panicCallbackCalled = true
-	}
-
-	panicRouting := router.NewRouting(router.NewMessageHandler(
-		router.MessageProcessorFn(
-			func(message *fimpgo.Message) (reply *fimpgo.FimpMessage, err error) {
-				panic("oops")
-			})),
-		router.ForService("test_service"),
-	)
-	noPanicRouting := router.NewRouting(router.NewMessageHandler(
-		router.MessageProcessorFn(
-			func(message *fimpgo.Message) (reply *fimpgo.FimpMessage, err error) {
-				return nil, nil
-			})),
-		router.ForService("test_service"),
-	)
-
 	s := &suite.Suite{
 		Cases: []*suite.Case{
 			{
 				Name:     "panic callback",
 				TearDown: []suite.Callback{tearDownFn},
-				Routing:  []*router.Routing{panicRouting},
+				Routing: []*router.Routing{
+					router.NewRouting(router.NewMessageHandler(
+						router.MessageProcessorFn(
+							func(message *fimpgo.Message) (reply *fimpgo.FimpMessage, err error) {
+								panic("oops")
+							})),
+						router.ForService("test_service"),
+					),
+				},
 				RouterOptions: []router.Option{
 					router.WithPanicCallback(panicCallback),
 				},
@@ -394,7 +391,15 @@ func Test_Router_PanicCallback(t *testing.T) { //nolint:paralleltest
 			{
 				Name:     "no panic callback",
 				TearDown: []suite.Callback{tearDownFn},
-				Routing:  []*router.Routing{noPanicRouting},
+				Routing: []*router.Routing{
+					router.NewRouting(router.NewMessageHandler(
+						router.MessageProcessorFn(
+							func(message *fimpgo.Message) (reply *fimpgo.FimpMessage, err error) {
+								return nil, nil
+							})),
+						router.ForService("test_service"),
+					),
+				},
 				RouterOptions: []router.Option{
 					router.WithPanicCallback(panicCallback),
 				},
@@ -424,35 +429,41 @@ func Test_Router_PanicCallback(t *testing.T) { //nolint:paralleltest
 	s.Run(t)
 }
 
-func Test_Router_ProcessingCallback(t *testing.T) { //nolint:paralleltest
-	var callbackCalled bool
+func Test_Router_StatsCallback(t *testing.T) { //nolint:paralleltest
+	var (
+		callbackCalled bool
+		stats          router.Stats
+	)
 
 	tearDownFn := func(t *testing.T) {
 		t.Helper()
 
 		callbackCalled = false
+		stats = router.Stats{}
 	}
 
-	callbackFn := func(msg *fimpgo.Message) {
+	callbackFn := func(s router.Stats) {
 		callbackCalled = true
+		stats = s
 	}
-
-	routing := router.NewRouting(router.NewMessageHandler(
-		router.MessageProcessorFn(
-			func(message *fimpgo.Message) (reply *fimpgo.FimpMessage, err error) {
-				return nil, nil
-			})),
-		router.ForService("test_service"),
-	)
 
 	s := &suite.Suite{
 		Cases: []*suite.Case{
 			{
-				Name:     "processing callback",
+				Name:     "processing stats without a response",
 				TearDown: []suite.Callback{tearDownFn},
-				Routing:  []*router.Routing{routing},
+				Routing: []*router.Routing{
+					router.NewRouting(router.NewMessageHandler(
+						router.MessageProcessorFn(
+							func(message *fimpgo.Message) (reply *fimpgo.FimpMessage, err error) {
+								return nil, nil
+							})),
+						router.ForService("test_service"),
+						router.ForType("cmd.test.test_command"),
+					),
+				},
 				RouterOptions: []router.Option{
-					router.WithMessageProcessingCallback(callbackFn),
+					router.WithStatsCallback(callbackFn),
 				},
 				Nodes: []*suite.Node{
 					{
@@ -462,126 +473,89 @@ func Test_Router_ProcessingCallback(t *testing.T) { //nolint:paralleltest
 					},
 					suite.SleepNode(10 * time.Millisecond),
 					{
-						Name:    "verify processing callback was called",
+						Name:    "verify stats callback was called",
 						Timeout: -1,
 						Callbacks: []suite.Callback{
 							func(t *testing.T) {
 								t.Helper()
 
 								assert.True(t, callbackCalled)
+								assert.Equal(t, "cmd.test.test_command", stats.InputMessage.Payload.Type)
+								assert.Equal(t, "test_service", stats.InputMessage.Payload.Service)
+								assert.Nil(t, stats.OutputMessage)
+								assert.Greater(t, stats.ProcessingDuration, time.Duration(0))
 							},
 						},
 					},
 				},
 			},
 			{
-				Name:     "no processing callback",
+				Name:     "processing stats with a response",
 				TearDown: []suite.Callback{tearDownFn},
-				Routing:  []*router.Routing{routing},
+				Routing: []*router.Routing{
+					router.NewRouting(router.NewMessageHandler(
+						router.MessageProcessorFn(
+							func(message *fimpgo.Message) (reply *fimpgo.FimpMessage, err error) {
+								return fimpgo.NewStringMessage("evt.test.test_response", "test_service", "test", nil, nil, nil), nil
+							})),
+						router.ForService("test_service"),
+						router.ForType("cmd.test.test_command"),
+					),
+				},
 				RouterOptions: []router.Option{
-					router.WithMessageProcessingCallback(callbackFn),
+					router.WithStatsCallback(callbackFn),
 				},
 				Nodes: []*suite.Node{
 					{
-						Name:    "send a command that should not be processed",
-						Command: suite.NullMessage("pt:j1/mt:cmd/rt:app/rn:test/ad:2", "cmd.test.do_not_process", "non_test_service"),
-						Timeout: -1,
-					},
-					suite.SleepNode(10 * time.Millisecond),
-					{
-						Name:    "processing callback cannot be called",
-						Timeout: -1,
-						Callbacks: []suite.Callback{
-							func(t *testing.T) {
-								t.Helper()
-
-								assert.False(t, callbackCalled)
-							},
-						},
-					},
-				},
-			},
-		},
-	}
-
-	s.Run(t)
-}
-
-func Test_Router_ResponseCallback(t *testing.T) { //nolint:paralleltest
-	var callbackCalled bool
-
-	tearDownFn := func(t *testing.T) {
-		t.Helper()
-
-		callbackCalled = false
-	}
-
-	callbackFn := func(in, out *fimpgo.Message) {
-		callbackCalled = true
-	}
-
-	responseRouting := router.NewRouting(router.NewMessageHandler(
-		router.MessageProcessorFn(
-			func(message *fimpgo.Message) (reply *fimpgo.FimpMessage, err error) {
-				return fimpgo.NewStringMessage("evt.test.test_event", "test_service", "test_value", nil, nil, message.Payload), nil
-			})),
-		router.ForService("test_service"),
-		router.ForType("cmd.test.test_command"),
-	)
-	noResponseRouting := router.NewRouting(router.NewMessageHandler(
-		router.MessageProcessorFn(
-			func(message *fimpgo.Message) (reply *fimpgo.FimpMessage, err error) {
-				return nil, nil
-			})),
-		router.ForService("test_service"),
-		router.ForType("cmd.test.test_command"),
-	)
-
-	s := &suite.Suite{
-		Cases: []*suite.Case{
-			{
-				Name:     "processing callback",
-				TearDown: []suite.Callback{tearDownFn},
-				Routing:  []*router.Routing{responseRouting},
-				RouterOptions: []router.Option{
-					router.WithResponseCallback(callbackFn),
-				},
-				Nodes: []*suite.Node{
-					{
-						Name:    "send a command that should result with a response",
+						Name:    "send a command that should be processed",
 						Command: suite.NullMessage("pt:j1/mt:cmd/rt:app/rn:test/ad:1", "cmd.test.test_command", "test_service"),
 						Timeout: -1,
 					},
 					suite.SleepNode(10 * time.Millisecond),
 					{
-						Name:    "verify response callback was called",
+						Name:    "verify stats callback was called",
 						Timeout: -1,
 						Callbacks: []suite.Callback{
 							func(t *testing.T) {
 								t.Helper()
 
 								assert.True(t, callbackCalled)
+								assert.Equal(t, "cmd.test.test_command", stats.InputMessage.Payload.Type)
+								assert.Equal(t, "test_service", stats.InputMessage.Payload.Service)
+								assert.Equal(t, "evt.test.test_response", stats.OutputMessage.Payload.Type)
+								assert.Equal(t, "test_service", stats.OutputMessage.Payload.Service)
+								assert.Equal(t, "test", stats.OutputMessage.Payload.Value)
+								assert.Greater(t, stats.ProcessingDuration, time.Duration(0))
 							},
 						},
 					},
 				},
 			},
 			{
-				Name:     "no processing callback",
+				Name:     "panic should not make stats callback fired",
 				TearDown: []suite.Callback{tearDownFn},
-				Routing:  []*router.Routing{noResponseRouting},
+				Routing: []*router.Routing{
+					router.NewRouting(router.NewMessageHandler(
+						router.MessageProcessorFn(
+							func(message *fimpgo.Message) (reply *fimpgo.FimpMessage, err error) {
+								panic("oops")
+							})),
+						router.ForService("test_service"),
+						router.ForType("cmd.test.test_command"),
+					),
+				},
 				RouterOptions: []router.Option{
-					router.WithResponseCallback(callbackFn),
+					router.WithStatsCallback(callbackFn),
 				},
 				Nodes: []*suite.Node{
 					{
-						Name:    "send a command that should not result with a response",
-						Command: suite.NullMessage("pt:j1/mt:cmd/rt:app/rn:test/ad:2", "cmd.test.test_command", "test_service"),
+						Name:    "send a command that should be processed",
+						Command: suite.NullMessage("pt:j1/mt:cmd/rt:app/rn:test/ad:1", "cmd.test.test_command", "test_service"),
 						Timeout: -1,
 					},
 					suite.SleepNode(10 * time.Millisecond),
 					{
-						Name:    "response callback cannot be called",
+						Name:    "verify stats callback was not called",
 						Timeout: -1,
 						Callbacks: []suite.Callback{
 							func(t *testing.T) {
