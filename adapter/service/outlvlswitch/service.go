@@ -7,9 +7,11 @@ import (
 
 	"github.com/futurehomeno/fimpgo"
 	"github.com/futurehomeno/fimpgo/fimptype"
+	"github.com/pkg/errors"
 
 	"github.com/futurehomeno/cliffhanger/adapter"
 	"github.com/futurehomeno/cliffhanger/adapter/cache"
+	"github.com/futurehomeno/cliffhanger/utils"
 )
 
 // Constants defining important properties specific for the service.
@@ -18,14 +20,28 @@ const (
 	PropertyMinLvl     = "min_lvl"
 	PropertySwitchType = "sw_type" // "on_off" or "up_down"
 
+	PropertySupportDuration   = "sup_duration"
+	PropertySupportStartLevel = "sup_start_lvl"
+
 	SwitchTypeOnAndOff  = "on_off"
 	SwitchTypeUpAndDown = "up_down"
 
 	Duration = "duration"
+	StartLvl = "start_lvl"
+
+	TransitionUp   = "up"
+	TransitionDown = "down"
 )
 
 // DefaultReportingStrategy is the default reporting strategy used by the service for periodic reports.
 var DefaultReportingStrategy = cache.ReportOnChangeOnly()
+
+// LevelTransitionParams keeps all properties of the transition controller.
+// nil value of the field means the property isn't supported.
+type LevelTransitionParams struct {
+	StartLvl *int
+	Duration *time.Duration
+}
 
 // Controller is an interface representing an actual device.
 // In a polling scenario implementation might require some safeguards against excessive polling.
@@ -38,6 +54,14 @@ type Controller interface {
 	SetLevelSwitchBinaryState(bool) error
 }
 
+// LevelTransitionController represents a controller over a single device for level transitioning.
+type LevelTransitionController interface {
+	// StartLevelTransition starts a transition. Supported values are: "up" and "down"
+	StartLevelTransition(string, LevelTransitionParams) error
+	// StopLevelTransition stops a transition
+	StopLevelTransition() error
+}
+
 // Service is an interface representing a output level switch FIMP service.
 type Service interface {
 	adapter.Service
@@ -47,9 +71,13 @@ type Service interface {
 	// To make sure report is being sent regardless of circumstances set the force argument to true.
 	SendLevelReport(force bool) (bool, error)
 	// SetLevel sets a level value.
-	SetLevel(value int64, duration time.Duration) error
+	SetLevel(value int64, duration *time.Duration) error
 	// SetBinaryState sets a binary value.
 	SetBinaryState(value bool) error
+	// StartLevelTransition starts a transition. Supported values are: "up" and "down"
+	StartLevelTransition(string, LevelTransitionParams) error
+	// StopLevelTransition stops a transition
+	StopLevelTransition() error
 }
 
 // Config represents a service configuration.
@@ -76,6 +104,10 @@ func NewService(
 		controller:        cfg.Controller,
 		reportingStrategy: cfg.ReportingStrategy,
 		reportingCache:    cache.NewReportingCache(),
+	}
+
+	if s.supportsLevelTransition() {
+		s.Specification().EnsureInterfaces(levelTransitionInterfaces()...)
 	}
 
 	return s
@@ -127,20 +159,15 @@ func (s *service) SendLevelReport(force bool) (bool, error) {
 }
 
 // SetLevel sets a level value.
-func (s *service) SetLevel(value int64, duration time.Duration) error {
+func (s *service) SetLevel(value int64, duration *time.Duration) error {
 	s.lock.Lock()
 	defer s.lock.Unlock()
 
-	if duration > 0 {
-		err := s.controller.SetLevelSwitchLevel(value, duration)
-		if err != nil {
-			return fmt.Errorf("%s: failed to set level: %w", s.Name(), err)
-		}
-
-		return nil
+	if duration == nil {
+		duration = utils.Ptr(time.Duration(0))
 	}
 
-	err := s.controller.SetLevelSwitchLevel(value, time.Duration(0))
+	err := s.controller.SetLevelSwitchLevel(value, *duration)
 	if err != nil {
 		return fmt.Errorf("%s: failed to set level: %w", s.Name(), err)
 	}
@@ -156,6 +183,93 @@ func (s *service) SetBinaryState(value bool) error {
 	err := s.controller.SetLevelSwitchBinaryState(value)
 	if err != nil {
 		return fmt.Errorf("%s: failed to set binary: %w", s.Name(), err)
+	}
+
+	return nil
+}
+
+// StartLevelTransition implements starting of the transition with validations and concurrent safety.
+func (s *service) StartLevelTransition(value string, params LevelTransitionParams) error {
+	s.lock.Lock()
+	defer s.lock.Unlock()
+
+	if !s.supportsLevelTransition() {
+		return fmt.Errorf("level transition isn't supported, can't start")
+	}
+
+	if value != TransitionUp && value != TransitionDown {
+		return fmt.Errorf("received incorrect value to start level transition. Received: %s Supported: %s, %s", value, TransitionUp, TransitionDown)
+	}
+
+	err := s.validateStartLevelOption(params.StartLvl)
+	if err != nil {
+		return errors.Wrap(err, "validation of the start_lvl property has failed")
+	}
+
+	if !s.Specification().PropertyBool(PropertySupportStartLevel) {
+		params.StartLvl = nil
+	}
+
+	if !s.Specification().PropertyBool(PropertySupportDuration) {
+		params.Duration = nil
+	}
+
+	ctr, ok := s.controller.(LevelTransitionController)
+	if !ok {
+		return fmt.Errorf("failed to cast controller into LevelTransitionController when starting level transition")
+	}
+
+	if err := ctr.StartLevelTransition(value, params); err != nil {
+		return errors.Wrap(err, "failed to start level transition")
+	}
+
+	return nil
+}
+
+// StopLevelTransition implements stopping of the transition with validations and concurrent safety.
+func (s *service) StopLevelTransition() error {
+	s.lock.Lock()
+	defer s.lock.Unlock()
+
+	if !s.supportsLevelTransition() {
+		return fmt.Errorf("level transition isn't supported, can't stop")
+	}
+
+	ctr, ok := s.controller.(LevelTransitionController)
+	if !ok {
+		return fmt.Errorf("failed to cast controller into LevelTransitionController when stopping level transition")
+	}
+
+	if err := ctr.StopLevelTransition(); err != nil {
+		return errors.Wrap(err, "failed to start level transition")
+	}
+
+	return nil
+}
+
+func (s *service) supportsLevelTransition() bool {
+	_, ok := s.controller.(LevelTransitionController)
+
+	return ok
+}
+
+func (s *service) validateStartLevelOption(startLvl *int) error {
+	if startLvl == nil {
+		return nil
+	}
+
+	lvlMax, ok := s.Specification().PropertyInteger(PropertyMaxLvl)
+	if !ok {
+		return fmt.Errorf("invalid service specification property: %s should be int", PropertyMaxLvl)
+	}
+
+	lvlMin, ok := s.Specification().PropertyInteger(PropertyMinLvl)
+	if !ok {
+		return fmt.Errorf("invalid service specification property: %s should be int", PropertyMinLvl)
+	}
+
+	if *startLvl < int(lvlMin) || int(lvlMax) < *startLvl {
+		return fmt.Errorf("invalid startLvl received: %d. Should be in range: %d - %d", startLvl, lvlMin, lvlMax)
 	}
 
 	return nil
