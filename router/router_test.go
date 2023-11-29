@@ -202,6 +202,7 @@ func Test_Router_Concurrency(t *testing.T) { //nolint:paralleltest
 						Name:    "Send command 1",
 						Command: suite.NullMessage("pt:j1/mt:cmd/rt:app/rn:test/ad:1", "cmd.test.test_command_1", "test_service"),
 					},
+					suite.SleepNode(50 * time.Millisecond),
 					{
 						Name:    "Send command 2",
 						Command: suite.NullMessage("pt:j1/mt:cmd/rt:app/rn:test/ad:1", "cmd.test.test_command_2", "test_service"),
