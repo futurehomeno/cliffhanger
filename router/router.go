@@ -3,6 +3,7 @@ package router
 import (
 	"errors"
 	"sync"
+	"time"
 
 	"github.com/futurehomeno/fimpgo"
 	log "github.com/sirupsen/logrus"
@@ -94,57 +95,78 @@ func (r *router) Stop() error {
 	return nil
 }
 
-// routeMessages routes incoming message.
+// routeMessages routes incoming messages.
 func (r *router) routeMessages(messageCh fimpgo.MessageCh) {
 	defer r.wg.Done()
 
 	for {
 		select {
-		case message := <-messageCh:
-			r.processMessage(message)
 		case <-r.stopCh:
 			return
+		case message := <-messageCh:
+			for _, routing := range r.routing {
+				r.processMessage(routing, message)
+			}
 		}
 	}
 }
 
-// processMessage executes handlers responsible for processing the incoming message and send response if applicable.
-func (r *router) processMessage(message *fimpgo.Message) {
+// processMessage allows a routing to process the incoming message.
+func (r *router) processMessage(routing *Routing, message *fimpgo.Message) {
 	defer func() {
-		if r := recover(); r != nil {
-			log.WithField("topic", message.Addr.Serialize()).
-				WithField("service", message.Payload.Service).
-				WithField("type", message.Payload.Type).
-				Errorf("message router: panic occurred while processing message: %+v", r)
+		if rc := recover(); rc != nil {
+			r.handleProcessingPanic(message, rc)
 		}
 	}()
 
-	for _, routing := range r.routing {
-		if !routing.vote(message) {
-			continue
-		}
+	if !routing.vote(message) {
+		return
+	}
 
-		response := routing.handler.Handle(message)
-		if response == nil {
-			continue
-		}
+	startTime := time.Now()
+	response := routing.handler.Handle(message)
+	elapsed := time.Since(startTime)
 
-		responseAddress := r.getResponseAddress(message, response)
-		if responseAddress == nil {
-			continue
+	defer func() {
+		if r.cfg.statsCallback != nil {
+			r.cfg.statsCallback(Stats{
+				InputMessage:       message,
+				OutputMessage:      response,
+				ProcessingDuration: elapsed,
+			})
 		}
+	}()
 
-		if response.Payload.CorrelationID == "" {
-			response.Payload.CorrelationID = message.Payload.UID
-		}
+	if response == nil {
+		return
+	}
 
-		err := r.mqtt.Publish(responseAddress, response.Payload)
-		if err != nil {
-			log.WithError(err).
-				WithField("topic", response.Addr.Serialize()).
-				WithField("message", response.Payload).
-				Error("failed to publish response")
-		}
+	responseAddress := r.getResponseAddress(message, response)
+	if responseAddress == nil {
+		return
+	}
+
+	if response.Payload.CorrelationID == "" {
+		response.Payload.CorrelationID = message.Payload.UID
+	}
+
+	err := r.mqtt.Publish(responseAddress, response.Payload)
+	if err != nil {
+		log.WithError(err).
+			WithField("topic", response.Addr.Serialize()).
+			WithField("message", response.Payload).
+			Error("failed to publish response")
+	}
+}
+
+func (r *router) handleProcessingPanic(message *fimpgo.Message, panicErr any) {
+	log.WithField("topic", message.Addr.Serialize()).
+		WithField("service", message.Payload.Service).
+		WithField("type", message.Payload.Type).
+		Errorf("message router: panic occurred while processing message: %+v", panicErr)
+
+	if r.cfg.panicCallback != nil {
+		r.cfg.panicCallback(message, panicErr)
 	}
 }
 
@@ -194,6 +216,8 @@ type config struct {
 	buffer               int
 	concurrency          int
 	preserveGlobalPrefix bool
+	panicCallback        func(message *fimpgo.Message, panicErr any)
+	statsCallback        func(stats Stats)
 }
 
 // Option is an interface representing a message router configuration option.
@@ -244,4 +268,25 @@ func WithPreservedGlobalPrefix() Option {
 	return optionFn(func(cfg *config) {
 		cfg.preserveGlobalPrefix = true
 	})
+}
+
+// WithPanicCallback returns an option that sets a callback function that will be called when a panic occurs.
+func WithPanicCallback(f func(message *fimpgo.Message, err any)) Option {
+	return optionFn(func(cfg *config) {
+		cfg.panicCallback = f
+	})
+}
+
+// WithStatsCallback returns an option that sets a callback function that provides message processing statistics.
+func WithStatsCallback(f func(Stats)) Option {
+	return optionFn(func(cfg *config) {
+		cfg.statsCallback = f
+	})
+}
+
+// Stats is a structure representing statistics of a processed message.
+type Stats struct {
+	InputMessage       *fimpgo.Message
+	OutputMessage      *fimpgo.Message // nil if no response was sent
+	ProcessingDuration time.Duration
 }
