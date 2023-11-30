@@ -374,7 +374,7 @@ func Test_Router_PanicCallback(t *testing.T) { //nolint:paralleltest
 						Command: suite.NullMessage("pt:j1/mt:cmd/rt:app/rn:test/ad:1", "cmd.test.test_command", "test_service"),
 						Timeout: -1,
 					},
-					suite.SleepNode(10 * time.Millisecond),
+					suite.SleepNode(50 * time.Millisecond),
 					{
 						Name:    "verify panic callback was called",
 						Timeout: -1,
@@ -409,7 +409,7 @@ func Test_Router_PanicCallback(t *testing.T) { //nolint:paralleltest
 						Command: suite.NullMessage("pt:j1/mt:cmd/rt:app/rn:test/ad:1", "cmd.test.test_command", "test_service"),
 						Timeout: -1,
 					},
-					suite.SleepNode(10 * time.Millisecond),
+					suite.SleepNode(50 * time.Millisecond),
 					{
 						Name:    "panic callback cannot be called",
 						Timeout: -1,
@@ -471,7 +471,7 @@ func Test_Router_StatsCallback(t *testing.T) { //nolint:paralleltest
 						Command: suite.NullMessage("pt:j1/mt:cmd/rt:app/rn:test/ad:1", "cmd.test.test_command", "test_service"),
 						Timeout: -1,
 					},
-					suite.SleepNode(10 * time.Millisecond),
+					suite.SleepNode(50 * time.Millisecond),
 					{
 						Name:    "verify stats callback was called",
 						Timeout: -1,
@@ -511,7 +511,7 @@ func Test_Router_StatsCallback(t *testing.T) { //nolint:paralleltest
 						Command: suite.NullMessage("pt:j1/mt:cmd/rt:app/rn:test/ad:1", "cmd.test.test_command", "test_service"),
 						Timeout: -1,
 					},
-					suite.SleepNode(10 * time.Millisecond),
+					suite.SleepNode(50 * time.Millisecond),
 					{
 						Name:    "verify stats callback was called",
 						Timeout: -1,
@@ -553,7 +553,7 @@ func Test_Router_StatsCallback(t *testing.T) { //nolint:paralleltest
 						Command: suite.NullMessage("pt:j1/mt:cmd/rt:app/rn:test/ad:1", "cmd.test.test_command", "test_service"),
 						Timeout: -1,
 					},
-					suite.SleepNode(10 * time.Millisecond),
+					suite.SleepNode(50 * time.Millisecond),
 					{
 						Name:    "verify stats callback was not called",
 						Timeout: -1,
