@@ -1,6 +1,8 @@
 package suite
 
 import (
+	"fmt"
+	"strings"
 	"sync"
 	"testing"
 	"time"
@@ -81,7 +83,7 @@ func (r *Router) AssertExpectations(timeout time.Duration) {
 		select {
 		case <-t.C:
 			if !r.expectationsMet() {
-				r.t.Errorf("failed to assert expectations within %s", timeout)
+				r.t.Errorf(r.failedExpectationsMessage())
 			}
 
 			return
@@ -110,6 +112,40 @@ func (r *Router) expectationsMet() bool {
 	}
 
 	return true
+}
+
+func (r *Router) shouldWaitUntilTimeout() bool {
+	r.mu.RLock()
+	defer r.mu.RUnlock()
+
+	for _, e := range r.expectations {
+		if e.Occurrence == Never {
+			return true
+		}
+	}
+
+	return false
+}
+
+func (r *Router) failedExpectationsMessage() string {
+	var sb strings.Builder
+
+	sb.WriteString("test router: some expectations have not been met:\n")
+
+	r.mu.RLock()
+	defer r.mu.RUnlock()
+
+	for i, e := range r.expectations {
+		if e.assert() {
+			continue
+		}
+
+		sb.WriteString(fmt.Sprintf("expectation #%d, occurrence: %s, called times: %d\n", i, e.Occurrence, e.called))
+	}
+
+	sb.WriteString("\n")
+
+	return sb.String()
 }
 
 func (r *Router) cleanUpExpectations() {
@@ -142,10 +178,6 @@ func (r *Router) processMessage(message *fimpgo.Message) (*fimpgo.FimpMessage, e
 			continue
 		}
 
-		if e.called == 1 && (e.Occurrence == ExactlyOnce || e.Occurrence == AtMostOnce) {
-			continue
-		}
-
 		e.called++
 
 		if e.PublishFn != nil {
@@ -162,19 +194,6 @@ func (r *Router) processMessage(message *fimpgo.Message) (*fimpgo.FimpMessage, e
 	}
 
 	return nil, nil
-}
-
-func (r *Router) shouldWaitUntilTimeout() bool {
-	r.mu.RLock()
-	defer r.mu.RUnlock()
-
-	for _, e := range r.expectations {
-		if e.Occurrence == Never {
-			return true
-		}
-	}
-
-	return false
 }
 
 func publishMessage(t *testing.T, mqtt *fimpgo.MqttTransport, message *fimpgo.Message) {
