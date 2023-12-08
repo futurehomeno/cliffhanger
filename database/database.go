@@ -81,36 +81,9 @@ func prepareDatabase(workdir, filename string) (*buntdb.DB, error) {
 
 // recoverDatabase recovers the database from a corrupted data file.
 func recoverDatabase(workdir, filename string) (*buntdb.DB, error) {
-	corruptedData, err := os.ReadFile(path.Join(workdir, filename+".db"))
+	err := recoverData(workdir, filename)
 	if err != nil {
-		return nil, fmt.Errorf("database: failed to read corrupted data file: %w", err)
-	}
-
-	tempDb, err := buntdb.Open(":memory:")
-	if err != nil {
-		return nil, fmt.Errorf("database: failed to open temporary database: %w", err)
-	}
-
-	_ = tempDb.Load(bytes.NewReader(corruptedData))
-
-	f, err := os.OpenFile(path.Join(workdir, filename+".db.recovered"), os.O_CREATE|os.O_RDWR, 0666)
-	if err != nil {
-		return nil, fmt.Errorf("database: failed to create recovered data file: %w", err)
-	}
-
-	err = tempDb.Save(f)
-	if err != nil {
-		return nil, fmt.Errorf("database: failed to save recovered data file: %w", err)
-	}
-
-	err = tempDb.Close()
-	if err != nil {
-		return nil, fmt.Errorf("database: failed to close temporary database: %w", err)
-	}
-
-	err = f.Close()
-	if err != nil {
-		return nil, fmt.Errorf("database: failed to close recovered data file: %w", err)
+		return nil, fmt.Errorf("database: failed to recover data file: %w", err)
 	}
 
 	err = os.Remove(path.Join(workdir, filename+".db.corrupted"))
@@ -134,6 +107,40 @@ func recoverDatabase(workdir, filename string) (*buntdb.DB, error) {
 	}
 
 	return db, nil
+}
+
+// recoverData recovers the data from a corrupted data file.
+func recoverData(workdir, filename string) error {
+	corruptedData, err := os.ReadFile(path.Join(workdir, filename+".db"))
+	if err != nil {
+		return fmt.Errorf("database: failed to read corrupted data file: %w", err)
+	}
+
+	tempDb, err := buntdb.Open(":memory:")
+	if err != nil {
+		return fmt.Errorf("database: failed to open temporary database: %w", err)
+	}
+
+	_ = tempDb.Load(bytes.NewReader(corruptedData))
+
+	f, err := os.OpenFile(path.Join(workdir, filename+".db.recovered"), os.O_CREATE|os.O_RDWR, 0666)
+	if err != nil {
+		return fmt.Errorf("database: failed to create recovered data file: %w", err)
+	}
+
+	defer f.Close()
+
+	err = tempDb.Save(f)
+	if err != nil {
+		return fmt.Errorf("database: failed to save recovered data file: %w", err)
+	}
+
+	err = tempDb.Close()
+	if err != nil {
+		return fmt.Errorf("database: failed to close temporary database: %w", err)
+	}
+
+	return nil
 }
 
 // database is a private implementation of the Database interface.
