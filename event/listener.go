@@ -2,6 +2,7 @@ package event
 
 import (
 	"fmt"
+	"runtime/debug"
 	"sync"
 
 	log "github.com/sirupsen/logrus"
@@ -84,7 +85,9 @@ func (l *listener) process() {
 func (l *listener) doProcess(event *Event) {
 	defer func() {
 		if r := recover(); r != nil {
-			log.Errorf("task manager: panic occurred while running a task: %+v", r)
+			log.WithField("stack", debug.Stack()).
+				WithField("domain", event.Domain).
+				Errorf("event listener: panic occurred while processing the event: %+v", r)
 		}
 	}()
 
