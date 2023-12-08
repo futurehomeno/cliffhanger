@@ -58,6 +58,19 @@ func TestDatabase_SetWithExpiry_Get(t *testing.T) {
 	assert.Equal(t, "", value2)
 }
 
+func TestDatabase_Delete(t *testing.T) {
+	db := database.NewDomainDatabase("test_domain", makeTestDatabase(t, true))
+
+	assert.NoError(t, db.Set("test_bucket", "test_key1", "test_value1"))
+	assert.NoError(t, db.Set("test_bucket", "test_key2", "test_value2"))
+	assert.NoError(t, db.Delete("test_bucket", "test_key1"))
+
+	keys, err := db.Keys("test_bucket")
+
+	assert.NoError(t, err)
+	assert.Equal(t, []string{"test_key2"}, keys)
+}
+
 func TestDatabase_Keys(t *testing.T) {
 	db := database.NewDomainDatabase("test_domain", makeTestDatabase(t, true))
 

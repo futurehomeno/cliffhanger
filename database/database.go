@@ -15,17 +15,28 @@ import (
 
 // Database is a simple in-memory key-value store with append-only persistence to disk to minimize the disk IO and risk of data corruption.
 type Database interface {
+	// Start starts the database.
 	Start() error
+	// Stop stops the database.
 	Stop() error
+	// Reset resets the database.
 	Reset() error
 
+	// Keys gets the keys for the entire bucket.
 	Keys(bucket string) ([]string, error)
+	// KeysBetween gets the keys for the bucket between the provided keys.
 	KeysBetween(bucket, from, to string) ([]string, error)
+	// Get gets the value for the key.
 	Get(bucket, key string, value interface{}) (ok bool, err error)
+	// Set sets the value for the key.
 	Set(bucket, key string, value interface{}) error
+	// SetWithExpiry sets the value for the key with expiry.
 	SetWithExpiry(bucket, key string, value interface{}, expiry time.Duration) error
+	// Delete deletes the key.
+	Delete(bucket, key string) error
 }
 
+// NewDatabase creates a new database.
 func NewDatabase(workdir string, options ...Option) (Database, error) {
 	cfg := newConfig().withDefaults().apply(append(options, WithWorkdir(workdir))...)
 
@@ -49,6 +60,7 @@ func NewDatabase(workdir string, options ...Option) (Database, error) {
 	}, nil
 }
 
+// prepareDatabase prepares the database for use.
 func prepareDatabase(workdir, filename string) (*buntdb.DB, error) {
 	err := os.MkdirAll(workdir, 0774)
 	if err != nil {
@@ -67,6 +79,7 @@ func prepareDatabase(workdir, filename string) (*buntdb.DB, error) {
 	return db, nil
 }
 
+// recoverDatabase recovers the database from a corrupted data file.
 func recoverDatabase(workdir, filename string) (*buntdb.DB, error) {
 	corruptedData, err := os.ReadFile(path.Join(workdir, filename+".db"))
 	if err != nil {
@@ -123,14 +136,17 @@ func recoverDatabase(workdir, filename string) (*buntdb.DB, error) {
 	return db, nil
 }
 
+// database is a private implementation of the Database interface.
 type database struct {
 	db *buntdb.DB
 }
 
+// Start starts the database.
 func (d *database) Start() error {
 	return nil
 }
 
+// Stop stops the database.
 func (d *database) Stop() error {
 	err := d.db.Close()
 	if err != nil {
@@ -140,6 +156,7 @@ func (d *database) Stop() error {
 	return nil
 }
 
+// Reset resets the database.
 func (d *database) Reset() error {
 	err := d.db.Update(func(tx *buntdb.Tx) error {
 		return tx.DeleteAll()
@@ -156,10 +173,12 @@ func (d *database) Reset() error {
 	return nil
 }
 
+// Set sets the value for the key.
 func (d *database) Set(bucket, key string, value interface{}) error {
 	return d.SetWithExpiry(bucket, key, value, 0)
 }
 
+// SetWithExpiry sets the value for the key with expiry.
 func (d *database) SetWithExpiry(bucket, key string, value interface{}, expiry time.Duration) error {
 	return d.db.Update(func(tx *buntdb.Tx) error {
 		rawData, err := json.Marshal(value)
@@ -184,6 +203,19 @@ func (d *database) SetWithExpiry(bucket, key string, value interface{}, expiry t
 	})
 }
 
+// Delete deletes the key.
+func (d *database) Delete(bucket, key string) error {
+	return d.db.Update(func(tx *buntdb.Tx) error {
+		_, err := tx.Delete(d.key(bucket, key))
+		if err != nil {
+			return fmt.Errorf("database: failed to delete the key: %w", err)
+		}
+
+		return nil
+	})
+}
+
+// Get gets the value for the key.
 func (d *database) Get(bucket, key string, value interface{}) (ok bool, err error) {
 	err = d.db.View(func(tx *buntdb.Tx) error {
 		rawData, txErr := tx.Get(d.key(bucket, key))
@@ -200,6 +232,7 @@ func (d *database) Get(bucket, key string, value interface{}) (ok bool, err erro
 	return !errors.Is(err, buntdb.ErrNotFound), nil
 }
 
+// Keys gets the keys for the entire bucket.
 func (d *database) Keys(bucket string) ([]string, error) {
 	var keys []string
 
@@ -221,6 +254,7 @@ func (d *database) Keys(bucket string) ([]string, error) {
 	return keys, nil
 }
 
+// KeysBetween gets the keys for the bucket between the provided keys.
 func (d *database) KeysBetween(bucket, from, to string) ([]string, error) {
 	var keys []string
 
@@ -242,10 +276,12 @@ func (d *database) KeysBetween(bucket, from, to string) ([]string, error) {
 	return keys, nil
 }
 
+// key creates a key for the bucket and key.
 func (d *database) key(bucket, key string) string {
 	return fmt.Sprintf("%s:%s", bucket, key)
 }
 
+// NewDomainDatabase creates a new domain database.
 func NewDomainDatabase(domain string, db Database) Database {
 	return &domainDatabase{
 		domain:   domain,
@@ -253,32 +289,44 @@ func NewDomainDatabase(domain string, db Database) Database {
 	}
 }
 
+// domainDatabase is a private implementation of the Database interface.
 type domainDatabase struct {
 	Database
 
 	domain string
 }
 
+// Keys gets the keys for the entire bucket.
 func (d *domainDatabase) Keys(bucket string) ([]string, error) {
 	return d.Database.Keys(d.bucket(bucket))
 }
 
+// KeysBetween gets the keys for the bucket between the provided keys.
 func (d *domainDatabase) KeysBetween(bucket, from, to string) ([]string, error) {
 	return d.Database.KeysBetween(d.bucket(bucket), from, to)
 }
 
+// Get gets the value for the key.
 func (d *domainDatabase) Get(bucket, key string, value interface{}) (bool, error) {
 	return d.Database.Get(d.bucket(bucket), key, value)
 }
 
+// Set sets the value for the key.
 func (d *domainDatabase) Set(bucket, key string, value interface{}) error {
 	return d.Database.Set(d.bucket(bucket), key, value)
 }
 
+// SetWithExpiry sets the value for the key with expiry.
 func (d *domainDatabase) SetWithExpiry(bucket, key string, value interface{}, expiry time.Duration) error {
 	return d.Database.SetWithExpiry(d.bucket(bucket), key, value, expiry)
 }
 
+// Delete deletes the key.
+func (d *domainDatabase) Delete(bucket, key string) error {
+	return d.Database.Delete(d.bucket(bucket), key)
+}
+
+// bucket creates a key for a bucket including the domain.
 func (d *domainDatabase) bucket(bucket string) string {
 	return fmt.Sprintf("%s:%s", d.domain, bucket)
 }
