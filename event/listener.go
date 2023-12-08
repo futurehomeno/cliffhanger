@@ -85,7 +85,7 @@ func (l *listener) process() {
 func (l *listener) doProcess(event *Event) {
 	defer func() {
 		if r := recover(); r != nil {
-			log.WithField("stack", debug.Stack()).
+			log.WithField("stack", string(debug.Stack())).
 				WithField("domain", event.Domain).
 				Errorf("event listener: panic occurred while processing the event: %+v", r)
 		}
