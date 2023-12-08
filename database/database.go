@@ -62,7 +62,7 @@ func NewDatabase(workdir string, options ...Option) (Database, error) {
 
 // prepareDatabase prepares the database for use.
 func prepareDatabase(workdir, filename string) (*buntdb.DB, error) {
-	err := os.MkdirAll(workdir, 0774)
+	err := os.MkdirAll(workdir, 0o774)
 	if err != nil {
 		return nil, fmt.Errorf("database: failed to create work directory: %w", err)
 	}
@@ -116,26 +116,26 @@ func recoverData(workdir, filename string) error {
 		return fmt.Errorf("database: failed to read corrupted data file: %w", err)
 	}
 
-	tempDb, err := buntdb.Open(":memory:")
+	tempDB, err := buntdb.Open(":memory:")
 	if err != nil {
 		return fmt.Errorf("database: failed to open temporary database: %w", err)
 	}
 
-	_ = tempDb.Load(bytes.NewReader(corruptedData))
+	_ = tempDB.Load(bytes.NewReader(corruptedData))
 
-	f, err := os.OpenFile(path.Join(workdir, filename+".db.recovered"), os.O_CREATE|os.O_RDWR, 0666)
+	f, err := os.OpenFile(path.Join(workdir, filename+".db.recovered"), os.O_CREATE|os.O_RDWR, 0o666)
 	if err != nil {
 		return fmt.Errorf("database: failed to create recovered data file: %w", err)
 	}
 
 	defer f.Close()
 
-	err = tempDb.Save(f)
+	err = tempDB.Save(f)
 	if err != nil {
 		return fmt.Errorf("database: failed to save recovered data file: %w", err)
 	}
 
-	err = tempDb.Close()
+	err = tempDB.Close()
 	if err != nil {
 		return fmt.Errorf("database: failed to close temporary database: %w", err)
 	}

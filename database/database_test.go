@@ -10,7 +10,7 @@ import (
 	"github.com/futurehomeno/cliffhanger/database"
 )
 
-func TestDatabase_Set_Get(t *testing.T) {
+func TestDatabase_Set_Get(t *testing.T) { //nolint:paralleltest
 	db := database.NewDomainDatabase("test_domain", makeTestDatabase(t, true))
 
 	assert.NoError(t, db.Set("test_bucket", "test_key", "test_value"))
@@ -33,7 +33,7 @@ func TestDatabase_Set_Get(t *testing.T) {
 	assert.Equal(t, "", value2)
 }
 
-func TestDatabase_SetWithExpiry_Get(t *testing.T) {
+func TestDatabase_SetWithExpiry_Get(t *testing.T) { //nolint:paralleltest
 	db := database.NewDomainDatabase("test_domain", makeTestDatabase(t, true))
 
 	assert.NoError(t, db.SetWithExpiry("test_bucket", "test_key", "test_value", 1*time.Second))
@@ -58,7 +58,7 @@ func TestDatabase_SetWithExpiry_Get(t *testing.T) {
 	assert.Equal(t, "", value2)
 }
 
-func TestDatabase_Delete(t *testing.T) {
+func TestDatabase_Delete(t *testing.T) { //nolint:paralleltest
 	db := database.NewDomainDatabase("test_domain", makeTestDatabase(t, true))
 
 	assert.NoError(t, db.Set("test_bucket", "test_key1", "test_value1"))
@@ -71,7 +71,7 @@ func TestDatabase_Delete(t *testing.T) {
 	assert.Equal(t, []string{"test_key2"}, keys)
 }
 
-func TestDatabase_Keys(t *testing.T) {
+func TestDatabase_Keys(t *testing.T) { //nolint:paralleltest
 	db := database.NewDomainDatabase("test_domain", makeTestDatabase(t, true))
 
 	assert.NoError(t, db.Set("test_bucket", "test_key1", "test_value1"))
@@ -83,7 +83,7 @@ func TestDatabase_Keys(t *testing.T) {
 	assert.Equal(t, []string{"test_key1", "test_key2"}, keys)
 }
 
-func TestDatabase_KeysBetween(t *testing.T) {
+func TestDatabase_KeysBetween(t *testing.T) { //nolint:paralleltest
 	db := database.NewDomainDatabase("test_domain", makeTestDatabase(t, true))
 
 	assert.NoError(t, db.Set("test_bucket", "test_key1", "test_value1"))
@@ -99,7 +99,7 @@ func TestDatabase_KeysBetween(t *testing.T) {
 	assert.Equal(t, []string{"test_key2", "test_key3", "test_key4"}, keys)
 }
 
-func TestDatabase_Reset(t *testing.T) {
+func TestDatabase_Reset(t *testing.T) { //nolint:paralleltest
 	db := database.NewDomainDatabase("test_domain", makeTestDatabase(t, true))
 
 	assert.NoError(t, db.Set("test_bucket", "test_key1", "test_value1"))
@@ -112,7 +112,7 @@ func TestDatabase_Reset(t *testing.T) {
 	assert.Equal(t, ([]string)(nil), keys)
 }
 
-func TestDatabase_Recovery(t *testing.T) {
+func TestDatabase_Recovery(t *testing.T) { //nolint:paralleltest
 	db := database.NewDomainDatabase("test_domain", makeTestDatabase(t, true))
 
 	assert.NoError(t, db.Set("test_bucket", "test_key1", "test_value1"))
@@ -131,7 +131,7 @@ func TestDatabase_Recovery(t *testing.T) {
 	file = file[0 : len(file)-2]
 	file = append(file, []byte("\n\n")...)
 
-	assert.NoError(t, os.WriteFile("../testdata/database/test.db", file, 0644))
+	assert.NoError(t, os.WriteFile("../testdata/database/test.db", file, 0o644)) //nolint:gosec
 
 	db = database.NewDomainDatabase("test_domain", makeTestDatabase(t, false))
 
