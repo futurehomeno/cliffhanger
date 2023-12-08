@@ -2,6 +2,7 @@ package task
 
 import (
 	"errors"
+	"runtime/debug"
 	"sync"
 	"time"
 
@@ -106,7 +107,8 @@ func (r *manager) runContinuously(task *Task) {
 func (r *manager) run(task *Task) {
 	defer func() {
 		if r := recover(); r != nil {
-			log.Errorf("task manager: panic occurred while running a task: %+v", r)
+			log.WithField("stack", debug.Stack()).
+				Errorf("task manager: panic occurred while running a task: %+v", r)
 		}
 	}()
 

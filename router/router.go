@@ -2,6 +2,7 @@ package router
 
 import (
 	"errors"
+	"runtime/debug"
 	"sync"
 	"time"
 
@@ -163,6 +164,7 @@ func (r *router) handleProcessingPanic(message *fimpgo.Message, panicErr any) {
 	log.WithField("topic", message.Addr.Serialize()).
 		WithField("service", message.Payload.Service).
 		WithField("type", message.Payload.Type).
+		WithField("stack", debug.Stack()).
 		Errorf("message router: panic occurred while processing message: %+v", panicErr)
 
 	if r.cfg.panicCallback != nil {
