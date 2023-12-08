@@ -107,7 +107,7 @@ func (r *manager) runContinuously(task *Task) {
 func (r *manager) run(task *Task) {
 	defer func() {
 		if r := recover(); r != nil {
-			log.WithField("stack", debug.Stack()).
+			log.WithField("stack", string(debug.Stack())).
 				Errorf("task manager: panic occurred while running a task: %+v", r)
 		}
 	}()
