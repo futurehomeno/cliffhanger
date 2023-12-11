@@ -24,6 +24,8 @@ type Database interface {
 
 	// Keys gets the keys for the entire bucket.
 	Keys(bucket string) ([]string, error)
+	// KeysFrom gets the keys for the bucket from the provided key.
+	KeysFrom(bucket, from string) ([]string, error)
 	// KeysBetween gets the keys for the bucket between the provided keys.
 	KeysBetween(bucket, from, to string) ([]string, error)
 	// Get gets the value for the key.
@@ -261,6 +263,28 @@ func (d *database) Keys(bucket string) ([]string, error) {
 	return keys, nil
 }
 
+// KeysFrom gets the keys for the bucket from the provided key.
+func (d *database) KeysFrom(bucket, from string) ([]string, error) {
+	var keys []string
+
+	err := d.db.View(func(tx *buntdb.Tx) error {
+		return tx.AscendGreaterOrEqual("", fmt.Sprintf("%s:%s", bucket, from), func(key, value string) bool {
+			keys = append(keys, key)
+
+			return true
+		})
+	})
+	if err != nil {
+		return nil, fmt.Errorf("database: failed to get the keys for bucket %s from %s: %w", bucket, from, err)
+	}
+
+	for i, key := range keys {
+		keys[i] = key[len(bucket)+1:]
+	}
+
+	return keys, nil
+}
+
 // KeysBetween gets the keys for the bucket between the provided keys.
 func (d *database) KeysBetween(bucket, from, to string) ([]string, error) {
 	var keys []string
@@ -306,6 +330,11 @@ type domainDatabase struct {
 // Keys gets the keys for the entire bucket.
 func (d *domainDatabase) Keys(bucket string) ([]string, error) {
 	return d.Database.Keys(d.bucket(bucket))
+}
+
+// KeysFrom gets the keys for the bucket from the provided key.
+func (d *domainDatabase) KeysFrom(bucket, from string) ([]string, error) {
+	return d.Database.KeysFrom(d.bucket(bucket), from)
 }
 
 // KeysBetween gets the keys for the bucket between the provided keys.
