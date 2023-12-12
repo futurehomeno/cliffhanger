@@ -86,14 +86,15 @@ func TestDatabase_Keys(t *testing.T) { //nolint:paralleltest
 func TestDatabase_KeysFrom(t *testing.T) { //nolint:paralleltest
 	db := database.NewDomainDatabase("test_domain", makeTestDatabase(t, true))
 
-	assert.NoError(t, db.Set("test_bucket", "test_key1", "test_value1"))
-	assert.NoError(t, db.Set("test_bucket", "test_key2", "test_value2"))
-	assert.NoError(t, db.Set("test_bucket", "test_key3", "test_value2"))
-	assert.NoError(t, db.Set("test_bucket", "test_key4", "test_value2"))
-	assert.NoError(t, db.Set("test_bucket", "test_key5", "test_value2"))
-	assert.NoError(t, db.Set("test_bucket", "test_key6", "test_value2"))
+	assert.NoError(t, db.Set("test_bucket_a", "test_key1", "test_value1"))
+	assert.NoError(t, db.Set("test_bucket_a", "test_key2", "test_value2"))
+	assert.NoError(t, db.Set("test_bucket_a", "test_key3", "test_value3"))
+	assert.NoError(t, db.Set("test_bucket_a", "test_key4", "test_value4"))
+	assert.NoError(t, db.Set("test_bucket_a", "test_key5", "test_value5"))
+	assert.NoError(t, db.Set("test_bucket_a", "test_key6", "test_value6"))
+	assert.NoError(t, db.Set("test_bucket_b", "test_key7", "test_value7"))
 
-	keys, err := db.KeysFrom("test_bucket", "test_key4")
+	keys, err := db.KeysFrom("test_bucket_a", "test_key4")
 
 	assert.NoError(t, err)
 	assert.Equal(t, []string{"test_key4", "test_key5", "test_key6"}, keys)
@@ -104,10 +105,10 @@ func TestDatabase_KeysBetween(t *testing.T) { //nolint:paralleltest
 
 	assert.NoError(t, db.Set("test_bucket", "test_key1", "test_value1"))
 	assert.NoError(t, db.Set("test_bucket", "test_key2", "test_value2"))
-	assert.NoError(t, db.Set("test_bucket", "test_key3", "test_value2"))
-	assert.NoError(t, db.Set("test_bucket", "test_key4", "test_value2"))
-	assert.NoError(t, db.Set("test_bucket", "test_key5", "test_value2"))
-	assert.NoError(t, db.Set("test_bucket", "test_key6", "test_value2"))
+	assert.NoError(t, db.Set("test_bucket", "test_key3", "test_value3"))
+	assert.NoError(t, db.Set("test_bucket", "test_key4", "test_value4"))
+	assert.NoError(t, db.Set("test_bucket", "test_key5", "test_value5"))
+	assert.NoError(t, db.Set("test_bucket", "test_key6", "test_value6"))
 
 	keys, err := db.KeysBetween("test_bucket", "test_key2", "test_key5")
 
@@ -133,10 +134,10 @@ func TestDatabase_Recovery(t *testing.T) { //nolint:paralleltest
 
 	assert.NoError(t, db.Set("test_bucket", "test_key1", "test_value1"))
 	assert.NoError(t, db.Set("test_bucket", "test_key2", "test_value2"))
-	assert.NoError(t, db.Set("test_bucket", "test_key3", "test_value2"))
-	assert.NoError(t, db.Set("test_bucket", "test_key4", "test_value2"))
-	assert.NoError(t, db.Set("test_bucket", "test_key5", "test_value2"))
-	assert.NoError(t, db.Set("test_bucket", "test_key6", "test_value2"))
+	assert.NoError(t, db.Set("test_bucket", "test_key3", "test_value3"))
+	assert.NoError(t, db.Set("test_bucket", "test_key4", "test_value4"))
+	assert.NoError(t, db.Set("test_bucket", "test_key5", "test_value5"))
+	assert.NoError(t, db.Set("test_bucket", "test_key6", "test_value6"))
 	assert.NoError(t, db.Stop())
 
 	file, err := os.ReadFile("../testdata/database/test.db")
