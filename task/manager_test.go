@@ -1,13 +1,13 @@
 package task_test
 
 import (
-	"github.com/futurehomeno/cliffhanger/test/suite"
 	"testing"
 	"time"
 
 	"github.com/stretchr/testify/assert"
 
 	"github.com/futurehomeno/cliffhanger/task"
+	"github.com/futurehomeno/cliffhanger/test/suite"
 )
 
 func TestManager_Start(t *testing.T) {
@@ -139,6 +139,8 @@ func TestManager_Stop(t *testing.T) {
 }
 
 func TestManager_UpdateTaskInterval(t *testing.T) {
+	t.Parallel()
+
 	taskMaker := func(counter *int, named bool, duration time.Duration) *task.Task {
 		if named {
 			return task.NewNamedTask("test", func() {
@@ -184,6 +186,7 @@ func TestManager_UpdateTaskInterval(t *testing.T) {
 	for _, tt := range testCases {
 		tc := tt
 		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
 			counter := 0
 
 			tsk := taskMaker(&counter, tc.nameTask, 0)

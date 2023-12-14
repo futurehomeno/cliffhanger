@@ -2,10 +2,12 @@ package virtualmeter
 
 import (
 	"fmt"
-	"github.com/futurehomeno/cliffhanger/database"
-	log "github.com/sirupsen/logrus"
 	"sync"
 	"time"
+
+	log "github.com/sirupsen/logrus"
+
+	"github.com/futurehomeno/cliffhanger/database"
 )
 
 const (
@@ -89,6 +91,7 @@ func (s *Storage) Device(addr string) (DeviceEntry, error) {
 	defer s.lock.RUnlock()
 
 	device := DeviceEntry{}
+
 	ok, err := s.db.Get(keyDevice, addr, &device)
 	if err := s.processGetError(addr, "device", ok, err); err != nil {
 		return DeviceEntry{}, err
@@ -102,14 +105,13 @@ func (s *Storage) ReportingInterval() time.Duration {
 	defer s.lock.RUnlock()
 
 	interval := ""
+
 	ok, err := s.db.Get(keyReportingInterval, "", &interval)
 	if err := s.processGetError("", "repoting interval", ok, err); err != nil {
 		log.WithError(err).Errorf("db: failed to get reporting interval")
 
 		return defaultReportingInterval
 	}
-
-	log.Infof("Reporting interval: %s", interval)
 
 	duration, err := time.ParseDuration(interval)
 	if err != nil {

@@ -2,7 +2,6 @@ package outlvlswitch_test
 
 import (
 	"fmt"
-	"github.com/futurehomeno/cliffhanger/adapter/service/virtualmeter"
 	"testing"
 	"time"
 
@@ -11,6 +10,7 @@ import (
 
 	"github.com/futurehomeno/cliffhanger/adapter"
 	"github.com/futurehomeno/cliffhanger/adapter/service/outlvlswitch"
+	"github.com/futurehomeno/cliffhanger/adapter/service/virtualmeter"
 	"github.com/futurehomeno/cliffhanger/router"
 	"github.com/futurehomeno/cliffhanger/task"
 	adapterhelper "github.com/futurehomeno/cliffhanger/test/helper/adapter"
@@ -257,7 +257,7 @@ func setupService(
 	mqtt *fimpgo.MqttTransport,
 	controller outlvlswitch.Controller,
 	duration time.Duration,
-	virtualMeterManager virtualmeter.VirtualMeterManager,
+	virtualMeterManager virtualmeter.Manager,
 	options ...adapter.SpecificationOption,
 ) ([]*router.Routing, []*task.Task, []suite.Mock) {
 	t.Helper()

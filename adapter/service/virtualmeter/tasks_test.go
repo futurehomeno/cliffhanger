@@ -1,14 +1,17 @@
 package virtualmeter_test
 
 import (
+	"testing"
+	"time"
+
 	"github.com/futurehomeno/cliffhanger/adapter/service/virtualmeter"
 	adapterhelper "github.com/futurehomeno/cliffhanger/test/helper/adapter"
 	"github.com/futurehomeno/cliffhanger/test/suite"
-	"testing"
-	"time"
 )
 
 func TestTaskReporting(t *testing.T) {
+	t.Parallel()
+
 	s := &suite.Suite{
 		Cases: []*suite.Case{
 			{

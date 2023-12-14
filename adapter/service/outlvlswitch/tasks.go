@@ -1,12 +1,12 @@
 package outlvlswitch
 
 import (
-	"github.com/futurehomeno/cliffhanger/adapter/service/virtualmeter"
 	"time"
 
 	log "github.com/sirupsen/logrus"
 
 	"github.com/futurehomeno/cliffhanger/adapter"
+	"github.com/futurehomeno/cliffhanger/adapter/service/virtualmeter"
 	"github.com/futurehomeno/cliffhanger/task"
 )
 
@@ -53,11 +53,14 @@ func handleStatePolling(sr adapter.ServiceRegistry) func() {
 
 			if levelSwitch.virtualMeterManager == nil {
 				log.Errorf("virtual meter wasn't injected properly, aborting state updates for thing: %s", thingAddr)
+
+				continue
 			}
 
 			value, err := levelSwitch.controller.LevelSwitchBinaryStateReport()
 			if err != nil {
 				log.WithError(err).Errorf("failed to get level switch binary state")
+
 				continue
 			}
 
@@ -69,6 +72,7 @@ func handleStatePolling(sr adapter.ServiceRegistry) func() {
 			level, err := levelSwitch.controller.LevelSwitchLevelReport()
 			if err != nil {
 				log.WithError(err).Errorf("failed to get level switch level")
+
 				continue
 			}
 

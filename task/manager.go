@@ -75,7 +75,7 @@ func (r *manager) UpdateTaskInterval(name string, duration time.Duration) error 
 
 	for _, t := range r.tasks {
 		if t.name == name {
-			log.Infof("Updating task with name: %s, new duration: %v", name, duration)
+			log.Infof("Updating task %s, with new duration: %v", name, duration)
 
 			t.duration = duration
 			r.restart(t)
@@ -91,8 +91,9 @@ func (r *manager) UpdateTaskInterval(name string, duration time.Duration) error 
 func (r *manager) startTask(task *Task) {
 	task.stopCh = make(chan struct{})
 
+	r.wg.Add(1)
+
 	go func() {
-		r.wg.Add(1)
 		defer r.wg.Done()
 
 		r.run(task)
@@ -101,11 +102,6 @@ func (r *manager) startTask(task *Task) {
 			r.runContinuously(task)
 		}
 	}()
-}
-
-// runOnce runs the task once if it's running interval is set to 0.
-func (r *manager) runOnce(task *Task) {
-	r.run(task)
 }
 
 // runContinuously runs the task according to the provided interval.

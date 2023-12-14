@@ -5,7 +5,7 @@ import (
 )
 
 const (
-	Anonymous = "anonymos"
+	Anonymous = "anonymous"
 )
 
 // New creates new task. If duration is set to 0 the task will run only once on startup.

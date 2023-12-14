@@ -2,13 +2,15 @@ package virtualmeter
 
 import (
 	"fmt"
-	"github.com/futurehomeno/cliffhanger/adapter"
-	"github.com/futurehomeno/cliffhanger/utils"
+	"sync"
+	"time"
+
 	"github.com/futurehomeno/fimpgo"
 	"github.com/futurehomeno/fimpgo/fimptype"
 	log "github.com/sirupsen/logrus"
-	"sync"
-	"time"
+
+	"github.com/futurehomeno/cliffhanger/adapter"
+	"github.com/futurehomeno/cliffhanger/utils"
 )
 
 const (
@@ -43,14 +45,14 @@ type (
 
 	Config struct {
 		Specification       *fimptype.Service
-		VirtualMeterManager VirtualMeterManager
+		VirtualMeterManager Manager
 	}
 
 	service struct {
 		adapter.Service
 
-		manager VirtualMeterManager
-		lock    *sync.Mutex
+		manager Manager
+		lock    *sync.RWMutex
 	}
 )
 
@@ -63,15 +65,15 @@ func NewService(
 	s := &service{
 		Service: adapter.NewService(publisher, cfg.Specification),
 		manager: cfg.VirtualMeterManager,
-		lock:    &sync.Mutex{},
+		lock:    &sync.RWMutex{},
 	}
 
 	return s
 }
 
 func (s *service) SendReport() error {
-	s.lock.Lock()
-	defer s.lock.Unlock()
+	s.lock.RLock()
+	defer s.lock.RUnlock()
 
 	value, err := s.manager.Modes(s.Specification().Address)
 	if err != nil {
@@ -106,14 +108,13 @@ func (s *service) AddMeter(modes map[string]float64, unit string) error {
 	defer s.lock.Unlock()
 
 	supportedUnits := s.Specification().PropertyStrings(PropertySupportedUnits)
-	found := utils.SliceContains(unit, supportedUnits)
-
-	if !found {
+	if !utils.SliceContains(unit, supportedUnits) {
 		return fmt.Errorf("%s: unsupported unit is provided: %s. Supported: %v", s.Name(), unit, supportedUnits)
 	}
 
 	for mode := range modes {
 		if !utils.SliceContains(mode, s.Specification().PropertyStrings(PropertySupportedModes)) {
+			log.Infof("Provided unsupported mode: %s. Removing. Supported: %v", mode, s.Specification().PropertyStrings(PropertySupportedModes))
 			delete(modes, mode)
 		}
 	}
@@ -136,7 +137,6 @@ func (s *service) SetReportingInterval(minutes int) error {
 	s.lock.Lock()
 	defer s.lock.Unlock()
 
-	// TODO change back to minutes
 	if err := s.manager.SetReportingInterval(time.Duration(minutes) * time.Minute); err != nil {
 		return fmt.Errorf("failed to set reporting interval: %w", err)
 	}
@@ -145,12 +145,11 @@ func (s *service) SetReportingInterval(minutes int) error {
 }
 
 func (s *service) SendReportingInterval() error {
-	s.lock.Lock()
-	defer s.lock.Unlock()
+	s.lock.RLock()
+	defer s.lock.RUnlock()
 
 	value := s.manager.ReportingInterval()
 
-	// TODO change back to minutes
 	message := fimpgo.NewIntMessage(
 		EvtConfigIntervalReport,
 		s.Name(),
