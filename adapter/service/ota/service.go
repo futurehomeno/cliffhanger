@@ -10,14 +10,14 @@ import (
 	"github.com/futurehomeno/cliffhanger/adapter"
 )
 
-// Controller is an interface representing a device capable of OTA firmware updated.
+// Controller is an interface representing a device capable of OTA firmware update.
 // In a polling scenario implementation might require some safeguards against excessive polling.
 type Controller interface {
 	// StartOTAUpdate starts an OTA update process with provided firmware path.
 	StartOTAUpdate(firmwarePath string) error
 
-	// OTAUpdateReport returns an OTA update report.
-	OTAUpdateReport() (UpdateReport, error)
+	// OTAStatusReport returns an OTA update report.
+	OTAStatusReport() (StatusReport, error)
 }
 
 // Service is an interface representing an OTA FIMP service.
@@ -28,7 +28,7 @@ type Service interface {
 	StartUpdate(firmwarePath string) error
 
 	// SendStatusReport sends an OTA status report.
-	// If controller reports idle status, no report is sent.
+	// If controller reports StatusIdle, no report is sent.
 	SendStatusReport() error
 }
 
@@ -75,18 +75,6 @@ func (s *service) StartUpdate(firmwarePath string) error {
 		return fmt.Errorf("failed to start OTA update: %w", err)
 	}
 
-	message := fimpgo.NewNullMessage(
-		EvtOTAStartReport,
-		s.Name(),
-		nil,
-		nil,
-		nil,
-	)
-
-	if err := s.SendMessage(message); err != nil {
-		return fmt.Errorf("failed to send OTA start report: %w", err)
-	}
-
 	return nil
 }
 
@@ -94,9 +82,9 @@ func (s *service) SendStatusReport() error {
 	s.lock.Lock()
 	defer s.lock.Unlock()
 
-	report, err := s.controller.OTAUpdateReport()
+	report, err := s.controller.OTAStatusReport()
 	if err != nil {
-		return fmt.Errorf("failed to get OTA update report: %w", err)
+		return fmt.Errorf("failed to get OTA status report: %w", err)
 	}
 
 	if err = report.validate(); err != nil {
@@ -108,10 +96,12 @@ func (s *service) SendStatusReport() error {
 	switch report.Status {
 	case StatusIdle:
 		return nil
+	case StatusStarted:
+		message = s.newStartReport()
 	case StatusInProgress:
-		message = newProgressReport(report.Progress)
+		message = s.newProgressReport(report.Progress)
 	case StatusDone:
-		message = newEndReport(report.Result)
+		message = s.newEndReport(report.Result)
 	}
 
 	if err = s.SendMessage(message); err != nil {
@@ -121,7 +111,17 @@ func (s *service) SendStatusReport() error {
 	return nil
 }
 
-func newProgressReport(data ProgressData) *fimpgo.FimpMessage {
+func (s *service) newStartReport() *fimpgo.FimpMessage {
+	return fimpgo.NewNullMessage(
+		EvtOTAStartReport,
+		s.Name(),
+		nil,
+		nil,
+		nil,
+	)
+}
+
+func (s *service) newProgressReport(data ProgressData) *fimpgo.FimpMessage {
 	value := map[string]int64{
 		"progress": int64(data.Progress),
 	}
@@ -136,7 +136,7 @@ func newProgressReport(data ProgressData) *fimpgo.FimpMessage {
 
 	return fimpgo.NewIntMapMessage(
 		EvtOTAProgressReport,
-		OTA,
+		s.Name(),
 		value,
 		nil,
 		nil,
@@ -144,7 +144,7 @@ func newProgressReport(data ProgressData) *fimpgo.FimpMessage {
 	)
 }
 
-func newEndReport(data ResultData) *fimpgo.FimpMessage {
+func (s *service) newEndReport(data ResultData) *fimpgo.FimpMessage {
 	value := EndReport{
 		Success: data.Error == "",
 		Error:   data.Error.String(),
@@ -152,7 +152,7 @@ func newEndReport(data ResultData) *fimpgo.FimpMessage {
 
 	return fimpgo.NewObjectMessage(
 		EvtOTAEndReport,
-		OTA,
+		s.Name(),
 		value,
 		nil,
 		nil,

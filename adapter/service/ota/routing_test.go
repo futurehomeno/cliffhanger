@@ -35,7 +35,8 @@ func TestRouteService(t *testing.T) { //nolint:paralleltest
 					{
 						Command: suite.StringMessage("pt:j1/mt:cmd/rt:dev/rn:test_adapter/ad:1/sv:ota/ad:1", "cmd.ota_update.start", "ota", testFirmwarePath),
 						Expectations: []*suite.Expectation{
-							suite.ExpectNull("pt:j1/mt:evt/rt:dev/rn:test_adapter/ad:1/sv:ota/ad:1", "evt.ota_start.report", "ota"),
+							suite.ExpectNull("pt:j1/mt:evt/rt:dev/rn:test_adapter/ad:1/sv:ota/ad:1", "evt.ota_start.report", "ota").Never(),
+							suite.ExpectError("pt:j1/mt:evt/rt:dev/rn:test_adapter/ad:1/sv:ota/ad:1", "ota").Never(),
 						},
 					},
 				},
@@ -82,11 +83,32 @@ func TestOTAReporting(t *testing.T) { //nolint:paralleltest
 	s := &suite.Suite{
 		Cases: []*suite.Case{
 			{
+				Name:     "report start",
+				TearDown: adapterhelper.TearDownAdapter("../../testdata/adapter/test_adapter"),
+				Setup: setupOTAService(&otaService, mockedota.NewController(t).
+					MockOTAStatusReport(
+						ota.StatusReport{
+							Status: ota.StatusStarted,
+						},
+						nil,
+						true,
+					),
+				),
+				Nodes: []*suite.Node{
+					{
+						Callbacks: []suite.Callback{sendStatusReportCallback(&otaService, false)},
+						Expectations: []*suite.Expectation{
+							suite.ExpectNull("pt:j1/mt:evt/rt:dev/rn:test_adapter/ad:1/sv:ota/ad:1", "evt.ota_start.report", "ota"),
+						},
+					},
+				},
+			},
+			{
 				Name:     "report progress only",
 				TearDown: adapterhelper.TearDownAdapter("../../testdata/adapter/test_adapter"),
 				Setup: setupOTAService(&otaService, mockedota.NewController(t).
-					MockOTAUpdateReport(
-						ota.UpdateReport{
+					MockOTAStatusReport(
+						ota.StatusReport{
 							Status: ota.StatusInProgress,
 							Progress: ota.ProgressData{
 								Progress: 20,
@@ -111,8 +133,8 @@ func TestOTAReporting(t *testing.T) { //nolint:paralleltest
 				Name:     "report progress and remaining minutes",
 				TearDown: adapterhelper.TearDownAdapter("../../testdata/adapter/test_adapter"),
 				Setup: setupOTAService(&otaService, mockedota.NewController(t).
-					MockOTAUpdateReport(
-						ota.UpdateReport{
+					MockOTAStatusReport(
+						ota.StatusReport{
 							Status: ota.StatusInProgress,
 							Progress: ota.ProgressData{
 								Progress:         20,
@@ -139,8 +161,8 @@ func TestOTAReporting(t *testing.T) { //nolint:paralleltest
 				Name:     "full progress report",
 				TearDown: adapterhelper.TearDownAdapter("../../testdata/adapter/test_adapter"),
 				Setup: setupOTAService(&otaService, mockedota.NewController(t).
-					MockOTAUpdateReport(
-						ota.UpdateReport{
+					MockOTAStatusReport(
+						ota.StatusReport{
 							Status: ota.StatusInProgress,
 							Progress: ota.ProgressData{
 								Progress:         20,
@@ -169,8 +191,8 @@ func TestOTAReporting(t *testing.T) { //nolint:paralleltest
 				Name:     "idle status - do nothing",
 				TearDown: adapterhelper.TearDownAdapter("../../testdata/adapter/test_adapter"),
 				Setup: setupOTAService(&otaService, mockedota.NewController(t).
-					MockOTAUpdateReport(
-						ota.UpdateReport{
+					MockOTAStatusReport(
+						ota.StatusReport{
 							Status: ota.StatusIdle,
 						},
 						nil,
@@ -190,8 +212,8 @@ func TestOTAReporting(t *testing.T) { //nolint:paralleltest
 				Name:     "end report with no errors",
 				TearDown: adapterhelper.TearDownAdapter("../../testdata/adapter/test_adapter"),
 				Setup: setupOTAService(&otaService, mockedota.NewController(t).
-					MockOTAUpdateReport(
-						ota.UpdateReport{
+					MockOTAStatusReport(
+						ota.StatusReport{
 							Status: ota.StatusDone,
 							Result: ota.ResultData{
 								Error: "",
@@ -217,8 +239,8 @@ func TestOTAReporting(t *testing.T) { //nolint:paralleltest
 				Name:     "end report with errors",
 				TearDown: adapterhelper.TearDownAdapter("../../testdata/adapter/test_adapter"),
 				Setup: setupOTAService(&otaService, mockedota.NewController(t).
-					MockOTAUpdateReport(
-						ota.UpdateReport{
+					MockOTAStatusReport(
+						ota.StatusReport{
 							Status: ota.StatusDone,
 							Result: ota.ResultData{
 								Error: ota.ErrInvalidImage,
@@ -244,7 +266,7 @@ func TestOTAReporting(t *testing.T) { //nolint:paralleltest
 				Name:     "controller error",
 				TearDown: adapterhelper.TearDownAdapter("../../testdata/adapter/test_adapter"),
 				Setup: setupOTAService(&otaService, mockedota.NewController(t).
-					MockOTAUpdateReport(ota.UpdateReport{}, errors.New("oops"), true),
+					MockOTAStatusReport(ota.StatusReport{}, errors.New("oops"), true),
 				),
 				Nodes: []*suite.Node{
 					{

@@ -14,8 +14,8 @@ func (_m *Controller) MockStartOTAUpdate(firmwarePath string, err error, once bo
 	return _m
 }
 
-func (_m *Controller) MockOTAUpdateReport(report ota.UpdateReport, err error, once bool) *Controller {
-	c := _m.On("OTAUpdateReport").Return(report, err)
+func (_m *Controller) MockOTAStatusReport(report ota.StatusReport, err error, once bool) *Controller {
+	c := _m.On("OTAStatusReport").Return(report, err)
 
 	if once {
 		c.Once()

@@ -11,19 +11,26 @@ func TestUpdateReportValidation(t *testing.T) {
 
 	testCases := []struct {
 		name    string
-		report  UpdateReport
+		report  StatusReport
 		wantErr bool
 	}{
 		{
 			name: "idle - do nothing",
-			report: UpdateReport{
+			report: StatusReport{
 				Status: StatusIdle,
 			},
 			wantErr: false,
 		},
 		{
+			name: "started - do nothing",
+			report: StatusReport{
+				Status: StatusStarted,
+			},
+			wantErr: false,
+		},
+		{
 			name: "in progress",
-			report: UpdateReport{
+			report: StatusReport{
 				Status: StatusInProgress,
 				Progress: ProgressData{
 					Progress: 20,
@@ -33,7 +40,7 @@ func TestUpdateReportValidation(t *testing.T) {
 		},
 		{
 			name: "in progress - with remaining minutes and seconds",
-			report: UpdateReport{
+			report: StatusReport{
 				Status: StatusInProgress,
 				Progress: ProgressData{
 					Progress:         20,
@@ -45,7 +52,7 @@ func TestUpdateReportValidation(t *testing.T) {
 		},
 		{
 			name: "done",
-			report: UpdateReport{
+			report: StatusReport{
 				Status: StatusDone,
 				Result: ResultData{
 					Error: ErrInvalidImage,
@@ -55,7 +62,7 @@ func TestUpdateReportValidation(t *testing.T) {
 		},
 		{
 			name: "done - empty error",
-			report: UpdateReport{
+			report: StatusReport{
 				Status: StatusDone,
 				Result: ResultData{
 					Error: "",
@@ -65,7 +72,7 @@ func TestUpdateReportValidation(t *testing.T) {
 		},
 		{
 			name: "in progress - progress above 100",
-			report: UpdateReport{
+			report: StatusReport{
 				Status: StatusInProgress,
 				Progress: ProgressData{
 					Progress: 120,
@@ -75,7 +82,7 @@ func TestUpdateReportValidation(t *testing.T) {
 		},
 		{
 			name: "in progress- progress below 0",
-			report: UpdateReport{
+			report: StatusReport{
 				Status: StatusInProgress,
 				Progress: ProgressData{
 					Progress: -1,
@@ -85,7 +92,7 @@ func TestUpdateReportValidation(t *testing.T) {
 		},
 		{
 			name: "in progress- remaining minutes below 0",
-			report: UpdateReport{
+			report: StatusReport{
 				Status: StatusInProgress,
 				Progress: ProgressData{
 					Progress:         20,
@@ -96,7 +103,7 @@ func TestUpdateReportValidation(t *testing.T) {
 		},
 		{
 			name: "in progress- remaining seconds below 0",
-			report: UpdateReport{
+			report: StatusReport{
 				Status: StatusInProgress,
 				Progress: ProgressData{
 					Progress:         20,
@@ -107,7 +114,7 @@ func TestUpdateReportValidation(t *testing.T) {
 		},
 		{
 			name: "done - invalid error",
-			report: UpdateReport{
+			report: StatusReport{
 				Status: StatusDone,
 				Result: ResultData{
 					Error: "oops",

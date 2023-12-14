@@ -8,9 +8,10 @@ import (
 type Status int
 
 const (
-	StatusIdle = iota
-	StatusInProgress
-	StatusDone
+	StatusIdle       Status = iota // StatusIdle indicates that there's no ongoing OTA update.
+	StatusStarted                  // StatusStarted indicates that an OTA update has been started, but we don't know its progress yet.
+	StatusInProgress               // StatusInProgress indicates that an OTA update is in progress.
+	StatusDone                     // StatusDone indicates that an OTA update has been completed.
 )
 
 func (s Status) isValid() bool {
@@ -26,24 +27,25 @@ func (s Status) isValid() bool {
 func allowedStatuses() []Status {
 	return []Status{
 		StatusIdle,
+		StatusStarted,
 		StatusInProgress,
 		StatusDone,
 	}
 }
 
-// UpdateReport represents an OTA update report.
-type UpdateReport struct {
+// StatusReport represents an OTA update report.
+type StatusReport struct {
 	Status   Status
-	Progress ProgressData
-	Result   ResultData
+	Progress ProgressData // must be provided for StatusInProgress
+	Result   ResultData   // must be provided for StatusDone
 }
 
-func (r UpdateReport) validate() error {
+func (r StatusReport) validate() error {
 	if !r.Status.isValid() {
 		return fmt.Errorf("invalid status: %d", r.Status)
 	}
 
-	switch r.Status {
+	switch r.Status { //nolint:exhaustive
 	case StatusInProgress:
 		return r.Progress.validate()
 	case StatusDone:
