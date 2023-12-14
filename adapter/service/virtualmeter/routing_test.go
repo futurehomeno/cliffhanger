@@ -1,6 +1,13 @@
 package virtualmeter_test
 
 import (
+	"testing"
+	"time"
+
+	"github.com/futurehomeno/fimpgo"
+	"github.com/futurehomeno/fimpgo/fimptype"
+	log "github.com/sirupsen/logrus"
+
 	"github.com/futurehomeno/cliffhanger/adapter"
 	"github.com/futurehomeno/cliffhanger/adapter/service/numericmeter"
 	"github.com/futurehomeno/cliffhanger/adapter/service/virtualmeter"
@@ -9,18 +16,13 @@ import (
 	adapterhelper "github.com/futurehomeno/cliffhanger/test/helper/adapter"
 	mockedadapter "github.com/futurehomeno/cliffhanger/test/mocks/adapter"
 	"github.com/futurehomeno/cliffhanger/test/suite"
-	"github.com/futurehomeno/fimpgo"
-	"github.com/futurehomeno/fimpgo/fimptype"
-	log "github.com/sirupsen/logrus"
-	"testing"
-	"time"
 )
 
 const (
 	workdir = "../../../testdata/adapter/test_adapter"
 )
 
-func TestRouteService(t *testing.T) {
+func TestRouteService(t *testing.T) { //nolint:paralleltest
 	s := &suite.Suite{
 		Cases: []*suite.Case{
 			{
@@ -253,6 +255,8 @@ func setupService(
 	mqtt *fimpgo.MqttTransport,
 	duration time.Duration,
 ) ([]*router.Routing, []*task.Task, []suite.Mock) {
+	t.Helper()
+
 	mocks := []suite.Mock{}
 	thingCfg := &adapter.ThingConfig{
 		InclusionReport: &fimptype.ThingInclusionReport{
@@ -290,7 +294,6 @@ func setupService(
 	seed := &adapter.ThingSeed{ID: "B", CustomAddress: "2"}
 
 	factory := adapterhelper.FactoryHelper(func(a adapter.Adapter, publisher adapter.Publisher, thingState adapter.ThingState) (adapter.Thing, error) {
-
 		numericMeterService := numericmeter.NewService(publisher, numericMeterConfig)
 		thing := adapter.NewThing(publisher, thingState, thingCfg, virtualmeter.NewService(publisher, virtualMeterConfig))
 

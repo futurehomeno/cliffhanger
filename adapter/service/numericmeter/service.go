@@ -2,7 +2,6 @@ package numericmeter
 
 import (
 	"fmt"
-	"github.com/futurehomeno/cliffhanger/adapter/service/virtualmeter"
 	"strconv"
 	"strings"
 	"sync"
@@ -13,6 +12,7 @@ import (
 
 	"github.com/futurehomeno/cliffhanger/adapter"
 	"github.com/futurehomeno/cliffhanger/adapter/cache"
+	"github.com/futurehomeno/cliffhanger/adapter/service/virtualmeter"
 )
 
 // DefaultReportingStrategy is the default reporting strategy used by the service for periodic reports.
@@ -76,7 +76,7 @@ type Config struct {
 	Specification       *fimptype.Service
 	Reporter            Reporter
 	ReportingStrategy   cache.ReportingStrategy
-	VirtualMeterManager virtualmeter.VirtualMeterManager
+	VirtualMeterManager virtualmeter.Manager
 }
 
 // NewService creates new instance of a meter FIMP service.
@@ -122,7 +122,7 @@ type service struct {
 	lock                *sync.Mutex
 	reportingCache      cache.ReportingCache
 	reportingStrategy   cache.ReportingStrategy
-	virtualMeterManager virtualmeter.VirtualMeterManager
+	virtualMeterManager virtualmeter.Manager
 }
 
 // SendMeterReport sends a simplified meter report based on requested unit. Returns true if a report was sent.
@@ -136,7 +136,6 @@ func (s *service) SendMeterReport(unit Unit, force bool) (bool, error) {
 	}
 
 	value, err := s.getReport(unit)
-
 	if err != nil {
 		return false, fmt.Errorf("%s: failed to retrieve meter report: %w", s.Name(), err)
 	}
@@ -320,7 +319,6 @@ func (s *service) SupportsExtendedReport() bool {
 }
 
 func (s *service) getReport(unit Unit) (float64, error) {
-
 	if s.Specification().PropertyBool(PropertyIsVirtual) {
 		return s.virtualMeterManager.Report(s.Specification().Address, unit.String())
 	}

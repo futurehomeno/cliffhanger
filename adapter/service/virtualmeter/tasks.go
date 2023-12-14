@@ -1,10 +1,12 @@
 package virtualmeter
 
 import (
+	"time"
+
+	log "github.com/sirupsen/logrus"
+
 	"github.com/futurehomeno/cliffhanger/adapter"
 	"github.com/futurehomeno/cliffhanger/task"
-	log "github.com/sirupsen/logrus"
-	"time"
 )
 
 // TaskStatePolling creates state polling task adding one default voter.

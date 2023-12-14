@@ -125,9 +125,8 @@ func (b *Builder) Build() (App, error) {
 
 // doBuild assembles the root application.
 func (b *Builder) doBuild() App {
-	taskManager := b.taskManager
-	if taskManager == nil {
-		taskManager = task.NewManager(b.tasks...)
+	if b.taskManager == nil {
+		b.taskManager = task.NewManager(b.tasks...)
 	}
 
 	rootApp := &app{

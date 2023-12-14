@@ -3,17 +3,19 @@ package virtualmeter
 import (
 	"errors"
 	"fmt"
-	"github.com/futurehomeno/cliffhanger/adapter"
-	"github.com/futurehomeno/cliffhanger/task"
-	log "github.com/sirupsen/logrus"
 	"math"
 	"strings"
 	"sync"
 	"time"
+
+	log "github.com/sirupsen/logrus"
+
+	"github.com/futurehomeno/cliffhanger/adapter"
+	"github.com/futurehomeno/cliffhanger/task"
 )
 
 type (
-	VirtualMeterManager interface {
+	Manager interface {
 		Add(addr string, modes map[string]float64, unit string) error
 		Remove(addr string) error
 		Modes(addr string) (map[string]float64, error)
@@ -38,12 +40,10 @@ type (
 	}
 )
 
-var (
-	_ VirtualMeterManager = &virtualMeterManager{}
-)
+var _ Manager = &virtualMeterManager{}
 
 // NewVirtualMeterManager creates a new virtual meter manager with basic initialisation.
-func NewVirtualMeterManager(workdir string) VirtualMeterManager {
+func NewVirtualMeterManager(workdir string) Manager {
 	return &virtualMeterManager{
 		lock:             sync.RWMutex{},
 		serviceTemplates: make(map[string]adapter.Service),
@@ -52,7 +52,7 @@ func NewVirtualMeterManager(workdir string) VirtualMeterManager {
 }
 
 // WithAdapter adds a provided adapter to the provided virtual meter manager. Used to avoid circular dependencies.
-func WithAdapter(meter VirtualMeterManager, ad adapter.Adapter) VirtualMeterManager {
+func WithAdapter(meter Manager, ad adapter.Adapter) Manager {
 	vmeter, ok := meter.(*virtualMeterManager)
 	if !ok {
 		log.Fatal("failed to inject adapter into virtual meter")
@@ -64,7 +64,7 @@ func WithAdapter(meter VirtualMeterManager, ad adapter.Adapter) VirtualMeterMana
 }
 
 // WithTaskManager adds a provided task manager to the provided virtual meter manager. Used to avoid circular dependencies.
-func WithTaskManager(meter VirtualMeterManager, manager task.Manager) VirtualMeterManager {
+func WithTaskManager(meter Manager, manager task.Manager) Manager {
 	vmeter, ok := meter.(*virtualMeterManager)
 	if !ok {
 		log.Fatal("failed to inject adapter into virtual meter")
@@ -80,8 +80,6 @@ func (m *virtualMeterManager) Add(addr string, modes map[string]float64, unit st
 	defer m.lock.Unlock()
 
 	addr = m.thingAddrFromTopic(addr)
-
-	log.Infof("Virtual meter: adding meter")
 
 	s := m.serviceTemplates[addr]
 	if s == nil {
@@ -199,7 +197,6 @@ func (m *virtualMeterManager) RegisterDevice(thing adapter.Thing, addr string, s
 
 	device, err := m.storage.Device(addr)
 	if err != nil && !errors.As(err, &ErrorEntryNotFound{}) {
-
 		return fmt.Errorf("virtual meter: failed to get device by addr %s: %w", addr, err)
 	} else if err == nil && device.Modes != nil {
 		m.serviceTemplates[addr] = service
@@ -285,11 +282,11 @@ func (m *virtualMeterManager) Report(addr, unit string) (float64, error) {
 
 	switch unit {
 	case "W":
-		result = 12 //device.Modes[device.CurrentMode] * device.Level
+
 	case "kWh":
 		result = device.AccumulatedEnergy
 	default:
-		return 0, fmt.Errorf("virtual meter: report for unkonwn unit requested: %s", unit)
+		return 0, fmt.Errorf("virtual meter: report for unknown unit requested: %s", unit)
 	}
 
 	return result, nil

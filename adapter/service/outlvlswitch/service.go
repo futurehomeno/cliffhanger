@@ -2,7 +2,6 @@ package outlvlswitch
 
 import (
 	"fmt"
-	"github.com/futurehomeno/cliffhanger/adapter/service/virtualmeter"
 	"sync"
 	"time"
 
@@ -12,6 +11,7 @@ import (
 
 	"github.com/futurehomeno/cliffhanger/adapter"
 	"github.com/futurehomeno/cliffhanger/adapter/cache"
+	"github.com/futurehomeno/cliffhanger/adapter/service/virtualmeter"
 	"github.com/futurehomeno/cliffhanger/utils"
 )
 
@@ -88,7 +88,7 @@ type Config struct {
 	Specification       *fimptype.Service
 	Controller          Controller
 	ReportingStrategy   cache.ReportingStrategy
-	VirtualMeterManager virtualmeter.VirtualMeterManager
+	VirtualMeterManager virtualmeter.Manager
 }
 
 // NewService creates new instance of a output level switch FIMP service.
@@ -124,7 +124,7 @@ type service struct {
 
 	controller          Controller
 	lock                *sync.Mutex
-	virtualMeterManager virtualmeter.VirtualMeterManager
+	virtualMeterManager virtualmeter.Manager
 	reportingCache      cache.ReportingCache
 	reportingStrategy   cache.ReportingStrategy
 }

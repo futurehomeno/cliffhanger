@@ -2,9 +2,11 @@ package virtualmeter
 
 import (
 	"fmt"
-	"github.com/futurehomeno/cliffhanger/adapter"
+
 	"github.com/futurehomeno/fimpgo"
 	"github.com/futurehomeno/fimpgo/fimptype"
+
+	"github.com/futurehomeno/cliffhanger/adapter"
 )
 
 func Specification(
@@ -72,12 +74,12 @@ func requiredInterfaces() []fimptype.Interface {
 		//	MsgType:   CmdMeterGetReport,
 		//	ValueType: fimpgo.VTypeNull,
 		//	Version:   "1",
-		//},
+		// },
 		//{
 		//	Type:      fimptype.TypeOut,
 		//	MsgType:   numericmeter.EvtMeterReport,
 		//	ValueType: fimpgo.VTypeFloatMap,
 		//	Version:   "1",
-		//},
+		// },
 	}
 }

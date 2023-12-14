@@ -2,9 +2,11 @@ package virtualmeter
 
 import (
 	"fmt"
+
+	"github.com/futurehomeno/fimpgo"
+
 	"github.com/futurehomeno/cliffhanger/adapter"
 	"github.com/futurehomeno/cliffhanger/router"
-	"github.com/futurehomeno/fimpgo"
 )
 
 const (
