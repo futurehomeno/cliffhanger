@@ -2,30 +2,20 @@ package virtualmeter
 
 import (
 	"fmt"
-	"sync"
-	"time"
-
+	"github.com/futurehomeno/cliffhanger/adapter/cache"
 	"github.com/futurehomeno/fimpgo"
 	"github.com/futurehomeno/fimpgo/fimptype"
 	log "github.com/sirupsen/logrus"
+	"slices"
+	"sync"
+	"time"
 
 	"github.com/futurehomeno/cliffhanger/adapter"
-	"github.com/futurehomeno/cliffhanger/utils"
 )
 
 const (
-	CmdConfigSetInterval    = "cmd.config.set_interval"
-	CmdConfigGetInterval    = "cmd.config.get_interval"
-	EvtConfigIntervalReport = "evt.config.interval_report"
-	CmdMeterAdd             = "cmd.meter.add"
-	CmdMeterRemove          = "cmd.meter.remove"
-	CmdMeterGetReport       = "cmd.meter.get_report"
-	EvtMeterReport          = "evt.meter.report"
-
 	PropertySupportedUnits = "sup_units"
 	PropertySupportedModes = "sup_modes"
-
-	TaskVirtualReporter = "virtualReporter"
 
 	ModeOff = "off"
 	ModeOn  = "on"
@@ -35,24 +25,24 @@ type (
 	Service interface {
 		adapter.Service
 
-		SendReport() error
+		SendModesReport(bool) (bool, error)
 		AddMeter(map[string]float64, string) error
 		RemoveMeter() error
-
-		SetReportingInterval(int) error
-		SendReportingInterval() error
 	}
 
 	Config struct {
 		Specification       *fimptype.Service
 		VirtualMeterManager Manager
+		ReportingStrategy   cache.ReportingStrategy
 	}
 
 	service struct {
 		adapter.Service
 
-		manager Manager
-		lock    *sync.RWMutex
+		manager           Manager
+		lock              *sync.RWMutex
+		reportingCache    cache.ReportingCache
+		reportingStrategy cache.ReportingStrategy
 	}
 )
 
@@ -62,34 +52,45 @@ func NewService(
 ) Service {
 	cfg.Specification.EnsureInterfaces(requiredInterfaces()...)
 
+	if cfg.ReportingStrategy == nil {
+		cfg.ReportingStrategy = cache.ReportAtLeastEvery(time.Minute * 30)
+	}
+
 	s := &service{
-		Service: adapter.NewService(publisher, cfg.Specification),
-		manager: cfg.VirtualMeterManager,
-		lock:    &sync.RWMutex{},
+		Service:           adapter.NewService(publisher, cfg.Specification),
+		manager:           cfg.VirtualMeterManager,
+		lock:              &sync.RWMutex{},
+		reportingCache:    cache.NewReportingCache(),
+		reportingStrategy: cfg.ReportingStrategy,
 	}
 
 	return s
 }
 
-func (s *service) SendReport() error {
+func (s *service) SendModesReport(force bool) (bool, error) {
 	s.lock.RLock()
 	defer s.lock.RUnlock()
 
 	value, err := s.manager.Modes(s.Specification().Address)
 	if err != nil {
-		return fmt.Errorf("failed to send virtual meter report: %w", err)
+		return false, fmt.Errorf("failed to send virtual meter report: %w", err)
+	}
+
+	if !force && !s.reportingCache.ReportRequired(s.reportingStrategy, EvtMeterReport, "", value) {
+		return false, nil
 	}
 
 	log.Infof("Sending modes report: %v, name: %s, ", value, s.Name())
 
-	if value == nil {
-		value = make(map[string]float64)
+	sendValue := value
+	if sendValue == nil {
+		sendValue = make(map[string]float64)
 	}
 
 	message := fimpgo.NewFloatMapMessage(
 		EvtMeterReport,
 		s.Name(),
-		value,
+		sendValue,
 		nil,
 		nil,
 		nil,
@@ -97,10 +98,12 @@ func (s *service) SendReport() error {
 
 	err = s.SendMessage(message)
 	if err != nil {
-		return fmt.Errorf("%s - failed to send virtual meter report: %w", s.Name(), err)
+		return false, fmt.Errorf("%s - failed to send virtual meter report: %w", s.Name(), err)
 	}
 
-	return nil
+	s.reportingCache.Reported(EvtMeterReport, "", value)
+
+	return true, nil
 }
 
 func (s *service) AddMeter(modes map[string]float64, unit string) error {
@@ -108,12 +111,12 @@ func (s *service) AddMeter(modes map[string]float64, unit string) error {
 	defer s.lock.Unlock()
 
 	supportedUnits := s.Specification().PropertyStrings(PropertySupportedUnits)
-	if !utils.SliceContains(unit, supportedUnits) {
+	if !slices.Contains(supportedUnits, unit) {
 		return fmt.Errorf("%s: unsupported unit is provided: %s. Supported: %v", s.Name(), unit, supportedUnits)
 	}
 
 	for mode := range modes {
-		if !utils.SliceContains(mode, s.Specification().PropertyStrings(PropertySupportedModes)) {
+		if !slices.Contains(s.Specification().PropertyStrings(PropertySupportedModes), mode) {
 			log.Infof("Provided unsupported mode: %s. Removing. Supported: %v", mode, s.Specification().PropertyStrings(PropertySupportedModes))
 			delete(modes, mode)
 		}
@@ -128,40 +131,6 @@ func (s *service) RemoveMeter() error {
 
 	if err := s.manager.Remove(s.Specification().Address); err != nil {
 		return fmt.Errorf("failed to remove meter: %w", err)
-	}
-
-	return nil
-}
-
-func (s *service) SetReportingInterval(minutes int) error {
-	s.lock.Lock()
-	defer s.lock.Unlock()
-
-	if err := s.manager.SetReportingInterval(time.Duration(minutes) * time.Minute); err != nil {
-		return fmt.Errorf("failed to set reporting interval: %w", err)
-	}
-
-	return nil
-}
-
-func (s *service) SendReportingInterval() error {
-	s.lock.RLock()
-	defer s.lock.RUnlock()
-
-	value := s.manager.ReportingInterval()
-
-	message := fimpgo.NewIntMessage(
-		EvtConfigIntervalReport,
-		s.Name(),
-		int64(value.Minutes()),
-		nil,
-		nil,
-		nil,
-	)
-
-	err := s.SendMessage(message)
-	if err != nil {
-		return fmt.Errorf("%s: failed to send reporting interval: %w", s.Name(), err)
 	}
 
 	return nil

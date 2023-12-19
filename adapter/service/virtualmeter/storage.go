@@ -18,7 +18,7 @@ const (
 )
 
 type (
-	DeviceEntry struct {
+	Device struct {
 		Modes             map[string]float64 `json:"modes"`
 		CurrentMode       string             `json:"currentMode"`
 		Level             float64            `json:"level"`
@@ -42,7 +42,7 @@ func (e ErrorEntryNotFound) Error() string {
 	return e.m
 }
 
-func (d *DeviceEntry) Initialised() bool {
+func (d *Device) Initialised() bool {
 	return d.Modes != nil
 }
 
@@ -58,7 +58,7 @@ func NewStorage(workdir string) Storage {
 	}
 }
 
-func (s *Storage) SetDeviceEntry(addr string, d DeviceEntry) error {
+func (s *Storage) SetDevice(addr string, d Device) error {
 	s.lock.Lock()
 	defer s.lock.Unlock()
 
@@ -69,11 +69,12 @@ func (s *Storage) SetDeviceEntry(addr string, d DeviceEntry) error {
 	return nil
 }
 
+// DeleteDevice marks device as inactive by removing modes.
 func (s *Storage) DeleteDevice(addr string) error {
 	s.lock.Lock()
 	defer s.lock.Unlock()
 
-	device := DeviceEntry{
+	device := Device{
 		Modes:           nil,
 		Active:          false,
 		LastTimeUpdated: time.Now().Format(time.RFC3339),
@@ -86,15 +87,15 @@ func (s *Storage) DeleteDevice(addr string) error {
 	return nil
 }
 
-func (s *Storage) Device(addr string) (DeviceEntry, error) {
+func (s *Storage) Device(addr string) (Device, error) {
 	s.lock.RLock()
 	defer s.lock.RUnlock()
 
-	device := DeviceEntry{}
+	device := Device{}
 
 	ok, err := s.db.Get(keyDevice, addr, &device)
 	if err := s.processGetError(addr, "device", ok, err); err != nil {
-		return DeviceEntry{}, err
+		return Device{}, err
 	}
 
 	return device, nil

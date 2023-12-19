@@ -123,99 +123,18 @@ func TestManager_Stop(t *testing.T) {
 	}
 
 	ts := task.New(handler, 5*time.Millisecond)
-	nts := task.NewNamedTask("test", handler, 5*time.Millisecond)
 
-	r := task.NewManager(ts, nts)
+	r := task.NewManager(ts)
 
 	err := r.Start()
 	assert.NoError(t, err)
 
-	time.Sleep(20 * time.Millisecond)
+	time.Sleep(2 * time.Millisecond)
 
 	err = r.Stop()
 	assert.NoError(t, err)
 
 	assert.True(t, functionFinished)
-}
-
-func TestManager_UpdateTaskInterval(t *testing.T) {
-	t.Parallel()
-
-	taskMaker := func(counter *int, named bool, duration time.Duration) *task.Task {
-		if named {
-			return task.NewNamedTask("test", func() {
-				*counter++
-			}, duration)
-		}
-
-		return task.New(func() {
-			*counter++
-		}, duration)
-	}
-
-	testCases := []struct {
-		name           string
-		nameTask       bool
-		duration       time.Duration
-		expectedFirst  int
-		expectedSecond int
-	}{
-		{
-			name:           "should update the interval of a named task",
-			nameTask:       true,
-			duration:       50 * time.Millisecond,
-			expectedFirst:  2,
-			expectedSecond: 3,
-		},
-		{
-			name:           "should update the interval only once when duration is 0",
-			nameTask:       true,
-			duration:       0,
-			expectedFirst:  2,
-			expectedSecond: 2,
-		},
-		{
-			name:           "should not update the task when it's anonymous",
-			nameTask:       false,
-			duration:       0,
-			expectedFirst:  1,
-			expectedSecond: 1,
-		},
-	}
-
-	for _, tt := range testCases {
-		tc := tt
-		t.Run(tc.name, func(t *testing.T) {
-			t.Parallel()
-			counter := 0
-
-			tsk := taskMaker(&counter, tc.nameTask, 0)
-
-			manager := task.NewManager(tsk)
-			err := manager.Start()
-			assert.NoError(t, err, "should start the task manager")
-
-			time.Sleep(20 * time.Millisecond)
-			assert.Equal(t, counter, 1, "should update counter in the first run")
-
-			err = manager.UpdateTaskInterval("test", tc.duration)
-			assert.NoError(t, err, "should update task interval")
-
-			if tc.duration > 0 {
-				time.Sleep(tc.duration / 2)
-			} else {
-				time.Sleep(20 * time.Millisecond)
-			}
-
-			assert.Equal(t, tc.expectedFirst, counter, "should update counter with interval update")
-
-			time.Sleep(tc.duration)
-			assert.Equal(t, tc.expectedSecond, counter, "should be equal to test counter after the duration passed")
-
-			err = manager.Stop()
-			assert.NoError(t, err, "should stop manager")
-		})
-	}
 }
 
 func TestManager(t *testing.T) {

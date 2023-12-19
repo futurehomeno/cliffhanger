@@ -359,8 +359,10 @@ func (o ThingUpdate) Apply(t *thing) {
 
 func ThingUpdateAddService(s Service) ThingUpdate {
 	return func(t *thing) {
-		t.services[s.Topic()] = s
-		t.inclusionReport.Services = append(t.inclusionReport.Services, *s.Specification())
+		if t.services[s.Topic()] == nil {
+			t.services[s.Topic()] = s
+			t.inclusionReport.Services = append(t.inclusionReport.Services, *s.Specification())
+		}
 	}
 }
 
@@ -371,7 +373,7 @@ func ThingUpdateRemoveService(s Service) ThingUpdate {
 		newServices := make([]fimptype.Service, 0, len(t.inclusionReport.Services))
 
 		for _, srv := range t.inclusionReport.Services {
-			if s.Name() != srv.Name {
+			if s.Topic() != srv.Address {
 				newServices = append(newServices, srv)
 			}
 		}

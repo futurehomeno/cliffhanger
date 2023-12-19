@@ -11,7 +11,6 @@ import (
 
 	"github.com/futurehomeno/cliffhanger/adapter"
 	"github.com/futurehomeno/cliffhanger/adapter/cache"
-	"github.com/futurehomeno/cliffhanger/adapter/service/virtualmeter"
 	"github.com/futurehomeno/cliffhanger/utils"
 )
 
@@ -49,8 +48,6 @@ type LevelTransitionParams struct {
 type Controller interface {
 	// LevelSwitchLevelReport returns a current level value.
 	LevelSwitchLevelReport() (int64, error)
-	// LevelSwitchBinaryStateReport returns the current binary state value.
-	LevelSwitchBinaryStateReport() (bool, error)
 	// SetLevelSwitchLevel sets a level value.
 	SetLevelSwitchLevel(value int64, duration time.Duration) error
 	// SetLevelSwitchBinaryState sets a binary value.
@@ -72,7 +69,7 @@ type Service interface {
 	// SendLevelReport sends a level report. Returns true if a report was sent.
 	// Depending on a caching and reporting configuration the service might decide to skip a report.
 	// To make sure report is being sent regardless of circumstances set the force argument to true.
-	SendLevelReport(force bool) (bool, error)
+	SendLevelReport(force bool) (bool, int64, error)
 	// SetLevel sets a level value.
 	SetLevel(value int64, duration *time.Duration) error
 	// SetBinaryState sets a binary value.
@@ -85,10 +82,9 @@ type Service interface {
 
 // Config represents a service configuration.
 type Config struct {
-	Specification       *fimptype.Service
-	Controller          Controller
-	ReportingStrategy   cache.ReportingStrategy
-	VirtualMeterManager virtualmeter.Manager
+	Specification     *fimptype.Service
+	Controller        Controller
+	ReportingStrategy cache.ReportingStrategy
 }
 
 // NewService creates new instance of a output level switch FIMP service.
@@ -103,12 +99,11 @@ func NewService(
 	}
 
 	s := &service{
-		Service:             adapter.NewService(publisher, cfg.Specification),
-		lock:                &sync.Mutex{},
-		controller:          cfg.Controller,
-		virtualMeterManager: cfg.VirtualMeterManager,
-		reportingStrategy:   cfg.ReportingStrategy,
-		reportingCache:      cache.NewReportingCache(),
+		Service:           adapter.NewService(publisher, cfg.Specification),
+		lock:              &sync.Mutex{},
+		controller:        cfg.Controller,
+		reportingStrategy: cfg.ReportingStrategy,
+		reportingCache:    cache.NewReportingCache(),
 	}
 
 	if s.supportsLevelTransition() {
@@ -122,27 +117,26 @@ func NewService(
 type service struct {
 	adapter.Service
 
-	controller          Controller
-	lock                *sync.Mutex
-	virtualMeterManager virtualmeter.Manager
-	reportingCache      cache.ReportingCache
-	reportingStrategy   cache.ReportingStrategy
+	controller        Controller
+	lock              *sync.Mutex
+	reportingCache    cache.ReportingCache
+	reportingStrategy cache.ReportingStrategy
 }
 
 // SendLevelReport sends a level report. Returns true if a report was sent.
 // Depending on a caching and reporting configuration the service might decide to skip a report.
 // To make sure report is being sent regardless of circumstances set the force argument to true.
-func (s *service) SendLevelReport(force bool) (bool, error) {
+func (s *service) SendLevelReport(force bool) (bool, int64, error) {
 	s.lock.Lock()
 	defer s.lock.Unlock()
 
 	value, err := s.controller.LevelSwitchLevelReport()
 	if err != nil {
-		return false, fmt.Errorf("%s: failed to get level report: %w", s.Name(), err)
+		return false, 0, fmt.Errorf("%s: failed to get level report: %w", s.Name(), err)
 	}
 
 	if !force && !s.reportingCache.ReportRequired(s.reportingStrategy, EvtLvlReport, "", value) {
-		return false, nil
+		return false, value, nil
 	}
 
 	message := fimpgo.NewIntMessage(
@@ -156,12 +150,12 @@ func (s *service) SendLevelReport(force bool) (bool, error) {
 
 	err = s.SendMessage(message)
 	if err != nil {
-		return false, fmt.Errorf("%s: failed to send level report: %w", s.Name(), err)
+		return false, 0, fmt.Errorf("%s: failed to send level report: %w", s.Name(), err)
 	}
 
 	s.reportingCache.Reported(EvtLvlReport, "", value)
 
-	return true, nil
+	return true, value, nil
 }
 
 // SetLevel sets a level value.

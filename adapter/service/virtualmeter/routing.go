@@ -12,16 +12,23 @@ import (
 const (
 	VirtualMeterElec = "virtual_meter_elec"
 
+	CmdConfigSetInterval    = "cmd.config.set_interval"
+	CmdConfigGetInterval    = "cmd.config.get_interval"
+	EvtConfigIntervalReport = "evt.config.interval_report"
+	CmdMeterAdd             = "cmd.meter.add"
+	CmdMeterRemove          = "cmd.meter.remove"
+	CmdMeterGetReport       = "cmd.meter.get_report"
+	EvtMeterReport          = "evt.meter.report"
+
 	PropertyNameUnit = "unit"
 )
 
+// RouteService returns a routing for the virtual meter service.
 func RouteService(sr adapter.ServiceRegistry) []*router.Routing {
 	return []*router.Routing{
 		routeCmdMeterAdd(sr),
 		routeCmdMeterRemove(sr),
 		routeCmdMeterGetReport(sr),
-		routeCmdConfigSetInterval(sr),
-		routeCmdConfigGetInterval(sr),
 	}
 }
 
@@ -49,22 +56,6 @@ func routeCmdMeterGetReport(sr adapter.ServiceRegistry) *router.Routing {
 	)
 }
 
-func routeCmdConfigSetInterval(sr adapter.ServiceRegistry) *router.Routing {
-	return router.NewRouting(
-		handleCmdConfigSetInterval(sr),
-		router.ForServicePrefix(VirtualMeterElec),
-		router.ForType(CmdConfigSetInterval),
-	)
-}
-
-func routeCmdConfigGetInterval(sr adapter.ServiceRegistry) *router.Routing {
-	return router.NewRouting(
-		handleCmdConfigGetInterval(sr),
-		router.ForServicePrefix(VirtualMeterElec),
-		router.ForType(CmdConfigGetInterval),
-	)
-}
-
 func handleCmdMeterAdd(sr adapter.ServiceRegistry) router.MessageHandler {
 	return router.NewMessageHandler(
 		router.MessageProcessorFn(func(message *fimpgo.Message) (reply *fimpgo.FimpMessage, err error) {
@@ -87,7 +78,7 @@ func handleCmdMeterAdd(sr adapter.ServiceRegistry) router.MessageHandler {
 				return nil, fmt.Errorf("failed to add meter with modes: %v and unit: %s. %w", modes, unit, err)
 			}
 
-			if err := srv.SendReport(); err != nil {
+			if _, err := srv.SendModesReport(true); err != nil {
 				return nil, fmt.Errorf("failed to send virtual meter report: %w", err)
 			}
 
@@ -107,7 +98,7 @@ func handleCmdMeterRemove(sr adapter.ServiceRegistry) router.MessageHandler {
 				return nil, fmt.Errorf("failed to remove meter: %w", err)
 			}
 
-			if err := srv.SendReport(); err != nil {
+			if _, err := srv.SendModesReport(true); err != nil {
 				return nil, fmt.Errorf("failed to send virtual meter report: %w", err)
 			}
 
@@ -123,48 +114,7 @@ func handleCmdMeterGetReport(sr adapter.ServiceRegistry) router.MessageHandler {
 				return nil, fmt.Errorf("routing: failed to find service: %w", err)
 			}
 
-			if err := srv.SendReport(); err != nil {
-				return nil, fmt.Errorf("failed to send virtual meter report: %w", err)
-			}
-
-			return nil, nil
-		}))
-}
-
-func handleCmdConfigSetInterval(sr adapter.ServiceRegistry) router.MessageHandler {
-	return router.NewMessageHandler(
-		router.MessageProcessorFn(func(message *fimpgo.Message) (reply *fimpgo.FimpMessage, err error) {
-			srv, err := getService(sr, message)
-			if err != nil {
-				return nil, fmt.Errorf("routing: failed to find service: %w", err)
-			}
-
-			interval, err := message.Payload.GetIntValue()
-			if err != nil {
-				return nil, fmt.Errorf("payload value incorrect, should be int: %w", err)
-			}
-
-			if err := srv.SetReportingInterval(int(interval)); err != nil {
-				return nil, fmt.Errorf("routing: failed to set duration: %w", err)
-			}
-
-			if err := srv.SendReportingInterval(); err != nil {
-				return nil, fmt.Errorf("routing: failed to send repoting interval when setting one: %w", err)
-			}
-
-			return nil, nil
-		}))
-}
-
-func handleCmdConfigGetInterval(sr adapter.ServiceRegistry) router.MessageHandler {
-	return router.NewMessageHandler(
-		router.MessageProcessorFn(func(message *fimpgo.Message) (reply *fimpgo.FimpMessage, err error) {
-			srv, err := getService(sr, message)
-			if err != nil {
-				return nil, fmt.Errorf("routing: failed to find service: %w", err)
-			}
-
-			if err := srv.SendReportingInterval(); err != nil {
+			if _, err := srv.SendModesReport(true); err != nil {
 				return nil, fmt.Errorf("failed to send virtual meter report: %w", err)
 			}
 

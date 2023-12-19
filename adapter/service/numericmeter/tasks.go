@@ -7,7 +7,6 @@ import (
 	log "github.com/sirupsen/logrus"
 
 	"github.com/futurehomeno/cliffhanger/adapter"
-	"github.com/futurehomeno/cliffhanger/adapter/service/virtualmeter"
 	"github.com/futurehomeno/cliffhanger/task"
 )
 
@@ -16,13 +15,6 @@ func TaskReporting(serviceRegistry adapter.ServiceRegistry, frequency time.Durat
 	voters = append(voters, adapter.IsRegistryInitialized(serviceRegistry))
 
 	return task.New(handleReporting(serviceRegistry), frequency, voters...)
-}
-
-// TaskVirtualReporting creates a reporting task for a virtual meter.
-func TaskVirtualReporting(serviceRegistry adapter.ServiceRegistry, vmeterManager virtualmeter.Manager, voters ...task.Voter) *task.Task {
-	voters = append(voters, adapter.IsRegistryInitialized(serviceRegistry))
-
-	return task.NewNamedTask(virtualmeter.TaskVirtualReporter, handleVirtualReporting(serviceRegistry), vmeterManager.ReportingInterval(), voters...)
 }
 
 // handleReporting creates handler of a reporting task.
