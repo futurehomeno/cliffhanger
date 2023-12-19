@@ -74,10 +74,9 @@ func NewAdapter(
 
 // adapter is a private implementation of an adapter service.
 type adapter struct {
-	publisher    Publisher
-	state        State
-	factory      ThingFactory
-	eventManager event.Manager
+	publisher Publisher
+	state     State
+	factory   ThingFactory
 
 	name        string
 	address     string
