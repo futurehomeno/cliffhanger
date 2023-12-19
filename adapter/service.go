@@ -17,6 +17,8 @@ type Service interface {
 	Specification() *fimptype.Service
 	// SendMessage sends a message from the service with provided contents.
 	SendMessage(message *fimpgo.FimpMessage) error
+
+	PublishEvent(event string, changed bool, payload interface{})
 }
 
 // ServiceRegistry is an interface representing a service registry.
@@ -82,4 +84,13 @@ func (s *service) Specification() *fimptype.Service {
 // SendMessage sends a message from the service with provided contents.
 func (s *service) SendMessage(message *fimpgo.FimpMessage) error {
 	return s.publisher.PublishServiceMessage(s, message)
+}
+
+func (s *service) PublishEvent(event string, changed bool, payload interface{}) {
+	s.publisher.PublishServiceEvent(s, &ServiceEvent{
+		Address:    s.Topic(),
+		Event:      event,
+		HasChanged: changed,
+		Payload:    payload,
+	})
 }

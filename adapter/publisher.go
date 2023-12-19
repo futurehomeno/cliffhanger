@@ -4,6 +4,8 @@ import (
 	"fmt"
 
 	"github.com/futurehomeno/fimpgo"
+
+	"github.com/futurehomeno/cliffhanger/event"
 )
 
 type Publisher interface {
@@ -22,10 +24,12 @@ type ThingPublisher interface {
 // ServicePublisher is an interface representing a FIMP service publisher.
 type ServicePublisher interface {
 	PublishServiceMessage(service Service, message *fimpgo.FimpMessage) error
+	PublishServiceEvent(service Service, payload *ServiceEvent)
 }
 
-func NewPublisher(mqtt *fimpgo.MqttTransport, adapterName, adapterAddress string) Publisher {
+func NewPublisher(eventManager event.Manager, mqtt *fimpgo.MqttTransport, adapterName, adapterAddress string) Publisher {
 	return &publisher{
+		eventManager:   eventManager,
 		mqtt:           mqtt,
 		adapterName:    adapterName,
 		adapterAddress: adapterAddress,
@@ -33,7 +37,8 @@ func NewPublisher(mqtt *fimpgo.MqttTransport, adapterName, adapterAddress string
 }
 
 type publisher struct {
-	mqtt *fimpgo.MqttTransport
+	eventManager event.Manager
+	mqtt         *fimpgo.MqttTransport
 
 	adapterName    string
 	adapterAddress string
@@ -72,6 +77,13 @@ func (p *publisher) PublishThingMessage(thing Thing, message *fimpgo.FimpMessage
 	}
 
 	return nil
+}
+
+func (p *publisher) PublishServiceEvent(service Service, payload *ServiceEvent) {
+	p.eventManager.Publish(&event.Event{
+		Domain:  ServiceEventDomain(service.Name()),
+		Payload: payload,
+	})
 }
 
 func (p *publisher) PublishAdapterMessage(message *fimpgo.FimpMessage) error {
