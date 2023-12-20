@@ -116,7 +116,6 @@ func (b *Builder) Build() (App, error) {
 
 // doBuild assembles the root application.
 func (b *Builder) doBuild() App {
-
 	rootApp := &app{
 		lock:  &sync.Mutex{},
 		errCh: make(chan error),

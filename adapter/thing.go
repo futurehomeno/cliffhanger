@@ -224,10 +224,11 @@ func (t *thing) SendInclusionReport(force bool) (bool, error) {
 
 // ConnectivityReport returns a connectivity report of the thing.
 func (t *thing) ConnectivityReport() *ConnectivityReport {
-	details, err := t.connectivityRefresher.Refresh()
+	connectivityDetails, err := t.connectivityRefresher.Refresh()
 	if err != nil {
 		log.WithError(err).Errorf("thing: failed to refresh connectivity details for thing %s", t.Address())
 	}
+	t.publisher.PublishThingEvent(newConnectivityEvent(t, connectivityDetails))
 
 	report := &ConnectivityReport{
 		Address:             t.Address(),
@@ -236,7 +237,7 @@ func (t *thing) ConnectivityReport() *ConnectivityReport {
 		PowerSource:         t.inclusionReport.PowerSource,
 		WakeupInterval:      t.inclusionReport.WakeUpInterval,
 		CommTechnology:      t.inclusionReport.CommTechnology,
-		ConnectivityDetails: details,
+		ConnectivityDetails: connectivityDetails,
 	}
 
 	report.sanitize()

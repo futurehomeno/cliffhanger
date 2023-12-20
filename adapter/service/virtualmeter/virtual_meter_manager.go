@@ -3,16 +3,17 @@ package virtualmeter
 import (
 	"errors"
 	"fmt"
-	"github.com/futurehomeno/cliffhanger/adapter/service/numericmeter"
-	"github.com/futurehomeno/fimpgo/fimptype"
 	"math"
 	"strings"
 	"sync"
 	"time"
 
+	"github.com/futurehomeno/fimpgo/fimptype"
 	log "github.com/sirupsen/logrus"
 
 	"github.com/futurehomeno/cliffhanger/adapter"
+	"github.com/futurehomeno/cliffhanger/adapter/service/numericmeter"
+	"github.com/futurehomeno/cliffhanger/database"
 )
 
 type (
@@ -25,18 +26,23 @@ type (
 		// add service to the thing immediately if it was initialised previously.
 		RegisterDevice(thing adapter.Thing, addr string, publisher adapter.Publisher, spec *fimptype.Service) error
 		// Update updates a virtual meter for a device by a given addr with a new mode and level.
-		Update(addr, mode string, level float64) error
+		Update(topic, mode string, level float64) error
+		// UpdateRequired validates if a service by the topic should be updated.
+		UpdateRequired(topic string) bool
 		// Report returns a value to report based on a provided unit.
-		Report(addr, unit string) (float64, error)
+		Report(topic string, unit numericmeter.Unit) (float64, error)
 		// WithAdapter adds a provided adapter to the provided virtual meter manager. Used to avoid circular dependencies.
 		WithAdapter(ad adapter.Adapter)
+
+		updateDeviceActivity(thingAddr string, active bool) error
 	}
 
 	virtualMeterManager struct {
 		lock                      sync.RWMutex
 		ad                        adapter.Adapter
 		virtualServices           map[string]adapter.Service
-		storage                   Storage
+		requiredUpdates           map[string]bool
+		storage                   *Storage
 		energyRecalculationPeriod time.Duration
 	}
 )
@@ -44,12 +50,13 @@ type (
 var _ Manager = &virtualMeterManager{}
 
 // NewVirtualMeterManager creates a new virtual meter manager with basic initialisation.
-func NewVirtualMeterManager(workdir string) Manager {
+func NewVirtualMeterManager(db database.Database, recalculationPeriod time.Duration) Manager {
 	return &virtualMeterManager{
 		lock:                      sync.RWMutex{},
 		virtualServices:           make(map[string]adapter.Service),
-		storage:                   NewStorage(workdir),
-		energyRecalculationPeriod: time.Minute, // TODO inject it
+		requiredUpdates:           make(map[string]bool),
+		storage:                   NewStorage(db),
+		energyRecalculationPeriod: recalculationPeriod,
 	}
 }
 
@@ -61,6 +68,8 @@ func (m *virtualMeterManager) WithAdapter(ad adapter.Adapter) {
 	m.ad = ad
 }
 
+// Add adds a virtual service to a device by provided topic.
+// Updates a thing with the adjusted list of services if the service isn't already added.
 func (m *virtualMeterManager) Add(topic string, modes map[string]float64, unit string) error {
 	m.lock.Lock()
 	defer m.lock.Unlock()
@@ -101,11 +110,26 @@ func (m *virtualMeterManager) Add(topic string, modes map[string]float64, unit s
 		if err := thing.Update(true, adapter.ThingUpdateAddService(s)); err != nil {
 			return fmt.Errorf("failed to update thing. Can't add service. Topic: %s. %w", topic, err)
 		}
+
+		// Marking a device as required to be updated for the first time.
+		m.requiredUpdates[serviceAddr] = true
 	}
 
 	return nil
 }
 
+// UpdateRequired validates if a service by the topic should be updated.
+func (m *virtualMeterManager) UpdateRequired(topic string) bool {
+	m.lock.RLock()
+	defer m.lock.RUnlock()
+
+	serviceAddr := m.serviceAddrFromTopic(topic)
+
+	return m.requiredUpdates[serviceAddr]
+}
+
+// Remove removes a virtual service from a device by provided topic.
+// Updates a thing with the adjusted list of services.
 func (m *virtualMeterManager) Remove(topic string) error {
 	m.lock.Lock()
 	defer m.lock.Unlock()
@@ -133,6 +157,7 @@ func (m *virtualMeterManager) Remove(topic string) error {
 	return nil
 }
 
+// Modes returns a map of modes for a device by provided topic.
 func (m *virtualMeterManager) Modes(topic string) (map[string]float64, error) {
 	m.lock.RLock()
 	defer m.lock.RUnlock()
@@ -158,7 +183,7 @@ func (m *virtualMeterManager) RegisterDevice(thing adapter.Thing, topic string, 
 	srv := numericmeter.NewService(publisher, &numericmeter.Config{
 		Specification:     spec,
 		Reporter:          newController(topic, m),
-		ReportingStrategy: nil, // TODO change it
+		ReportingStrategy: nil,
 	})
 
 	log.Infof("Virtual meter: registering a service template, topic: %s", topic)
@@ -209,10 +234,6 @@ func (m *virtualMeterManager) Update(topic, newMode string, newLevel float64) er
 		return nil
 	}
 
-	if device.CurrentMode == newMode && device.Level == newLevel {
-		return nil
-	}
-
 	if _, err := m.recalculateEnergy(true, &device); err != nil {
 		return fmt.Errorf("failed to update energy by topic %s: %w", topic, err)
 	}
@@ -226,11 +247,13 @@ func (m *virtualMeterManager) Update(topic, newMode string, newLevel float64) er
 		return fmt.Errorf("failed to update device when state changed by address %s : %w", serviceAddr, err)
 	}
 
+	delete(m.requiredUpdates, serviceAddr)
+
 	return nil
 }
 
 // Report returns an energy report based on provided topic and unit.
-func (m *virtualMeterManager) Report(topic, unit string) (float64, error) {
+func (m *virtualMeterManager) Report(topic string, unit numericmeter.Unit) (float64, error) {
 	m.lock.Lock()
 	defer m.lock.Unlock()
 
@@ -253,16 +276,49 @@ func (m *virtualMeterManager) Report(topic, unit string) (float64, error) {
 
 	result := float64(0)
 
-	switch unit {
-	case "W":
+	switch unit { //nolint:exhaustive
+	case numericmeter.UnitW:
 		result = device.Modes[device.CurrentMode] * device.Level
-	case "kWh":
+	case numericmeter.UnitKWh:
 		result = device.AccumulatedEnergy
 	default:
-		return 0, fmt.Errorf("virtual meter: report for unknown unit requested: %s", unit)
+		return result, fmt.Errorf("virtual meter: report for unknown unit requested: %s", unit)
 	}
 
 	return result, nil
+}
+
+// updateDeviceActivity updates a device activity for each virtual service of a thing by provided thing address.
+func (m *virtualMeterManager) updateDeviceActivity(thingAddr string, active bool) error {
+	m.lock.Lock()
+	defer m.lock.Unlock()
+
+	thing := m.ad.ThingByAddress(thingAddr)
+	if thing == nil {
+		return fmt.Errorf("no thing found by address: %s. can't update device activity", thingAddr)
+	}
+
+	for _, s := range thing.Services("") {
+		serviceAddr := m.serviceAddrFromTopic(s.Topic())
+		if m.virtualServices[serviceAddr] == nil {
+			continue
+		}
+
+		device, err := m.storage.Device(serviceAddr)
+		if err != nil {
+			return fmt.Errorf("failed to get device: %w", err)
+		}
+
+		if device.Active != active {
+			device.Active = active
+
+			if err := m.storage.SetDevice(serviceAddr, device); err != nil {
+				return fmt.Errorf("failed to update device when activity changed by address %s : %w", serviceAddr, err)
+			}
+		}
+	}
+
+	return nil
 }
 
 // recalculateEnergy calculates the energy consumptions by applying the following logic:
@@ -272,6 +328,10 @@ func (m *virtualMeterManager) Report(topic, unit string) (float64, error) {
 // account for only single recalculationPeriod timeframe with the latest state.
 func (m *virtualMeterManager) recalculateEnergy(force bool, d *Device) (bool, error) {
 	if d != nil {
+		if !d.Active {
+			return false, nil
+		}
+
 		lastUpdated, err := time.Parse(time.RFC3339, d.LastTimeUpdated)
 		if err != nil {
 			return false, fmt.Errorf("can't parse lastUpdated time (%s): %w", d.LastTimeUpdated, err)
@@ -284,7 +344,7 @@ func (m *virtualMeterManager) recalculateEnergy(force bool, d *Device) (bool, er
 		timeSinceUpdated := time.Since(lastUpdated)
 
 		if 2*m.energyRecalculationPeriod < timeSinceUpdated {
-			log.Warnf("Recalculating enegry after a long interuption. Accounting for  recalculation period only." +
+			log.Warnf("Recalculating enegry after a long interuption. Accounting for 2 recalculation periods only." +
 				fmt.Sprintf(" \nRecalculation period: %v, Time elapsed: %v", m.energyRecalculationPeriod, timeSinceUpdated))
 		}
 
@@ -292,7 +352,8 @@ func (m *virtualMeterManager) recalculateEnergy(force bool, d *Device) (bool, er
 
 		increase := timeSinceUpdatedHours * d.Modes[d.CurrentMode] * d.Level
 		increase /= 1000
-		log.Debugf("Updating accumulated energy. Current value: %v, increase: %v, modes: %v, mode: %s", d.AccumulatedEnergy, increase, d.Modes, d.CurrentMode)
+		log.Debugf("Updating accumulated energy. Current values: %v, increase (Wh): %v, modes: %v, mode: %s",
+			d.AccumulatedEnergy, increase*1000, d.Modes, d.CurrentMode)
 
 		d.AccumulatedEnergy += increase
 		d.LastTimeUpdated = time.Now().Format(time.RFC3339)

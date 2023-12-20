@@ -1,14 +1,17 @@
 package virtualmeter_test
 
 import (
-	"github.com/futurehomeno/cliffhanger/adapter/service/virtualmeter"
-	adapterhelper "github.com/futurehomeno/cliffhanger/test/helper/adapter"
-	"github.com/stretchr/testify/assert"
 	"testing"
 	"time"
+
+	"github.com/stretchr/testify/assert"
+
+	"github.com/futurehomeno/cliffhanger/adapter/service/virtualmeter"
+	"github.com/futurehomeno/cliffhanger/database"
+	adapterhelper "github.com/futurehomeno/cliffhanger/test/helper/adapter"
 )
 
-func TestStorage_Device(t *testing.T) {
+func TestStorage_Device(t *testing.T) { //nolint:paralleltest
 	cases := []struct {
 		name         string
 		device       virtualmeter.Device
@@ -46,8 +49,11 @@ func TestStorage_Device(t *testing.T) {
 
 	for _, vv := range cases {
 		v := vv
+
 		t.Run(v.name, func(t *testing.T) {
-			storage := virtualmeter.NewStorage(workdir)
+			db, _ := database.NewDatabase(workdir)
+
+			storage := virtualmeter.NewStorage(db)
 			defer adapterhelper.TearDownAdapter(workdir)[0](t)
 
 			err := storage.SetDevice(v.setAddr, v.device)
@@ -76,7 +82,9 @@ func TestStorage_Device(t *testing.T) {
 }
 
 func TestReportingInterval(t *testing.T) {
-	storage := virtualmeter.NewStorage(workdir)
+	db, _ := database.NewDatabase(workdir)
+	storage := virtualmeter.NewStorage(db)
+
 	defer adapterhelper.TearDownAdapter(workdir)[0](t)
 
 	interval := storage.ReportingInterval()

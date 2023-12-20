@@ -69,7 +69,7 @@ type Service interface {
 	// SendLevelReport sends a level report. Returns true if a report was sent.
 	// Depending on a caching and reporting configuration the service might decide to skip a report.
 	// To make sure report is being sent regardless of circumstances set the force argument to true.
-	SendLevelReport(force bool) (bool, int64, error)
+	SendLevelReport(force bool) (bool, error)
 	// SetLevel sets a level value.
 	SetLevel(value int64, duration *time.Duration) error
 	// SetBinaryState sets a binary value.
@@ -126,17 +126,22 @@ type service struct {
 // SendLevelReport sends a level report. Returns true if a report was sent.
 // Depending on a caching and reporting configuration the service might decide to skip a report.
 // To make sure report is being sent regardless of circumstances set the force argument to true.
-func (s *service) SendLevelReport(force bool) (bool, int64, error) {
+func (s *service) SendLevelReport(force bool) (bool, error) {
 	s.lock.Lock()
 	defer s.lock.Unlock()
 
 	value, err := s.controller.LevelSwitchLevelReport()
 	if err != nil {
-		return false, 0, fmt.Errorf("%s: failed to get level report: %w", s.Name(), err)
+		return false, fmt.Errorf("%s: failed to get level report: %w", s.Name(), err)
 	}
 
+	maxLevel, _ := s.Specification().PropertyFloat(PropertyMaxLvl)
+	levelNormal := float64(value) / maxLevel
+
 	if !force && !s.reportingCache.ReportRequired(s.reportingStrategy, EvtLvlReport, "", value) {
-		return false, value, nil
+		s.Service.PublishEvent(newLevelEvent(EvtLvlReport, false, levelNormal))
+
+		return false, nil
 	}
 
 	message := fimpgo.NewIntMessage(
@@ -150,12 +155,13 @@ func (s *service) SendLevelReport(force bool) (bool, int64, error) {
 
 	err = s.SendMessage(message)
 	if err != nil {
-		return false, 0, fmt.Errorf("%s: failed to send level report: %w", s.Name(), err)
+		return false, fmt.Errorf("%s: failed to send level report: %w", s.Name(), err)
 	}
 
 	s.reportingCache.Reported(EvtLvlReport, "", value)
+	s.Service.PublishEvent(newLevelEvent(EvtLvlReport, true, levelNormal))
 
-	return true, value, nil
+	return true, nil
 }
 
 // SetLevel sets a level value.

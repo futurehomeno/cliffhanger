@@ -9,6 +9,7 @@ import (
 	"github.com/futurehomeno/fimpgo"
 
 	"github.com/futurehomeno/cliffhanger/adapter"
+	"github.com/futurehomeno/cliffhanger/event"
 	"github.com/futurehomeno/cliffhanger/test/suite"
 )
 
@@ -29,7 +30,7 @@ func PrepareAdapter(
 		t.Fatal(fmt.Errorf("adapter helper: failed to create adapter state: %w", err))
 	}
 
-	a := adapter.NewAdapter(mqtt, factory, state, "test_adapter", "1")
+	a := adapter.NewAdapter(mqtt, event.NewManager(), factory, state, "test_adapter", "1")
 
 	return a
 }

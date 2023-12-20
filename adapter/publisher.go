@@ -4,6 +4,8 @@ import (
 	"fmt"
 
 	"github.com/futurehomeno/fimpgo"
+
+	"github.com/futurehomeno/cliffhanger/event"
 )
 
 type Publisher interface {
@@ -17,15 +19,18 @@ type ThingPublisher interface {
 	ServicePublisher
 
 	PublishThingMessage(thing Thing, message *fimpgo.FimpMessage) error
+	PublishThingEvent(thingEvent ThingEvent)
 }
 
 // ServicePublisher is an interface representing a FIMP service publisher.
 type ServicePublisher interface {
 	PublishServiceMessage(service Service, message *fimpgo.FimpMessage) error
+	PublishServiceEvent(service Service, payload ServiceEvent)
 }
 
-func NewPublisher(mqtt *fimpgo.MqttTransport, adapterName, adapterAddress string) Publisher {
+func NewPublisher(eventManager event.Manager, mqtt *fimpgo.MqttTransport, adapterName, adapterAddress string) Publisher {
 	return &publisher{
+		eventManager:   eventManager,
 		mqtt:           mqtt,
 		adapterName:    adapterName,
 		adapterAddress: adapterAddress,
@@ -33,7 +38,8 @@ func NewPublisher(mqtt *fimpgo.MqttTransport, adapterName, adapterAddress string
 }
 
 type publisher struct {
-	mqtt *fimpgo.MqttTransport
+	eventManager event.Manager
+	mqtt         *fimpgo.MqttTransport
 
 	adapterName    string
 	adapterAddress string
@@ -72,6 +78,20 @@ func (p *publisher) PublishThingMessage(thing Thing, message *fimpgo.FimpMessage
 	}
 
 	return nil
+}
+
+// PublishServiceEvent publishes an event to the local event manager.
+func (p *publisher) PublishServiceEvent(service Service, serviceEvent ServiceEvent) {
+	serviceEvent.setEvent(event.New(EventDomainAdapterService, service.Name()))
+	serviceEvent.setAddress(service.Topic())
+	serviceEvent.setServiceName(service.Name())
+
+	p.eventManager.Publish(serviceEvent)
+}
+
+// PublishThingEvent publishes an event to the local event manager.
+func (p *publisher) PublishThingEvent(thingEvent ThingEvent) {
+	p.eventManager.Publish(thingEvent)
 }
 
 func (p *publisher) PublishAdapterMessage(message *fimpgo.FimpMessage) error {

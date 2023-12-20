@@ -3,7 +3,9 @@
 package mockedvirtualmeter
 
 import (
+	adapter "github.com/futurehomeno/cliffhanger/adapter"
 	fimpgo "github.com/futurehomeno/fimpgo"
+
 	fimptype "github.com/futurehomeno/fimpgo/fimptype"
 
 	mock "github.com/stretchr/testify/mock"
@@ -42,6 +44,11 @@ func (_m *Service) Name() string {
 	return r0
 }
 
+// PublishEvent provides a mock function with given fields: event
+func (_m *Service) PublishEvent(event adapter.ServiceEvent) {
+	_m.Called(event)
+}
+
 // RemoveMeter provides a mock function with given fields:
 func (_m *Service) RemoveMeter() error {
 	ret := _m.Called()
@@ -70,46 +77,28 @@ func (_m *Service) SendMessage(message *fimpgo.FimpMessage) error {
 	return r0
 }
 
-// SendReport provides a mock function with given fields:
-func (_m *Service) SendReport() error {
-	ret := _m.Called()
-
-	var r0 error
-	if rf, ok := ret.Get(0).(func() error); ok {
-		r0 = rf()
-	} else {
-		r0 = ret.Error(0)
-	}
-
-	return r0
-}
-
-// SendReportingInterval provides a mock function with given fields:
-func (_m *Service) SendReportingInterval() error {
-	ret := _m.Called()
-
-	var r0 error
-	if rf, ok := ret.Get(0).(func() error); ok {
-		r0 = rf()
-	} else {
-		r0 = ret.Error(0)
-	}
-
-	return r0
-}
-
-// SetReportingInterval provides a mock function with given fields: _a0
-func (_m *Service) SetReportingInterval(_a0 int) error {
+// SendModesReport provides a mock function with given fields: _a0
+func (_m *Service) SendModesReport(_a0 bool) (bool, error) {
 	ret := _m.Called(_a0)
 
-	var r0 error
-	if rf, ok := ret.Get(0).(func(int) error); ok {
+	var r0 bool
+	var r1 error
+	if rf, ok := ret.Get(0).(func(bool) (bool, error)); ok {
+		return rf(_a0)
+	}
+	if rf, ok := ret.Get(0).(func(bool) bool); ok {
 		r0 = rf(_a0)
 	} else {
-		r0 = ret.Error(0)
+		r0 = ret.Get(0).(bool)
 	}
 
-	return r0
+	if rf, ok := ret.Get(1).(func(bool) error); ok {
+		r1 = rf(_a0)
+	} else {
+		r1 = ret.Error(1)
+	}
+
+	return r0, r1
 }
 
 // Specification provides a mock function with given fields:

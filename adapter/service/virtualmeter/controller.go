@@ -2,6 +2,7 @@ package virtualmeter
 
 import (
 	"fmt"
+
 	"github.com/futurehomeno/cliffhanger/adapter/service/numericmeter"
 )
 
@@ -12,9 +13,7 @@ type (
 	}
 )
 
-var (
-	_ numericmeter.Reporter = &controller{}
-)
+var _ numericmeter.Reporter = &controller{}
 
 func newController(topic string, vvm Manager) numericmeter.Reporter {
 	return &controller{
@@ -25,11 +24,10 @@ func newController(topic string, vvm Manager) numericmeter.Reporter {
 
 func (c *controller) MeterReport(unit numericmeter.Unit) (float64, error) {
 	if c.vvm == nil {
-		return 0, fmt.Errorf("virtual meter report failed, virtual meter manager isn't initialised.")
+		return 0, fmt.Errorf("virtual meter report failed, virtual meter manager isn't initialised")
 	}
 
-	// TODO change back to unit
-	value, err := c.vvm.Report(c.topic, unit.String())
+	value, err := c.vvm.Report(c.topic, unit)
 	if err != nil {
 		return 0, fmt.Errorf("failed to get virtual report by address: %s, for unit: %s. %w", c.topic, unit.String(), err)
 	}

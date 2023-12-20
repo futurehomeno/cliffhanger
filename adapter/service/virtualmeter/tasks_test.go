@@ -17,7 +17,7 @@ func TestTaskReporting(t *testing.T) {
 			{
 				Name:     "",
 				TearDown: adapterhelper.TearDownAdapter(workdir),
-				Setup:    routeService(time.Millisecond * 50),
+				Setup:    routeService(time.Millisecond*50, time.Second),
 				Nodes: []*suite.Node{
 					{
 						Name: "should report empty modes when nothing set",

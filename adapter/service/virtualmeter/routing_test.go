@@ -7,10 +7,12 @@ import (
 	"github.com/futurehomeno/fimpgo"
 	"github.com/futurehomeno/fimpgo/fimptype"
 	log "github.com/sirupsen/logrus"
+	"github.com/stretchr/testify/assert"
 
 	"github.com/futurehomeno/cliffhanger/adapter"
 	"github.com/futurehomeno/cliffhanger/adapter/service/numericmeter"
 	"github.com/futurehomeno/cliffhanger/adapter/service/virtualmeter"
+	"github.com/futurehomeno/cliffhanger/database"
 	"github.com/futurehomeno/cliffhanger/router"
 	"github.com/futurehomeno/cliffhanger/task"
 	adapterhelper "github.com/futurehomeno/cliffhanger/test/helper/adapter"
@@ -28,7 +30,7 @@ func TestRouteService(t *testing.T) { //nolint:paralleltest
 			{
 				Name:     "Happy paths",
 				TearDown: adapterhelper.TearDownAdapter(workdir),
-				Setup:    routeService(0),
+				Setup:    routeService(0, time.Second),
 				Nodes: []*suite.Node{
 					{
 						Name: "Cmd meter add",
@@ -188,7 +190,7 @@ func TestRouteService(t *testing.T) { //nolint:paralleltest
 			{
 				Name:     "Error paths",
 				TearDown: adapterhelper.TearDownAdapter(workdir),
-				Setup:    routeService(0),
+				Setup:    routeService(0, time.Second),
 				Nodes: []*suite.Node{
 					{
 						Name: "Error when unsupported unit property provided",
@@ -242,11 +244,11 @@ func TestRouteService(t *testing.T) { //nolint:paralleltest
 	s.Run(t)
 }
 
-func routeService(duration time.Duration) suite.BaseSetup {
+func routeService(duration, recalculatingPeriod time.Duration) suite.BaseSetup {
 	return func(t *testing.T, mqtt *fimpgo.MqttTransport) ([]*router.Routing, []*task.Task, []suite.Mock) {
 		t.Helper()
 
-		return setupService(t, mqtt, duration)
+		return setupService(t, mqtt, duration, recalculatingPeriod)
 	}
 }
 
@@ -254,6 +256,7 @@ func setupService(
 	t *testing.T,
 	mqtt *fimpgo.MqttTransport,
 	duration time.Duration,
+	recalculatingPeriod time.Duration,
 ) ([]*router.Routing, []*task.Task, []suite.Mock) {
 	t.Helper()
 
@@ -265,7 +268,10 @@ func setupService(
 		Connector: mockedadapter.NewConnector(t),
 	}
 
-	vmeterManager := virtualmeter.NewVirtualMeterManager(workdir)
+	db, err := database.NewDatabase(workdir)
+	assert.NoError(t, err, "should create database")
+
+	vmeterManager := virtualmeter.NewVirtualMeterManager(db, recalculatingPeriod)
 
 	virtualMeterConfig := &virtualmeter.Config{
 		Specification: virtualmeter.Specification(
@@ -302,7 +308,7 @@ func setupService(
 	})
 
 	ad := adapterhelper.PrepareSeededAdapter(t, workdir, mqtt, factory, adapter.ThingSeeds{seed})
-	reportingTask := virtualmeter.TaskReporting(ad, vmeterManager, duration)
+	reportingTask := virtualmeter.TaskReporting(ad, duration)
 
 	vmeterManager.WithAdapter(ad)
 

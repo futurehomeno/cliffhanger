@@ -95,7 +95,7 @@ func HandleCmdLvlStart(serviceRegistry adapter.ServiceRegistry) router.MessageHa
 				return nil, errors.Wrap(err, "adapter: failed to start level transitioning")
 			}
 
-			_, _, err = service.SendLevelReport(true)
+			_, err = service.SendLevelReport(true)
 			if err != nil {
 				return nil, errors.Wrap(err, "adapter: error while sending level report")
 			}
@@ -123,7 +123,7 @@ func HandleCmdLvlStop(serviceRegistry adapter.ServiceRegistry) router.MessageHan
 				return nil, errors.Wrap(err, "adapter: failed to stop level transitioning")
 			}
 
-			_, _, err := service.SendLevelReport(true)
+			_, err := service.SendLevelReport(true)
 			if err != nil {
 				return nil, errors.Wrap(err, "adapter: error while sending level report")
 			}
@@ -162,7 +162,7 @@ func HandleCmdLvlSet(serviceRegistry adapter.ServiceRegistry) router.MessageHand
 				return nil, fmt.Errorf("adapter: error while setting level: %w", err)
 			}
 
-			_, _, err = outLvlSwitch.SendLevelReport(true)
+			_, err = outLvlSwitch.SendLevelReport(true)
 			if err != nil {
 				return nil, fmt.Errorf("adapter: error while sending level report: %w", err)
 			}
@@ -205,7 +205,7 @@ func HandleCmdBinarySet(serviceRegistry adapter.ServiceRegistry) router.MessageH
 				return nil, fmt.Errorf("adapter: error while setting binary: %w", err)
 			}
 
-			_, _, err = outLvlSwitch.SendLevelReport(true)
+			_, err = outLvlSwitch.SendLevelReport(true)
 			if err != nil {
 				return nil, fmt.Errorf("adapter: error while sending level report: %w", err)
 			}
@@ -238,7 +238,7 @@ func HandleCmdLvlGetReport(serviceRegistry adapter.ServiceRegistry) router.Messa
 				return nil, fmt.Errorf("adapter: incorrect service found under the provided address: %s", message.Addr.ServiceAddress)
 			}
 
-			_, _, err := outLvlSwitch.SendLevelReport(true)
+			_, err := outLvlSwitch.SendLevelReport(true)
 			if err != nil {
 				return nil, fmt.Errorf("adapter: error while sending level report: %w", err)
 			}

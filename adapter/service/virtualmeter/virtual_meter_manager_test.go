@@ -1,16 +1,20 @@
 package virtualmeter_test
 
 import (
-	"github.com/futurehomeno/cliffhanger/adapter/service/numericmeter"
-	"github.com/futurehomeno/cliffhanger/adapter/service/virtualmeter"
-	adapterhelper "github.com/futurehomeno/cliffhanger/test/helper/adapter"
-	mockedadapter "github.com/futurehomeno/cliffhanger/test/mocks/adapter"
+	"testing"
+	"time"
+
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
-	"testing"
+
+	"github.com/futurehomeno/cliffhanger/adapter/service/numericmeter"
+	"github.com/futurehomeno/cliffhanger/adapter/service/virtualmeter"
+	"github.com/futurehomeno/cliffhanger/database"
+	adapterhelper "github.com/futurehomeno/cliffhanger/test/helper/adapter"
+	mockedadapter "github.com/futurehomeno/cliffhanger/test/mocks/adapter"
 )
 
-func TestVirtualMeterManager_Add(t *testing.T) {
+func TestVirtualMeterManager_Add(t *testing.T) { //nolint:paralleltest
 	cases := []struct {
 		name           string
 		addr           string
@@ -44,14 +48,15 @@ func TestVirtualMeterManager_Add(t *testing.T) {
 	for _, cc := range cases {
 		c := cc
 		t.Run(c.name, func(t *testing.T) {
-			//manager, mocks := PrepareMocks(c.addr, c.findThing)
-			manager := virtualmeter.NewVirtualMeterManager(workdir)
+			db, _ := database.NewDatabase(workdir)
+
+			manager := virtualmeter.NewVirtualMeterManager(db, time.Second)
 			thing := &mockedadapter.Thing{}
 			ad := &mockedadapter.Adapter{}
 
 			defer adapterhelper.TearDownAdapter(workdir)[0](t)
 
-			virtualmeter.WithAdapter(manager, ad)
+			manager.WithAdapter(ad)
 
 			if c.findThing {
 				ad.On("ThingByAddress", c.addr).Return(thing)
@@ -60,10 +65,9 @@ func TestVirtualMeterManager_Add(t *testing.T) {
 			}
 
 			if c.registerDevice {
-				err := manager.RegisterDevice(thing, c.addr, numericmeter.NewService(
-					nil,
-					&numericmeter.Config{Specification: numericmeter.Specification("", "", "", "", nil, nil)},
-				))
+				err := manager.RegisterDevice(thing, c.addr, nil,
+					numericmeter.Specification("", "", "", "", nil, nil),
+				)
 				assert.NoError(t, err)
 			}
 
@@ -89,20 +93,4 @@ func TestVirtualMeterManager_Add(t *testing.T) {
 			thing.AssertExpectations(t)
 		})
 	}
-}
-
-func PrepareMocks(addr string, findThing, registerDevice, oldModesExist bool) (virtualmeter.Manager, []mock.Mock) {
-	mockThing := &mockedadapter.Thing{}
-	mockThing.On("Update", true, mock.AnythingOfType("adapter.ThingUpdate")).Return(nil)
-
-	mockAdapter := mockedadapter.Adapter{}
-	if findThing {
-		mockThing = nil
-	}
-	mockAdapter.On("ThingByAddress", addr).Return(&mockThing)
-
-	manager := virtualmeter.NewVirtualMeterManager(workdir)
-	virtualmeter.WithAdapter(manager, &mockAdapter)
-
-	return manager, nil
 }

@@ -1,5 +1,9 @@
 package adapter
 
+const (
+// EventTypeThingConnectivityChange = "connectivity_update"
+)
+
 // Connector is represents a service responsible for thing connection management.
 type Connector interface {
 	// Connectivity returns a connectivity report for the thing.
@@ -130,4 +134,18 @@ type ConnectionNode struct {
 	Address string `json:"address"`
 	Type    string `json:"type"`
 	Value   string `json:"value"`
+}
+
+// ConnectivityEvent represents a connectivity event.
+type ConnectivityEvent struct {
+	ThingEvent
+
+	Connectivity *ConnectivityDetails
+}
+
+func newConnectivityEvent(t Thing, c *ConnectivityDetails) *ConnectivityEvent {
+	return &ConnectivityEvent{
+		ThingEvent:   newThingEvent(t.Address(), nil),
+		Connectivity: c,
+	}
 }

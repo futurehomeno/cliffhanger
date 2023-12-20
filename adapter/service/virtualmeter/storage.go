@@ -13,6 +13,7 @@ import (
 const (
 	keyDevice            = "device"
 	keyReportingInterval = "reportingInterval"
+	dbDomain             = "virtualManager"
 
 	defaultReportingInterval = time.Minute * 30
 )
@@ -46,14 +47,9 @@ func (d *Device) Initialised() bool {
 	return d.Modes != nil
 }
 
-func NewStorage(workdir string) Storage {
-	db, err := database.NewDatabase(workdir)
-	if err != nil {
-		log.WithError(err).Fatalf("failed to create a new database with workdir: %s", workdir)
-	}
-
-	return Storage{
-		db:   database.NewDomainDatabase("virtualManager", db),
+func NewStorage(db database.Database) *Storage {
+	return &Storage{
+		db:   database.NewDomainDatabase(dbDomain, db),
 		lock: sync.RWMutex{},
 	}
 }

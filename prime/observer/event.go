@@ -5,36 +5,39 @@ import (
 	"github.com/futurehomeno/cliffhanger/prime"
 )
 
-const Domain = "prime"
+const (
+	Domain = "prime"
+	Class  = "observer"
+)
 
-type ComponentEvent struct {
-	Component string
-	Command   string
-	ID        int
-}
+type (
+	ComponentEvent struct {
+		event.Event
 
-func newComponentEvent(component string, command string, id int) *event.Event {
-	return &event.Event{
-		Domain: Domain,
-		Payload: &ComponentEvent{
-			Component: component,
-			Command:   command,
-			ID:        id,
-		},
+		Component string
+		Command   string
+		ID        int
 	}
-}
 
-type RefreshEvent struct {
-	Components []string
-}
+	RefreshEvent struct {
+		event.Event
 
-func newRefreshEvent(components []string) *event.Event {
-	return &event.Event{
-		Domain: Domain,
-		Payload: &RefreshEvent{
-			Components: components,
-		},
+		Components []string
 	}
+)
+
+func newComponentEvent(component string, command string, id int) event.Event {
+	return event.NewWithPayload(Domain, Class, &ComponentEvent{
+		Component: component,
+		Command:   command,
+		ID:        id,
+	})
+}
+
+func newRefreshEvent(components []string) event.Event {
+	return event.NewWithPayload(Domain, Class, &RefreshEvent{
+		Components: components,
+	})
 }
 
 func WaitForDeviceChange() event.Filter {
@@ -78,8 +81,12 @@ func WaitForAreaChange() event.Filter {
 }
 
 func WaitForComponent(component string, commands ...string) event.Filter {
-	return event.FilterFn(func(event *event.Event) bool {
-		e, ok := event.Payload.(*ComponentEvent)
+	return event.FilterFn(func(event event.Event) bool {
+		if event.Payload() == nil {
+			return false
+		}
+
+		e, ok := event.Payload().(*ComponentEvent)
 		if !ok {
 			return false
 		}
@@ -103,8 +110,12 @@ func WaitForComponent(component string, commands ...string) event.Filter {
 }
 
 func WaitForRefresh(component string) event.Filter {
-	return event.FilterFn(func(event *event.Event) bool {
-		e, ok := event.Payload.(*RefreshEvent)
+	return event.FilterFn(func(event event.Event) bool {
+		if event.Payload() == nil {
+			return false
+		}
+
+		e, ok := event.Payload().(*RefreshEvent)
 		if !ok {
 			return false
 		}

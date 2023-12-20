@@ -2,15 +2,16 @@ package virtualmeter
 
 import (
 	"fmt"
-	"github.com/futurehomeno/cliffhanger/adapter/cache"
-	"github.com/futurehomeno/fimpgo"
-	"github.com/futurehomeno/fimpgo/fimptype"
-	log "github.com/sirupsen/logrus"
 	"slices"
 	"sync"
 	"time"
 
+	"github.com/futurehomeno/fimpgo"
+	"github.com/futurehomeno/fimpgo/fimptype"
+	log "github.com/sirupsen/logrus"
+
 	"github.com/futurehomeno/cliffhanger/adapter"
+	"github.com/futurehomeno/cliffhanger/adapter/cache"
 )
 
 const (
