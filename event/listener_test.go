@@ -24,11 +24,13 @@ func TestListener(t *testing.T) {
 	manager := event.NewManager()
 
 	listener := event.NewListener(
-		processor,
 		manager,
-		"test_sub_id",
-		10,
-		event.WaitForDomain("test3"),
+		event.NewHandler(
+			processor,
+			"test_sub_id",
+			10,
+			event.WaitForDomain("test3"),
+		),
 	)
 
 	err := listener.Start()
@@ -73,11 +75,13 @@ func TestListener_Process(t *testing.T) {
 	manager := event.NewManager()
 
 	listener := event.NewListener(
-		processor,
 		manager,
-		"test_sub_id",
-		10,
-		event.WaitForDomain("test"),
+		event.NewHandler(
+			processor,
+			"test_sub_id",
+			10,
+			event.WaitForDomain("test"),
+		),
 	)
 
 	err := listener.Start()
