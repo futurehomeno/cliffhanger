@@ -24,7 +24,7 @@ type ThingPublisher interface {
 // ServicePublisher is an interface representing a FIMP service publisher.
 type ServicePublisher interface {
 	PublishServiceMessage(service Service, message *fimpgo.FimpMessage) error
-	PublishServiceEvent(service Service, payload *ServiceEvent)
+	PublishServiceEvent(service Service, payload ServiceEvent)
 }
 
 func NewPublisher(eventManager event.Manager, mqtt *fimpgo.MqttTransport, adapterName, adapterAddress string) Publisher {
@@ -79,11 +79,13 @@ func (p *publisher) PublishThingMessage(thing Thing, message *fimpgo.FimpMessage
 	return nil
 }
 
-func (p *publisher) PublishServiceEvent(service Service, payload *ServiceEvent) {
-	p.eventManager.Publish(&event.Event{
-		Domain:  ServiceEventDomain(service.Name()),
-		Payload: payload,
-	})
+func (p *publisher) PublishServiceEvent(service Service, serviceEvent ServiceEvent) {
+	p.eventManager.Publish(
+		serviceEvent.
+			setEvent(event.New(EventDomainAdapterService, service.Name())).
+			setAddress(service.Topic()).
+			setServiceName(service.Name()),
+	)
 }
 
 func (p *publisher) PublishAdapterMessage(message *fimpgo.FimpMessage) error {

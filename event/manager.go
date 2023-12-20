@@ -9,10 +9,10 @@ import (
 )
 
 type Manager interface {
-	Subscribe(subID string, buffer int, filters ...Filter) chan *Event
+	Subscribe(subID string, buffer int, filters ...Filter) chan Event
 	Unsubscribe(subID string)
-	Publish(event *Event)
-	WaitFor(timeout time.Duration, filters ...Filter) <-chan *Event
+	Publish(event Event)
+	WaitFor(timeout time.Duration, filters ...Filter) <-chan Event
 }
 
 func NewManager() Manager {
@@ -29,7 +29,7 @@ type manager struct {
 	waitBuffer    int
 }
 
-func (m *manager) Publish(event *Event) {
+func (m *manager) Publish(event Event) {
 	m.lock.RLock()
 	defer m.lock.RUnlock()
 
@@ -43,12 +43,12 @@ func (m *manager) Publish(event *Event) {
 		case s.channel <- event:
 			continue
 		default:
-			log.Warnf("event manager: event subscriber ID %s is busy, an event for domain %s was dropped", s.id, event.Domain)
+			log.Warnf("event manager: event subscriber ID %s is busy, an event for domain %s and class %s was dropped", s.id, event.Domain(), event.Class())
 		}
 	}
 }
 
-func (m *manager) Subscribe(subID string, buffer int, filters ...Filter) chan *Event {
+func (m *manager) Subscribe(subID string, buffer int, filters ...Filter) chan Event {
 	m.lock.Lock()
 	defer m.lock.Unlock()
 
@@ -57,7 +57,7 @@ func (m *manager) Subscribe(subID string, buffer int, filters ...Filter) chan *E
 		return m.subscriptions[subID].channel
 	}
 
-	subCh := make(chan *Event, buffer)
+	subCh := make(chan Event, buffer)
 
 	m.subscriptions[subID] = &subscription{
 		id:      subID,
@@ -80,10 +80,10 @@ func (m *manager) Unsubscribe(subID string) {
 }
 
 // WaitFor returns a channel that returns the waited for event or nil on timeout.
-func (m *manager) WaitFor(timeout time.Duration, filters ...Filter) <-chan *Event {
+func (m *manager) WaitFor(timeout time.Duration, filters ...Filter) <-chan Event {
 	subID := uuid.New().String()
 	subChannel := m.Subscribe(subID, m.waitBuffer, filters...)
-	resultChannel := make(chan *Event, 1)
+	resultChannel := make(chan Event, 1)
 
 	go func() {
 		timer := time.NewTimer(timeout)
@@ -109,11 +109,11 @@ func (m *manager) WaitFor(timeout time.Duration, filters ...Filter) <-chan *Even
 
 type subscription struct {
 	id      string
-	channel chan *Event
+	channel chan Event
 	filters []Filter
 }
 
-func (s *subscription) filter(event *Event) bool {
+func (s *subscription) filter(event Event) bool {
 	for _, f := range s.filters {
 		if !f.Filter(event) {
 			return false

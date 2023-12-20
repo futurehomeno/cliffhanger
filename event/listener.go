@@ -13,7 +13,7 @@ type Handler struct {
 	subID     string
 	buffer    int
 	filters   []Filter
-	eventCh   chan *Event
+	eventCh   chan Event
 }
 
 func NewHandler(processor Processor, subID string, buffer int, filters ...Filter) *Handler {
@@ -26,12 +26,12 @@ func NewHandler(processor Processor, subID string, buffer int, filters ...Filter
 }
 
 type Processor interface {
-	Process(event *Event)
+	Process(event Event)
 }
 
-type ProcessorFn func(event *Event)
+type ProcessorFn func(event Event)
 
-func (p ProcessorFn) Process(event *Event) {
+func (p ProcessorFn) Process(event Event) {
 	p(event)
 }
 
@@ -94,11 +94,12 @@ func (l *listener) startHandler(h *Handler) {
 }
 
 // doProcess executes the event processor with a panic recovery.
-func (l *listener) doProcess(processor Processor, event *Event) {
+func (l *listener) doProcess(processor Processor, event Event) {
 	defer func() {
 		if r := recover(); r != nil {
 			log.WithField("stack", string(debug.Stack())).
-				WithField("domain", event.Domain).
+				WithField("domain", event.Domain()).
+				WithField("class", event.Class()).
 				Errorf("event listener: panic occurred while processing the event: %+v", r)
 		}
 	}()

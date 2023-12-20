@@ -5,38 +5,26 @@ import (
 	"github.com/futurehomeno/cliffhanger/event"
 )
 
-func WaitForLevelReport(serviceAddress string, onChangeOnly bool) event.Filter {
-	return event.FilterFn(func(e *event.Event) bool {
-		if e.Domain == adapter.ServiceEventDomain(OutLvlSwitch) {
-			return false
-		}
+type LevelEvent struct {
+	adapter.ServiceEvent
 
-		serviceEvent, ok := e.Payload.(*adapter.ServiceEvent)
+	Level int64
+}
+
+func newLevelEvent(eventType string, hasChanged bool, level int64) *LevelEvent {
+	return &LevelEvent{
+		ServiceEvent: adapter.NewServiceEvent(eventType, hasChanged),
+		Level:        level,
+	}
+}
+
+func WaitForLevelReport() event.Filter {
+	return event.FilterFn(func(e event.Event) bool {
+		_, ok := e.(*LevelEvent)
 		if !ok {
-			return false
-		}
-
-		if serviceEvent.Address != serviceAddress {
-			return false
-		}
-
-		if serviceEvent.Event != EvtLvlReport {
-			return false
-		}
-
-		if onChangeOnly && !serviceEvent.HasChanged {
 			return false
 		}
 
 		return true
 	})
-}
-
-func GetLevel(serviceEvent *adapter.ServiceEvent) (int, bool) {
-	level, ok := serviceEvent.Payload.(int)
-	if !ok {
-		return 0, false
-	}
-
-	return level, true
 }

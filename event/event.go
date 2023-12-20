@@ -4,30 +4,57 @@ import (
 	"github.com/google/go-cmp/cmp"
 )
 
-type Event struct {
-	Domain  string
-	Payload interface{}
+type Event interface {
+	Domain() string
+	Class() string
 }
 
-func New(domain string, payload interface{}) *Event {
-	return &Event{
-		Domain:  domain,
-		Payload: payload,
+func New(domain string, class string) Event {
+	return &event{
+		domain: domain,
+		class:  class,
 	}
 }
 
-type Filter interface {
-	Filter(event *Event) bool
+type event struct {
+	domain string
+	class  string
 }
 
-type FilterFn func(event *Event) bool
+func (e *event) Domain() string {
+	return e.domain
+}
 
-func (f FilterFn) Filter(event *Event) bool {
+func (e *event) Class() string {
+	return e.class
+
+}
+
+func NewWithPayload(domain string, class string, payload interface{}) Event {
+	return &eventWithPayload{
+		Event:   New(domain, class),
+		payload: payload,
+	}
+}
+
+type eventWithPayload struct {
+	Event
+
+	payload interface{}
+}
+
+type Filter interface {
+	Filter(event Event) bool
+}
+
+type FilterFn func(event Event) bool
+
+func (f FilterFn) Filter(event Event) bool {
 	return f(event)
 }
 
 func Or(filter ...Filter) Filter {
-	return FilterFn(func(event *Event) bool {
+	return FilterFn(func(event Event) bool {
 		for _, f := range filter {
 			if f.Filter(event) {
 				return true
@@ -39,7 +66,7 @@ func Or(filter ...Filter) Filter {
 }
 
 func And(filter ...Filter) Filter {
-	return FilterFn(func(event *Event) bool {
+	return FilterFn(func(event Event) bool {
 		for _, f := range filter {
 			if !f.Filter(event) {
 				return false
@@ -51,13 +78,24 @@ func And(filter ...Filter) Filter {
 }
 
 func WaitForDomain(domain string) Filter {
-	return FilterFn(func(event *Event) bool {
-		return event.Domain == domain
+	return FilterFn(func(event Event) bool {
+		return event.Domain() == domain
+	})
+}
+
+func WaitForClass(class string) Filter {
+	return FilterFn(func(event Event) bool {
+		return event.Domain() == class
 	})
 }
 
 func WaitForPayload(payload interface{}) Filter {
-	return FilterFn(func(event *Event) bool {
-		return cmp.Equal(event.Payload, payload)
+	return FilterFn(func(event Event) bool {
+		e, ok := event.(*eventWithPayload)
+		if !ok {
+			return false
+		}
+
+		return cmp.Equal(e.payload, payload)
 	})
 }

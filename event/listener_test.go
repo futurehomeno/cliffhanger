@@ -14,9 +14,9 @@ func TestListener(t *testing.T) {
 
 	finishCh := make(chan struct{})
 
-	processor := event.ProcessorFn(func(e *event.Event) {
-		assert.Equal(t, e.Domain, "test3")
-		assert.Equal(t, e.Payload, "test3")
+	processor := event.ProcessorFn(func(e event.Event) {
+		assert.Equal(t, e.Domain(), "test3")
+		assert.Equal(t, e.Class(), "test3")
 
 		close(finishCh)
 	})
@@ -62,10 +62,10 @@ func TestListener_Process(t *testing.T) {
 
 	finishCh := make(chan struct{})
 
-	processor := event.ProcessorFn(func(e *event.Event) {
-		assert.Equal(t, e.Domain, "test")
+	processor := event.ProcessorFn(func(e event.Event) {
+		assert.Equal(t, e.Domain(), "test")
 
-		if e.Payload == "test1" {
+		if e.Class() == "test1" {
 			panic("test panic")
 		} else {
 			close(finishCh)
