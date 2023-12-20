@@ -279,25 +279,22 @@ func setupService(
 		VirtualMeterManager: vmeterManager,
 	}
 
-	numericMeterConfig := &numericmeter.Config{
-		Specification: numericmeter.Specification(
-			"meter_elec",
-			"test_adapter",
-			"1",
-			"2",
-			nil,
-			[]numericmeter.Unit{numericmeter.UnitW},
-			numericmeter.WithIsVirtual(),
-		),
-	}
+	numericMeterSpec := numericmeter.Specification(
+		"meter_elec",
+		"test_adapter",
+		"1",
+		"2",
+		nil,
+		[]numericmeter.Unit{numericmeter.UnitW},
+		numericmeter.WithIsVirtual(),
+	)
 
 	seed := &adapter.ThingSeed{ID: "B", CustomAddress: "2"}
 
 	factory := adapterhelper.FactoryHelper(func(a adapter.Adapter, publisher adapter.Publisher, thingState adapter.ThingState) (adapter.Thing, error) {
-		numericMeterService := numericmeter.NewService(publisher, numericMeterConfig)
 		thing := adapter.NewThing(publisher, thingState, thingCfg, virtualmeter.NewService(publisher, virtualMeterConfig))
 
-		if err := vmeterManager.RegisterDevice(thing, numericMeterService.Specification().Address, numericMeterService); err != nil {
+		if err := vmeterManager.RegisterDevice(thing, numericMeterSpec.Address, publisher, numericMeterSpec); err != nil {
 			log.WithError(err).Errorf("virtual meter: failed to register service template. Thing addr: %s", thing.Address())
 		}
 
@@ -305,10 +302,9 @@ func setupService(
 	})
 
 	ad := adapterhelper.PrepareSeededAdapter(t, workdir, mqtt, factory, adapter.ThingSeeds{seed})
-	reportingTask := virtualmeter.TaskReporting(ad, duration)
+	reportingTask := virtualmeter.TaskReporting(ad, vmeterManager, duration)
 
-	virtualmeter.WithAdapter(vmeterManager, ad)
-	virtualmeter.WithTaskManager(vmeterManager, task.NewManager(reportingTask))
+	vmeterManager.WithAdapter(ad)
 
 	return virtualmeter.RouteService(ad), task.Combine(reportingTask), mocks
 }

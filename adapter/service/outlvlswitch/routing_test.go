@@ -10,7 +10,6 @@ import (
 
 	"github.com/futurehomeno/cliffhanger/adapter"
 	"github.com/futurehomeno/cliffhanger/adapter/service/outlvlswitch"
-	"github.com/futurehomeno/cliffhanger/adapter/service/virtualmeter"
 	"github.com/futurehomeno/cliffhanger/router"
 	"github.com/futurehomeno/cliffhanger/task"
 	adapterhelper "github.com/futurehomeno/cliffhanger/test/helper/adapter"
@@ -246,7 +245,7 @@ func routeService(controller outlvlswitch.Controller, options ...adapter.Specifi
 	return func(t *testing.T, mqtt *fimpgo.MqttTransport) ([]*router.Routing, []*task.Task, []suite.Mock) {
 		t.Helper()
 
-		routing, _, mocks := setupService(t, mqtt, controller, 0, nil, options...)
+		routing, _, mocks := setupService(t, mqtt, controller, 0, options...)
 
 		return routing, nil, mocks
 	}
@@ -257,7 +256,6 @@ func setupService(
 	mqtt *fimpgo.MqttTransport,
 	controller outlvlswitch.Controller,
 	duration time.Duration,
-	virtualMeterManager virtualmeter.Manager,
 	options ...adapter.SpecificationOption,
 ) ([]*router.Routing, []*task.Task, []suite.Mock) {
 	t.Helper()
@@ -286,8 +284,7 @@ func setupService(
 			nil,
 			options...,
 		),
-		Controller:          controller,
-		VirtualMeterManager: virtualMeterManager,
+		Controller: controller,
 	}
 
 	seed := &adapter.ThingSeed{ID: "B", CustomAddress: "2"}

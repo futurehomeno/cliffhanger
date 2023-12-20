@@ -21,19 +21,21 @@ type (
 		Remove(addr string) error
 		Modes(addr string) (map[string]float64, error)
 
-		// RegisterDevice saves service by address that will be added to the thing on respective fimp message or
+		// RegisterDevice creates and saves a service by address that will be added to the thing on respective fimp message or
 		// add service to the thing immediately if it was initialised previously.
 		RegisterDevice(thing adapter.Thing, addr string, publisher adapter.Publisher, spec *fimptype.Service) error
 		// Update updates a virtual meter for a device by a given addr with a new mode and level.
 		Update(addr, mode string, level float64) error
 		// Report returns a value to report based on a provided unit.
 		Report(addr, unit string) (float64, error)
+		// WithAdapter adds a provided adapter to the provided virtual meter manager. Used to avoid circular dependencies.
+		WithAdapter(ad adapter.Adapter)
 	}
 
 	virtualMeterManager struct {
 		lock                      sync.RWMutex
 		ad                        adapter.Adapter
-		serviceTemplates          map[string]adapter.Service
+		virtualServices           map[string]adapter.Service
 		storage                   Storage
 		energyRecalculationPeriod time.Duration
 	}
@@ -45,22 +47,18 @@ var _ Manager = &virtualMeterManager{}
 func NewVirtualMeterManager(workdir string) Manager {
 	return &virtualMeterManager{
 		lock:                      sync.RWMutex{},
-		serviceTemplates:          make(map[string]adapter.Service),
+		virtualServices:           make(map[string]adapter.Service),
 		storage:                   NewStorage(workdir),
 		energyRecalculationPeriod: time.Minute, // TODO inject it
 	}
 }
 
 // WithAdapter adds a provided adapter to the provided virtual meter manager. Used to avoid circular dependencies.
-func WithAdapter(meter Manager, ad adapter.Adapter) Manager {
-	vmeter, ok := meter.(*virtualMeterManager)
-	if !ok {
-		log.Fatal("failed to inject adapter into virtual meter")
-	}
+func (m *virtualMeterManager) WithAdapter(ad adapter.Adapter) {
+	m.lock.Lock()
+	defer m.lock.Unlock()
 
-	vmeter.ad = ad
-
-	return vmeter
+	m.ad = ad
 }
 
 func (m *virtualMeterManager) Add(topic string, modes map[string]float64, unit string) error {
@@ -69,9 +67,9 @@ func (m *virtualMeterManager) Add(topic string, modes map[string]float64, unit s
 
 	serviceAddr := m.serviceAddrFromTopic(topic)
 
-	s := m.serviceTemplates[serviceAddr]
+	s := m.virtualServices[serviceAddr]
 	if s == nil {
-		return fmt.Errorf("failed to add meter to the thing: %s. no service template found. %v", serviceAddr, m.serviceTemplates)
+		return fmt.Errorf("failed to add meter to the thing: %s. no service template found. %v", serviceAddr, m.virtualServices)
 	}
 
 	thing := m.ad.ThingByTopic(topic)
@@ -114,7 +112,7 @@ func (m *virtualMeterManager) Remove(topic string) error {
 
 	serviceAddr := m.serviceAddrFromTopic(topic)
 
-	s := m.serviceTemplates[serviceAddr]
+	s := m.virtualServices[serviceAddr]
 	if s == nil {
 		return fmt.Errorf("failed to remove meter from a thing: %s. No service template found", serviceAddr)
 	}
@@ -149,7 +147,7 @@ func (m *virtualMeterManager) Modes(topic string) (map[string]float64, error) {
 	return device.Modes, nil
 }
 
-// RegisterDevice saves a provided service to the templates map to be used when a meter is added to update the thing.
+// RegisterDevice creates and saves the numericmeter service by the thing address.
 // If the meter (not virtual) is already added and can be found in the store the thing is immediately initialised with a service.
 func (m *virtualMeterManager) RegisterDevice(thing adapter.Thing, topic string, publisher adapter.Publisher, spec *fimptype.Service) error {
 	m.lock.Lock()
@@ -169,7 +167,7 @@ func (m *virtualMeterManager) RegisterDevice(thing adapter.Thing, topic string, 
 	if err != nil && !errors.As(err, &ErrorEntryNotFound{}) {
 		return fmt.Errorf("virtual meter: failed to get device by address %s: %w", serviceAddr, err)
 	} else if err == nil && device.Modes != nil {
-		m.serviceTemplates[serviceAddr] = srv
+		m.virtualServices[serviceAddr] = srv
 
 		if err := thing.Update(false, adapter.ThingUpdateAddService(srv)); err != nil {
 			return fmt.Errorf("failed to update thing when registering, topic %s, error %w", topic, err)
@@ -184,9 +182,9 @@ func (m *virtualMeterManager) RegisterDevice(thing adapter.Thing, topic string, 
 		LastTimeUpdated: time.Now().Format(time.RFC3339),
 	}
 
-	m.serviceTemplates[serviceAddr] = srv
+	m.virtualServices[serviceAddr] = srv
 	if err := m.storage.SetDevice(serviceAddr, newDevice); err != nil {
-		m.serviceTemplates[serviceAddr] = nil
+		m.virtualServices[serviceAddr] = nil
 
 		return fmt.Errorf("failed to register a device, database error: %w", err)
 	}
@@ -194,7 +192,7 @@ func (m *virtualMeterManager) RegisterDevice(thing adapter.Thing, topic string, 
 	return nil
 }
 
-// Update updates a device by provided addr with a new mode and level. Recalculates accumulated energy.
+// Update updates a device by provided topic with a new mode and level. Recalculates accumulated energy.
 // Does nothing if both mode and level hasn't changed.
 func (m *virtualMeterManager) Update(topic, newMode string, newLevel float64) error {
 	m.lock.Lock()
@@ -231,7 +229,7 @@ func (m *virtualMeterManager) Update(topic, newMode string, newLevel float64) er
 	return nil
 }
 
-// Report returns an energy report based on provided addr and unit.
+// Report returns an energy report based on provided topic and unit.
 func (m *virtualMeterManager) Report(topic, unit string) (float64, error) {
 	m.lock.Lock()
 	defer m.lock.Unlock()
@@ -267,9 +265,11 @@ func (m *virtualMeterManager) Report(topic, unit string) (float64, error) {
 	return result, nil
 }
 
-// RecalculateEnergy calculates the energy consumptions since the last time measures and adds to total.
-// If the time since last measured is bigger than a reporting interval, we assume that there was a fault in reporting
-// and device stayed reporting interval with the latest mode after which we stop measuring.
+// recalculateEnergy calculates the energy consumptions by applying the following logic:
+// - if the time elapsed since last recalculation < recalculationPeriod nothing happens.
+// - if forced, the step above is skipped
+// - if time elapsed since last recalculation > 2 * recalculationPeriod we consider this unexpected behaviour and
+// account for only single recalculationPeriod timeframe with the latest state.
 func (m *virtualMeterManager) recalculateEnergy(force bool, d *Device) (bool, error) {
 	if d != nil {
 		lastUpdated, err := time.Parse(time.RFC3339, d.LastTimeUpdated)
@@ -288,7 +288,7 @@ func (m *virtualMeterManager) recalculateEnergy(force bool, d *Device) (bool, er
 				fmt.Sprintf(" \nRecalculation period: %v, Time elapsed: %v", m.energyRecalculationPeriod, timeSinceUpdated))
 		}
 
-		timeSinceUpdatedHours := math.Min(timeSinceUpdated.Hours(), m.energyRecalculationPeriod.Hours())
+		timeSinceUpdatedHours := math.Min(timeSinceUpdated.Hours(), 2*m.energyRecalculationPeriod.Hours())
 
 		increase := timeSinceUpdatedHours * d.Modes[d.CurrentMode] * d.Level
 		increase /= 1000
