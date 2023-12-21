@@ -9,35 +9,35 @@ import (
 
 // ReportingStrategy is an interface representing a strategy to determine whether reporting is required or not.
 type ReportingStrategy interface {
-	// reportRequired determines if report is required based on input information.
-	reportRequired(hasChanged bool, lastReported time.Time) bool
+	// ReportRequired determines if report is required based on input information.
+	ReportRequired(hasChanged bool, lastReported time.Time) bool
 }
 
-// reportingStrategyFn is a function adapter that allows to use anonymous functions as reporting strategy.
-type reportingStrategyFn func(hasChanged bool, lastReported time.Time) bool
+// ReportingStrategyFn is a function adapter that allows to use anonymous functions as reporting strategy.
+type ReportingStrategyFn func(hasChanged bool, lastReported time.Time) bool
 
-// reportRequired determines if report is required based on input information.
-func (f reportingStrategyFn) reportRequired(hasChanged bool, lastReported time.Time) bool {
+// ReportRequired determines if report is required based on input information.
+func (f ReportingStrategyFn) ReportRequired(hasChanged bool, lastReported time.Time) bool {
 	return f(hasChanged, lastReported)
 }
 
 // ReportAlways is a reporting strategy in which report is always sent.
 func ReportAlways() ReportingStrategy {
-	return reportingStrategyFn(func(_ bool, _ time.Time) bool {
+	return ReportingStrategyFn(func(_ bool, _ time.Time) bool {
 		return true
 	})
 }
 
 // ReportOnChangeOnly is a reporting strategy in which report is sent only if value changed.
 func ReportOnChangeOnly() ReportingStrategy {
-	return reportingStrategyFn(func(hasChanged bool, _ time.Time) bool {
+	return ReportingStrategyFn(func(hasChanged bool, _ time.Time) bool {
 		return hasChanged
 	})
 }
 
 // ReportAtLeastEvery is a reporting strategy in which report is sent only if value changed or a specific time has passed.
 func ReportAtLeastEvery(interval time.Duration) ReportingStrategy {
-	return reportingStrategyFn(func(hasChanged bool, lastReported time.Time) bool {
+	return ReportingStrategyFn(func(hasChanged bool, lastReported time.Time) bool {
 		if hasChanged {
 			return true
 		}
@@ -80,7 +80,7 @@ func (c *reportingCache) ReportRequired(strategy ReportingStrategy, key, subKey 
 		return true
 	}
 
-	return strategy.reportRequired(v.hasChanged(val), v.reported)
+	return strategy.ReportRequired(v.hasChanged(val), v.reported)
 }
 
 // HasChanged returns true if value for a provided key and sub key changed.
