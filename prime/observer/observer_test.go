@@ -533,6 +533,7 @@ func TestObserver(t *testing.T) { //nolint:paralleltest
 							ID:        "A",
 						}),
 					},
+					suite.SleepNode(50 * time.Millisecond), // sleeping to allow observer to process all incoming messages
 					{
 						Name: "Failed lazy load on getting devices",
 						Expectations: []*suite.Expectation{

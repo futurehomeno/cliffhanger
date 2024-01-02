@@ -9,14 +9,29 @@ import (
 	"github.com/futurehomeno/cliffhanger/router"
 )
 
-type Occurrence int
-
 const (
 	AtLeastOnce Occurrence = iota
 	ExactlyOnce
 	AtMostOnce
 	Never
 )
+
+type Occurrence int
+
+func (o Occurrence) String() string {
+	switch o {
+	case AtLeastOnce:
+		return "at least once"
+	case ExactlyOnce:
+		return "exactly once"
+	case AtMostOnce:
+		return "at most once"
+	case Never:
+		return "never"
+	default:
+		return "unknown"
+	}
+}
 
 func ExpectMessage(topic, messageType, service string) *Expectation {
 	return NewExpectation().
