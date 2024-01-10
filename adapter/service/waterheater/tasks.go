@@ -25,6 +25,10 @@ func handleReporting(serviceRegistry adapter.ServiceRegistry) func() {
 				continue
 			}
 
+			if adapter.ShouldSkipServiceTask(serviceRegistry, waterHeater) {
+				continue
+			}
+
 			if len(waterHeater.SupportedModes()) > 0 {
 				_, err := waterHeater.SendModeReport(false)
 				if err != nil {

@@ -513,7 +513,7 @@ func setupThermostat(
 			InclusionReport: &fimptype.ThingInclusionReport{
 				Address: "2",
 			},
-			Connector: mockedadapter.NewConnector(t),
+			Connector: mockedadapter.NewDefaultConnector(t),
 		},
 		ThermostatConfig: &thermostat.Config{
 			Specification: thermostat.Specification(

@@ -25,6 +25,10 @@ func handleReporting(serviceRegistry adapter.ServiceRegistry) func() {
 				continue
 			}
 
+			if adapter.ShouldSkipServiceTask(serviceRegistry, chargepoint) {
+				continue
+			}
+
 			sendChargepointReports(chargepoint)
 		}
 	}

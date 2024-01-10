@@ -30,6 +30,10 @@ func handleReporting(serviceRegistry adapter.ServiceRegistry) func() {
 				continue
 			}
 
+			if adapter.ShouldSkipServiceTask(serviceRegistry, sensor) {
+				continue
+			}
+
 			for _, unit := range sensor.SupportedUnits() {
 				_, err := sensor.SendSensorReport(unit, false)
 				if err != nil {

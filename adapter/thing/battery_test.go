@@ -178,7 +178,7 @@ func setupBattery(
 			InclusionReport: &fimptype.ThingInclusionReport{
 				Address: "2",
 			},
-			Connector: mockedadapter.NewConnector(t),
+			Connector: mockedadapter.NewDefaultConnector(t),
 		},
 		BatteryConfig: &battery.Config{
 			Specification: battery.Specification(

@@ -274,7 +274,7 @@ func setupMainElec(
 			InclusionReport: &fimptype.ThingInclusionReport{
 				Address: "2",
 			},
-			Connector: mockedadapter.NewConnector(t),
+			Connector: mockedadapter.NewDefaultConnector(t),
 		},
 		MeterElecConfig: &numericmeter.Config{
 			Specification: numericmeter.Specification(

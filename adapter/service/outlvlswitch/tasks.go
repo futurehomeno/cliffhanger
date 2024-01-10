@@ -25,6 +25,10 @@ func handleReporting(serviceRegistry adapter.ServiceRegistry) func() {
 				continue
 			}
 
+			if adapter.ShouldSkipServiceTask(serviceRegistry, outLvlSwitch) {
+				continue
+			}
+
 			_, err := outLvlSwitch.SendLevelReport(false)
 			if err != nil {
 				log.WithError(err).Errorf("adapter: failed to send lvl report")

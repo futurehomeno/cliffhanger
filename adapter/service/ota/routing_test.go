@@ -325,7 +325,7 @@ func setupAdapter(t *testing.T, mqtt *fimpgo.MqttTransport, controller ota.Contr
 		InclusionReport: &fimptype.ThingInclusionReport{
 			Address: "1",
 		},
-		Connector: mockedadapter.NewConnector(t),
+		Connector: mockedadapter.NewDefaultConnector(t),
 	}
 
 	serviceCfg := &ota.Config{

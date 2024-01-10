@@ -167,7 +167,7 @@ func setupCarCharger(
 			InclusionReport: &fimptype.ThingInclusionReport{
 				Address: "2",
 			},
-			Connector: mockedadapter.NewConnector(t),
+			Connector: mockedadapter.NewDefaultConnector(t),
 		},
 		ChargepointConfig: &chargepoint.Config{
 			Specification: chargepoint.Specification(

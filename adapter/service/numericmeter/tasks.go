@@ -30,6 +30,10 @@ func handleReporting(serviceRegistry adapter.ServiceRegistry) func() {
 				continue
 			}
 
+			if adapter.ShouldSkipServiceTask(serviceRegistry, meter) {
+				continue
+			}
+
 			handlePeriodicReporting(meter)
 		}
 	}
