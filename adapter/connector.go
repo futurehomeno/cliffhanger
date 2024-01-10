@@ -1,10 +1,6 @@
 package adapter
 
-const (
-// EventTypeThingConnectivityChange = "connectivity_update"
-)
-
-// Connector is represents a service responsible for thing connection management.
+// Connector represents a service responsible for thing connection management.
 type Connector interface {
 	// Connectivity returns a connectivity report for the thing.
 	Connectivity() *ConnectivityDetails

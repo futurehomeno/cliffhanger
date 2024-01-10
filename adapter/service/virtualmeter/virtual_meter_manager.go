@@ -189,7 +189,7 @@ func (m *virtualMeterManager) RegisterDevice(thing adapter.Thing, topic string, 
 	log.Infof("Virtual meter: registering a service template, topic: %s", topic)
 
 	device, err := m.storage.Device(serviceAddr)
-	if err != nil && !errors.As(err, &ErrorEntryNotFound{}) {
+	if err != nil && !errors.As(err, &errorEntryNotFound{}) {
 		return fmt.Errorf("virtual meter: failed to get device by address %s: %w", serviceAddr, err)
 	} else if err == nil && device.Modes != nil {
 		m.virtualServices[serviceAddr] = srv

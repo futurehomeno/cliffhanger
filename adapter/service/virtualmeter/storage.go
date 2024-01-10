@@ -34,12 +34,12 @@ type (
 		lock sync.RWMutex
 	}
 
-	ErrorEntryNotFound struct {
+	errorEntryNotFound struct {
 		m string
 	}
 )
 
-func (e ErrorEntryNotFound) Error() string {
+func (e errorEntryNotFound) Error() string {
 	return e.m
 }
 
@@ -137,7 +137,7 @@ func (s *Storage) processGetError(addr, fieldName string, ok bool, err error) er
 	}
 
 	if !ok {
-		return ErrorEntryNotFound{m: fmt.Sprintf("no current %s found by addr: %s. ", fieldName, addr)}
+		return errorEntryNotFound{m: fmt.Sprintf("no current %s found by addr: %s. ", fieldName, addr)}
 	}
 
 	return nil

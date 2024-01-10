@@ -308,7 +308,7 @@ func setupService(
 	})
 
 	ad := adapterhelper.PrepareSeededAdapter(t, workdir, mqtt, factory, adapter.ThingSeeds{seed})
-	reportingTask := virtualmeter.TaskReporting(ad, duration)
+	reportingTask := virtualmeter.Tasks(ad, duration, duration)
 
 	vmeterManager.WithAdapter(ad)
 

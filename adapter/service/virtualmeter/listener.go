@@ -16,16 +16,18 @@ type (
 
 var _ event.Processor = (*processor)(nil)
 
-// NewListener creates a new listener for virtual meter that listens for the state updates of other services.
-func NewListener(eventManager event.Manager, manager Manager, handlers ...*event.Handler) event.Listener {
+// NewHandler creates a new handler for virtual meter that listens for the state updates of other services.
+func NewHandler(manager Manager) *event.Handler {
 	filter := event.Or(outlvlswitch.WaitForLevelReport(), adapter.WaitForThingEvent())
 
-	h := event.NewHandler(&processor{manager: manager}, "virtual_meter_level", 3, filter)
-	handlers = append(handlers, h)
+	return event.NewHandler(&processor{manager: manager}, "virtual_meter_level", 3, filter)
 
-	return event.NewListener(eventManager, handlers...)
 }
 
+// Process processes events related to the virtual meter, that is:
+// - outlvlswitch.LevelEvent
+// - adapter.ConnectivityEvent
+// Logs a warning if the event is of a different type.
 func (p *processor) Process(e event.Event) {
 	switch v := e.(type) {
 	case *outlvlswitch.LevelEvent:

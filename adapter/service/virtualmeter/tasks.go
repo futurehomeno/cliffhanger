@@ -10,13 +10,15 @@ import (
 	"github.com/futurehomeno/cliffhanger/task"
 )
 
-// TaskStatePolling creates state polling task adding one default voter.
-func TaskReporting(serviceRegistry adapter.ServiceRegistry, frequency time.Duration, voters ...task.Voter) []*task.Task {
+// Tasks creates tasks for virtual meter that is:
+// - reporting task
+// - state polling task
+func Tasks(serviceRegistry adapter.ServiceRegistry, reportingInterval, pollingInterval time.Duration, voters ...task.Voter) []*task.Task {
 	voters = append(voters, adapter.IsRegistryInitialized(serviceRegistry))
 
 	return task.Combine(
-		task.New(handleReporting(serviceRegistry), frequency, voters...),
-		task.New(handleStatePolling(serviceRegistry), frequency, voters...),
+		task.New(handleReporting(serviceRegistry), reportingInterval, voters...),
+		task.New(handleStatePolling(serviceRegistry), pollingInterval, voters...),
 	)
 }
 

@@ -7,6 +7,7 @@ import (
 )
 
 type (
+	// controller is a virtual meter elect controller that is injected into the numericmeter.Service.
 	controller struct {
 		vvm   Manager
 		topic string
@@ -22,6 +23,7 @@ func newController(topic string, vvm Manager) numericmeter.Reporter {
 	}
 }
 
+// MeterReport returns a report on the energy calculation done by the virtual meter.
 func (c *controller) MeterReport(unit numericmeter.Unit) (float64, error) {
 	if c.vvm == nil {
 		return 0, fmt.Errorf("virtual meter report failed, virtual meter manager isn't initialised")

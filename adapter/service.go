@@ -17,7 +17,7 @@ type Service interface {
 	Specification() *fimptype.Service
 	// SendMessage sends a message from the service with provided contents.
 	SendMessage(message *fimpgo.FimpMessage) error
-
+	// PublishEvent publishes a service to the event manager.
 	PublishEvent(event ServiceEvent)
 }
 
