@@ -25,6 +25,10 @@ func handleReporting(serviceRegistry adapter.ServiceRegistry) func() {
 				continue
 			}
 
+			if adapter.ShouldSkipServiceTask(serviceRegistry, thermostat) {
+				continue
+			}
+
 			if len(thermostat.SupportedModes()) > 0 {
 				_, err := thermostat.SendModeReport(false)
 				if err != nil {

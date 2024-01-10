@@ -9,9 +9,20 @@ import (
 
 	"github.com/futurehomeno/fimpgo"
 	"github.com/futurehomeno/fimpgo/fimptype"
+	log "github.com/sirupsen/logrus"
 
 	"github.com/futurehomeno/cliffhanger/adapter/cache"
 )
+
+// ThingRegistry is an interface representing a thing registry.
+type ThingRegistry interface {
+	// Things returns all things.
+	Things() []Thing
+	// ThingByAddress returns a thing based on its address. Returns nil if thing was not found.
+	ThingByAddress(address string) Thing
+	// ThingByTopic returns a thing based on topic of one of its services. Returns nil if thing was not found.
+	ThingByTopic(topic string) Thing
+}
 
 // ThingFactory is an interface representing a thing factory service which is used by a stateful adapter.
 type ThingFactory interface {
@@ -245,6 +256,8 @@ func (t *thing) SendConnectivityReport(force bool) (bool, error) {
 	}
 
 	t.reportingCache.Reported(EvtNetworkNodeReport, "", report)
+
+	log.Infof("thing: connectivity state of thing %s is %s", t.Address(), report.ConnectionStatus)
 
 	return true, nil
 }

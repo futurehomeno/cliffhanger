@@ -20,12 +20,16 @@ func TaskReporting(serviceRegistry adapter.ServiceRegistry, frequency time.Durat
 func handleReporting(serviceRegistry adapter.ServiceRegistry) func() {
 	return func() {
 		for _, s := range serviceRegistry.Services(ColorCtrl) {
-			colorctrl, ok := s.(Service)
+			colorCtrl, ok := s.(Service)
 			if !ok {
 				continue
 			}
 
-			_, err := colorctrl.SendColorReport(false)
+			if adapter.ShouldSkipServiceTask(serviceRegistry, colorCtrl) {
+				continue
+			}
+
+			_, err := colorCtrl.SendColorReport(false)
 			if err != nil {
 				log.WithError(err).Errorf("adapter: failed to send color report")
 			}

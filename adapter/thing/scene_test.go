@@ -215,7 +215,7 @@ func setupScene(
 			InclusionReport: &fimptype.ThingInclusionReport{
 				Address: "2",
 			},
-			Connector: mockedadapter.NewConnector(t),
+			Connector: mockedadapter.NewDefaultConnector(t),
 		},
 		SceneCtrlConfig: &scenectrl.Config{
 			Specification: scenectrl.Specification(

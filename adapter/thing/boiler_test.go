@@ -499,7 +499,7 @@ func setupBoiler(
 			InclusionReport: &fimptype.ThingInclusionReport{
 				Address: "2",
 			},
-			Connector: mockedadapter.NewConnector(t),
+			Connector: mockedadapter.NewDefaultConnector(t),
 		},
 		WaterHeaterConfig: &waterheater.Config{
 			Specification: waterheater.Specification(

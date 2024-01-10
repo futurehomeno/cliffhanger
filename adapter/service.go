@@ -36,6 +36,23 @@ func IsRegistryInitialized(serviceRegistry ServiceRegistry) task.Voter {
 	})
 }
 
+// ShouldSkipServiceTask returns true if service tasks should be skipped because of the thing connectivity status.
+func ShouldSkipServiceTask(serviceRegistry ServiceRegistry, service Service) bool {
+	// We do not skip the task is service registry is not also a thing registry.
+	thingRegistry, ok := serviceRegistry.(ThingRegistry)
+	if !ok {
+		return false
+	}
+
+	// We do not skip the task if we cannot retrieve thing by topic.
+	t := thingRegistry.ThingByTopic(service.Topic())
+	if t == nil {
+		return false
+	}
+
+	return t.ConnectivityReport().ConnectionStatus == ConnectionStatusDown
+}
+
 // SpecificationOption is an interface representing a particular service specification option.
 type SpecificationOption interface {
 	// Apply applies the option to the provided service specification.

@@ -121,7 +121,7 @@ func setupService(
 		InclusionReport: &fimptype.ThingInclusionReport{
 			Address: "2",
 		},
-		Connector: mockedadapter.NewConnector(t),
+		Connector: mockedadapter.NewDefaultConnector(t),
 	}
 
 	devSysCfg := &devsys.Config{

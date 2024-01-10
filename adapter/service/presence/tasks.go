@@ -25,6 +25,10 @@ func handleReporting(serviceRegistry adapter.ServiceRegistry) func() {
 				continue
 			}
 
+			if adapter.ShouldSkipServiceTask(serviceRegistry, presence) {
+				continue
+			}
+
 			_, err := presence.SendPresenceReport(false)
 			if err != nil {
 				log.WithError(err).Errorf("adapter: failed to send presence report")
