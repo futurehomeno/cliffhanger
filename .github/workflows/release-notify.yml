@@ -1,0 +1,26 @@
+name: release-notify
+
+on:
+  release:
+    types: [published]
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  release-notify:
+    timeout-minutes: 5
+    runs-on: fh-ubuntu-22.04
+    container:
+      image: docker:dind
+    steps:
+      - name: Notify about the release via Slack
+        uses: futurehomeno/github-actions/release-notify@main
+        with:
+          webhook_url: ${{ secrets.SLACK_RELEASES_WEBHOOK_URL }}
+          repo_name: ${{ github.repository }}
+          release_tag: ${{ github.event.release.tag_name }}
+          release_url: ${{ github.event.release.html_url }}
+          release_author: ${{ github.event.release.author.login }}
+
