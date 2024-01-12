@@ -52,6 +52,13 @@ func TestTaskReporting(t *testing.T) {
 					},
 					{
 						Name: "should report latest set modes",
+						Command: suite.NewMessageBuilder().
+							NullMessage(
+								"pt:j1/mt:cmd/rt:dev/rn:test_adapter/ad:1/sv:virtual_meter_elec/ad:2",
+								"cmd.meter.get_report",
+								"virtual_meter_elec",
+							).
+							Build(),
 						Expectations: []*suite.Expectation{
 							suite.ExpectFloatMap(
 								"pt:j1/mt:evt/rt:dev/rn:test_adapter/ad:1/sv:virtual_meter_elec/ad:2",
@@ -79,6 +86,13 @@ func TestTaskReporting(t *testing.T) {
 					},
 					{
 						Name: "should report empty when modes removed",
+						Command: suite.NewMessageBuilder().
+							NullMessage(
+								"pt:j1/mt:cmd/rt:dev/rn:test_adapter/ad:1/sv:virtual_meter_elec/ad:2",
+								"cmd.meter.get_report",
+								"virtual_meter_elec",
+							).
+							Build(),
 						Expectations: []*suite.Expectation{
 							suite.ExpectFloatMap(
 								"pt:j1/mt:evt/rt:dev/rn:test_adapter/ad:1/sv:virtual_meter_elec/ad:2",

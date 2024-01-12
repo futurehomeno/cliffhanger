@@ -21,7 +21,6 @@ func NewHandler(manager Manager) *event.Handler {
 	filter := event.Or(outlvlswitch.WaitForLevelReport(), adapter.WaitForThingEvent())
 
 	return event.NewHandler(&processor{manager: manager}, "virtual_meter_level", 3, filter)
-
 }
 
 // Process processes events related to the virtual meter, that is:

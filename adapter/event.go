@@ -53,7 +53,7 @@ func NewServiceEvent(eventType string, hasChanged bool) ServiceEvent {
 	}
 }
 
-func newThingEvent(address string, payload interface{}) ThingEvent {
+func NewThingEvent(address string, payload interface{}) ThingEvent {
 	return &thingEvent{
 		Event:   event.NewWithPayload(EventDomainAdapterThing, EventClassAdapterThing, payload),
 		address: address,

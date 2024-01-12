@@ -141,7 +141,7 @@ type ConnectivityEvent struct {
 
 func newConnectivityEvent(t Thing, c *ConnectivityDetails) *ConnectivityEvent {
 	return &ConnectivityEvent{
-		ThingEvent:   newThingEvent(t.Address(), nil),
+		ThingEvent:   NewThingEvent(t.Address(), nil),
 		Connectivity: c,
 	}
 }

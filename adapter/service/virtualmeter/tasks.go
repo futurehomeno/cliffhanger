@@ -12,7 +12,7 @@ import (
 
 // Tasks creates tasks for virtual meter that is:
 // - reporting task
-// - state polling task
+// - state polling task.
 func Tasks(serviceRegistry adapter.ServiceRegistry, reportingInterval, pollingInterval time.Duration, voters ...task.Voter) []*task.Task {
 	voters = append(voters, adapter.IsRegistryInitialized(serviceRegistry))
 

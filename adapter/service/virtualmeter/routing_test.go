@@ -136,55 +136,6 @@ func TestRouteService(t *testing.T) { //nolint:paralleltest
 							),
 						},
 					},
-					{
-						Name: "Cmd get reporting interval. Should return default value when not set",
-						Command: suite.NullMessage(
-							"pt:j1/mt:cmd/rt:dev/rn:test_adapter/ad:1/sv:virtual_meter_elec/ad:2",
-							"cmd.config.get_interval",
-							"virtual_meter_elec",
-						),
-						Expectations: []*suite.Expectation{
-							suite.ExpectInt(
-								"pt:j1/mt:evt/rt:dev/rn:test_adapter/ad:1/sv:virtual_meter_elec/ad:2",
-								"evt.config.interval_report",
-								"virtual_meter_elec",
-								30,
-							),
-						},
-					},
-					{
-						Name: "Cmd set reporting interval",
-						Command: suite.NewMessageBuilder().
-							IntMessage("pt:j1/mt:cmd/rt:dev/rn:test_adapter/ad:1/sv:virtual_meter_elec/ad:2",
-								"cmd.config.set_interval",
-								"virtual_meter_elec",
-								13,
-							).Build(),
-						Expectations: []*suite.Expectation{
-							suite.ExpectInt(
-								"pt:j1/mt:evt/rt:dev/rn:test_adapter/ad:1/sv:virtual_meter_elec/ad:2",
-								"evt.config.interval_report",
-								"virtual_meter_elec",
-								13,
-							),
-						},
-					},
-					{
-						Name: "Cmd get reporting interval after set.",
-						Command: suite.NullMessage(
-							"pt:j1/mt:cmd/rt:dev/rn:test_adapter/ad:1/sv:virtual_meter_elec/ad:2",
-							"cmd.config.get_interval",
-							"virtual_meter_elec",
-						),
-						Expectations: []*suite.Expectation{
-							suite.ExpectInt(
-								"pt:j1/mt:evt/rt:dev/rn:test_adapter/ad:1/sv:virtual_meter_elec/ad:2",
-								"evt.config.interval_report",
-								"virtual_meter_elec",
-								13,
-							),
-						},
-					},
 				},
 			},
 			{

@@ -47,7 +47,7 @@ func TestStorage_Device(t *testing.T) { //nolint:paralleltest
 		},
 	}
 
-	for _, vv := range cases {
+	for _, vv := range cases { //nolint:paralleltest
 		v := vv
 
 		t.Run(v.name, func(t *testing.T) {
@@ -81,7 +81,7 @@ func TestStorage_Device(t *testing.T) { //nolint:paralleltest
 	}
 }
 
-func TestReportingInterval(t *testing.T) {
+func TestReportingInterval(t *testing.T) { //nolint:paralleltest
 	db, _ := database.NewDatabase(workdir)
 	storage := virtualmeter.NewStorage(db)
 

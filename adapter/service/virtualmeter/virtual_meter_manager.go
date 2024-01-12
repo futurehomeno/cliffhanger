@@ -10,6 +10,7 @@ import (
 
 	"github.com/futurehomeno/fimpgo/fimptype"
 	log "github.com/sirupsen/logrus"
+	"github.com/stretchr/testify/mock"
 
 	"github.com/futurehomeno/cliffhanger/adapter"
 	"github.com/futurehomeno/cliffhanger/adapter/service/numericmeter"
@@ -44,6 +45,10 @@ type (
 		requiredUpdates           map[string]bool
 		storage                   *Storage
 		energyRecalculationPeriod time.Duration
+	}
+
+	MockedPrivateManager struct {
+		mock.Mock
 	}
 )
 
@@ -369,4 +374,30 @@ func (m *virtualMeterManager) serviceAddrFromTopic(topic string) string {
 	parts := strings.Split(topic, ":")
 
 	return parts[len(parts)-1]
+}
+
+func (_m *MockedPrivateManager) updateDeviceActivity(thingAddr string, active bool) error { //nolint:unused
+	ret := _m.Called(thingAddr, active)
+
+	var r0 error
+	if rf, ok := ret.Get(0).(func(string, bool) error); ok {
+		r0 = rf(thingAddr, active)
+	} else {
+		r0 = ret.Error(0)
+	}
+
+	return r0
+}
+
+func NewMockedPrivateManager(t interface {
+	mock.TestingT
+	Cleanup(func())
+},
+) *MockedPrivateManager {
+	m := &MockedPrivateManager{}
+	m.Mock.Test(t)
+
+	t.Cleanup(func() { m.AssertExpectations(t) })
+
+	return m
 }
