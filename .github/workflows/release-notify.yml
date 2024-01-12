@@ -12,34 +12,15 @@ jobs:
   release-notify:
     timeout-minutes: 5
     runs-on: fh-ubuntu-22.04
-    env:
-      REPO_NAME: "undefined"
-      RELEASE_TAG: "undefined"
-      RELEASE_URL: "undefined"
-      RELEASE_AUTHOR: "undefined"
     container:
       image: docker:dind
     steps:
-      - name: Install dependencies
-        shell: sh
-        run : |
-          apk add --no-cache bash curl
-    
-      - name: Gather data for the Slack message
-        shell: bash
-        run: |
-          # determine the inputs
-          echo "REPO_NAME=${{ github.repository }}" >> $GITHUB_ENV
-          echo "RELEASE_TAG=${{ github.event.release.tag_name }}" >> $GITHUB_ENV
-          echo "RELEASE_URL=${{ github.event.release.html_url }}" >> $GITHUB_ENV
-          echo "RELEASE_AUTHOR=${{ github.event.release.author.login }}" >> $GITHUB_ENV
-      
       - name: Notify about the release via Slack
         uses: futurehomeno/github-actions/release-notify@main
         with:
           webhook_url: ${{ secrets.SLACK_RELEASES_WEBHOOK_URL }}
-          repo_name: ${{ env.REPO_NAME }}
-          release_tag: ${{ env.RELEASE_TAG }}
-          release_url: ${{ env.RELEASE_URL }}
-          release_author: ${{ env.RELEASE_AUTHOR }}
+          repo_name: ${{ github.repository }}
+          release_tag: ${{ github.event.release.tag_name }}
+          release_url: ${{ github.event.release.html_url }}
+          release_author: ${{ github.event.release.author.login }}
 
