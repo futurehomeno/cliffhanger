@@ -15,8 +15,15 @@ import (
 
 // Constants defining important properties specific for the service.
 const (
-	UnitC = "C"
-	UnitF = "F"
+	UnitC       = "C"
+	UnitF       = "F"
+	UnitPercent = "%"
+	UnitKph     = "kph"
+	UnitMmBar   = "mbar"
+	UnitDecibel = "dB"
+	UnitDeg     = "deg"
+	UnitPpm     = "ppm"
+	UnitMmPerH  = "mm/h"
 
 	PropertyUnit           = "unit"
 	PropertySupportedUnits = "sup_units"
