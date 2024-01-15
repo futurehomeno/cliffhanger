@@ -13,6 +13,10 @@ import (
 	"github.com/tidwall/buntdb"
 )
 
+const (
+	dbExtension = ".db"
+)
+
 // Database is a simple in-memory key-value store with append-only persistence to disk to minimize the disk IO and risk of data corruption.
 type Database interface {
 	// Start starts the database.
@@ -69,7 +73,7 @@ func prepareDatabase(workdir, filename string) (*buntdb.DB, error) {
 		return nil, fmt.Errorf("database: failed to create work directory: %w", err)
 	}
 
-	db, err := buntdb.Open(path.Join(workdir, filename+".db"))
+	db, err := buntdb.Open(path.Join(workdir, filename+dbExtension))
 	if err != nil {
 		if errors.Is(err, buntdb.ErrInvalid) || errors.Is(err, io.ErrUnexpectedEOF) {
 			return recoverDatabase(workdir, filename)
@@ -93,17 +97,17 @@ func recoverDatabase(workdir, filename string) (*buntdb.DB, error) {
 		return nil, fmt.Errorf("database: failed to remove previous corrupted data file: %w", err)
 	}
 
-	err = os.Rename(path.Join(workdir, filename+".db"), path.Join(workdir, filename+".db.corrupted"))
+	err = os.Rename(path.Join(workdir, filename+dbExtension), path.Join(workdir, filename+".db.corrupted"))
 	if err != nil {
 		return nil, fmt.Errorf("database: failed to rename corrupted data file: %w", err)
 	}
 
-	err = os.Rename(path.Join(workdir, filename+".db.recovered"), path.Join(workdir, filename+".db"))
+	err = os.Rename(path.Join(workdir, filename+".db.recovered"), path.Join(workdir, filename+dbExtension))
 	if err != nil {
 		return nil, fmt.Errorf("database: failed to rename recovered data file: %w", err)
 	}
 
-	db, err := buntdb.Open(path.Join(workdir, filename+".db"))
+	db, err := buntdb.Open(path.Join(workdir, filename+dbExtension))
 	if err != nil {
 		return nil, fmt.Errorf("database: failed to open recovered data file: %w", err)
 	}
@@ -113,7 +117,7 @@ func recoverDatabase(workdir, filename string) (*buntdb.DB, error) {
 
 // recoverData recovers the data from a corrupted data file.
 func recoverData(workdir, filename string) error {
-	corruptedData, err := os.ReadFile(path.Join(workdir, filename+".db"))
+	corruptedData, err := os.ReadFile(path.Join(workdir, filename+dbExtension))
 	if err != nil {
 		return fmt.Errorf("database: failed to read corrupted data file: %w", err)
 	}

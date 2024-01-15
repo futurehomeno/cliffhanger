@@ -67,9 +67,9 @@ func TestListener_Process(t *testing.T) {
 
 		if e.Class() == "test1" {
 			panic("test panic")
-		} else {
-			close(finishCh)
 		}
+
+		close(finishCh)
 	})
 
 	manager := event.NewManager()
