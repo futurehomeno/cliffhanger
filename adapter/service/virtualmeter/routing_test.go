@@ -263,5 +263,5 @@ func setupService(
 
 	vmeterManager.WithAdapter(ad)
 
-	return virtualmeter.RouteService(ad), task.Combine(reportingTask...), mocks
+	return virtualmeter.RouteService(ad), task.Combine(reportingTask), mocks //nolint:typecheck
 }
