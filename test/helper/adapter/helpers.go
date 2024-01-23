@@ -59,6 +59,22 @@ func PrepareSeededAdapter(
 	return a
 }
 
+func SeedAdapter(t *testing.T, a adapter.Adapter, seeds adapter.ThingSeeds) adapter.Adapter {
+	err := a.InitializeThings()
+	if err != nil {
+		t.Fatal(fmt.Errorf("adapter helper: failed to initialize things: %w", err))
+	}
+
+	if len(seeds) >= 0 {
+		err = a.EnsureThings(seeds)
+		if err != nil {
+			t.Fatal(fmt.Errorf("adapter helper: failed to ensure things: %w", err))
+		}
+	}
+
+	return a
+}
+
 func TearDownAdapter(path string) []suite.Callback {
 	return []suite.Callback{
 		func(t *testing.T) {

@@ -66,7 +66,7 @@ func TestObserver(t *testing.T) { //nolint:paralleltest
 						},
 					},
 					{
-						Name: "Add new device",
+						Name: "add new device",
 						Command: suite.ObjectMessage(prime.NotifyTopic, prime.EvtPD7Notify, prime.ServiceName, &prime.Notify{
 							Cmd:       prime.CmdAdd,
 							Component: prime.ComponentDevice,
@@ -84,7 +84,7 @@ func TestObserver(t *testing.T) { //nolint:paralleltest
 						},
 					},
 					{
-						Name: "Add existing device",
+						Name: "add existing device",
 						Command: suite.ObjectMessage(prime.NotifyTopic, prime.EvtPD7Notify, prime.ServiceName, &prime.Notify{
 							Cmd:       prime.CmdAdd,
 							Component: prime.ComponentDevice,
@@ -156,7 +156,7 @@ func TestObserver(t *testing.T) { //nolint:paralleltest
 						},
 					},
 					{
-						Name: "Add new thing",
+						Name: "add new thing",
 						Command: suite.ObjectMessage(prime.NotifyTopic, prime.EvtPD7Notify, prime.ServiceName, &prime.Notify{
 							Cmd:       prime.CmdAdd,
 							Component: prime.ComponentThing,
@@ -174,7 +174,7 @@ func TestObserver(t *testing.T) { //nolint:paralleltest
 						},
 					},
 					{
-						Name: "Add existing thing",
+						Name: "add existing thing",
 						Command: suite.ObjectMessage(prime.NotifyTopic, prime.EvtPD7Notify, prime.ServiceName, &prime.Notify{
 							Cmd:       prime.CmdAdd,
 							Component: prime.ComponentThing,
@@ -246,7 +246,7 @@ func TestObserver(t *testing.T) { //nolint:paralleltest
 						},
 					},
 					{
-						Name: "Add new room",
+						Name: "add new room",
 						Command: suite.ObjectMessage(prime.NotifyTopic, prime.EvtPD7Notify, prime.ServiceName, &prime.Notify{
 							Cmd:       prime.CmdAdd,
 							Component: prime.ComponentRoom,
@@ -264,7 +264,7 @@ func TestObserver(t *testing.T) { //nolint:paralleltest
 						},
 					},
 					{
-						Name: "Add existing room",
+						Name: "add existing room",
 						Command: suite.ObjectMessage(prime.NotifyTopic, prime.EvtPD7Notify, prime.ServiceName, &prime.Notify{
 							Cmd:       prime.CmdAdd,
 							Component: prime.ComponentRoom,
@@ -354,7 +354,7 @@ func TestObserver(t *testing.T) { //nolint:paralleltest
 						},
 					},
 					{
-						Name: "Add existing area",
+						Name: "add existing area",
 						Command: suite.ObjectMessage(prime.NotifyTopic, prime.EvtPD7Notify, prime.ServiceName, &prime.Notify{
 							Cmd:       prime.CmdAdd,
 							Component: prime.ComponentArea,

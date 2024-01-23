@@ -27,17 +27,19 @@ type (
 )
 
 func newComponentEvent(component string, command string, id int) event.Event {
-	return event.NewWithPayload(Domain, Class, &ComponentEvent{
+	return &ComponentEvent{
+		Event:     event.New(Domain, Class),
 		Component: component,
 		Command:   command,
 		ID:        id,
-	})
+	}
 }
 
 func newRefreshEvent(components []string) event.Event {
-	return event.NewWithPayload(Domain, Class, &RefreshEvent{
+	return &RefreshEvent{
+		Event:      event.New(Domain, Class),
 		Components: components,
-	})
+	}
 }
 
 func WaitForDeviceChange() event.Filter {
@@ -82,11 +84,7 @@ func WaitForAreaChange() event.Filter {
 
 func WaitForComponent(component string, commands ...string) event.Filter {
 	return event.FilterFn(func(event event.Event) bool {
-		if event.Payload() == nil {
-			return false
-		}
-
-		e, ok := event.Payload().(*ComponentEvent)
+		e, ok := event.(*ComponentEvent)
 		if !ok {
 			return false
 		}
@@ -111,11 +109,7 @@ func WaitForComponent(component string, commands ...string) event.Filter {
 
 func WaitForRefresh(component string) event.Filter {
 	return event.FilterFn(func(event event.Event) bool {
-		if event.Payload() == nil {
-			return false
-		}
-
-		e, ok := event.Payload().(*RefreshEvent)
+		e, ok := event.(*RefreshEvent)
 		if !ok {
 			return false
 		}

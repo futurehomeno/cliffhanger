@@ -28,7 +28,7 @@ type ServicePublisher interface {
 	PublishServiceEvent(service Service, payload ServiceEvent)
 }
 
-func NewPublisher(eventManager event.Manager, mqtt *fimpgo.MqttTransport, adapterName, adapterAddress string) Publisher {
+func NewPublisher(mqtt *fimpgo.MqttTransport, eventManager event.Manager, adapterName, adapterAddress string) Publisher {
 	return &publisher{
 		eventManager:   eventManager,
 		mqtt:           mqtt,

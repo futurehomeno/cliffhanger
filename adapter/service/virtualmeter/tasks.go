@@ -32,7 +32,7 @@ func handleReporting(serviceRegistry adapter.ServiceRegistry) func() {
 			}
 
 			if _, err := vmeter.SendModesReport(false); err != nil {
-				log.WithError(err).Errorf("adapter: failed to send reporting interval")
+				log.WithError(err).Errorf("task(vms): failed to send reporting interval")
 			}
 		}
 	}
@@ -49,7 +49,7 @@ func handleStatePolling(sr adapter.ServiceRegistry) func() {
 
 			_, err := levelSwitch.SendLevelReport(false)
 			if err != nil {
-				log.WithError(err).Errorf("failed to get level switch level")
+				log.WithError(err).Errorf("task(vms): failed to get level switch level")
 			}
 		}
 	}

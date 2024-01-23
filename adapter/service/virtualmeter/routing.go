@@ -12,13 +12,10 @@ import (
 const (
 	VirtualMeterElec = "virtual_meter_elec"
 
-	CmdConfigSetInterval    = "cmd.config.set_interval"
-	CmdConfigGetInterval    = "cmd.config.get_interval"
-	EvtConfigIntervalReport = "evt.config.interval_report"
-	CmdMeterAdd             = "cmd.meter.add"
-	CmdMeterRemove          = "cmd.meter.remove"
-	CmdMeterGetReport       = "cmd.meter.get_report"
-	EvtMeterReport          = "evt.meter.report"
+	CmdMeterAdd       = "cmd.meter.add"
+	CmdMeterRemove    = "cmd.meter.remove"
+	CmdMeterGetReport = "cmd.meter.get_report"
+	EvtMeterReport    = "evt.meter.report"
 
 	PropertyNameUnit = "unit"
 )
@@ -66,20 +63,20 @@ func handleCmdMeterAdd(sr adapter.ServiceRegistry) router.MessageHandler {
 
 			modes, err := message.Payload.GetFloatMapValue()
 			if err != nil {
-				return nil, fmt.Errorf("value has incorrect type, expected float map: %w", err)
+				return nil, fmt.Errorf("routing: value has incorrect type, expected float map: %w", err)
 			}
 
 			unit, ok := message.Payload.Properties.GetStringValue(PropertyNameUnit)
 			if !ok {
-				return nil, fmt.Errorf("unit property is required in the message")
+				return nil, fmt.Errorf("routing: unit property is required in the message")
 			}
 
 			if err := srv.AddMeter(modes, unit); err != nil {
-				return nil, fmt.Errorf("failed to add meter with modes: %v and unit: %s. %w", modes, unit, err)
+				return nil, fmt.Errorf("routing: failed to add meter with modes: %v and unit: %s. %w", modes, unit, err)
 			}
 
 			if _, err := srv.SendModesReport(true); err != nil {
-				return nil, fmt.Errorf("failed to send virtual meter report: %w", err)
+				return nil, fmt.Errorf("routing: failed to send virtual meter report: %w", err)
 			}
 
 			return nil, nil
@@ -95,11 +92,11 @@ func handleCmdMeterRemove(sr adapter.ServiceRegistry) router.MessageHandler {
 			}
 
 			if err := srv.RemoveMeter(); err != nil {
-				return nil, fmt.Errorf("failed to remove meter: %w", err)
+				return nil, fmt.Errorf("routing: failed to remove meter: %w", err)
 			}
 
 			if _, err := srv.SendModesReport(true); err != nil {
-				return nil, fmt.Errorf("failed to send virtual meter report: %w", err)
+				return nil, fmt.Errorf("routing: failed to send virtual meter report: %w", err)
 			}
 
 			return nil, nil
@@ -115,7 +112,7 @@ func handleCmdMeterGetReport(sr adapter.ServiceRegistry) router.MessageHandler {
 			}
 
 			if _, err := srv.SendModesReport(true); err != nil {
-				return nil, fmt.Errorf("failed to send virtual meter report: %w", err)
+				return nil, fmt.Errorf("routing: failed to send virtual meter report: %w", err)
 			}
 
 			return nil, nil
@@ -126,12 +123,12 @@ func handleCmdMeterGetReport(sr adapter.ServiceRegistry) router.MessageHandler {
 func getService(serviceRegistry adapter.ServiceRegistry, message *fimpgo.Message) (Service, error) {
 	s := serviceRegistry.ServiceByTopic(message.Topic)
 	if s == nil {
-		return nil, fmt.Errorf("adapter: service not found under the provided address: %s", message.Addr.ServiceAddress)
+		return nil, fmt.Errorf("routing: service not found under the provided address: %s", message.Addr.ServiceAddress)
 	}
 
 	virtialMeter, ok := s.(Service)
 	if !ok {
-		return nil, fmt.Errorf("adapter: incorrect service found under the provided address: %s", message.Addr.ServiceAddress)
+		return nil, fmt.Errorf("routing: incorrect service found under the provided address: %s", message.Addr.ServiceAddress)
 	}
 
 	return virtialMeter, nil

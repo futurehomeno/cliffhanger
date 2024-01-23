@@ -1,29 +1,7 @@
 package mockedvirtualmeter
 
-import (
-	"github.com/futurehomeno/cliffhanger/adapter/service/virtualmeter"
-	"github.com/stretchr/testify/mock"
-)
-
-type (
-	ManagerFull struct {
-		*Manager
-		*virtualmeter.MockedPrivateManager
-	}
-)
-
-func NewFullManager(t interface {
-	mock.TestingT
-	Cleanup(func())
-}) *ManagerFull {
-	return &ManagerFull{
-		Manager:              NewManager(t),
-		MockedPrivateManager: virtualmeter.NewMockedPrivateManager(t),
-	}
-}
-
-func (m *ManagerFull) WithUpdateRequired(val, once bool, args ...interface{}) *ManagerFull {
-	c := m.Manager.On("UpdateRequired", args...).Return(val)
+func (m *Manager) WithUpdateRequired(val, once bool, args ...interface{}) *Manager {
+	c := m.On("updateRequired", args...).Return(val)
 
 	if once {
 		c.Once()
@@ -32,8 +10,8 @@ func (m *ManagerFull) WithUpdateRequired(val, once bool, args ...interface{}) *M
 	return m
 }
 
-func (m *ManagerFull) WithUpdate(err error, once bool, args ...interface{}) *ManagerFull {
-	c := m.Manager.On("Update", args...).Return(err)
+func (m *Manager) WithUpdate(err error, once bool, args ...interface{}) *Manager {
+	c := m.On("update", args...).Return(err)
 
 	if once {
 		c.Once()
@@ -42,8 +20,8 @@ func (m *ManagerFull) WithUpdate(err error, once bool, args ...interface{}) *Man
 	return m
 }
 
-func (m *ManagerFull) WithUpdateDeviceActivity(err error, once bool, args ...interface{}) *ManagerFull {
-	c := m.MockedPrivateManager.On("updateDeviceActivity", args...).Return(err)
+func (m *Manager) WithUpdateDeviceActivity(err error, once bool, args ...interface{}) *Manager {
+	c := m.On("updateDeviceActivity", args...).Return(err)
 
 	if once {
 		c.Once()

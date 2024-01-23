@@ -67,7 +67,7 @@ func NewAdapter(
 		things:    make(map[string]Thing),
 		factory:   factory,
 		state:     state,
-		publisher: NewPublisher(eventManager, mqtt, resourceName, resourceAddress),
+		publisher: NewPublisher(mqtt, eventManager, resourceName, resourceAddress),
 		lock:      &sync.RWMutex{},
 	}
 }

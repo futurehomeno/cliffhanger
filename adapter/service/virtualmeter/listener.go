@@ -10,15 +10,15 @@ import (
 
 type (
 	processor struct {
-		manager Manager
+		manager *manager
 	}
 )
 
 var _ event.Processor = (*processor)(nil)
 
 // NewHandler creates a new handler for virtual meter that listens for the state updates of other services.
-func NewHandler(manager Manager) *event.Handler {
-	filter := event.Or(outlvlswitch.WaitForLevelReport(), adapter.WaitForThingEvent())
+func NewHandler(manager *manager) *event.Handler {
+	filter := event.Or(event.WaitFor[*outlvlswitch.LevelEvent](), event.WaitFor[*adapter.ConnectivityEvent]())
 
 	return event.NewHandler(&processor{manager: manager}, "virtual_meter_level", 3, filter)
 }
@@ -34,7 +34,7 @@ func (p *processor) Process(e event.Event) {
 	case *adapter.ConnectivityEvent:
 		p.handleConnectivityEvent(v)
 	default:
-		log.Warnf("Received an event of type %T, expected *outlvlswitch.LevelEvent or adapter.ConnectivityEvent", e)
+		log.Warnf("listener: received an event of type %T, expected *outlvlswitch.LevelEvent or adapter.ConnectivityEvent", e)
 	}
 }
 
@@ -44,12 +44,21 @@ func (p *processor) handleLevelEvent(levelEvent *outlvlswitch.LevelEvent) {
 		mode = ModeOff
 	}
 
-	if !levelEvent.HasChanged() && !p.manager.UpdateRequired(levelEvent.Address()) {
+	vmsAddr, err := p.manager.vmsAddressFromTopic(levelEvent.Address())
+	if err != nil {
+		log.WithError(err).Errorf("listener: failed to get virtual meter address by topic %s", levelEvent.Address())
+
 		return
 	}
 
-	if err := p.manager.Update(levelEvent.Address(), mode, levelEvent.Level); err != nil {
-		log.WithError(err).Errorf("Failed to update virtual meter with mode %s and level %v", mode, levelEvent.Level)
+	if !levelEvent.HasChanged() && !p.manager.updateRequired(vmsAddr) {
+		return
+	}
+
+	level := p.manager.normalizeOutLvlSwitchLevel(levelEvent.Level, levelEvent.Address())
+
+	if err := p.manager.update(vmsAddr, mode, level); err != nil {
+		log.WithError(err).Errorf("listener: failed to update virtual meter with mode %s and level %v", mode, levelEvent.Level)
 	}
 }
 
@@ -60,6 +69,6 @@ func (p *processor) handleConnectivityEvent(connectivityEvent *adapter.Connectiv
 	}
 
 	if err := p.manager.updateDeviceActivity(connectivityEvent.Address(), active); err != nil {
-		log.WithError(err).Errorf("Failed to update virtual meter with active %v", active)
+		log.WithError(err).Errorf("listener: failed to update virtual meter with active %v", active)
 	}
 }

@@ -4,8 +4,6 @@ package mockedvirtualmeter
 
 import (
 	adapter "github.com/futurehomeno/cliffhanger/adapter"
-	fimptype "github.com/futurehomeno/fimpgo/fimptype"
-
 	mock "github.com/stretchr/testify/mock"
 
 	numericmeter "github.com/futurehomeno/cliffhanger/adapter/service/numericmeter"
@@ -56,13 +54,13 @@ func (_m *Manager) Modes(addr string) (map[string]float64, error) {
 	return r0, r1
 }
 
-// RegisterDevice provides a mock function with given fields: thing, addr, publisher, spec
-func (_m *Manager) RegisterDevice(thing adapter.Thing, addr string, publisher adapter.Publisher, spec *fimptype.Service) error {
-	ret := _m.Called(thing, addr, publisher, spec)
+// RegisterDevice provides a mock function with given fields: thing, publisher
+func (_m *Manager) RegisterDevice(thing adapter.Thing, publisher adapter.Publisher) error {
+	ret := _m.Called(thing, publisher)
 
 	var r0 error
-	if rf, ok := ret.Get(0).(func(adapter.Thing, string, adapter.Publisher, *fimptype.Service) error); ok {
-		r0 = rf(thing, addr, publisher, spec)
+	if rf, ok := ret.Get(0).(func(adapter.Thing, adapter.Publisher) error); ok {
+		r0 = rf(thing, publisher)
 	} else {
 		r0 = ret.Error(0)
 	}
@@ -108,6 +106,20 @@ func (_m *Manager) Report(topic string, unit numericmeter.Unit) (float64, error)
 	return r0, r1
 }
 
+// Reset provides a mock function with given fields: topic
+func (_m *Manager) Reset(topic string) error {
+	ret := _m.Called(topic)
+
+	var r0 error
+	if rf, ok := ret.Get(0).(func(string) error); ok {
+		r0 = rf(topic)
+	} else {
+		r0 = ret.Error(0)
+	}
+
+	return r0
+}
+
 // Update provides a mock function with given fields: topic, mode, level
 func (_m *Manager) Update(topic string, mode string, level float64) error {
 	ret := _m.Called(topic, mode, level)
@@ -115,6 +127,20 @@ func (_m *Manager) Update(topic string, mode string, level float64) error {
 	var r0 error
 	if rf, ok := ret.Get(0).(func(string, string, float64) error); ok {
 		r0 = rf(topic, mode, level)
+	} else {
+		r0 = ret.Error(0)
+	}
+
+	return r0
+}
+
+// UpdateDeviceActivity provides a mock function with given fields: thingAddr, active
+func (_m *Manager) UpdateDeviceActivity(thingAddr string, active bool) error {
+	ret := _m.Called(thingAddr, active)
+
+	var r0 error
+	if rf, ok := ret.Get(0).(func(string, bool) error); ok {
+		r0 = rf(thingAddr, active)
 	} else {
 		r0 = ret.Error(0)
 	}
@@ -139,20 +165,6 @@ func (_m *Manager) UpdateRequired(topic string) bool {
 // WithAdapter provides a mock function with given fields: ad
 func (_m *Manager) WithAdapter(ad adapter.Adapter) {
 	_m.Called(ad)
-}
-
-// updateDeviceActivity provides a mock function with given fields: thingAddr, active
-func (_m *Manager) updateDeviceActivity(thingAddr string, active bool) error {
-	ret := _m.Called(thingAddr, active)
-
-	var r0 error
-	if rf, ok := ret.Get(0).(func(string, bool) error); ok {
-		r0 = rf(thingAddr, active)
-	} else {
-		r0 = ret.Error(0)
-	}
-
-	return r0
 }
 
 // NewManager creates a new instance of Manager. It also registers a testing interface on the mock and a cleanup function to assert the mocks expectations.

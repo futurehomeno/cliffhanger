@@ -331,7 +331,7 @@ func TestClient(t *testing.T) {
 			wantErr:        true,
 		},
 		{
-			name: "Successful get Modes",
+			name: "Successful get modes",
 			syncClientMock: mockSyncClientResponse(t, &prime.Response{
 				ParamRaw: map[string]json.RawMessage{
 					prime.ComponentMode: json.RawMessage(`[{"id":"home"},{"id":"away"}]`),
@@ -342,7 +342,7 @@ func TestClient(t *testing.T) {
 			wantErr: false,
 		},
 		{
-			name: "Empty get Modes response",
+			name: "Empty get modes response",
 			syncClientMock: mockSyncClientResponse(t, &prime.Response{
 				ParamRaw: map[string]json.RawMessage{},
 				Success:  true,
@@ -352,7 +352,7 @@ func TestClient(t *testing.T) {
 			wantErr: false,
 		},
 		{
-			name: "Invalid get Modes payload",
+			name: "Invalid get modes payload",
 			syncClientMock: mockSyncClientResponse(t, &prime.Response{
 				ParamRaw: map[string]json.RawMessage{
 					prime.ComponentMode: json.RawMessage(`[{"id":1},{"id":2}]`),
@@ -363,7 +363,7 @@ func TestClient(t *testing.T) {
 			wantErr: true,
 		},
 		{
-			name:           "Get Modes request error",
+			name:           "Get modes request error",
 			syncClientMock: mockSyncClientResponse(t, nil, errors.New("test")),
 			call:           func(client prime.Client) (interface{}, error) { return client.GetModes() },
 			want:           (prime.Modes)(nil),

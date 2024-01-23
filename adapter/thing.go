@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"hash/crc32"
 	"strings"
+	"sync"
 	"time"
 
 	"github.com/futurehomeno/fimpgo"
@@ -79,7 +80,7 @@ type ThingUpdate func(*thing)
 type Thing interface {
 	// Update updates the thing by applying the list of ThingUpdate functions. Sending report is optional.
 	// Returns error if failed to send report.
-	Update(bool, ...ThingUpdate) error
+	Update(...ThingUpdate) error
 	// Address returns address of the thing.
 	Address() string
 	// Services returns all services from the thing that match the provided name. If empty all services are returned.
@@ -133,6 +134,7 @@ func NewThing(
 		connectivityRefresher:         createConnectivityRefresher(cfg.Connector),
 		inclusionReport:               cfg.InclusionReport,
 		services:                      servicesIndex,
+		lock:                          &sync.RWMutex{},
 	}
 }
 
@@ -146,6 +148,7 @@ type thing struct {
 	connectivityRefresher         cache.Refresher[*ConnectivityDetails]
 	inclusionReport               *fimptype.ThingInclusionReport
 	services                      map[string]Service
+	lock                          *sync.RWMutex
 }
 
 // Address returns address of the thing.
@@ -155,6 +158,9 @@ func (t *thing) Address() string {
 
 // Services returns all services from the thing that match the provided name. If empty all services are returned.
 func (t *thing) Services(name string) []Service {
+	t.lock.RLock()
+	defer t.lock.RUnlock()
+
 	var services []Service
 
 	for _, s := range t.services {
@@ -168,8 +174,11 @@ func (t *thing) Services(name string) []Service {
 	return services
 }
 
-// ServiceByTopic returns a service based on the topic on which it is supposed to be listening for commands.
+// ServiceByTopic returns a service based on lockthe topic on which it is supposed to be listening for commands.
 func (t *thing) ServiceByTopic(topic string) Service {
+	t.lock.RLock()
+	defer t.lock.RUnlock()
+
 	for serviceTopic, s := range t.services {
 		if strings.HasSuffix(topic, serviceTopic) {
 			return s
@@ -181,6 +190,9 @@ func (t *thing) ServiceByTopic(topic string) Service {
 
 // InclusionReport returns an inclusion report of the thing.
 func (t *thing) InclusionReport() *fimptype.ThingInclusionReport {
+	t.lock.RLock()
+	defer t.lock.RUnlock()
+
 	return t.inclusionReport
 }
 
@@ -188,6 +200,9 @@ func (t *thing) InclusionReport() *fimptype.ThingInclusionReport {
 // If force is true, report is sent even if it did not change from previously sent one.
 func (t *thing) SendInclusionReport(force bool) (bool, error) {
 	report := t.InclusionReport()
+
+	t.lock.Lock()
+	defer t.lock.Unlock()
 
 	data, err := json.Marshal(report)
 	if err != nil {
@@ -224,6 +239,9 @@ func (t *thing) SendInclusionReport(force bool) (bool, error) {
 
 // ConnectivityReport returns a connectivity report of the thing.
 func (t *thing) ConnectivityReport() *ConnectivityReport {
+	t.lock.Lock()
+	defer t.lock.Unlock()
+
 	connectivityDetails, err := t.connectivityRefresher.Refresh()
 	if err != nil {
 		log.WithError(err).Errorf("thing: failed to refresh connectivity details for thing %s", t.Address())
@@ -249,6 +267,9 @@ func (t *thing) ConnectivityReport() *ConnectivityReport {
 // If force is true, report is sent even if it did not change from previously sent one.
 func (t *thing) SendConnectivityReport(force bool) (bool, error) {
 	report := t.ConnectivityReport()
+
+	t.lock.Lock()
+	defer t.lock.Unlock()
 
 	if !force && !t.reportingCache.ReportRequired(t.connectivityReportingStrategy, EvtNetworkNodeReport, "", report) {
 		return false, nil
@@ -277,6 +298,9 @@ func (t *thing) SendConnectivityReport(force bool) (bool, error) {
 
 // SendPingReport sends ping report of the thing.
 func (t *thing) SendPingReport() error {
+	t.lock.RLock()
+	defer t.lock.RUnlock()
+
 	ts := time.Now()
 
 	pingDetails := t.connector.Ping()
@@ -340,15 +364,12 @@ func createConnectivityRefresher(c Connector) cache.Refresher[*ConnectivityDetai
 }
 
 // Update applies provided ThingUpdate options to the thing and sends a report if requested.
-func (t *thing) Update(report bool, options ...ThingUpdate) error {
+func (t *thing) Update(options ...ThingUpdate) error {
+	t.lock.Lock()
+	defer t.lock.Unlock()
+
 	for _, o := range options {
 		o.Apply(t)
-	}
-
-	if report {
-		if _, err := t.SendInclusionReport(true); err != nil {
-			return fmt.Errorf("failed to send inclusion report when updating thing: %w", err)
-		}
 	}
 
 	return nil

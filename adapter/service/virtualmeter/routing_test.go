@@ -10,13 +10,14 @@ import (
 	"github.com/stretchr/testify/assert"
 
 	"github.com/futurehomeno/cliffhanger/adapter"
-	"github.com/futurehomeno/cliffhanger/adapter/service/numericmeter"
+	"github.com/futurehomeno/cliffhanger/adapter/service/outlvlswitch"
 	"github.com/futurehomeno/cliffhanger/adapter/service/virtualmeter"
 	"github.com/futurehomeno/cliffhanger/database"
 	"github.com/futurehomeno/cliffhanger/router"
 	"github.com/futurehomeno/cliffhanger/task"
 	adapterhelper "github.com/futurehomeno/cliffhanger/test/helper/adapter"
 	mockedadapter "github.com/futurehomeno/cliffhanger/test/mocks/adapter"
+	mockedoutlvlswitch "github.com/futurehomeno/cliffhanger/test/mocks/adapter/service/outlvlswitch"
 	"github.com/futurehomeno/cliffhanger/test/suite"
 )
 
@@ -222,46 +223,34 @@ func setupService(
 	db, err := database.NewDatabase(workdir)
 	assert.NoError(t, err, "should create database")
 
-	vmeterManager := virtualmeter.NewVirtualMeterManager(db, recalculatingPeriod)
-
-	virtualMeterConfig := &virtualmeter.Config{
-		Specification: virtualmeter.Specification(
-			"test_adapter",
-			"1",
-			"2",
-			nil,
-			[]string{"W"},
-			[]string{"off", "on"},
-		),
-		VirtualMeterManager: vmeterManager,
-	}
-
-	numericMeterSpec := numericmeter.Specification(
-		"meter_elec",
-		"test_adapter",
-		"1",
-		"2",
-		nil,
-		[]numericmeter.Unit{numericmeter.UnitW},
-		numericmeter.WithIsVirtual(),
-	)
-
+	managerWrapper := virtualmeter.NewManagerWrapper(db, recalculatingPeriod)
 	seed := &adapter.ThingSeed{ID: "B", CustomAddress: "2"}
 
 	factory := adapterhelper.FactoryHelper(func(a adapter.Adapter, publisher adapter.Publisher, thingState adapter.ThingState) (adapter.Thing, error) {
-		thing := adapter.NewThing(publisher, thingState, thingCfg, virtualmeter.NewService(publisher, virtualMeterConfig))
+		outLvlSwitchSpec := outlvlswitch.Specification("", "", "", "", 0, 0, []string{})
+		outLvlSwitchService := outlvlswitch.NewService(
+			publisher,
+			&outlvlswitch.Config{
+				Specification: outLvlSwitchSpec,
+				Controller: mockedoutlvlswitch.NewController(t).
+					MockLevelSwitchLevelReport(1, nil, false),
+			},
+		)
 
-		if err := vmeterManager.RegisterDevice(thing, numericMeterSpec.Address, publisher, numericMeterSpec); err != nil {
+		thing := adapter.NewThing(publisher, thingState, thingCfg, outLvlSwitchService)
+
+		if err := managerWrapper.RegisterThing(thing, publisher); err != nil {
 			log.WithError(err).Errorf("virtual meter: failed to register service template. Thing addr: %s", thing.Address())
 		}
 
 		return thing, nil
 	})
 
-	ad := adapterhelper.PrepareSeededAdapter(t, workdir, mqtt, factory, adapter.ThingSeeds{seed})
-	reportingTask := virtualmeter.Tasks(ad, duration, duration)
+	ad := adapterhelper.PrepareAdapter(t, workdir, mqtt, factory)
+	managerWrapper.WithAdapter(ad)
+	adapterhelper.SeedAdapter(t, ad, []*adapter.ThingSeed{seed})
 
-	vmeterManager.WithAdapter(ad)
+	reportingTask := virtualmeter.Tasks(ad, duration, duration)
 
 	return virtualmeter.RouteService(ad), task.Combine(reportingTask), mocks
 }

@@ -7,6 +7,7 @@ import (
 	"github.com/futurehomeno/fimpgo/fimptype"
 
 	"github.com/futurehomeno/cliffhanger/adapter"
+	"github.com/futurehomeno/cliffhanger/adapter/service/numericmeter"
 )
 
 func Specification(
@@ -14,7 +15,7 @@ func Specification(
 	resourceAddress,
 	address string,
 	groups []string,
-	supportedUnits []string,
+	supportedUnits []numericmeter.Unit,
 	supportedModes []string,
 	options ...adapter.SpecificationOption,
 ) *fimptype.Service {
@@ -39,24 +40,6 @@ func Specification(
 
 func requiredInterfaces() []fimptype.Interface {
 	return []fimptype.Interface{
-		{
-			Type:      fimptype.TypeIn,
-			MsgType:   CmdConfigSetInterval,
-			ValueType: fimpgo.VTypeInt,
-			Version:   "1",
-		},
-		{
-			Type:      fimptype.TypeIn,
-			MsgType:   CmdConfigGetInterval,
-			ValueType: fimpgo.VTypeNull,
-			Version:   "1",
-		},
-		{
-			Type:      fimptype.TypeOut,
-			MsgType:   EvtConfigIntervalReport,
-			ValueType: fimpgo.VTypeInt,
-			Version:   "1",
-		},
 		{
 			Type:      fimptype.TypeIn,
 			MsgType:   CmdMeterAdd,

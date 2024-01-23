@@ -60,14 +60,6 @@ func NewThingEvent(address string, payload interface{}) ThingEvent {
 	}
 }
 
-func WaitForThingEvent() event.Filter {
-	return event.FilterFn(func(e event.Event) bool {
-		_, ok := e.(ThingEvent)
-
-		return ok
-	})
-}
-
 func (e *serviceEvent) ServiceName() string {
 	return e.serviceName
 }
@@ -78,6 +70,10 @@ func (e *serviceEvent) Address() string {
 
 func (e *serviceEvent) HasChanged() bool {
 	return e.hasChanged
+}
+
+func (e *serviceEvent) EventType() string {
+	return e.eventType
 }
 
 func (e *serviceEvent) setEvent(event event.Event) {

@@ -4,11 +4,27 @@ import (
 	"github.com/google/go-cmp/cmp"
 )
 
-type Event interface {
-	Domain() string
-	Class() string
-	Payload() interface{}
-}
+type (
+	Event interface {
+		Domain() string
+		Class() string
+	}
+
+	EventWithPayload interface { //nolint:revive
+		Event
+		Payload() interface{}
+	}
+
+	event struct {
+		domain string
+		class  string
+	}
+
+	eventWithPayload struct {
+		event
+		payload interface{}
+	}
+)
 
 func New(domain, class string) Event {
 	return &event{
@@ -17,11 +33,14 @@ func New(domain, class string) Event {
 	}
 }
 
-type event struct {
-	domain string
-	class  string
-
-	payload interface{}
+func NewWithPayload(domain, class string, payload interface{}) Event {
+	return &eventWithPayload{
+		event: event{
+			domain: domain,
+			class:  class,
+		},
+		payload: payload,
+	}
 }
 
 func (e *event) Domain() string {
@@ -32,15 +51,7 @@ func (e *event) Class() string {
 	return e.class
 }
 
-func (e *event) Payload() interface{} { return e.payload }
-
-func NewWithPayload(domain, class string, payload interface{}) Event {
-	return &event{
-		domain:  domain,
-		class:   class,
-		payload: payload,
-	}
-}
+func (e *eventWithPayload) Payload() interface{} { return e.payload }
 
 type Filter interface {
 	Filter(event Event) bool
@@ -89,11 +100,21 @@ func WaitForClass(class string) Filter {
 }
 
 func WaitForPayload(payload interface{}) Filter {
-	return FilterFn(func(e Event) bool {
-		if e.Payload() == nil {
+	return FilterFn(func(ev Event) bool {
+		e, ok := ev.(EventWithPayload)
+
+		if !ok {
 			return false
 		}
 
 		return cmp.Equal(e.Payload(), payload)
+	})
+}
+
+func WaitFor[T any]() Filter {
+	return FilterFn(func(ev Event) bool {
+		_, ok := ev.(T)
+
+		return ok
 	})
 }

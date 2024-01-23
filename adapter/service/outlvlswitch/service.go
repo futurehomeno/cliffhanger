@@ -135,11 +135,10 @@ func (s *service) SendLevelReport(force bool) (bool, error) {
 		return false, fmt.Errorf("%s: failed to get level report: %w", s.Name(), err)
 	}
 
-	maxLevel, _ := s.Specification().PropertyFloat(PropertyMaxLvl)
-	levelNormal := float64(value) / maxLevel
+	// levelNormal := float64(value) / maxLevel
 
 	if !force && !s.reportingCache.ReportRequired(s.reportingStrategy, EvtLvlReport, "", value) {
-		s.Service.PublishEvent(newLevelEvent(EvtLvlReport, false, levelNormal))
+		s.Service.PublishEvent(newLevelEvent(EvtLvlReport, false, value))
 
 		return false, nil
 	}
@@ -159,7 +158,7 @@ func (s *service) SendLevelReport(force bool) (bool, error) {
 	}
 
 	s.reportingCache.Reported(EvtLvlReport, "", value)
-	s.Service.PublishEvent(newLevelEvent(EvtLvlReport, true, levelNormal))
+	s.Service.PublishEvent(newLevelEvent(EvtLvlReport, true, value))
 
 	return true, nil
 }

@@ -4,7 +4,6 @@ import (
 	"fmt"
 	"slices"
 	"sync"
-	"time"
 
 	"github.com/futurehomeno/fimpgo"
 	"github.com/futurehomeno/fimpgo/fimptype"
@@ -26,21 +25,25 @@ type (
 	Service interface {
 		adapter.Service
 
+		// SendModesReport sends a report on the current modes of the virtual meter.
 		SendModesReport(bool) (bool, error)
+		// AddMeter updates a device by this service with a new pair of modes and unit,
+		// replacing existing or addining the first one.
 		AddMeter(map[string]float64, string) error
+		// RemoveMeter removes set modes and unit for the device.
 		RemoveMeter() error
 	}
 
 	Config struct {
-		Specification       *fimptype.Service
-		VirtualMeterManager Manager
-		ReportingStrategy   cache.ReportingStrategy
+		Specification     *fimptype.Service
+		ManagerWrapper    ManagerWrapper
+		ReportingStrategy cache.ReportingStrategy
 	}
 
 	service struct {
 		adapter.Service
 
-		manager           Manager
+		manager           *manager
 		lock              *sync.RWMutex
 		reportingCache    cache.ReportingCache
 		reportingStrategy cache.ReportingStrategy
@@ -54,12 +57,12 @@ func NewService(
 	cfg.Specification.EnsureInterfaces(requiredInterfaces()...)
 
 	if cfg.ReportingStrategy == nil {
-		cfg.ReportingStrategy = cache.ReportAtLeastEvery(time.Minute * 30)
+		cfg.ReportingStrategy = cache.ReportOnChangeOnly()
 	}
 
 	s := &service{
 		Service:           adapter.NewService(publisher, cfg.Specification),
-		manager:           cfg.VirtualMeterManager,
+		manager:           cfg.ManagerWrapper.Manager(),
 		lock:              &sync.RWMutex{},
 		reportingCache:    cache.NewReportingCache(),
 		reportingStrategy: cfg.ReportingStrategy,
@@ -72,9 +75,9 @@ func (s *service) SendModesReport(force bool) (bool, error) {
 	s.lock.RLock()
 	defer s.lock.RUnlock()
 
-	value, err := s.manager.Modes(s.Specification().Address)
+	value, err := s.manager.modes(s.Specification().Address)
 	if err != nil {
-		return false, fmt.Errorf("failed to send virtual meter report: %w", err)
+		return false, fmt.Errorf("service: failed to send virtual meter report: %w", err)
 	}
 
 	if !force && !s.reportingCache.ReportRequired(s.reportingStrategy, EvtMeterReport, "", value) {
@@ -99,7 +102,7 @@ func (s *service) SendModesReport(force bool) (bool, error) {
 
 	err = s.SendMessage(message)
 	if err != nil {
-		return false, fmt.Errorf("%s - failed to send virtual meter report: %w", s.Name(), err)
+		return false, fmt.Errorf("service: %s - failed to send virtual meter report: %w", s.Name(), err)
 	}
 
 	s.reportingCache.Reported(EvtMeterReport, "", value)
@@ -113,7 +116,7 @@ func (s *service) AddMeter(modes map[string]float64, unit string) error {
 
 	supportedUnits := s.Specification().PropertyStrings(PropertySupportedUnits)
 	if !slices.Contains(supportedUnits, unit) {
-		return fmt.Errorf("%s: unsupported unit is provided: %s. Supported: %v", s.Name(), unit, supportedUnits)
+		return fmt.Errorf("service: %s: unsupported unit is provided: %s. Supported: %v", s.Name(), unit, supportedUnits)
 	}
 
 	for mode := range modes {
@@ -123,15 +126,15 @@ func (s *service) AddMeter(modes map[string]float64, unit string) error {
 		}
 	}
 
-	return s.manager.Add(s.Specification().Address, modes, unit)
+	return s.manager.add(s.Specification().Address, modes, unit)
 }
 
 func (s *service) RemoveMeter() error {
 	s.lock.Lock()
 	defer s.lock.Unlock()
 
-	if err := s.manager.Remove(s.Specification().Address); err != nil {
-		return fmt.Errorf("failed to remove meter: %w", err)
+	if err := s.manager.remove(s.Specification().Address); err != nil {
+		return fmt.Errorf("service: failed to remove meter: %w", err)
 	}
 
 	return nil

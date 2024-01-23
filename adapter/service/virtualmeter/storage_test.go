@@ -14,13 +14,13 @@ import (
 func TestStorage_Device(t *testing.T) { //nolint:paralleltest
 	cases := []struct {
 		name         string
-		device       virtualmeter.Device
+		device       *virtualmeter.Device
 		setAddr      string
 		expectToFind bool
 	}{
 		{
 			name: "should save and find a device",
-			device: virtualmeter.Device{
+			device: &virtualmeter.Device{
 				Modes: map[string]float64{
 					"test": 123,
 					"beet": 321,
@@ -36,7 +36,7 @@ func TestStorage_Device(t *testing.T) { //nolint:paralleltest
 		},
 		{
 			name: "should not find a device when setting by a wrong key",
-			device: virtualmeter.Device{
+			device: &virtualmeter.Device{
 				Modes: map[string]float64{
 					"test": 123,
 					"beet": 321,
@@ -61,11 +61,12 @@ func TestStorage_Device(t *testing.T) { //nolint:paralleltest
 
 			newDev, err := storage.Device("test")
 
+			assert.NoError(t, err, "shouldn't return errors")
+
 			if v.expectToFind {
 				assert.Equal(t, v.device, newDev, "should find the same device as was saved")
-				assert.NoError(t, err, "should not get an error when finding a device")
 			} else {
-				assert.Error(t, err, "should get an error")
+				assert.Nil(t, newDev, "should return nil device")
 			}
 
 			if v.expectToFind {
@@ -79,22 +80,4 @@ func TestStorage_Device(t *testing.T) { //nolint:paralleltest
 			}
 		})
 	}
-}
-
-func TestReportingInterval(t *testing.T) { //nolint:paralleltest
-	db, _ := database.NewDatabase(workdir)
-	storage := virtualmeter.NewStorage(db)
-
-	defer adapterhelper.TearDownAdapter(workdir)[0](t)
-
-	interval := storage.ReportingInterval()
-	assert.Equal(t, time.Minute*30, interval, "should default to 30 minutes when nothing set")
-
-	duration := time.Minute * 13
-
-	err := storage.SetReportingInterval(duration)
-	assert.NoError(t, err, "should set reporting interval")
-
-	interval = storage.ReportingInterval()
-	assert.Equal(t, duration, interval, "should return what was set above")
 }
