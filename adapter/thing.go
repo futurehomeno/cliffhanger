@@ -125,6 +125,7 @@ func NewThing(
 		connector:                     cfg.Connector,
 		reportingCache:                cache.NewReportingCache(),
 		connectivityReportingStrategy: cfg.ConnectivityReportingStrategy,
+		connectivityRefresher:         createConnectivityRefresher(cfg.Connector),
 		inclusionReport:               cfg.InclusionReport,
 		services:                      servicesIndex,
 	}
@@ -137,6 +138,7 @@ type thing struct {
 	connector                     Connector
 	reportingCache                cache.ReportingCache
 	connectivityReportingStrategy cache.ReportingStrategy
+	connectivityRefresher         cache.Refresher[*ConnectivityDetails]
 	inclusionReport               *fimptype.ThingInclusionReport
 	services                      map[string]Service
 }
@@ -217,6 +219,11 @@ func (t *thing) SendInclusionReport(force bool) (bool, error) {
 
 // ConnectivityReport returns a connectivity report of the thing.
 func (t *thing) ConnectivityReport() *ConnectivityReport {
+	details, err := t.connectivityRefresher.Refresh()
+	if err != nil {
+		log.WithError(err).Errorf("thing: failed to refresh connectivity details for thing %s", t.Address())
+	}
+
 	report := &ConnectivityReport{
 		Address:             t.Address(),
 		Hash:                t.inclusionReport.ProductHash,
@@ -224,7 +231,7 @@ func (t *thing) ConnectivityReport() *ConnectivityReport {
 		PowerSource:         t.inclusionReport.PowerSource,
 		WakeupInterval:      t.inclusionReport.WakeUpInterval,
 		CommTechnology:      t.inclusionReport.CommTechnology,
-		ConnectivityDetails: t.connector.Connectivity(),
+		ConnectivityDetails: details,
 	}
 
 	report.sanitize()
@@ -311,4 +318,17 @@ func (t *thing) Disconnect() {
 	}
 
 	c.Disconnect(t)
+}
+
+func createConnectivityRefresher(c Connector) cache.Refresher[*ConnectivityDetails] {
+	return cache.NewRefresher(func() (*ConnectivityDetails, error) {
+		if c == nil {
+			return &ConnectivityDetails{
+					ConnectionStatus: ConnectionStatusUp,
+				},
+				nil
+		}
+
+		return c.Connectivity(), nil
+	}, 20*time.Second)
 }
