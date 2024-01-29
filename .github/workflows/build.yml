@@ -1,0 +1,26 @@
+name: build
+
+on:
+  workflow_dispatch:
+    inputs:
+      branch:
+        description: 'Branch (beta only) or release tag (both envs) to build'
+        required: true
+        default: 'main'
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  build:
+    timeout-minutes: 60
+    runs-on: fh-ubuntu-22.04
+    container:
+      image: docker:dind
+    steps:
+      - name: Build the service
+        uses: futurehomeno/github-actions/build@main
+        with:
+          secrets: ${{ toJSON(secrets) }}
+          branch: ${{ inputs.branch }}

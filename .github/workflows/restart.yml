@@ -1,0 +1,30 @@
+name: restart
+
+on:
+  workflow_dispatch:
+    inputs:
+      environment:
+        description: 'Environment name'
+        required: true
+        default: 'beta'
+        type: choice
+        options:
+          - prod
+          - beta
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  restart:
+    timeout-minutes: 60
+    runs-on: fh-ubuntu-22.04
+    container:
+      image: docker:dind
+    steps:
+      - name: Restart the service
+        uses: futurehomeno/github-actions/restart@main
+        with:
+          secrets: ${{ toJSON(secrets) }}
+          environment: ${{ inputs.environment }}
