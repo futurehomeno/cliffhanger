@@ -24,6 +24,9 @@ const (
 	UnitDeg      = "deg"
 	UnitPpm      = "ppm"
 	UnitMmPerH   = "mm/h"
+	UnitPM25     = "pm25"
+	UnitPM10     = "pm10"
+	UnitAQI      = "aqi"
 
 	PropertyUnit           = "unit"
 	PropertySupportedUnits = "sup_units"

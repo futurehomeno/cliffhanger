@@ -18,6 +18,7 @@ const (
 	SensorAccelY      = prefix + "accely"
 	SensorAccelZ      = prefix + "accelz"
 	SensorAirflow     = prefix + "airflow"
+	SensorAirQuality  = prefix + "airq"
 	SensorAnglePos    = prefix + "anglepos"
 	SensorAtmo        = prefix + "atmo"
 	SensorBaro        = prefix + "baro"
