@@ -516,6 +516,13 @@ func (s *service) SupportsAdjustingCableLock() bool {
 	return err == nil
 }
 
+// SupportsAdjustingCableLock returns true if the chargepoint supports adjusting phase modes.
+func (s *service) SupportsAdjustingCableLock() bool {
+	_, err := s.adjustableCableLockController()
+
+	return err == nil
+}
+
 // adjustableMaxCurrentController returns the AdjustableMaxCurrentController, if supported.
 func (s *service) adjustableMaxCurrentController() (AdjustableMaxCurrentController, error) {
 	_, ok := s.Specification().PropertyInteger(PropertySupportedMaxCurrent)
