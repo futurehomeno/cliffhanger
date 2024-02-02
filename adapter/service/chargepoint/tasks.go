@@ -35,12 +35,7 @@ func handleReporting(serviceRegistry adapter.ServiceRegistry) func() {
 }
 
 func sendChargepointReports(s Service) {
-	_, err := s.SendCableLockReport(false)
-	if err != nil {
-		log.WithError(err).Errorf("adapter: failed to send cable lock report")
-	}
-
-	_, err = s.SendCurrentSessionReport(false)
+	_, err := s.SendCurrentSessionReport(false)
 	if err != nil {
 		log.WithError(err).Errorf("adapter: failed to current session report")
 	}
@@ -63,6 +58,13 @@ func sendChargepointReports(s Service) {
 		_, err = s.SendPhaseModeReport(false)
 		if err != nil {
 			log.WithError(err).Errorf("adapter: failed to send chargepoint phase mode report")
+		}
+	}
+
+	if s.SupportsAdjustingCableLock() {
+		_, err := s.SendCableLockReport(false)
+		if err != nil {
+			log.WithError(err).Errorf("adapter: failed to send cable lock report")
 		}
 	}
 }

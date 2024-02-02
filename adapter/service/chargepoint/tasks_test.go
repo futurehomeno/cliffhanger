@@ -24,10 +24,6 @@ func TestTaskReporting(t *testing.T) { //nolint:paralleltest
 				Setup: taskChargepoint(
 					mockedchargepoint.NewMockedChargepoint(
 						mockedchargepoint.NewController(t).
-							MockChargepointCableLockReport(&chargepoint.CableReport{CableLock: true}, nil, true).
-							MockChargepointCableLockReport(&chargepoint.CableReport{CableLock: false}, errTest, true).
-							MockChargepointCableLockReport(&chargepoint.CableReport{CableLock: true}, nil, true).
-							MockChargepointCableLockReport(&chargepoint.CableReport{CableLock: false}, nil, true). // should be sent twice
 							MockChargepointCurrentSessionReport(&chargepoint.SessionReport{SessionEnergy: 1.23}, nil, true).
 							MockChargepointCurrentSessionReport(nil, errTest, true).
 							MockChargepointCurrentSessionReport(&chargepoint.SessionReport{SessionEnergy: 1.23}, nil, true).
@@ -36,16 +32,22 @@ func TestTaskReporting(t *testing.T) { //nolint:paralleltest
 							MockChargepointStateReport("", errTest, true).
 							MockChargepointStateReport("ready_to_charge", nil, true).
 							MockChargepointStateReport("charging", nil, true), // should be sent twice
-						mockedchargepoint.NewAdjustableCurrentController(t).
+						mockedchargepoint.NewAdjustableMaxCurrentController(t).
 							MockChargepointMaxCurrentReport(10, nil, true).
 							MockChargepointMaxCurrentReport(0, errTest, true).
 							MockChargepointMaxCurrentReport(10, nil, true).
 							MockChargepointMaxCurrentReport(8, nil, true),
+						nil,
 						mockedchargepoint.NewAdjustablePhaseModeController(t).
 							MockChargepointPhaseModeReport(chargepoint.PhaseModeNL1L2L3, nil, true).
 							MockChargepointPhaseModeReport("", errTest, true).
 							MockChargepointPhaseModeReport(chargepoint.PhaseModeNL1L2L3, nil, true).
 							MockChargepointPhaseModeReport(chargepoint.PhaseModeNL1, nil, true),
+						mockedchargepoint.NewAdjustableCableLockController(t).
+							MockChargepointCableLockReport(&chargepoint.CableReport{CableLock: false}, nil, true). // should be sent twice
+							MockChargepointCableLockReport(&chargepoint.CableReport{CableLock: true}, nil, true).
+							MockChargepointCableLockReport(&chargepoint.CableReport{CableLock: false}, errTest, true).
+							MockChargepointCableLockReport(&chargepoint.CableReport{CableLock: true}, nil, true),
 					),
 					[]adapter.SpecificationOption{
 						chargepoint.WithSupportedMaxCurrent(16),

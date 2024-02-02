@@ -73,7 +73,7 @@ func Specification(
 }
 
 // requiredInterfaces returns required interfaces by the service.
-func requiredInterfaces() []fimptype.Interface { //nolint:funlen
+func requiredInterfaces() []fimptype.Interface {
 	return []fimptype.Interface{
 		{
 			Type:      fimptype.TypeIn,
@@ -101,24 +101,6 @@ func requiredInterfaces() []fimptype.Interface { //nolint:funlen
 		},
 		{
 			Type:      fimptype.TypeIn,
-			MsgType:   CmdCableLockSet,
-			ValueType: fimpgo.VTypeBool,
-			Version:   "1",
-		},
-		{
-			Type:      fimptype.TypeIn,
-			MsgType:   CmdCableLockGetReport,
-			ValueType: fimpgo.VTypeNull,
-			Version:   "1",
-		},
-		{
-			Type:      fimptype.TypeOut,
-			MsgType:   EvtCableLockReport,
-			ValueType: fimpgo.VTypeBool,
-			Version:   "1",
-		},
-		{
-			Type:      fimptype.TypeIn,
 			MsgType:   CmdCurrentSessionGetReport,
 			ValueType: fimpgo.VTypeNull,
 			Version:   "1",
@@ -133,6 +115,30 @@ func requiredInterfaces() []fimptype.Interface { //nolint:funlen
 			Type:      fimptype.TypeOut,
 			MsgType:   router.EvtErrorReport,
 			ValueType: fimpgo.VTypeString,
+			Version:   "1",
+		},
+	}
+}
+
+// adjustableCableLockInterfaces returns interfaces for adjustable cable lock controller.
+func adjustableCableLockInterfaces() []fimptype.Interface {
+	return []fimptype.Interface{
+		{
+			Type:      fimptype.TypeIn,
+			MsgType:   CmdCableLockSet,
+			ValueType: fimpgo.VTypeBool,
+			Version:   "1",
+		},
+		{
+			Type:      fimptype.TypeIn,
+			MsgType:   CmdCableLockGetReport,
+			ValueType: fimpgo.VTypeNull,
+			Version:   "1",
+		},
+		{
+			Type:      fimptype.TypeOut,
+			MsgType:   EvtCableLockReport,
+			ValueType: fimpgo.VTypeBool,
 			Version:   "1",
 		},
 	}

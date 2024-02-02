@@ -27,11 +27,17 @@ func TestRouteCarCharger(t *testing.T) { //nolint:paralleltest
 				Name:     "other successful routing",
 				TearDown: adapterhelper.TearDownAdapter("../../testdata/adapter/test_adapter"),
 				Setup: routeCarCharger(
-					mockedchargepoint.NewController(t).
-						MockSetChargepointCableLock(true, nil, false).
-						MockChargepointCableLockReport(&chargepoint.CableReport{CableLock: true}, nil, false).
-						MockChargepointStateReport("charging", nil, false).
-						MockChargepointCurrentSessionReport(&chargepoint.SessionReport{SessionEnergy: 1.74}, nil, false),
+					mockedchargepoint.NewMockedChargepoint(
+						mockedchargepoint.NewController(t).
+							MockChargepointStateReport("charging", nil, false).
+							MockChargepointCurrentSessionReport(&chargepoint.SessionReport{SessionEnergy: 1.74}, nil, false),
+						nil,
+						nil,
+						nil,
+						mockedchargepoint.NewAdjustableCableLockController(t).
+							MockSetChargepointCableLock(true, nil, false).
+							MockChargepointCableLockReport(&chargepoint.CableReport{CableLock: true}, nil, false),
+					),
 					mockednumericmeter.NewReporter(t).
 						MockMeterReport("W", 2, nil, false).
 						MockMeterReport("kWh", 123.45, nil, false),
@@ -96,10 +102,16 @@ func TestTaskCarCharger(t *testing.T) { //nolint:paralleltest
 				Name:     "Car charger tasks",
 				TearDown: adapterhelper.TearDownAdapter("../../testdata/adapter/test_adapter"),
 				Setup: taskCarCharger(
-					mockedchargepoint.NewController(t).
-						MockChargepointCableLockReport(&chargepoint.CableReport{CableLock: true}, nil, false).
-						MockChargepointCurrentSessionReport(&chargepoint.SessionReport{SessionEnergy: 1.23}, nil, false).
-						MockChargepointStateReport("ready_to_charge", nil, false),
+					mockedchargepoint.NewMockedChargepoint(
+						mockedchargepoint.NewController(t).
+							MockChargepointCurrentSessionReport(&chargepoint.SessionReport{SessionEnergy: 1.23}, nil, false).
+							MockChargepointStateReport("ready_to_charge", nil, false),
+						nil,
+						nil,
+						nil,
+						mockedchargepoint.NewAdjustableCableLockController(t).
+							MockChargepointCableLockReport(&chargepoint.CableReport{CableLock: true}, nil, false),
+					),
 					mockednumericmeter.NewReporter(t).
 						MockMeterReport("W", 1500, nil, false).
 						MockMeterReport("kWh", 123.56, nil, false),
@@ -125,7 +137,7 @@ func TestTaskCarCharger(t *testing.T) { //nolint:paralleltest
 }
 
 func routeCarCharger(
-	chargepointController *mockedchargepoint.Controller,
+	chargepointController chargepoint.Controller,
 	meterElecReporter *mockednumericmeter.Reporter,
 ) suite.BaseSetup {
 	return func(t *testing.T, mqtt *fimpgo.MqttTransport) ([]*router.Routing, []*task.Task, []suite.Mock) {
@@ -138,7 +150,7 @@ func routeCarCharger(
 }
 
 func taskCarCharger(
-	chargepointController *mockedchargepoint.Controller,
+	chargepointController chargepoint.Controller,
 	meterElecReporter *mockednumericmeter.Reporter,
 	interval time.Duration,
 ) suite.BaseSetup {
@@ -154,13 +166,18 @@ func taskCarCharger(
 func setupCarCharger(
 	t *testing.T,
 	mqtt *fimpgo.MqttTransport,
-	chargepointController *mockedchargepoint.Controller,
+	chargepointController chargepoint.Controller,
 	meterElecReporter *mockednumericmeter.Reporter,
 	duration time.Duration,
 ) ([]*router.Routing, []*task.Task, []suite.Mock) {
 	t.Helper()
 
-	mocks := []suite.Mock{chargepointController}
+	mockedController, ok := chargepointController.(suite.Mock)
+	if !ok {
+		t.Fatal("controller is not a mock")
+	}
+
+	mocks := []suite.Mock{mockedController}
 
 	cfg := &thing.CarChargerConfig{
 		ThingConfig: &adapter.ThingConfig{

@@ -27,10 +27,6 @@ type Controller interface {
 	StartChargepointCharging(settings *ChargingSettings) error
 	// StopChargepointCharging stops car charging.
 	StopChargepointCharging() error
-	// SetChargepointCableLock locks and unlocks the cable connector.
-	SetChargepointCableLock(bool) error
-	// ChargepointCableLockReport returns a current state of the chargepoint cable lock.
-	ChargepointCableLockReport() (*CableReport, error)
 	// ChargepointCurrentSessionReport returns cumulative energy charged during the current session.
 	ChargepointCurrentSessionReport() (*SessionReport, error)
 	// ChargepointStateReport returns a current state of the chargepoint.
@@ -56,6 +52,14 @@ type AdjustablePhaseModeController interface {
 	SetChargepointPhaseMode(PhaseMode) error
 	// ChargepointPhaseModeReport returns phase mode of a chargepoint.
 	ChargepointPhaseModeReport() (PhaseMode, error)
+}
+
+// AdjustableCableLockController is an interface representing capability of a charger device to adjust cable lock.
+type AdjustableCableLockController interface {
+	// SetChargepointCableLock locks and unlocks the cable connector.
+	SetChargepointCableLock(bool) error
+	// ChargepointCableLockReport returns a current state of the chargepoint cable lock.
+	ChargepointCableLockReport() (*CableReport, error)
 }
 
 // Service is an interface representing a waterHeater FIMP service.
@@ -94,6 +98,8 @@ type Service interface {
 	SupportsAdjustingPhaseModes() bool
 	// SupportsAdjustingOfferedCurrent returns true if the chargepoint supports adjusting offered current.
 	SupportsAdjustingOfferedCurrent() bool
+	// SupportsAdjustingCableLock returns true if the chargepoint supports adjusting cable lock.
+	SupportsAdjustingCableLock() bool
 }
 
 // Config represents a service configuration.
@@ -140,6 +146,10 @@ func NewService(
 
 	if s.SupportsAdjustingPhaseModes() {
 		cfg.Specification.EnsureInterfaces(adjustablePhaseModeInterfaces()...)
+	}
+
+	if s.SupportsAdjustingCableLock() {
+		cfg.Specification.EnsureInterfaces(adjustableCableLockInterfaces()...)
 	}
 
 	return s
@@ -194,7 +204,12 @@ func (s *service) SetCableLock(lock bool) error {
 	s.lock.Lock()
 	defer s.lock.Unlock()
 
-	err := s.controller.SetChargepointCableLock(lock)
+	controller, err := s.adjustableCableLockController()
+	if err != nil {
+		return err
+	}
+
+	err = controller.SetChargepointCableLock(lock)
 	if err != nil {
 		return fmt.Errorf("%s: failed to set cable lock to %t: %w", s.Name(), lock, err)
 	}
@@ -309,7 +324,12 @@ func (s *service) SendCableLockReport(force bool) (bool, error) {
 	s.lock.Lock()
 	defer s.lock.Unlock()
 
-	value, err := s.controller.ChargepointCableLockReport()
+	controller, err := s.adjustableCableLockController()
+	if err != nil {
+		return false, err
+	}
+
+	value, err := controller.ChargepointCableLockReport()
 	if err != nil {
 		return false, fmt.Errorf("%s: failed to retrieve cable lock report: %w", s.Name(), err)
 	}
@@ -472,6 +492,13 @@ func (s *service) SupportsAdjustingPhaseModes() bool {
 	return err == nil
 }
 
+// SupportsAdjustingCableLock returns true if the chargepoint supports adjusting phase modes.
+func (s *service) SupportsAdjustingCableLock() bool {
+	_, err := s.adjustableCableLockController()
+
+	return err == nil
+}
+
 // adjustableMaxCurrentController returns the AdjustableMaxCurrentController, if supported.
 func (s *service) adjustableMaxCurrentController() (AdjustableMaxCurrentController, error) {
 	_, ok := s.Specification().PropertyInteger(PropertySupportedMaxCurrent)
@@ -512,6 +539,16 @@ func (s *service) adjustablePhaseModeController() (AdjustablePhaseModeController
 	controller, ok := s.controller.(AdjustablePhaseModeController)
 	if !ok {
 		return nil, fmt.Errorf("%s: adjusting phase modes is not supported", s.Name())
+	}
+
+	return controller, nil
+}
+
+// adjustableCableLockController returns the AdjustableCableLockController, if supported.
+func (s *service) adjustableCableLockController() (AdjustableCableLockController, error) {
+	controller, ok := s.controller.(AdjustableCableLockController)
+	if !ok {
+		return nil, fmt.Errorf("%s: adjusting cable lock is not supported", s.Name())
 	}
 
 	return controller, nil
