@@ -98,6 +98,8 @@ type Service interface {
 	SupportsAdjustingPhaseModes() bool
 	// SupportsAdjustingOfferedCurrent returns true if the chargepoint supports adjusting offered current.
 	SupportsAdjustingOfferedCurrent() bool
+	// SupportsAdjustingCableLock returns true if the chargepoint supports adjusting cable lock.
+	SupportsAdjustingCableLock() bool
 }
 
 // Config represents a service configuration.
