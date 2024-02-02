@@ -618,7 +618,6 @@ func TestRouteService(t *testing.T) { //nolint:paralleltest
 				Setup: routeService(
 					mockedchargepoint.NewMockedChargepoint(
 						mockedchargepoint.NewController(t).
-							//MockChargepointCableLockReport(&chargepoint.CableReport{CableLock: false}, errTest, false).
 							MockChargepointStateReport("", errTest, true).
 							MockChargepointCurrentSessionReport(nil, errTest, true),
 						mockedchargepoint.NewAdjustableMaxCurrentController(t).
