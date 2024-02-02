@@ -24,7 +24,6 @@ func TestTaskReporting(t *testing.T) { //nolint:paralleltest
 				Setup: taskChargepoint(
 					mockedchargepoint.NewMockedChargepoint(
 						mockedchargepoint.NewController(t).
-							MockChargepointCableLockReport(&chargepoint.CableReport{CableLock: false}, nil, true). // should be sent twice
 							MockChargepointCurrentSessionReport(&chargepoint.SessionReport{SessionEnergy: 1.23}, nil, true).
 							MockChargepointCurrentSessionReport(nil, errTest, true).
 							MockChargepointCurrentSessionReport(&chargepoint.SessionReport{SessionEnergy: 1.23}, nil, true).
@@ -45,6 +44,7 @@ func TestTaskReporting(t *testing.T) { //nolint:paralleltest
 							MockChargepointPhaseModeReport(chargepoint.PhaseModeNL1L2L3, nil, true).
 							MockChargepointPhaseModeReport(chargepoint.PhaseModeNL1, nil, true),
 						mockedchargepoint.NewAdjustableCableLockController(t).
+							MockChargepointCableLockReport(&chargepoint.CableReport{CableLock: false}, nil, true). // should be sent twice
 							MockChargepointCableLockReport(&chargepoint.CableReport{CableLock: true}, nil, true).
 							MockChargepointCableLockReport(&chargepoint.CableReport{CableLock: false}, errTest, true).
 							MockChargepointCableLockReport(&chargepoint.CableReport{CableLock: true}, nil, true),
