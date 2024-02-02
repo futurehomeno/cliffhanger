@@ -546,11 +546,6 @@ func (s *service) adjustablePhaseModeController() (AdjustablePhaseModeController
 
 // adjustableCableLockController returns the AdjustableCableLockController, if supported.
 func (s *service) adjustableCableLockController() (AdjustableCableLockController, error) {
-	_, ok := s.Specification().PropertyInteger(PropertySupportedCableLock)
-	if !ok {
-		return nil, fmt.Errorf("%s: adjusting cable lock is not supported", s.Name())
-	}
-
 	controller, ok := s.controller.(AdjustableCableLockController)
 	if !ok {
 		return nil, fmt.Errorf("%s: adjusting cable lock is not supported", s.Name())

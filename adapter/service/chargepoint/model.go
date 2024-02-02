@@ -17,7 +17,6 @@ const (
 	PropertyCableCurrent           = "cable_current"
 	PropertySupportedMaxCurrent    = "sup_max_current"
 	PropertySupportedPhaseModes    = "sup_phase_modes"
-	PropertySupportedCableLock     = "sup_cable_lock"
 	PropertyGridType               = "grid_type"
 	PropertyPhases                 = "phases"
 
