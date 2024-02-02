@@ -527,6 +527,7 @@ func TestRouteService(t *testing.T) { //nolint:paralleltest
 						mockedchargepoint.NewController(t),
 						nil,
 						nil,
+						nil,
 						mockedchargepoint.NewAdjustablePhaseModeController(t),
 						nil,
 					),
@@ -614,6 +615,7 @@ func TestRouteService(t *testing.T) { //nolint:paralleltest
 				Setup: routeService(
 					mockedchargepoint.NewMockedChargepoint(
 						mockedchargepoint.NewController(t),
+						nil,
 						nil,
 						nil,
 						mockedchargepoint.NewAdjustablePhaseModeController(t),
