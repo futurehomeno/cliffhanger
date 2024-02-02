@@ -73,7 +73,7 @@ func Specification(
 }
 
 // requiredInterfaces returns required interfaces by the service.
-func requiredInterfaces() []fimptype.Interface { //nolint:funlen
+func requiredInterfaces() []fimptype.Interface {
 	return []fimptype.Interface{
 		{
 			Type:      fimptype.TypeIn,
