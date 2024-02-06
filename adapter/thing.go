@@ -246,6 +246,7 @@ func (t *thing) ConnectivityReport() *ConnectivityReport {
 	if err != nil {
 		log.WithError(err).Errorf("thing: failed to refresh connectivity details for thing %s", t.Address())
 	}
+
 	t.publisher.PublishThingEvent(newConnectivityEvent(t, connectivityDetails))
 
 	report := &ConnectivityReport{
