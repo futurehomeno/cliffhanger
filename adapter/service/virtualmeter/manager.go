@@ -97,7 +97,7 @@ func (m *managerWrapper) RegisterThing(thing adapter.Thing, publisher adapter.Pu
 		ReportingStrategy: nil,
 	})
 
-	log.Infof("manager: registering a service template, topic: %s", topic)
+	log.Debugf("manager: registering a service template, topic: %s", topic)
 
 	device, err := m.storage.Device(topic)
 
@@ -116,7 +116,7 @@ func (m *managerWrapper) RegisterThing(thing adapter.Thing, publisher adapter.Pu
 	newDevice := &Device{
 		Modes:           nil,
 		Active:          false,
-		LastTimeUpdated: time.Now().Format(time.RFC3339),
+		LastTimeUpdated: time.Now(),
 	}
 
 	m.virtualServices[topic] = srv
@@ -151,7 +151,7 @@ func (m *manager) add(topic string, modes map[string]float64, unit string) error
 	}
 
 	oldModes := device.Modes
-	if oldModes != nil {
+	if len(oldModes) > 0 {
 		if _, err := m.recalculateEnergy(true, device); err != nil {
 			return fmt.Errorf("manager: failed to update energy: %w", err)
 		}
@@ -252,7 +252,7 @@ func (m *manager) update(topic, newMode string, newLevel float64) error {
 		return fmt.Errorf("manager: failed to update energy by topic %s: %w", topic, err)
 	}
 
-	log.Infof("Updating with the following values: mode %s, level %v", newMode, newLevel)
+	log.Debugf("Updating with the following values: mode %s, level %v", newMode, newLevel)
 
 	device.Level = newLevel
 	device.CurrentMode = newMode
@@ -314,7 +314,7 @@ func (m *manager) reset(topic string) error {
 	}
 
 	device.AccumulatedEnergy = 0
-	device.LastTimeUpdated = time.Now().Format(time.RFC3339)
+	device.LastTimeUpdated = time.Now()
 
 	if err := m.storage.SetDevice(topic, device); err != nil {
 		return fmt.Errorf("manager: failed to update device when reset by topic %s: %w", topic, err)
@@ -367,16 +367,11 @@ func (m *manager) recalculateEnergy(force bool, d *Device) (bool, error) {
 			return false, nil
 		}
 
-		lastUpdated, err := time.Parse(time.RFC3339, d.LastTimeUpdated)
-		if err != nil {
-			return false, fmt.Errorf("manager: can't parse lastUpdated time (%s): %w", d.LastTimeUpdated, err)
-		}
-
-		if !force && time.Since(lastUpdated) < m.energyRecalculationPeriod {
+		if !force && time.Since(d.LastTimeUpdated) < m.energyRecalculationPeriod {
 			return false, nil
 		}
 
-		timeSinceUpdated := time.Since(lastUpdated)
+		timeSinceUpdated := time.Since(d.LastTimeUpdated)
 
 		if 2*m.energyRecalculationPeriod < timeSinceUpdated {
 			log.Warnf("Recalculating enegry after a long interuption. Accounting for 2 recalculation periods only." +
@@ -387,11 +382,12 @@ func (m *manager) recalculateEnergy(force bool, d *Device) (bool, error) {
 
 		increase := timeSinceUpdatedHours * d.Modes[d.CurrentMode] * d.Level
 		increase /= 1000
+
 		log.Debugf("Updating accumulated energy. Current values: %v, increase (Wh): %v, modes: %v, mode: %s",
 			d.AccumulatedEnergy, increase*1000, d.Modes, d.CurrentMode)
 
 		d.AccumulatedEnergy += increase
-		d.LastTimeUpdated = time.Now().Format(time.RFC3339)
+		d.LastTimeUpdated = time.Now()
 
 		return true, nil
 	}
@@ -413,37 +409,31 @@ func (m *manager) vmsAddressFromTopic(topic string) (string, error) {
 	return s[0].Topic(), nil
 }
 
-func (m *manager) normalizeOutLvlSwitchLevel(level int64, serviceAddr string) float64 {
+func (m *manager) normalizeOutLvlSwitchLevel(level int64, serviceAddr string) (float64, error) {
 	t := m.ad.ThingByTopic(serviceAddr)
 
 	if t == nil {
-		log.Errorf("manager: failed to find thing for service %s", serviceAddr)
-
-		return 0.0
+		return 0.0, fmt.Errorf("manager: failed to find thing for service %s", serviceAddr)
 	}
 
 	for _, s := range t.Services(outlvlswitch.OutLvlSwitch) {
 		if s.Topic() == serviceAddr {
 			maxLevel, _ := s.Specification().PropertyInteger(outlvlswitch.PropertyMaxLvl)
 			if maxLevel == 0 {
-				log.Errorf("manager: max level is set to zero for service %s", serviceAddr)
-
-				return 0.0
+				return 0.0, fmt.Errorf("manager: max level is set to zero for service %s", serviceAddr)
 			}
 
-			return float64(level) / float64(maxLevel)
+			return float64(level) / float64(maxLevel), nil
 		}
 	}
 
-	log.Errorf("manager: failed to find outlvlswitch service for thing %s", t.Address())
-
-	return 0.0
+	return 0.0, fmt.Errorf("manager: failed to find outlvlswitch service for thing %s", t.Address())
 }
 
 // createVirtualServicesForThing creates a virtual meter and numeric meter services' specifications depending on
 // presence of other services. Currently virtual metering is support for following services:
 // - outlvlswitch.Service.
-func (m *manager) createVirtualServicesForThing(t adapter.Thing) (*fimptype.Service, *fimptype.Service) {
+func (m *manager) createVirtualServicesForThing(t adapter.Thing) (outLvlSwitchService *fimptype.Service, numericMeterService *fimptype.Service) {
 	for _, s := range t.Services("") {
 		switch s.(type) {
 		case outlvlswitch.Service:
@@ -452,7 +442,7 @@ func (m *manager) createVirtualServicesForThing(t adapter.Thing) (*fimptype.Serv
 					m.ad.Address(),
 					t.Address(),
 					t.InclusionReport().Groups,
-					[]numericmeter.Unit{numericmeter.UnitW, numericmeter.UnitKWh},
+					[]numericmeter.Unit{numericmeter.UnitW},
 					[]string{ModeOn, ModeOff},
 				),
 				numericmeter.Specification(

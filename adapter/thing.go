@@ -74,8 +74,6 @@ type ThingConfig struct {
 	ConnectivityReportingStrategy cache.ReportingStrategy
 }
 
-type ThingUpdate func(*thing)
-
 // Thing is an interface representing FIMP thing.
 type Thing interface {
 	// Update updates the thing by applying the list of ThingUpdate functions. Sending report is optional.
@@ -174,7 +172,7 @@ func (t *thing) Services(name string) []Service {
 	return services
 }
 
-// ServiceByTopic returns a service based on lockthe topic on which it is supposed to be listening for commands.
+// ServiceByTopic returns a service based on the topic on which it is supposed to be listening for commands.
 func (t *thing) ServiceByTopic(topic string) Service {
 	t.lock.RLock()
 	defer t.lock.RUnlock()
@@ -364,6 +362,8 @@ func createConnectivityRefresher(c Connector) cache.Refresher[*ConnectivityDetai
 	}, 20*time.Second)
 }
 
+type ThingUpdate func(*thing)
+
 // Update applies provided ThingUpdate options to the thing and sends a report if requested.
 func (t *thing) Update(options ...ThingUpdate) error {
 	t.lock.Lock()
@@ -393,7 +393,7 @@ func ThingUpdateRemoveService(s Service) ThingUpdate {
 	return func(t *thing) {
 		delete(t.services, s.Topic())
 
-		newServices := make([]fimptype.Service, 0, len(t.inclusionReport.Services))
+		newServices := make([]fimptype.Service, 0)
 
 		for _, srv := range t.inclusionReport.Services {
 			if s.Topic() != srv.Address {

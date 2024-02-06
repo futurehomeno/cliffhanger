@@ -52,5 +52,17 @@ func requiredInterfaces() []fimptype.Interface {
 			ValueType: fimpgo.VTypeNull,
 			Version:   "1",
 		},
+		{
+			Type:      fimptype.TypeIn,
+			MsgType:   CmdMeterGetReport,
+			ValueType: fimpgo.VTypeNull,
+			Version:   "1",
+		},
+		{
+			Type:      fimptype.TypeOut,
+			MsgType:   EvtMeterReport,
+			ValueType: fimpgo.VTypeFloatMap,
+			Version:   "1",
+		},
 	}
 }

@@ -262,7 +262,7 @@ func TestManager_Report(t *testing.T) { //nolint:paralleltest
 				CurrentMode:       ModeOn,
 				Modes:             map[string]float64{ModeOn: 100},
 				Level:             1.0,
-				LastTimeUpdated:   time.Now().Add(-3 * recalculationPeriod).Format(time.RFC3339),
+				LastTimeUpdated:   time.Now().Add(-3 * recalculationPeriod),
 				Active:            true,
 				AccumulatedEnergy: 200,
 			},
@@ -426,19 +426,11 @@ func TestManager_RecalculateEnergy(t *testing.T) {
 			expectedEnergy: 213,
 		},
 		{
-			name: "should error when invalida timestamp is saved",
-			device: &Device{
-				Active:          true,
-				LastTimeUpdated: "invalid",
-			},
-			expectError: true,
-		},
-		{
 			name:  "should not recalculate energy when not forced and little time left",
 			force: false,
 			device: &Device{
 				Active:            true,
-				LastTimeUpdated:   time.Now().Add(recalculationPeriod + 100).Format(time.RFC3339),
+				LastTimeUpdated:   time.Now().Add(recalculationPeriod + 100),
 				AccumulatedEnergy: 331,
 			},
 			expectError:    false,
@@ -449,7 +441,7 @@ func TestManager_RecalculateEnergy(t *testing.T) {
 			force: true,
 			device: &Device{
 				Active:            true,
-				LastTimeUpdated:   time.Now().Add(-recalculationPeriod).Format(time.RFC3339),
+				LastTimeUpdated:   time.Now().Add(-recalculationPeriod),
 				AccumulatedEnergy: 123,
 				Modes: map[string]float64{
 					ModeOn: 140,
@@ -466,7 +458,7 @@ func TestManager_RecalculateEnergy(t *testing.T) {
 			force: false,
 			device: &Device{
 				Active:            true,
-				LastTimeUpdated:   time.Now().Add(-4 * recalculationPeriod).Format(time.RFC3339),
+				LastTimeUpdated:   time.Now().Add(-4 * recalculationPeriod),
 				AccumulatedEnergy: 645,
 				Modes: map[string]float64{
 					ModeOn: 190,

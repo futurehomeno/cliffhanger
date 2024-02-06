@@ -91,3 +91,11 @@ func (e *serviceEvent) setAddress(address string) {
 func (e *thingEvent) Address() string {
 	return e.address
 }
+
+func WaitForServiceEvent() event.Filter {
+	return event.WaitFor[ServiceEvent]()
+}
+
+func WaitForThingEvent() event.Filter {
+	return event.WaitFor[ThingEvent]()
+}

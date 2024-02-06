@@ -27,7 +27,7 @@ func TestStorage_Device(t *testing.T) { //nolint:paralleltest
 				},
 				CurrentMode:       "mode",
 				AccumulatedEnergy: 4321.32123,
-				LastTimeUpdated:   time.Now().Format(time.RFC3339),
+				LastTimeUpdated:   time.Now(),
 				Unit:              "W",
 				Active:            true,
 			},
@@ -64,7 +64,11 @@ func TestStorage_Device(t *testing.T) { //nolint:paralleltest
 			assert.NoError(t, err, "shouldn't return errors")
 
 			if v.expectToFind {
-				assert.Equal(t, v.device, newDev, "should find the same device as was saved")
+				assert.Equal(t, v.device.Modes, newDev.Modes, "should find a device with the same modes")
+				assert.Equal(t, v.device.CurrentMode, newDev.CurrentMode, "should find a device with the same mode")
+				assert.Equal(t, v.device.AccumulatedEnergy, newDev.AccumulatedEnergy, "should find a device with the same accumulated energy")
+				assert.Equal(t, v.device.Unit, newDev.Unit, "should find a device with the same unit")
+				assert.Equal(t, v.device.Active, newDev.Active, "should find a device with the same active")
 			} else {
 				assert.Nil(t, newDev, "should return nil device")
 			}

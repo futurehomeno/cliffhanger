@@ -19,7 +19,7 @@ type (
 		CurrentMode       string             `json:"currentMode"`
 		Level             float64            `json:"level"`
 		AccumulatedEnergy float64            `json:"accumulatedEnergy"`
-		LastTimeUpdated   string             `json:"lastTimeUpdated"`
+		LastTimeUpdated   time.Time          `json:"lastTimeUpdated"`
 		Unit              string             `json:"unit"`
 		Active            bool               `json:"active"`
 	}
@@ -60,7 +60,7 @@ func (s *Storage) DeleteDevice(addr string) error {
 	device := Device{
 		Modes:           nil,
 		Active:          false,
-		LastTimeUpdated: time.Now().Format(time.RFC3339),
+		LastTimeUpdated: time.Now(),
 	}
 
 	if err := s.db.Set(keyDevice, addr, device); err != nil {

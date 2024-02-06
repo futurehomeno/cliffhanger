@@ -119,10 +119,13 @@ func (s *service) AddMeter(modes map[string]float64, unit string) error {
 		return fmt.Errorf("service: %s: unsupported unit is provided: %s. Supported: %v", s.Name(), unit, supportedUnits)
 	}
 
+	if len(modes) != len(s.Specification().PropertyStrings(PropertySupportedModes)) {
+		return fmt.Errorf("service: %s: number of modes is not equal to the number of supported modes", s.Name())
+	}
+
 	for mode := range modes {
 		if !slices.Contains(s.Specification().PropertyStrings(PropertySupportedModes), mode) {
-			log.Infof("Provided unsupported mode: %s. Removing. Supported: %v", mode, s.Specification().PropertyStrings(PropertySupportedModes))
-			delete(modes, mode)
+			return fmt.Errorf("service: %s: unsupported mode is provided: %s. Supported: %v", s.Name(), mode, s.Specification().PropertyStrings(PropertySupportedModes))
 		}
 	}
 
