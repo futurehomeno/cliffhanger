@@ -5,35 +5,40 @@ import (
 	"github.com/futurehomeno/cliffhanger/prime"
 )
 
-const Domain = "prime"
+const (
+	Domain = "prime"
+	Class  = "observer"
+)
 
-type ComponentEvent struct {
-	Component string
-	Command   string
-	ID        int
-}
+type (
+	ComponentEvent struct {
+		event.Event
 
-func newComponentEvent(component string, command string, id int) *event.Event {
-	return &event.Event{
-		Domain: Domain,
-		Payload: &ComponentEvent{
-			Component: component,
-			Command:   command,
-			ID:        id,
-		},
+		Component string
+		Command   string
+		ID        int
+	}
+
+	RefreshEvent struct {
+		event.Event
+
+		Components []string
+	}
+)
+
+func newComponentEvent(component string, command string, id int) event.Event {
+	return &ComponentEvent{
+		Event:     event.New(Domain, Class),
+		Component: component,
+		Command:   command,
+		ID:        id,
 	}
 }
 
-type RefreshEvent struct {
-	Components []string
-}
-
-func newRefreshEvent(components []string) *event.Event {
-	return &event.Event{
-		Domain: Domain,
-		Payload: &RefreshEvent{
-			Components: components,
-		},
+func newRefreshEvent(components []string) event.Event {
+	return &RefreshEvent{
+		Event:      event.New(Domain, Class),
+		Components: components,
 	}
 }
 
@@ -78,8 +83,8 @@ func WaitForAreaChange() event.Filter {
 }
 
 func WaitForComponent(component string, commands ...string) event.Filter {
-	return event.FilterFn(func(event *event.Event) bool {
-		e, ok := event.Payload.(*ComponentEvent)
+	return event.FilterFn(func(event event.Event) bool {
+		e, ok := event.(*ComponentEvent)
 		if !ok {
 			return false
 		}
@@ -103,8 +108,8 @@ func WaitForComponent(component string, commands ...string) event.Filter {
 }
 
 func WaitForRefresh(component string) event.Filter {
-	return event.FilterFn(func(event *event.Event) bool {
-		e, ok := event.Payload.(*RefreshEvent)
+	return event.FilterFn(func(event event.Event) bool {
+		e, ok := event.(*RefreshEvent)
 		if !ok {
 			return false
 		}

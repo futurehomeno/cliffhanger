@@ -1,6 +1,8 @@
 package adapter
 
-// Connector is represents a service responsible for thing connection management.
+import "github.com/futurehomeno/cliffhanger/event"
+
+// Connector represents a service responsible for thing connection management.
 type Connector interface {
 	// Connectivity returns a connectivity report for the thing.
 	Connectivity() *ConnectivityDetails
@@ -130,4 +132,22 @@ type ConnectionNode struct {
 	Address string `json:"address"`
 	Type    string `json:"type"`
 	Value   string `json:"value"`
+}
+
+// ConnectivityEvent represents a connectivity event.
+type ConnectivityEvent struct {
+	ThingEvent
+
+	Connectivity *ConnectivityDetails
+}
+
+func newConnectivityEvent(t Thing, c *ConnectivityDetails) *ConnectivityEvent {
+	return &ConnectivityEvent{
+		ThingEvent:   NewThingEvent(t.Address(), nil),
+		Connectivity: c,
+	}
+}
+
+func WaitForConnectivityEvent() event.Filter {
+	return event.WaitFor[*ConnectivityEvent]()
 }

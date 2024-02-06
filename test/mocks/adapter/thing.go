@@ -164,6 +164,26 @@ func (_m *Thing) Services(name string) []adapter.Service {
 	return r0
 }
 
+// Update provides a mock function with given fields: _a0
+func (_m *Thing) Update(_a0 ...adapter.ThingUpdate) error {
+	_va := make([]interface{}, len(_a0))
+	for _i := range _a0 {
+		_va[_i] = _a0[_i]
+	}
+	var _ca []interface{}
+	_ca = append(_ca, _va...)
+	ret := _m.Called(_ca...)
+
+	var r0 error
+	if rf, ok := ret.Get(0).(func(...adapter.ThingUpdate) error); ok {
+		r0 = rf(_a0...)
+	} else {
+		r0 = ret.Error(0)
+	}
+
+	return r0
+}
+
 // NewThing creates a new instance of Thing. It also registers a testing interface on the mock and a cleanup function to assert the mocks expectations.
 // The first argument is typically a *testing.T value.
 func NewThing(t interface {

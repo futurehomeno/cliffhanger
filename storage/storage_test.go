@@ -12,6 +12,10 @@ import (
 	"github.com/futurehomeno/cliffhanger/storage"
 )
 
+const (
+	backupExtension = ".bak"
+)
+
 type testConfig struct {
 	SettingA string
 	SettingB string
@@ -152,7 +156,7 @@ func TestStorage_Save(t *testing.T) { //nolint:paralleltest
 	// model.json properly persisted on disk
 	assert.Equal(t, marshalledNewCfg, cfgFile)
 
-	backupCfgFile, err := os.ReadFile(path.Join(p, "data", config.Name+".bak"))
+	backupCfgFile, err := os.ReadFile(path.Join(p, "data", config.Name+backupExtension))
 	assert.NoError(t, err)
 
 	// backup should store the previous version of model.
@@ -171,7 +175,7 @@ func TestStorage_Reset(t *testing.T) { //nolint:paralleltest
 	assert.NoError(t, err)
 
 	//nolint:gosec
-	err = os.WriteFile(path.Join(p, "data", config.Name+".bak"), configData, 0664) //nolint:gofumpt
+	err = os.WriteFile(path.Join(p, "data", config.Name+backupExtension), configData, 0664) //nolint:gofumpt
 	assert.NoError(t, err)
 
 	//nolint:gosec
@@ -188,7 +192,7 @@ func TestStorage_Reset(t *testing.T) { //nolint:paralleltest
 	assert.NoError(t, err)
 	assert.Equal(t, &testConfig{"X", "X", "X"}, store.Model())
 
-	_, err = os.Stat(path.Join(p, "data", config.Name+".bak"))
+	_, err = os.Stat(path.Join(p, "data", config.Name+backupExtension))
 	assert.True(t, os.IsNotExist(err))
 
 	_, err = os.Stat(path.Join(p, "data", config.Name))

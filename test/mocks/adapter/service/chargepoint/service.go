@@ -3,6 +3,7 @@
 package mockedchargepoint
 
 import (
+	adapter "github.com/futurehomeno/cliffhanger/adapter"
 	chargepoint "github.com/futurehomeno/cliffhanger/adapter/service/chargepoint"
 	fimpgo "github.com/futurehomeno/fimpgo"
 
@@ -28,6 +29,11 @@ func (_m *Service) Name() string {
 	}
 
 	return r0
+}
+
+// PublishEvent provides a mock function with given fields: event
+func (_m *Service) PublishEvent(event adapter.ServiceEvent) {
+	_m.Called(event)
 }
 
 // SendCableLockReport provides a mock function with given fields: force

@@ -14,9 +14,9 @@ func TestListener(t *testing.T) {
 
 	finishCh := make(chan struct{})
 
-	processor := event.ProcessorFn(func(e *event.Event) {
-		assert.Equal(t, e.Domain, "test3")
-		assert.Equal(t, e.Payload, "test3")
+	processor := event.ProcessorFn(func(e event.Event) {
+		assert.Equal(t, e.Domain(), "test3")
+		assert.Equal(t, e.Class(), "test3")
 
 		close(finishCh)
 	})
@@ -24,11 +24,13 @@ func TestListener(t *testing.T) {
 	manager := event.NewManager()
 
 	listener := event.NewListener(
-		processor,
 		manager,
-		"test_sub_id",
-		10,
-		event.WaitForDomain("test3"),
+		event.NewHandler(
+			processor,
+			"test_sub_id",
+			10,
+			event.WaitForDomain("test3"),
+		),
 	)
 
 	err := listener.Start()
@@ -60,24 +62,26 @@ func TestListener_Process(t *testing.T) {
 
 	finishCh := make(chan struct{})
 
-	processor := event.ProcessorFn(func(e *event.Event) {
-		assert.Equal(t, e.Domain, "test")
+	processor := event.ProcessorFn(func(e event.Event) {
+		assert.Equal(t, e.Domain(), "test")
 
-		if e.Payload == "test1" {
+		if e.Class() == "test1" {
 			panic("test panic")
-		} else {
-			close(finishCh)
 		}
+
+		close(finishCh)
 	})
 
 	manager := event.NewManager()
 
 	listener := event.NewListener(
-		processor,
 		manager,
-		"test_sub_id",
-		10,
-		event.WaitForDomain("test"),
+		event.NewHandler(
+			processor,
+			"test_sub_id",
+			10,
+			event.WaitForDomain("test"),
+		),
 	)
 
 	err := listener.Start()

@@ -136,6 +136,8 @@ func (s *service) SendLevelReport(force bool) (bool, error) {
 	}
 
 	if !force && !s.reportingCache.ReportRequired(s.reportingStrategy, EvtLvlReport, "", value) {
+		s.Service.PublishEvent(newLevelEvent(EvtLvlReport, false, value))
+
 		return false, nil
 	}
 
@@ -154,6 +156,7 @@ func (s *service) SendLevelReport(force bool) (bool, error) {
 	}
 
 	s.reportingCache.Reported(EvtLvlReport, "", value)
+	s.Service.PublishEvent(newLevelEvent(EvtLvlReport, true, value))
 
 	return true, nil
 }

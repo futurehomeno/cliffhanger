@@ -14,15 +14,15 @@ func TestManager_Publish(t *testing.T) {
 
 	tcs := []struct {
 		name    string
-		publish []*event.Event
+		publish []event.Event
 		subID   string
 		filters []event.Filter
 		buffer  int
-		want    []*event.Event
+		want    []event.Event
 	}{
 		{
 			name: "Published events overflowing subscription buffer",
-			publish: []*event.Event{
+			publish: []event.Event{
 				event.New("test1", "test1"),
 				event.New("test2", "test2"),
 				event.New("test3", "test3"),
@@ -30,14 +30,14 @@ func TestManager_Publish(t *testing.T) {
 			subID:   "test",
 			buffer:  2,
 			filters: nil,
-			want: []*event.Event{
+			want: []event.Event{
 				event.New("test1", "test1"),
 				event.New("test2", "test2"),
 			},
 		},
 		{
 			name: "Published events filtered out",
-			publish: []*event.Event{
+			publish: []event.Event{
 				event.New("test1", "test1"),
 				event.New("test2", "test2"),
 				event.New("test3", "test3"),
@@ -45,22 +45,22 @@ func TestManager_Publish(t *testing.T) {
 			subID:   "test",
 			buffer:  3,
 			filters: []event.Filter{event.Or(event.WaitForDomain("test1"), event.WaitForDomain("test2"))},
-			want: []*event.Event{
+			want: []event.Event{
 				event.New("test1", "test1"),
 				event.New("test2", "test2"),
 			},
 		},
 		{
 			name: "Published events filtered out",
-			publish: []*event.Event{
+			publish: []event.Event{
 				event.New("test1", "test1"),
 				event.New("test2", "test2"),
 				event.New("test3", "test3"),
 			},
 			subID:   "test",
 			buffer:  3,
-			filters: []event.Filter{event.And(event.WaitForDomain("test1"), event.WaitForPayload("test1"))},
-			want: []*event.Event{
+			filters: []event.Filter{event.And(event.WaitForDomain("test1"), event.WaitForClass("test1"))},
+			want: []event.Event{
 				event.New("test1", "test1"),
 			},
 		},
@@ -83,7 +83,7 @@ func TestManager_Publish(t *testing.T) {
 
 			close(subscription)
 
-			var got []*event.Event
+			var got []event.Event
 
 			for e := range subscription {
 				got = append(got, e)
@@ -92,8 +92,8 @@ func TestManager_Publish(t *testing.T) {
 			assert.Equal(t, len(tc.want), len(got))
 
 			for i, e := range got {
-				assert.Equal(t, tc.want[i].Domain, e.Domain)
-				assert.Equal(t, tc.want[i].Payload, e.Payload)
+				assert.Equal(t, tc.want[i].Domain(), e.Domain())
+				assert.Equal(t, tc.want[i].Class(), e.Class())
 			}
 		})
 	}
@@ -123,19 +123,19 @@ func TestManager_WaitFor(t *testing.T) {
 		name    string
 		filters []event.Filter
 		timeout time.Duration
-		publish *event.Event
-		want    *event.Event
+		publish event.Event
+		want    event.Event
 	}{
 		{
 			name:    "Published waited for event",
-			filters: []event.Filter{event.WaitForDomain("test1"), event.WaitForPayload("test1")},
+			filters: []event.Filter{event.WaitForDomain("test1"), event.WaitForClass("test1")},
 			timeout: 100 * time.Millisecond,
 			publish: event.New("test1", "test1"),
 			want:    event.New("test1", "test1"),
 		},
 		{
 			name:    "Published event with different values",
-			filters: []event.Filter{event.WaitForDomain("test1"), event.WaitForPayload("test1")},
+			filters: []event.Filter{event.WaitForDomain("test1"), event.WaitForClass("test1")},
 			timeout: 100 * time.Millisecond,
 			publish: event.New("test2", "test2"),
 			want:    nil,

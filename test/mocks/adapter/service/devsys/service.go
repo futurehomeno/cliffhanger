@@ -3,7 +3,10 @@
 package mockeddevsys
 
 import (
+	adapter "github.com/futurehomeno/cliffhanger/adapter"
+
 	fimpgo "github.com/futurehomeno/fimpgo"
+
 	fimptype "github.com/futurehomeno/fimpgo/fimptype"
 
 	mock "github.com/stretchr/testify/mock"
@@ -26,6 +29,11 @@ func (_m *Service) Name() string {
 	}
 
 	return r0
+}
+
+// PublishEvent provides a mock function with given fields: event
+func (_m *Service) PublishEvent(event adapter.ServiceEvent) {
+	_m.Called(event)
 }
 
 // Reboot provides a mock function with given fields: hard

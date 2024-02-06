@@ -14,6 +14,11 @@ type ThingPublisher struct {
 	mock.Mock
 }
 
+// PublishServiceEvent provides a mock function with given fields: service, payload
+func (_m *ThingPublisher) PublishServiceEvent(service adapter.Service, payload adapter.ServiceEvent) {
+	_m.Called(service, payload)
+}
+
 // PublishServiceMessage provides a mock function with given fields: service, message
 func (_m *ThingPublisher) PublishServiceMessage(service adapter.Service, message *fimpgo.FimpMessage) error {
 	ret := _m.Called(service, message)
@@ -26,6 +31,11 @@ func (_m *ThingPublisher) PublishServiceMessage(service adapter.Service, message
 	}
 
 	return r0
+}
+
+// PublishThingEvent provides a mock function with given fields: thingEvent
+func (_m *ThingPublisher) PublishThingEvent(thingEvent adapter.ThingEvent) {
+	_m.Called(thingEvent)
 }
 
 // PublishThingMessage provides a mock function with given fields: thing, message

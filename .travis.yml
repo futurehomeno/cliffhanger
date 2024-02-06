@@ -1,14 +1,14 @@
 language: go
 
 go:
-  - "1.19"
+  - 1.21.x
 
 services:
   - docker
 
 before_script:
   - docker run -d -p 11883:1883 eclipse-mosquitto:1.6.8
-  - curl -sSfL https://raw.githubusercontent.com/golangci/golangci-lint/master/install.sh | sh -s -- -b $(go env GOPATH)/bin v1.52.0
+  - curl -sSfL https://raw.githubusercontent.com/golangci/golangci-lint/master/install.sh | sh -s -- -b $(go env GOPATH)/bin v1.55.2
   - go install github.com/mattn/goveralls@latest
 
 script:
