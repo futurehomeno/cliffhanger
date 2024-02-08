@@ -74,7 +74,7 @@ func TestStorage_Device(t *testing.T) { //nolint:paralleltest
 			}
 
 			if v.expectToFind {
-				err := storage.DeleteDevice(v.setAddr)
+				err := storage.CleanDevice(v.setAddr)
 				assert.NoError(t, err, "should not error on remove")
 
 				newDev, err = storage.Device(v.setAddr)

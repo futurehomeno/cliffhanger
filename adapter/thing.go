@@ -92,6 +92,8 @@ type Thing interface {
 	SendInclusionReport(force bool) (bool, error)
 	// ConnectivityReport returns a connectivity report of the thing.
 	ConnectivityReport() *ConnectivityReport
+	// ConnectivityCache returns connectivity details used within report.
+	ConnectivityCache() *ConnectivityDetails
 	// SendConnectivityReport sends connectivity report of the thing.
 	// If force is true, report is sent even if it did not change from previously sent one.
 	SendConnectivityReport(force bool) (bool, error)
@@ -129,7 +131,6 @@ func NewThing(
 		connector:                     cfg.Connector,
 		reportingCache:                cache.NewReportingCache(),
 		connectivityReportingStrategy: cfg.ConnectivityReportingStrategy,
-		connectivityRefresher:         createConnectivityRefresher(cfg.Connector),
 		inclusionReport:               cfg.InclusionReport,
 		services:                      servicesIndex,
 		lock:                          &sync.RWMutex{},
@@ -143,7 +144,7 @@ type thing struct {
 	connector                     Connector
 	reportingCache                cache.ReportingCache
 	connectivityReportingStrategy cache.ReportingStrategy
-	connectivityRefresher         cache.Refresher[*ConnectivityDetails]
+	connectivityCache             *ConnectivityDetails
 	inclusionReport               *fimptype.ThingInclusionReport
 	services                      map[string]Service
 	lock                          *sync.RWMutex
@@ -240,10 +241,8 @@ func (t *thing) ConnectivityReport() *ConnectivityReport {
 	t.lock.Lock()
 	defer t.lock.Unlock()
 
-	connectivityDetails, err := t.connectivityRefresher.Refresh()
-	if err != nil {
-		log.WithError(err).Errorf("thing: failed to refresh connectivity details for thing %s", t.Address())
-	}
+	connectivityDetails := t.connector.Connectivity()
+	t.connectivityCache = connectivityDetails
 
 	t.publisher.PublishThingEvent(newConnectivityEvent(t, connectivityDetails))
 
@@ -293,6 +292,13 @@ func (t *thing) SendConnectivityReport(force bool) (bool, error) {
 	log.Infof("thing: connectivity state of thing %s is %s", t.Address(), report.ConnectionStatus)
 
 	return true, nil
+}
+
+func (t *thing) ConnectivityCache() *ConnectivityDetails {
+	t.lock.RLock()
+	defer t.lock.RUnlock()
+
+	return t.connectivityCache
 }
 
 // SendPingReport sends ping report of the thing.
@@ -349,20 +355,7 @@ func (t *thing) Disconnect() {
 	c.Disconnect(t)
 }
 
-func createConnectivityRefresher(c Connector) cache.Refresher[*ConnectivityDetails] {
-	return cache.NewRefresher(func() (*ConnectivityDetails, error) {
-		if c == nil {
-			return &ConnectivityDetails{
-					ConnectionStatus: ConnectionStatusUp,
-				},
-				nil
-		}
-
-		return c.Connectivity(), nil
-	}, 20*time.Second)
-}
-
-type ThingUpdate func(*thing)
+type ThingUpdate func(Thing)
 
 // Update applies provided ThingUpdate options to the thing and sends a report if requested.
 func (t *thing) Update(options ...ThingUpdate) error {
@@ -381,7 +374,12 @@ func (o ThingUpdate) Apply(t *thing) {
 }
 
 func ThingUpdateAddService(s Service) ThingUpdate {
-	return func(t *thing) {
+	return func(tt Thing) {
+		t, ok := tt.(*thing)
+		if !ok {
+			return
+		}
+
 		if t.services[s.Topic()] == nil {
 			t.services[s.Topic()] = s
 			t.inclusionReport.Services = append(t.inclusionReport.Services, *s.Specification())
@@ -390,7 +388,12 @@ func ThingUpdateAddService(s Service) ThingUpdate {
 }
 
 func ThingUpdateRemoveService(s Service) ThingUpdate {
-	return func(t *thing) {
+	return func(tt Thing) {
+		t, ok := tt.(*thing)
+		if !ok {
+			return
+		}
+
 		delete(t.services, s.Topic())
 
 		newServices := make([]fimptype.Service, 0)

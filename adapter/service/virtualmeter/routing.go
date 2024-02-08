@@ -126,10 +126,10 @@ func getService(serviceRegistry adapter.ServiceRegistry, message *fimpgo.Message
 		return nil, fmt.Errorf("routing: service not found under the provided address: %s", message.Addr.ServiceAddress)
 	}
 
-	virtialMeter, ok := s.(Service)
+	virtualMeter, ok := s.(Service)
 	if !ok {
 		return nil, fmt.Errorf("routing: incorrect service found under the provided address: %s", message.Addr.ServiceAddress)
 	}
 
-	return virtialMeter, nil
+	return virtualMeter, nil
 }

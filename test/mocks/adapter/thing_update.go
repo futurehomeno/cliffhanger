@@ -3,7 +3,7 @@
 package mockedadapter
 
 import (
-	"github.com/futurehomeno/cliffhanger/adapter"
+	adapter "github.com/futurehomeno/cliffhanger/adapter"
 	mock "github.com/stretchr/testify/mock"
 )
 
@@ -13,7 +13,7 @@ type ThingUpdate struct {
 }
 
 // Execute provides a mock function with given fields: _a0
-func (_m *ThingUpdate) Execute(_a0 *adapter.Thing) {
+func (_m *ThingUpdate) Execute(_a0 adapter.Thing) {
 	_m.Called(_a0)
 }
 

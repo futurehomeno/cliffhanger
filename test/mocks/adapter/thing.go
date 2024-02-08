@@ -33,6 +33,22 @@ func (_m *Thing) Connect() {
 	_m.Called()
 }
 
+// ConnectivityCache provides a mock function with given fields:
+func (_m *Thing) ConnectivityCache() *adapter.ConnectivityDetails {
+	ret := _m.Called()
+
+	var r0 *adapter.ConnectivityDetails
+	if rf, ok := ret.Get(0).(func() *adapter.ConnectivityDetails); ok {
+		r0 = rf()
+	} else {
+		if ret.Get(0) != nil {
+			r0 = ret.Get(0).(*adapter.ConnectivityDetails)
+		}
+	}
+
+	return r0
+}
+
 // ConnectivityReport provides a mock function with given fields:
 func (_m *Thing) ConnectivityReport() *adapter.ConnectivityReport {
 	ret := _m.Called()

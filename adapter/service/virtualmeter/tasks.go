@@ -13,12 +13,20 @@ import (
 // Tasks creates tasks for virtual meter that is:
 // - reporting task
 // - state polling task.
-func Tasks(serviceRegistry adapter.ServiceRegistry, reportingInterval, pollingInterval time.Duration, voters ...task.Voter) []*task.Task {
+func Tasks(
+	serviceRegistry adapter.ServiceRegistry,
+	mr ManagerWrapper,
+	reportingInterval,
+	pollingInterval,
+	cleaningInterval time.Duration,
+	voters ...task.Voter,
+) []*task.Task {
 	voters = append(voters, adapter.IsRegistryInitialized(serviceRegistry))
 
 	return task.Combine(
 		task.New(handleReporting(serviceRegistry), reportingInterval, voters...),
 		task.New(handleStatePolling(serviceRegistry), pollingInterval, voters...),
+		task.New(handleGarbageCleaning(serviceRegistry, mr), cleaningInterval, voters...),
 	)
 }
 
@@ -50,6 +58,28 @@ func handleStatePolling(sr adapter.ServiceRegistry) func() {
 			_, err := levelSwitch.SendLevelReport(false)
 			if err != nil {
 				log.WithError(err).Errorf("task(vms): failed to get level switch level")
+			}
+		}
+	}
+}
+
+func handleGarbageCleaning(sr adapter.ServiceRegistry, mr ManagerWrapper) func() {
+	m, ok := mr.(*managerWrapper)
+	if !ok {
+		log.Errorf("task(vms): failed to cast manager to *managerWrapper during garbage cleaning")
+
+		return func() {}
+	}
+
+	return func() {
+		for _, s := range sr.Services(VirtualMeterElec) {
+			vmeter, ok := s.(Service)
+			if !ok {
+				continue
+			}
+
+			if err := m.manager.deleteDeviceEntry(vmeter.Topic()); err != nil {
+				log.WithError(err).Errorf("task(vms): failed to clean garbage")
 			}
 		}
 	}

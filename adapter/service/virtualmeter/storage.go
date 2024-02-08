@@ -31,7 +31,7 @@ type (
 )
 
 func (d *Device) Initialised() bool {
-	return d.Modes != nil
+	return len(d.Modes) > 0
 }
 
 func NewStorage(db database.Database) *Storage {
@@ -52,8 +52,8 @@ func (s *Storage) SetDevice(addr string, d *Device) error {
 	return nil
 }
 
-// DeleteDevice marks device as inactive by removing modes.
-func (s *Storage) DeleteDevice(addr string) error {
+// CleanDevice marks device as inactive by removing modes.
+func (s *Storage) CleanDevice(addr string) error {
 	s.lock.Lock()
 	defer s.lock.Unlock()
 
@@ -65,6 +65,17 @@ func (s *Storage) DeleteDevice(addr string) error {
 
 	if err := s.db.Set(keyDevice, addr, device); err != nil {
 		return fmt.Errorf("storage: failed to mark as deleted by addr - %s: %w", addr, err)
+	}
+
+	return nil
+}
+
+func (s *Storage) DeleteDevice(addr string) error {
+	s.lock.Lock()
+	defer s.lock.Unlock()
+
+	if err := s.db.Delete(keyDevice, addr); err != nil {
+		return fmt.Errorf("storage: failed to delete device by addr - %s: %w", addr, err)
 	}
 
 	return nil

@@ -38,7 +38,7 @@ func TestHandlerLevelEvent(t *testing.T) { //nolint:paralleltest
 				Name:    VirtualMeterElec,
 				Address: "",
 			},
-			ManagerWrapper: NewManagerWrapper(nil, 0),
+			ManagerWrapper: NewManagerWrapper(nil, 0, time.Hour),
 		},
 	)
 
@@ -51,7 +51,8 @@ func TestHandlerLevelEvent(t *testing.T) { //nolint:paralleltest
 		{
 			name: "level shouldn't call update if level hasn't changed and update isn't required",
 			thing: mockedadapter.NewThing(t).
-				WithServices(VirtualMeterElec, true, []adapter.Service{vms}),
+				WithServices(VirtualMeterElec, true, []adapter.Service{vms}).
+				WithServices(outlvlswitch.OutLvlSwitch, true, []adapter.Service{lvlService}),
 			levelEvent: &outlvlswitch.LevelEvent{
 				Level:        0,
 				ServiceEvent: adapter.NewServiceEvent("type", false),
@@ -68,7 +69,7 @@ func TestHandlerLevelEvent(t *testing.T) { //nolint:paralleltest
 				ServiceEvent: adapter.NewServiceEvent("type", true),
 			},
 			expectedDevice: &Device{
-				Modes:       make(map[string]float64),
+				Modes:       map[string]float64{ModeOn: 100},
 				CurrentMode: ModeOn,
 				Level:       0.13,
 			},
@@ -83,7 +84,7 @@ func TestHandlerLevelEvent(t *testing.T) { //nolint:paralleltest
 				ServiceEvent: adapter.NewServiceEvent("type", true),
 			},
 			expectedDevice: &Device{
-				Modes:       make(map[string]float64),
+				Modes:       map[string]float64{ModeOn: 100},
 				Level:       0,
 				CurrentMode: ModeOff,
 			},
@@ -96,7 +97,8 @@ func TestHandlerLevelEvent(t *testing.T) { //nolint:paralleltest
 			defer adapterhelper.TearDownAdapter(workdir)[0](t)
 
 			db, _ := database.NewDatabase(workdir)
-			m := NewManagerWrapper(db, 0).Manager()
+			mr := NewManagerWrapper(db, 0, time.Hour)
+			m := mr.(*managerWrapper).manager //nolint:forcetypeassert
 
 			if v.thing != nil {
 				m.ad = mockedadapter.NewAdapter(t).WithThingByTopic("", false, v.thing)
@@ -104,11 +106,11 @@ func TestHandlerLevelEvent(t *testing.T) { //nolint:paralleltest
 			}
 
 			if v.expectedDevice != nil {
-				err := m.storage.SetDevice("", &Device{Modes: make(map[string]float64)})
+				err := m.storage.SetDevice("", &Device{Modes: map[string]float64{ModeOn: 100}})
 				assert.NoError(t, err, "should set a device at start")
 			}
 
-			handlers := NewHandlers(m)
+			handlers := NewHandlers(mr)
 			eventManager := event.NewManager()
 			listener := event.NewListener(eventManager, handlers...)
 
@@ -157,7 +159,8 @@ func TestHandlerConnectivityEvent(t *testing.T) { //nolint:paralleltest
 			defer adapterhelper.TearDownAdapter(workdir)[0](t)
 
 			db, _ := database.NewDatabase(workdir)
-			m := NewManagerWrapper(db, 0).Manager()
+			mr := NewManagerWrapper(db, 0, time.Hour)
+			m := mr.(*managerWrapper).manager //nolint:forcetypeassert
 
 			if v.thing != nil {
 				m.ad = mockedadapter.NewAdapter(t).WithThingByAddress("ad1", true, v.thing)
@@ -169,7 +172,7 @@ func TestHandlerConnectivityEvent(t *testing.T) { //nolint:paralleltest
 				assert.NoError(t, err, "should set a device at start")
 			}
 
-			handlers := NewHandlers(m)
+			handlers := NewHandlers(mr)
 			eventManager := event.NewManager()
 			listener := event.NewListener(eventManager, handlers...)
 

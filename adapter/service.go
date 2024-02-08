@@ -52,7 +52,11 @@ func ShouldSkipServiceTask(serviceRegistry ServiceRegistry, service Service) boo
 		return false
 	}
 
-	return t.ConnectivityReport().ConnectionStatus == ConnectionStatusDown
+	if t.ConnectivityCache() == nil {
+		return t.ConnectivityReport().ConnectionStatus == ConnectionStatusDown
+	}
+
+	return t.ConnectivityCache().ConnectionStatus == ConnectionStatusDown
 }
 
 // SpecificationOption is an interface representing a particular service specification option.
