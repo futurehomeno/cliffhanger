@@ -23,7 +23,9 @@ func TestRouteService(t *testing.T) { //nolint:paralleltest
 			{
 				Name:     "fan ctrl get report",
 				TearDown: adapterhelper.TearDownAdapter("../../testdata/adapter/test_adapter"),
-				Setup:    routeService(modeGetController(t, "normal")),
+				Setup: routeService(mockedfanctrl.NewController(t).
+					MockGetMode("normal", nil, true),
+				),
 				Nodes: []*cliffSuite.Node{
 					{
 						Name: "Cmd mode get report",
@@ -43,7 +45,10 @@ func TestRouteService(t *testing.T) { //nolint:paralleltest
 			{
 				Name:     "fan ctrl set report",
 				TearDown: adapterhelper.TearDownAdapter("../../testdata/adapter/test_adapter"),
-				Setup:    routeService(modeSetController(t, "night")),
+				Setup: routeService(mockedfanctrl.NewController(t).
+					MockSetMode("night", nil, true).
+					MockGetMode("night", nil, true),
+				),
 				Nodes: []*cliffSuite.Node{
 					{
 						Name: "Cmd mode set",
@@ -77,7 +82,9 @@ func TestRouteService(t *testing.T) { //nolint:paralleltest
 			{
 				Name:     "broken set mode in controller",
 				TearDown: adapterhelper.TearDownAdapter("../../testdata/adapter/test_adapter"),
-				Setup:    routeService(modeSetBrokenController(t)),
+				Setup: routeService(mockedfanctrl.NewController(t).
+					MockSetMode("night", errors.New("broken test controller"), true),
+				),
 				Nodes: []*cliffSuite.Node{
 					{
 						Name: "Cmd mode set with error",
@@ -93,7 +100,9 @@ func TestRouteService(t *testing.T) { //nolint:paralleltest
 			{
 				Name:     "broken get mode in controller",
 				TearDown: adapterhelper.TearDownAdapter("../../testdata/adapter/test_adapter"),
-				Setup:    routeService(modeGetBrokenController(t)),
+				Setup: routeService(mockedfanctrl.NewController(t).
+					MockGetMode("night", errors.New("broken test controller"), true),
+				),
 				Nodes: []*cliffSuite.Node{
 					{
 						Name: "Cmd mode get_report with error",
@@ -110,47 +119,6 @@ func TestRouteService(t *testing.T) { //nolint:paralleltest
 	}
 
 	s.Run(t)
-}
-
-func modeSetBrokenController(t *testing.T) *mockedfanctrl.Controller {
-	t.Helper()
-
-	controller := mockedfanctrl.NewController(t)
-
-	controller.On("SetFanCtrlMode", "night").Return(errors.New("broken test controller"))
-
-	return controller
-}
-
-func modeGetBrokenController(t *testing.T) *mockedfanctrl.Controller {
-	t.Helper()
-
-	controller := mockedfanctrl.NewController(t)
-
-	controller.On("FanCtrlModeReport").Return("", errors.New("broken test controller"))
-
-	return controller
-}
-
-func modeSetController(t *testing.T, mode string) *mockedfanctrl.Controller {
-	t.Helper()
-
-	controller := mockedfanctrl.NewController(t)
-
-	controller.On("FanCtrlModeReport").Return(mode, nil)
-	controller.On("SetFanCtrlMode", mode).Return(nil)
-
-	return controller
-}
-
-func modeGetController(t *testing.T, mode string) *mockedfanctrl.Controller {
-	t.Helper()
-
-	controller := mockedfanctrl.NewController(t)
-
-	controller.On("FanCtrlModeReport").Return(mode, nil)
-
-	return controller
 }
 
 func routeService(controller *mockedfanctrl.Controller) cliffSuite.BaseSetup {

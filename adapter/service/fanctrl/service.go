@@ -2,6 +2,7 @@ package fanctrl
 
 import (
 	"fmt"
+	"slices"
 	"sync"
 
 	"github.com/futurehomeno/fimpgo"
@@ -88,6 +89,10 @@ func (s *service) SetMode(mode string) error {
 	s.lock.Lock()
 	defer s.lock.Unlock()
 
+	if !slices.Contains(s.SupportedModes(), mode) {
+		return fmt.Errorf("mode %s is not supported", mode)
+	}
+
 	err := s.controller.SetFanCtrlMode(mode)
 	if err != nil {
 		return fmt.Errorf("failed to set mode: %w", err)
@@ -104,6 +109,10 @@ func (s *service) SendModeReport(force bool) (bool, error) {
 	mode, err := s.controller.FanCtrlModeReport()
 	if err != nil {
 		return false, fmt.Errorf("failed to get mode: %w", err)
+	}
+
+	if !slices.Contains(s.SupportedModes(), mode) {
+		return false, fmt.Errorf("mode %s is not supported", mode)
 	}
 
 	if !force && !s.reportingCache.ReportRequired(s.reportingStrategy, EvtModeReport, "", mode) {
