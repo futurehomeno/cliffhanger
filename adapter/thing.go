@@ -92,8 +92,6 @@ type Thing interface {
 	SendInclusionReport(force bool) (bool, error)
 	// ConnectivityReport returns a connectivity report of the thing.
 	ConnectivityReport() *ConnectivityReport
-	// ConnectivityCache returns connectivity details used within report.
-	ConnectivityCache() *ConnectivityDetails
 	// SendConnectivityReport sends connectivity report of the thing.
 	// If force is true, report is sent even if it did not change from previously sent one.
 	SendConnectivityReport(force bool) (bool, error)
@@ -144,7 +142,6 @@ type thing struct {
 	connector                     Connector
 	reportingCache                cache.ReportingCache
 	connectivityReportingStrategy cache.ReportingStrategy
-	connectivityCache             *ConnectivityDetails
 	inclusionReport               *fimptype.ThingInclusionReport
 	services                      map[string]Service
 	lock                          *sync.RWMutex
@@ -242,9 +239,6 @@ func (t *thing) ConnectivityReport() *ConnectivityReport {
 	defer t.lock.Unlock()
 
 	connectivityDetails := t.connector.Connectivity()
-	t.connectivityCache = connectivityDetails
-
-	t.publisher.PublishThingEvent(newConnectivityEvent(t, connectivityDetails))
 
 	report := &ConnectivityReport{
 		Address:             t.Address(),
@@ -269,6 +263,8 @@ func (t *thing) SendConnectivityReport(force bool) (bool, error) {
 	t.lock.Lock()
 	defer t.lock.Unlock()
 
+	t.publisher.PublishThingEvent(newConnectivityEvent(t, report.ConnectivityDetails))
+
 	if !force && !t.reportingCache.ReportRequired(t.connectivityReportingStrategy, EvtNetworkNodeReport, "", report) {
 		return false, nil
 	}
@@ -292,13 +288,6 @@ func (t *thing) SendConnectivityReport(force bool) (bool, error) {
 	log.Infof("thing: connectivity state of thing %s is %s", t.Address(), report.ConnectionStatus)
 
 	return true, nil
-}
-
-func (t *thing) ConnectivityCache() *ConnectivityDetails {
-	t.lock.RLock()
-	defer t.lock.RUnlock()
-
-	return t.connectivityCache
 }
 
 // SendPingReport sends ping report of the thing.
