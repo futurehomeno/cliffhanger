@@ -79,8 +79,6 @@ func (s *service) SendBinaryReport(force bool) (bool, error) {
 	}
 
 	if !force && !s.reportingCache.ReportRequired(s.reportingStrategy, EvtBinaryReport, "", value) {
-		s.Service.PublishEvent(newBinaryEvent(EvtBinaryReport, false, value))
-
 		return false, nil
 	}
 
@@ -92,7 +90,6 @@ func (s *service) SendBinaryReport(force bool) (bool, error) {
 	}
 
 	s.reportingCache.Reported(EvtBinaryReport, "", value)
-	s.Service.PublishEvent(newBinaryEvent(EvtBinaryReport, true, value))
 
 	return true, nil
 }
