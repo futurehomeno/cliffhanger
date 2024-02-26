@@ -2,6 +2,7 @@ package suite
 
 import (
 	"testing"
+	"time"
 
 	"github.com/futurehomeno/fimpgo"
 )
@@ -63,6 +64,13 @@ func (s *Suite) init(t *testing.T) {
 		s.Config.MQTTUsername,
 		s.Config.MQTTPassword,
 	)
+
+	opts := s.mqtt.Options()
+	opts.SetConnectTimeout(time.Second)
+	opts.SetPingTimeout(time.Second)
+	opts.SetAutoReconnect(false)
+
+	s.mqtt.SetOptions(opts)
 
 	err := s.mqtt.Start()
 	if err != nil {
