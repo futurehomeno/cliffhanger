@@ -4,7 +4,9 @@ import (
 	"testing"
 	"time"
 
+	"github.com/davecgh/go-spew/spew"
 	"github.com/futurehomeno/fimpgo"
+	log "github.com/sirupsen/logrus"
 )
 
 type Config struct {
@@ -71,6 +73,8 @@ func (s *Suite) init(t *testing.T) {
 	opts.SetAutoReconnect(false)
 
 	s.mqtt.SetOptions(opts)
+
+	log.Debugf("Starting the MQTT client with the following options: %s", spew.Sdump(opts))
 
 	err := s.mqtt.Start()
 	if err != nil {
