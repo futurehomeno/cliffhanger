@@ -14,35 +14,27 @@ import (
 )
 
 const (
-	// PlaybackPlay is the command to play the media.
-	PlaybackPlay PlaybackAction = "play"
-	// PlaybackPause is the command to pause the media.
-	PlaybackPause PlaybackAction = "pause"
-	// PlaybackTogglePlayPause is the command to toggle play/pause the media.
-	PlaybackTogglePlayPause PlaybackAction = "toggle_play_pause"
-	// PlaybackNextTrack is the command to play the next track.
-	PlaybackNextTrack PlaybackAction = "next_track"
-	// PlaybackPreviousTrack is the command to play the previous track.
-	PlaybackPreviousTrack PlaybackAction = "previous_track"
+	// PropertySupportedPlayback is a property representing supported playback actions.
+	PropertySupportedPlayback = "sup_playback"
+	// PropertySupportedModes is a property representing supported playback modes.
+	PropertySupportedModes = "sup_modes"
+	// PropertySupportedMetadata is a property representing supported metadata.
+	PropertySupportedMetadata = "sup_metadata"
 )
 
-var (
-	// DefaultReportingStrategy is the default reporting strategy used by the service for periodic reports.
-	DefaultReportingStrategy = cache.ReportOnChangeOnly()
-
-	allowedActions = []PlaybackAction{PlaybackPlay, PlaybackPause, PlaybackTogglePlayPause, PlaybackNextTrack, PlaybackPreviousTrack}
-)
+// DefaultReportingStrategy is the default reporting strategy used by the service for periodic reports.
+var DefaultReportingStrategy = cache.ReportOnChangeOnly()
 
 // Controller is an interface representing an actual device.
 type Controller interface {
 	// SetPlayback sets the playback state.
-	SetPlayback(action PlaybackAction) error
+	SetPlayback(action string) error
 	// Playback returns the playback report.
-	Playback() (PlaybackAction, error)
+	Playback() (string, error)
 	// SetPlaybackMode sets the playback mode.
-	SetPlaybackMode(mode PlaybackMode) error
+	SetPlaybackMode(mode map[string]bool) error
 	// PlaybackMode returns the playback mode.
-	PlaybackMode() (PlaybackMode, error)
+	PlaybackMode() (map[string]bool, error)
 	// SetVolume sets the volume level.
 	SetVolume(level int64) error
 	// Volume returns the volume level.
@@ -52,43 +44,34 @@ type Controller interface {
 	// Mute returns the mute state.
 	Mute() (bool, error)
 	// Metadata returns the metadata.
-	Metadata() (Metadata, error)
+	Metadata() (map[string]string, error)
 }
 
-// Service is an interface representing a mediaplayer FIMP service.
+// Service is an interface representing a media player FIMP service.
 type Service interface {
 	adapter.Service
 
-	SetPlayback(action PlaybackAction) error
+	// SetPlayback sets the playback state.
+	SetPlayback(action string) error
+	// SendPlaybackReport sends a playback report. Returns true if a report was sent.
 	SendPlaybackReport(force bool) (bool, error)
-	SetPlaybackMode(mode PlaybackMode) error
+	// SetPlaybackMode sets the playback mode.
+	SetPlaybackMode(mode map[string]bool) error
+	// SendPlaybackModeReport sends a playback mode report. Returns true if a report was sent.
 	SendPlaybackModeReport(force bool) (bool, error)
+	// SetVolume sets the volume level.
 	SetVolume(level int64) error
+	// SendVolumeReport sends a volume report. Returns true if a report was sent.
 	SendVolumeReport(force bool) (bool, error)
+	// SetMute sets the mute state.
 	SetMute(mute bool) error
+	// SendMuteReport sends a mute report. Returns true if a report was sent.
 	SendMuteReport(force bool) (bool, error)
+	// SendMetadataReport sends a metadata report. Returns true if a report was sent.
 	SendMetadataReport(force bool) (bool, error)
 }
 
 type (
-	// PlaybackAction represents a playback action.
-	PlaybackAction string
-	// PlaybackMode represents a playback mode.
-	PlaybackMode struct {
-		Repeat    bool `mapstructure:"repeat"`
-		RepeatOne bool `mapstructure:"repeat_one"`
-		Shuffle   bool `mapstructure:"shuffle"`
-		CrossFade bool `mapstructure:"crossfade"`
-	}
-
-	// Metadata represents the metadata of the media.
-	Metadata struct {
-		Album    string `json:"album"`
-		Track    string `json:"track"`
-		Artist   string `json:"artist"`
-		ImageURL string `json:"image_url"`
-	}
-
 	// Config represents a service configuration.
 	Config struct {
 		Specification     *fimptype.Service
@@ -129,11 +112,11 @@ type service struct {
 }
 
 // SetPlayback sets the playback state.
-func (s service) SetPlayback(action PlaybackAction) error {
+func (s *service) SetPlayback(action string) error {
 	s.lock.Lock()
 	defer s.lock.Unlock()
 
-	if err := action.Validate(); err != nil {
+	if err := s.ValidatePlaybackAction(action); err != nil {
 		return fmt.Errorf("%s: invalid playback action: %w", s.Name(), err)
 	}
 
@@ -146,7 +129,7 @@ func (s service) SetPlayback(action PlaybackAction) error {
 }
 
 // SendPlaybackReport sends a playback report. Returns true if a report was sent.
-func (s service) SendPlaybackReport(force bool) (bool, error) {
+func (s *service) SendPlaybackReport(force bool) (bool, error) {
 	s.lock.Lock()
 	defer s.lock.Unlock()
 
@@ -159,18 +142,20 @@ func (s service) SendPlaybackReport(force bool) (bool, error) {
 		return false, nil
 	}
 
-	message := fimpgo.NewStringMessage(EvtPlaybackReport, s.Name(), string(action), nil, nil, nil)
+	message := fimpgo.NewStringMessage(EvtPlaybackReport, s.Name(), action, nil, nil, nil)
 
 	err = s.SendMessage(message)
 	if err != nil {
 		return false, fmt.Errorf("%s: failed to send playback report: %w", s.Name(), err)
 	}
 
+	s.reportingCache.Reported(EvtPlaybackReport, "", action)
+
 	return true, nil
 }
 
 // SetPlaybackMode sets the playback mode.
-func (s service) SetPlaybackMode(mode PlaybackMode) error {
+func (s *service) SetPlaybackMode(mode map[string]bool) error {
 	s.lock.Lock()
 	defer s.lock.Unlock()
 
@@ -183,7 +168,7 @@ func (s service) SetPlaybackMode(mode PlaybackMode) error {
 }
 
 // SendPlaybackModeReport sends a playback mode report. Returns true if a report was sent.
-func (s service) SendPlaybackModeReport(force bool) (bool, error) {
+func (s *service) SendPlaybackModeReport(force bool) (bool, error) {
 	s.lock.Lock()
 	defer s.lock.Unlock()
 
@@ -209,11 +194,13 @@ func (s service) SendPlaybackModeReport(force bool) (bool, error) {
 		return false, fmt.Errorf("mediaplayer: failed to send playback mode report: %w", err)
 	}
 
+	s.reportingCache.Reported(EvtPlaybackModeReport, "", mode)
+
 	return true, nil
 }
 
 // SetVolume sets the volume level.
-func (s service) SetVolume(level int64) error {
+func (s *service) SetVolume(level int64) error {
 	s.lock.Lock()
 	defer s.lock.Unlock()
 
@@ -226,7 +213,7 @@ func (s service) SetVolume(level int64) error {
 }
 
 // SendVolumeReport sends a volume report. Returns true if a report was sent.
-func (s service) SendVolumeReport(force bool) (bool, error) {
+func (s *service) SendVolumeReport(force bool) (bool, error) {
 	s.lock.Lock()
 	defer s.lock.Unlock()
 
@@ -246,11 +233,13 @@ func (s service) SendVolumeReport(force bool) (bool, error) {
 		return false, fmt.Errorf("mediaplayer: failed to send volume report: %w", err)
 	}
 
+	s.reportingCache.Reported(EvtVolumeReport, "", level)
+
 	return true, nil
 }
 
 // SetMute sets the mute state.
-func (s service) SetMute(mute bool) error {
+func (s *service) SetMute(mute bool) error {
 	s.lock.Lock()
 	defer s.lock.Unlock()
 
@@ -263,7 +252,7 @@ func (s service) SetMute(mute bool) error {
 }
 
 // SendMuteReport sends a mute report. Returns true if a report was sent.
-func (s service) SendMuteReport(force bool) (bool, error) {
+func (s *service) SendMuteReport(force bool) (bool, error) {
 	s.lock.Lock()
 	defer s.lock.Unlock()
 
@@ -283,11 +272,13 @@ func (s service) SendMuteReport(force bool) (bool, error) {
 		return false, fmt.Errorf("mediaplayer: failed to send mute report: %w", err)
 	}
 
+	s.reportingCache.Reported(EvtMuteReport, "", mute)
+
 	return true, nil
 }
 
 // SendMetadataReport sends a metadata report. Returns true if a report was sent.
-func (s service) SendMetadataReport(force bool) (bool, error) {
+func (s *service) SendMetadataReport(force bool) (bool, error) {
 	s.lock.Lock()
 	defer s.lock.Unlock()
 
@@ -307,13 +298,17 @@ func (s service) SendMetadataReport(force bool) (bool, error) {
 		return false, fmt.Errorf("mediaplayer: failed to send metadata report: %w", err)
 	}
 
+	s.reportingCache.Reported(EvtMetadataReport, "", metadata)
+
 	return true, nil
 }
 
-// Validate validates the playback action.
-func (a PlaybackAction) Validate() error {
-	if !slices.Contains(allowedActions, a) {
-		return fmt.Errorf("mediaplayer: invalid playback action: %s", a)
+// ValidatePlaybackAction validates the playback action.
+func (s *service) ValidatePlaybackAction(action string) error {
+	supportedActions := s.Specification().PropertyStrings(PropertySupportedPlayback)
+
+	if !slices.Contains(supportedActions, action) {
+		return fmt.Errorf("mediaplayer: unsupported playback action: %s", action)
 	}
 
 	return nil

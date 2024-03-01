@@ -4,7 +4,6 @@ import (
 	"fmt"
 
 	"github.com/futurehomeno/fimpgo"
-	"github.com/mitchellh/mapstructure"
 
 	"github.com/futurehomeno/cliffhanger/adapter"
 	"github.com/futurehomeno/cliffhanger/router"
@@ -146,7 +145,7 @@ func handleCmdPlaybackSet(registry adapter.ServiceRegistry) router.MessageHandle
 				return nil, fmt.Errorf("adapter: failed to get value from the message: %w", err)
 			}
 
-			if err := mediaPlayer.SetPlayback(PlaybackAction(value)); err != nil {
+			if err := mediaPlayer.SetPlayback(value); err != nil {
 				return nil, fmt.Errorf("adapter: failed to set playback: %w", err)
 			}
 
@@ -196,14 +195,9 @@ func handleCmdPlaybackModeSet(registry adapter.ServiceRegistry) router.MessageHa
 				return nil, fmt.Errorf("adapter: incorrect service found under the provided address: %s", message.Addr.ServiceAddress)
 			}
 
-			val, err := message.Payload.GetBoolMapValue()
+			value, err := message.Payload.GetBoolMapValue()
 			if err != nil {
 				return nil, fmt.Errorf("adapter: failed to get value from the message: %w", err)
-			}
-			var value PlaybackMode
-
-			if err := mapstructure.Decode(val, &value); err != nil {
-				return nil, fmt.Errorf("adapter: failed to decode value from the message: %w", err)
 			}
 
 			if err := mediaPlayer.SetPlaybackMode(value); err != nil {

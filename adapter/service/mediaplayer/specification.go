@@ -15,14 +15,22 @@ func Specification(
 	resourceName,
 	resourceAddress,
 	address string,
-	groups []string,
+	groups,
+	supportedPlayback,
+	supportedModes,
+	supportedMetadata []string,
 	options ...adapter.SpecificationOption,
 ) *fimptype.Service {
 	s := &fimptype.Service{
-		Address:    fmt.Sprintf("/rt:dev/rn:%s/ad:%s/sv:%s/ad:%s", resourceName, resourceAddress, MediaPlayer, address),
-		Name:       MediaPlayer,
-		Groups:     groups,
-		Enabled:    true,
+		Address: fmt.Sprintf("/rt:dev/rn:%s/ad:%s/sv:%s/ad:%s", resourceName, resourceAddress, MediaPlayer, address),
+		Name:    MediaPlayer,
+		Groups:  groups,
+		Enabled: true,
+		Props: map[string]interface{}{
+			PropertySupportedPlayback: supportedPlayback,
+			PropertySupportedModes:    supportedModes,
+			PropertySupportedMetadata: supportedMetadata,
+		},
 		Interfaces: requiredInterfaces(),
 	}
 

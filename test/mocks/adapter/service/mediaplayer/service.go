@@ -9,8 +9,6 @@ import (
 
 	"github.com/futurehomeno/fimpgo/fimptype"
 
-	"github.com/futurehomeno/cliffhanger/adapter/service/mediaplayer"
-
 	"github.com/stretchr/testify/mock"
 )
 
@@ -219,7 +217,7 @@ func (_m *Service) SetMute(mute bool) error {
 }
 
 // SetPlayback provides a mock function with given fields: action
-func (_m *Service) SetPlayback(action mediaplayer.PlaybackAction) error {
+func (_m *Service) SetPlayback(action string) error {
 	ret := _m.Called(action)
 
 	if len(ret) == 0 {
@@ -227,7 +225,7 @@ func (_m *Service) SetPlayback(action mediaplayer.PlaybackAction) error {
 	}
 
 	var r0 error
-	if rf, ok := ret.Get(0).(func(mediaplayer.PlaybackAction) error); ok {
+	if rf, ok := ret.Get(0).(func(string) error); ok {
 		r0 = rf(action)
 	} else {
 		r0 = ret.Error(0)
@@ -237,7 +235,7 @@ func (_m *Service) SetPlayback(action mediaplayer.PlaybackAction) error {
 }
 
 // SetPlaybackMode provides a mock function with given fields: mode
-func (_m *Service) SetPlaybackMode(mode mediaplayer.PlaybackMode) error {
+func (_m *Service) SetPlaybackMode(mode map[string]bool) error {
 	ret := _m.Called(mode)
 
 	if len(ret) == 0 {
@@ -245,7 +243,7 @@ func (_m *Service) SetPlaybackMode(mode mediaplayer.PlaybackMode) error {
 	}
 
 	var r0 error
-	if rf, ok := ret.Get(0).(func(mediaplayer.PlaybackMode) error); ok {
+	if rf, ok := ret.Get(0).(func(map[string]bool) error); ok {
 		r0 = rf(mode)
 	} else {
 		r0 = ret.Error(0)
