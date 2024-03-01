@@ -1,6 +1,8 @@
 package mockedmediaplayer
 
-import "github.com/futurehomeno/cliffhanger/adapter/service/mediaplayer"
+import (
+	"github.com/futurehomeno/cliffhanger/adapter/service/mediaplayer"
+)
 
 // MockedMediaPlayerPlaybackSet is a helper function that sets up a mock for the SetPlayback method.
 func (_m *Controller) MockedMediaPlayerPlaybackSet(value mediaplayer.PlaybackAction, err error, once bool) *Controller {
@@ -25,7 +27,7 @@ func (_m *Controller) MockedMediaPlayerPlaybackReport(value mediaplayer.Playback
 }
 
 // MockedMediaPlayerPlaybackModeSet is a helper function that sets up a mock for the SetPlaybackMode method.
-func (_m *Controller) MockedMediaPlayerPlaybackModeSet(value map[string]bool, err error, once bool) *Controller {
+func (_m *Controller) MockedMediaPlayerPlaybackModeSet(value mediaplayer.PlaybackMode, err error, once bool) *Controller {
 	c := _m.On("SetPlaybackMode", value).Return(err)
 
 	if once {
@@ -36,7 +38,7 @@ func (_m *Controller) MockedMediaPlayerPlaybackModeSet(value map[string]bool, er
 }
 
 // MockedMediaPlayerPlaybackModeReport is a helper function that sets up a mock for the PlaybackMode method.
-func (_m *Controller) MockedMediaPlayerPlaybackModeReport(value map[string]bool, err error, once bool) *Controller {
+func (_m *Controller) MockedMediaPlayerPlaybackModeReport(value mediaplayer.PlaybackMode, err error, once bool) *Controller {
 	c := _m.On("PlaybackMode").Return(value, err)
 
 	if once {
@@ -91,7 +93,7 @@ func (_m *Controller) MockedMediaPlayerMuteReport(value bool, err error, once bo
 }
 
 // MockedMediaPlayerMetadataReport is a helper function that sets up a mock for the Metadata method.
-func (_m *Controller) MockedMediaPlayerMetadataReport(value map[string]string, err error, once bool) *Controller {
+func (_m *Controller) MockedMediaPlayerMetadataReport(value mediaplayer.Metadata, err error, once bool) *Controller {
 	c := _m.On("Metadata").Return(value, err)
 
 	if once {

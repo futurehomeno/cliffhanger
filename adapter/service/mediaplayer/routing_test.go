@@ -32,13 +32,13 @@ func TestRouteService(t *testing.T) { //nolint:paralleltest
 						MockedMediaPlayerPlaybackReport("play", errors.New("cannot return report"), true).
 						MockedMediaPlayerPlaybackReport("play", nil, true).
 						MockedMediaPlayerPlaybackReport("play", errors.New("report error"), true).
-						MockedMediaPlayerPlaybackModeSet(samplePlaybackModeMap(), nil, true).
-						MockedMediaPlayerPlaybackModeReport(samplePlaybackModeMap(), nil, true).
-						MockedMediaPlayerPlaybackModeSet(samplePlaybackModeMap(), errors.New("playback mode set error"), true).
-						MockedMediaPlayerPlaybackModeSet(samplePlaybackModeMap(), nil, true).
-						MockedMediaPlayerPlaybackModeReport(samplePlaybackModeMap(), errors.New("playback mode report error"), true).
-						MockedMediaPlayerPlaybackModeReport(samplePlaybackModeMap(), nil, true).
-						MockedMediaPlayerPlaybackModeReport(samplePlaybackModeMap(), errors.New("playback mode report error"), true).
+						MockedMediaPlayerPlaybackModeSet(samplePlaybackMode(), nil, true).
+						MockedMediaPlayerPlaybackModeReport(samplePlaybackMode(), nil, true).
+						MockedMediaPlayerPlaybackModeSet(samplePlaybackMode(), errors.New("playback mode set error"), true).
+						MockedMediaPlayerPlaybackModeSet(samplePlaybackMode(), nil, true).
+						MockedMediaPlayerPlaybackModeReport(samplePlaybackMode(), errors.New("playback mode report error"), true).
+						MockedMediaPlayerPlaybackModeReport(samplePlaybackMode(), nil, true).
+						MockedMediaPlayerPlaybackModeReport(samplePlaybackMode(), errors.New("playback mode report error"), true).
 						MockedMediaPlayerVolumeSet(10, nil, true).
 						MockedMediaPlayerVolumeReport(10, nil, true).
 						MockedMediaPlayerVolumeSet(10, errors.New("volume set error"), true).
@@ -125,13 +125,6 @@ func TestRouteService(t *testing.T) { //nolint:paralleltest
 						Command: suite.BoolMapMessage("pt:j1/mt:cmd/rt:dev/rn:test_adapter/ad:1/sv:media_player/ad:3", "cmd.playbackmode.set", "media_player", samplePlaybackModeMap()),
 						Expectations: []*suite.Expectation{
 							suite.ExpectBoolMap("pt:j1/mt:evt/rt:dev/rn:test_adapter/ad:1/sv:media_player/ad:3", "evt.playbackmode.report", "media_player", samplePlaybackModeMap()),
-						},
-					},
-					{
-						Name:    "Set playback mode - wrong key",
-						Command: suite.BoolMapMessage("pt:j1/mt:cmd/rt:dev/rn:test_adapter/ad:1/sv:media_player/ad:3", "cmd.playbackmode.set", "media_player", map[string]bool{"not_supported_key": true}),
-						Expectations: []*suite.Expectation{
-							suite.ExpectError("pt:j1/mt:evt/rt:dev/rn:test_adapter/ad:1/sv:media_player/ad:3", "media_player"),
 						},
 					},
 					{
@@ -324,29 +317,17 @@ func TestRouteService(t *testing.T) { //nolint:paralleltest
 	s.Run(t)
 }
 
-func supportedPlayback() []string {
-	return []string{"play", "pause", "stop"}
-}
-
-func supportedModes() []string {
-	return []string{"repeat", "shuffle", "crossfade", "repeat_one"}
-}
-
-func supportedMetadata() []string {
-	return []string{"album", "track", "artist", "image_url"}
-}
-
-func sampleMetadata() map[string]string {
-	return map[string]string{
-		"album":    "the album",
-		"track":    "a track",
-		"artist":   "artist name",
-		"imageURL": "http://the.image.url",
+func sampleMetadata() mediaplayer.Metadata {
+	return mediaplayer.Metadata{
+		Album:    "the album",
+		Track:    "a track",
+		Artist:   "artist name",
+		ImageURL: "http://the.image.url",
 	}
 }
 
-func samplePlaybackMode() map[string]bool {
-	return map[string]bool{"repeat": true, "shuffle": true}
+func samplePlaybackMode() mediaplayer.PlaybackMode {
+	return mediaplayer.PlaybackMode{Repeat: true, Shuffle: true}
 }
 
 func samplePlaybackModeMap() map[string]bool {
@@ -400,9 +381,6 @@ func setupService(t *testing.T, mqtt *fimpgo.MqttTransport, controller mediaplay
 			"1",
 			"3",
 			nil,
-			supportedPlayback(),
-			supportedModes(),
-			supportedMetadata(),
 			options...,
 		),
 		Controller: controller,
