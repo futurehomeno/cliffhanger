@@ -4,8 +4,9 @@ import (
 	"testing"
 	"time"
 
-	"github.com/futurehomeno/cliffhanger/backoff"
 	"github.com/stretchr/testify/assert"
+
+	"github.com/futurehomeno/cliffhanger/backoff"
 )
 
 func TestExponentialBackoff(t *testing.T) {
