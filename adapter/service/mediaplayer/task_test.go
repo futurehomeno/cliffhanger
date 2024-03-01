@@ -17,7 +17,7 @@ func TestTaskReporting(t *testing.T) { //nolint:paralleltest
 				Setup: routeServiceWithTasks(
 					mockedmediaplayer.NewController(t).
 						MockedMediaPlayerPlaybackReport("play", nil, true).
-						MockedMediaPlayerPlaybackModeReport(samplePlaybackMode(), nil, true).
+						MockedMediaPlayerPlaybackModeReport(samplePlaybackModeMap(), nil, true).
 						MockedMediaPlayerVolumeReport(50, nil, true).
 						MockedMediaPlayerMuteReport(false, nil, true).
 						MockedMediaPlayerMetadataReport(sampleMetadata(), nil, true),
