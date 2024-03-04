@@ -128,6 +128,13 @@ func TestRouteService(t *testing.T) { //nolint:paralleltest
 						},
 					},
 					{
+						Name:    "Set playback mode - wrong key",
+						Command: suite.BoolMapMessage("pt:j1/mt:cmd/rt:dev/rn:test_adapter/ad:1/sv:media_player/ad:3", "cmd.playbackmode.set", "media_player", map[string]bool{"not_supported_key": true}),
+						Expectations: []*suite.Expectation{
+							suite.ExpectError("pt:j1/mt:evt/rt:dev/rn:test_adapter/ad:1/sv:media_player/ad:3", "media_player"),
+						},
+					},
+					{
 						Name:    "set playback mode - wrong topic",
 						Command: suite.BoolMapMessage("pt:j1/mt:cmd/rt:dev/rn:test_adapter/ad:1/sv:media_player/ad:666", "cmd.playbackmode.set", "media_player", samplePlaybackModeMap()),
 						Expectations: []*suite.Expectation{
@@ -322,7 +329,7 @@ func supportedPlayback() []string {
 }
 
 func supportedModes() []string {
-	return []string{"repeat", "shuffle"}
+	return []string{"repeat", "shuffle", "crossfade", "repeat_one"}
 }
 
 func supportedMetadata() []string {

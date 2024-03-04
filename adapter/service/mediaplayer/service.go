@@ -154,7 +154,7 @@ func (s *service) SetPlayback(action string) error {
 	s.lock.Lock()
 	defer s.lock.Unlock()
 
-	if err := s.ValidatePlaybackAction(action); err != nil {
+	if err := s.validatePlaybackAction(action); err != nil {
 		return fmt.Errorf("%s: invalid playback action: %w", s.Name(), err)
 	}
 
@@ -196,6 +196,10 @@ func (s *service) SendPlaybackReport(force bool) (bool, error) {
 func (s *service) SetPlaybackMode(mode map[string]bool) error {
 	s.lock.Lock()
 	defer s.lock.Unlock()
+
+	if err := s.validateMode(mode); err != nil {
+		return fmt.Errorf("mediaplayer: invalid playback mode: %w", err)
+	}
 
 	err := s.controller.SetPlaybackMode(mode)
 	if err != nil {
@@ -341,12 +345,24 @@ func (s *service) SendMetadataReport(force bool) (bool, error) {
 	return true, nil
 }
 
-// ValidatePlaybackAction validates the playback action.
-func (s *service) ValidatePlaybackAction(action string) error {
+// validatePlaybackAction validates the playback action.
+func (s *service) validatePlaybackAction(action string) error {
 	supportedActions := s.Specification().PropertyStrings(PropertySupportedPlayback)
 
 	if !slices.Contains(supportedActions, action) {
 		return fmt.Errorf("mediaplayer: unsupported playback action: %s", action)
+	}
+
+	return nil
+}
+
+func (s *service) validateMode(mode map[string]bool) error {
+	supportedModes := s.Specification().PropertyStrings(PropertySupportedModes)
+
+	for mode := range mode {
+		if !slices.Contains(supportedModes, mode) {
+			return fmt.Errorf("mediaplayer: unsupported playback mode: %s", mode)
+		}
 	}
 
 	return nil
