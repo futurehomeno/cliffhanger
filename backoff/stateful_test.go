@@ -9,7 +9,7 @@ import (
 	"github.com/futurehomeno/cliffhanger/backoff"
 )
 
-func TestStatefulBackoff_Next(t *testing.T) {
+func TestStateful_Next(t *testing.T) {
 	t.Parallel()
 
 	tests := []struct {
