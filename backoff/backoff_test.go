@@ -1,10 +1,12 @@
-package backoff
+package backoff_test
 
 import (
 	"testing"
 	"time"
 
 	"github.com/stretchr/testify/assert"
+
+	"github.com/futurehomeno/cliffhanger/backoff"
 )
 
 func TestBackoff_ShouldBackoff(t *testing.T) {
@@ -65,7 +67,7 @@ func TestBackoff_ShouldBackoff(t *testing.T) {
 		t.Run(tc.name, func(t *testing.T) {
 			t.Parallel()
 
-			b := New(5*time.Second, 15*time.Minute, 24*time.Hour, 3, 3)
+			b := backoff.New(5*time.Second, 15*time.Minute, 24*time.Hour, 3, 3)
 
 			got := b.Should(tc.lastErrAt, tc.failures)
 
