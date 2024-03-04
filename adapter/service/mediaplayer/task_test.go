@@ -17,7 +17,7 @@ func TestTaskReporting(t *testing.T) { //nolint:paralleltest
 				Setup: routeServiceWithTasks(
 					mockedmediaplayer.NewController(t).
 						MockedMediaPlayerPlaybackReport("play", nil, true).
-						MockedMediaPlayerPlaybackModeReport(samplePlaybackModeMap(), nil, true).
+						MockedMediaPlayerPlaybackModeReport(samplePlaybackMode(), nil, true).
 						MockedMediaPlayerVolumeReport(50, nil, true).
 						MockedMediaPlayerMuteReport(false, nil, true).
 						MockedMediaPlayerMetadataReport(sampleMetadata(), nil, true),
@@ -28,7 +28,7 @@ func TestTaskReporting(t *testing.T) { //nolint:paralleltest
 						Timeout: time.Second,
 						Expectations: []*suite.Expectation{
 							suite.ExpectString("pt:j1/mt:evt/rt:dev/rn:test_adapter/ad:1/sv:media_player/ad:3", "evt.playback.report", "media_player", "play"),
-							suite.ExpectBoolMap("pt:j1/mt:evt/rt:dev/rn:test_adapter/ad:1/sv:media_player/ad:3", "evt.playbackmode.report", "media_player", samplePlaybackModeMap()),
+							suite.ExpectBoolMap("pt:j1/mt:evt/rt:dev/rn:test_adapter/ad:1/sv:media_player/ad:3", "evt.playbackmode.report", "media_player", samplePlaybackMode()),
 							suite.ExpectInt("pt:j1/mt:evt/rt:dev/rn:test_adapter/ad:1/sv:media_player/ad:3", "evt.volume.report", "media_player", 50),
 							suite.ExpectBool("pt:j1/mt:evt/rt:dev/rn:test_adapter/ad:1/sv:media_player/ad:3", "evt.mute.report", "media_player", false),
 							suite.ExpectObject("pt:j1/mt:evt/rt:dev/rn:test_adapter/ad:1/sv:media_player/ad:3", "evt.metadata.report", "media_player", sampleMetadata()),
@@ -53,7 +53,7 @@ func TestTaskReporting(t *testing.T) { //nolint:paralleltest
 						Expectations: []*suite.Expectation{
 							suite.ExpectString("pt:j1/mt:evt/rt:dev/rn:test_adapter/ad:1/sv:media_player/ad:3", "evt.playback.report", "media_player", "play").
 								Never(),
-							suite.ExpectBoolMap("pt:j1/mt:evt/rt:dev/rn:test_adapter/ad:1/sv:media_player/ad:3", "evt.playbackmode.report", "media_player", samplePlaybackModeMap()).
+							suite.ExpectBoolMap("pt:j1/mt:evt/rt:dev/rn:test_adapter/ad:1/sv:media_player/ad:3", "evt.playbackmode.report", "media_player", samplePlaybackMode()).
 								Never(),
 							suite.ExpectInt("pt:j1/mt:evt/rt:dev/rn:test_adapter/ad:1/sv:media_player/ad:3", "evt.volume.report", "media_player", 50).
 								Never(),
