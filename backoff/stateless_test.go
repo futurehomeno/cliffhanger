@@ -4,41 +4,42 @@ import (
 	"testing"
 	"time"
 
-	"github.com/futurehomeno/cliffhanger/backoff"
 	"github.com/stretchr/testify/assert"
+
+	"github.com/futurehomeno/cliffhanger/backoff"
 )
 
-func TestExponentialBackoff(t *testing.T) {
+func TestStatefulBackoff_Next(t *testing.T) {
 	t.Parallel()
 
 	tests := []struct {
 		name            string
-		backoff         *backoff.Exponential
+		backoff         backoff.Stateful
 		expectedResults []time.Duration
 	}{
 		{
 			name:            "regular backoff",
-			backoff:         backoff.NewExponential(time.Second, 2*time.Second, 3*time.Second, 1, 2),
+			backoff:         backoff.NewStateful(time.Second, 2*time.Second, 3*time.Second, 1, 2),
 			expectedResults: []time.Duration{time.Second, 2 * time.Second, 2 * time.Second, 3 * time.Second, 3 * time.Second},
 		},
 		{
 			name:            "no initial backoff",
-			backoff:         backoff.NewExponential(time.Second, 2*time.Second, 3*time.Second, 0, 2),
+			backoff:         backoff.NewStateful(time.Second, 2*time.Second, 3*time.Second, 0, 2),
 			expectedResults: []time.Duration{2 * time.Second, 2 * time.Second, 3 * time.Second},
 		},
 		{
 			name:            "no repeated backoff",
-			backoff:         backoff.NewExponential(time.Second, 2*time.Second, 3*time.Second, 2, 0),
+			backoff:         backoff.NewStateful(time.Second, 2*time.Second, 3*time.Second, 2, 0),
 			expectedResults: []time.Duration{time.Second, time.Second, 3 * time.Second},
 		},
 		{
 			name:            "no initial and repeated backoff",
-			backoff:         backoff.NewExponential(0, 0, time.Second, 0, 0),
+			backoff:         backoff.NewStateful(0, 0, time.Second, 0, 0),
 			expectedResults: []time.Duration{time.Second, time.Second, time.Second, time.Second, time.Second},
 		},
 		{
 			name:            "empty backoff",
-			backoff:         backoff.NewExponential(0, 0, 0, 0, 0),
+			backoff:         backoff.NewStateful(0, 0, 0, 0, 0),
 			expectedResults: []time.Duration{0, 0, 0, 0, 0},
 		},
 	}
