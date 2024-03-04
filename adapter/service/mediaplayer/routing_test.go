@@ -122,14 +122,14 @@ func TestRouteService(t *testing.T) { //nolint:paralleltest
 					},
 					{
 						Name:    "set playback mode - success",
-						Command: suite.BoolMapMessage("pt:j1/mt:cmd/rt:dev/rn:test_adapter/ad:1/sv:media_player/ad:3", "cmd.playbackmode.set", "media_player", samplePlaybackModeMap()),
+						Command: suite.BoolMapMessage("pt:j1/mt:cmd/rt:dev/rn:test_adapter/ad:1/sv:media_player/ad:3", "cmd.playbackmode.set", "media_player", samplePlaybackMode()),
 						Expectations: []*suite.Expectation{
-							suite.ExpectBoolMap("pt:j1/mt:evt/rt:dev/rn:test_adapter/ad:1/sv:media_player/ad:3", "evt.playbackmode.report", "media_player", samplePlaybackModeMap()),
+							suite.ExpectBoolMap("pt:j1/mt:evt/rt:dev/rn:test_adapter/ad:1/sv:media_player/ad:3", "evt.playbackmode.report", "media_player", samplePlaybackMode()),
 						},
 					},
 					{
 						Name:    "set playback mode - wrong topic",
-						Command: suite.BoolMapMessage("pt:j1/mt:cmd/rt:dev/rn:test_adapter/ad:1/sv:media_player/ad:666", "cmd.playbackmode.set", "media_player", samplePlaybackModeMap()),
+						Command: suite.BoolMapMessage("pt:j1/mt:cmd/rt:dev/rn:test_adapter/ad:1/sv:media_player/ad:666", "cmd.playbackmode.set", "media_player", samplePlaybackMode()),
 						Expectations: []*suite.Expectation{
 							suite.ExpectError("pt:j1/mt:evt/rt:dev/rn:test_adapter/ad:1/sv:media_player/ad:666", "media_player"),
 						},
@@ -143,14 +143,14 @@ func TestRouteService(t *testing.T) { //nolint:paralleltest
 					},
 					{
 						Name:    "set playback mode - errored service",
-						Command: suite.BoolMapMessage("pt:j1/mt:cmd/rt:dev/rn:test_adapter/ad:1/sv:media_player/ad:3", "cmd.playbackmode.set", "media_player", samplePlaybackModeMap()),
+						Command: suite.BoolMapMessage("pt:j1/mt:cmd/rt:dev/rn:test_adapter/ad:1/sv:media_player/ad:3", "cmd.playbackmode.set", "media_player", samplePlaybackMode()),
 						Expectations: []*suite.Expectation{
 							suite.ExpectError("pt:j1/mt:evt/rt:dev/rn:test_adapter/ad:1/sv:media_player/ad:3", "media_player"),
 						},
 					},
 					{
 						Name:    "set playback mode - errored report",
-						Command: suite.BoolMapMessage("pt:j1/mt:cmd/rt:dev/rn:test_adapter/ad:1/sv:media_player/ad:3", "cmd.playbackmode.set", "media_player", samplePlaybackModeMap()),
+						Command: suite.BoolMapMessage("pt:j1/mt:cmd/rt:dev/rn:test_adapter/ad:1/sv:media_player/ad:3", "cmd.playbackmode.set", "media_player", samplePlaybackMode()),
 						Expectations: []*suite.Expectation{
 							suite.ExpectError("pt:j1/mt:evt/rt:dev/rn:test_adapter/ad:1/sv:media_player/ad:3", "media_player"),
 						},
@@ -159,7 +159,7 @@ func TestRouteService(t *testing.T) { //nolint:paralleltest
 						Name:    "get playback mode report",
 						Command: suite.NullMessage("pt:j1/mt:cmd/rt:dev/rn:test_adapter/ad:1/sv:media_player/ad:3", "cmd.playbackmode.get_report", "media_player"),
 						Expectations: []*suite.Expectation{
-							suite.ExpectBoolMap("pt:j1/mt:evt/rt:dev/rn:test_adapter/ad:1/sv:media_player/ad:3", "evt.playbackmode.report", "media_player", samplePlaybackModeMap()),
+							suite.ExpectBoolMap("pt:j1/mt:evt/rt:dev/rn:test_adapter/ad:1/sv:media_player/ad:3", "evt.playbackmode.report", "media_player", samplePlaybackMode()),
 						},
 					},
 					{
@@ -317,20 +317,16 @@ func TestRouteService(t *testing.T) { //nolint:paralleltest
 	s.Run(t)
 }
 
-func sampleMetadata() mediaplayer.Metadata {
-	return mediaplayer.Metadata{
-		Album:    "the album",
-		Track:    "a track",
-		Artist:   "artist name",
-		ImageURL: "http://the.image.url",
+func sampleMetadata() map[string]string {
+	return map[string]string{
+		"album":     "the album",
+		"track":     "a track",
+		"artist":    "artist name",
+		"image_url": "http://the.image.url",
 	}
 }
 
-func samplePlaybackMode() mediaplayer.PlaybackMode {
-	return mediaplayer.PlaybackMode{Repeat: true, Shuffle: true}
-}
-
-func samplePlaybackModeMap() map[string]bool {
+func samplePlaybackMode() map[string]bool {
 	return map[string]bool{
 		"repeat":     true,
 		"shuffle":    true,
@@ -381,6 +377,9 @@ func setupService(t *testing.T, mqtt *fimpgo.MqttTransport, controller mediaplay
 			"1",
 			"3",
 			nil,
+			[]string{"play", "pause", "toggle_play_pause", "next_track", "previous_track"},
+			[]string{"repeat", "shuffle", "crossfade", "repeat_one"},
+			[]string{"album", "track", "artist", "image_url"},
 			options...,
 		),
 		Controller: controller,

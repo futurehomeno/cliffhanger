@@ -14,22 +14,22 @@ type Controller struct {
 }
 
 // Metadata provides a mock function with given fields:
-func (_m *Controller) Metadata() (mediaplayer.Metadata, error) {
+func (_m *Controller) Metadata() (map[string]string, error) {
 	ret := _m.Called()
 
 	if len(ret) == 0 {
 		panic("no return value specified for Metadata")
 	}
 
-	var r0 mediaplayer.Metadata
+	var r0 map[string]string
 	var r1 error
-	if rf, ok := ret.Get(0).(func() (mediaplayer.Metadata, error)); ok {
+	if rf, ok := ret.Get(0).(func() (map[string]string, error)); ok {
 		return rf()
 	}
-	if rf, ok := ret.Get(0).(func() mediaplayer.Metadata); ok {
+	if rf, ok := ret.Get(0).(func() map[string]string); ok {
 		r0 = rf()
 	} else {
-		r0 = ret.Get(0).(mediaplayer.Metadata)
+		r0 = ret.Get(0).(map[string]string)
 	}
 
 	if rf, ok := ret.Get(1).(func() error); ok {
@@ -98,22 +98,22 @@ func (_m *Controller) Playback() (mediaplayer.PlaybackAction, error) {
 }
 
 // PlaybackMode provides a mock function with given fields:
-func (_m *Controller) PlaybackMode() (mediaplayer.PlaybackMode, error) {
+func (_m *Controller) PlaybackMode() (map[string]bool, error) {
 	ret := _m.Called()
 
 	if len(ret) == 0 {
 		panic("no return value specified for PlaybackMode")
 	}
 
-	var r0 mediaplayer.PlaybackMode
+	var r0 map[string]bool
 	var r1 error
-	if rf, ok := ret.Get(0).(func() (mediaplayer.PlaybackMode, error)); ok {
+	if rf, ok := ret.Get(0).(func() (map[string]bool, error)); ok {
 		return rf()
 	}
-	if rf, ok := ret.Get(0).(func() mediaplayer.PlaybackMode); ok {
+	if rf, ok := ret.Get(0).(func() map[string]bool); ok {
 		r0 = rf()
 	} else {
-		r0 = ret.Get(0).(mediaplayer.PlaybackMode)
+		r0 = ret.Get(0).(map[string]bool)
 	}
 
 	if rf, ok := ret.Get(1).(func() error); ok {
@@ -162,7 +162,7 @@ func (_m *Controller) SetPlayback(action mediaplayer.PlaybackAction) error {
 }
 
 // SetPlaybackMode provides a mock function with given fields: mode
-func (_m *Controller) SetPlaybackMode(mode mediaplayer.PlaybackMode) error {
+func (_m *Controller) SetPlaybackMode(mode map[string]bool) error {
 	ret := _m.Called(mode)
 
 	if len(ret) == 0 {
@@ -170,7 +170,7 @@ func (_m *Controller) SetPlaybackMode(mode mediaplayer.PlaybackMode) error {
 	}
 
 	var r0 error
-	if rf, ok := ret.Get(0).(func(mediaplayer.PlaybackMode) error); ok {
+	if rf, ok := ret.Get(0).(func(map[string]bool) error); ok {
 		r0 = rf(mode)
 	} else {
 		r0 = ret.Error(0)

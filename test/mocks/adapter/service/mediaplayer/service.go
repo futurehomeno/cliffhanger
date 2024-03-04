@@ -237,7 +237,7 @@ func (_m *Service) SetPlayback(action mediaplayer.PlaybackAction) error {
 }
 
 // SetPlaybackMode provides a mock function with given fields: mode
-func (_m *Service) SetPlaybackMode(mode mediaplayer.PlaybackMode) error {
+func (_m *Service) SetPlaybackMode(mode map[string]bool) error {
 	ret := _m.Called(mode)
 
 	if len(ret) == 0 {
@@ -245,7 +245,7 @@ func (_m *Service) SetPlaybackMode(mode mediaplayer.PlaybackMode) error {
 	}
 
 	var r0 error
-	if rf, ok := ret.Get(0).(func(mediaplayer.PlaybackMode) error); ok {
+	if rf, ok := ret.Get(0).(func(map[string]bool) error); ok {
 		r0 = rf(mode)
 	} else {
 		r0 = ret.Error(0)
