@@ -20,6 +20,44 @@ const (
 	PropertySupportedModes = "sup_modes"
 	// PropertySupportedMetadata is a property representing supported metadata.
 	PropertySupportedMetadata = "sup_metadata"
+
+	// PlaybackActionPlay is play action.
+	PlaybackActionPlay PlaybackAction = "play"
+	// PlaybackActionPause is pause action.
+	PlaybackActionPause PlaybackAction = "pause"
+	// PlaybackActionTogglePlayPause is toggle_play_pause action.
+	PlaybackActionTogglePlayPause PlaybackAction = "toggle_play_pause"
+	// PlaybackActionNextTrack is next_track action.
+	PlaybackActionNextTrack PlaybackAction = "next_track"
+	// PlaybackActionPreviousTrack is previous_track action.
+	PlaybackActionPreviousTrack PlaybackAction = "previous_track"
+
+	// ModeRepeat is for mode repeat.
+	ModeRepeat Mode = "repeat"
+	// ModeShuffle is for mode shuffle.
+	ModeShuffle Mode = "shuffle"
+	// ModeRepeatOne is for mode repeat_one.
+	ModeRepeatOne Mode = "repeat_one"
+	// ModeCrossFade is for mode cross fade.
+	ModeCrossFade Mode = "crossfade"
+
+	// MetadataAlbum is album metadata.
+	MetadataAlbum Metadata = "album"
+	// MetadataArtist is artist metadata.
+	MetadataArtist Metadata = "artist"
+	// MetadataTrack is track metadata.
+	MetadataTrack Metadata = "track"
+	// MetadataImageURL image_url metadata.
+	MetadataImageURL Metadata = "image_url"
+)
+
+type (
+	// Metadata represents a metadata.
+	Metadata string
+	// Mode represents a mode.
+	Mode string
+	// PlaybackAction represents a playback action.
+	PlaybackAction string
 )
 
 // DefaultReportingStrategy is the default reporting strategy used by the service for periodic reports.
@@ -28,9 +66,9 @@ var DefaultReportingStrategy = cache.ReportOnChangeOnly()
 // Controller is an interface representing an actual device.
 type Controller interface {
 	// SetPlayback sets the playback state.
-	SetPlayback(action string) error
+	SetPlayback(action PlaybackAction) error
 	// Playback returns the playback report.
-	Playback() (string, error)
+	Playback() (PlaybackAction, error)
 	// SetPlaybackMode sets the playback mode.
 	SetPlaybackMode(mode map[string]bool) error
 	// PlaybackMode returns the playback mode.
@@ -120,7 +158,7 @@ func (s *service) SetPlayback(action string) error {
 		return fmt.Errorf("%s: invalid playback action: %w", s.Name(), err)
 	}
 
-	err := s.controller.SetPlayback(action)
+	err := s.controller.SetPlayback(PlaybackAction(action))
 	if err != nil {
 		return fmt.Errorf("%s: failed to set playback: %w", s.Name(), err)
 	}
@@ -142,7 +180,7 @@ func (s *service) SendPlaybackReport(force bool) (bool, error) {
 		return false, nil
 	}
 
-	message := fimpgo.NewStringMessage(EvtPlaybackReport, s.Name(), action, nil, nil, nil)
+	message := fimpgo.NewStringMessage(EvtPlaybackReport, s.Name(), string(action), nil, nil, nil)
 
 	err = s.SendMessage(message)
 	if err != nil {

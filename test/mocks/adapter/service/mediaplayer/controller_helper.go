@@ -1,7 +1,9 @@
 package mockedmediaplayer
 
+import "github.com/futurehomeno/cliffhanger/adapter/service/mediaplayer"
+
 // MockedMediaPlayerPlaybackSet is a helper function that sets up a mock for the SetPlayback method.
-func (_m *Controller) MockedMediaPlayerPlaybackSet(value string, err error, once bool) *Controller {
+func (_m *Controller) MockedMediaPlayerPlaybackSet(value mediaplayer.PlaybackAction, err error, once bool) *Controller {
 	c := _m.On("SetPlayback", value).Return(err)
 
 	if once {
@@ -12,7 +14,7 @@ func (_m *Controller) MockedMediaPlayerPlaybackSet(value string, err error, once
 }
 
 // MockedMediaPlayerPlaybackReport is a helper function that sets up a mock for the Playback method.
-func (_m *Controller) MockedMediaPlayerPlaybackReport(value string, err error, once bool) *Controller {
+func (_m *Controller) MockedMediaPlayerPlaybackReport(value mediaplayer.PlaybackAction, err error, once bool) *Controller {
 	c := _m.On("Playback").Return(value, err)
 
 	if once {
