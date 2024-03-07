@@ -139,14 +139,16 @@ func TestRouteService(t *testing.T) { //nolint:paralleltest
 						Name:    "set cable lock",
 						Command: suite.BoolMessage("pt:j1/mt:cmd/rt:dev/rn:test_adapter/ad:1/sv:chargepoint/ad:2", "cmd.cable_lock.set", "chargepoint", true),
 						Expectations: []*suite.Expectation{
-							suite.ExpectBool("pt:j1/mt:evt/rt:dev/rn:test_adapter/ad:1/sv:chargepoint/ad:2", "evt.cable_lock.report", "chargepoint", true),
+							suite.ExpectBool("pt:j1/mt:evt/rt:dev/rn:test_adapter/ad:1/sv:chargepoint/ad:2", "evt.cable_lock.report", "chargepoint", true).
+								ExpectNoProperty("cable_current"),
 						},
 					},
 					{
 						Name:    "cable lock report",
 						Command: suite.NullMessage("pt:j1/mt:cmd/rt:dev/rn:test_adapter/ad:1/sv:chargepoint/ad:2", "cmd.cable_lock.get_report", "chargepoint"),
 						Expectations: []*suite.Expectation{
-							suite.ExpectBool("pt:j1/mt:evt/rt:dev/rn:test_adapter/ad:1/sv:chargepoint/ad:2", "evt.cable_lock.report", "chargepoint", true),
+							suite.ExpectBool("pt:j1/mt:evt/rt:dev/rn:test_adapter/ad:1/sv:chargepoint/ad:2", "evt.cable_lock.report", "chargepoint", true).
+								ExpectNoProperty("cable_current"),
 						},
 					},
 					{
@@ -200,6 +202,30 @@ func TestRouteService(t *testing.T) { //nolint:paralleltest
 						Command: suite.NullMessage("pt:j1/mt:cmd/rt:dev/rn:test_adapter/ad:1/sv:chargepoint/ad:2", "cmd.phase_mode.get_report", "chargepoint"),
 						Expectations: []*suite.Expectation{
 							suite.ExpectString("pt:j1/mt:evt/rt:dev/rn:test_adapter/ad:1/sv:chargepoint/ad:2", "evt.phase_mode.report", "chargepoint", "NL1L2L3"),
+						},
+					},
+				},
+			},
+			{
+				Name:     "cable lock report - if cable current is provided, report it",
+				TearDown: adapterhelper.TearDownAdapter("../../testdata/adapter/test_adapter"),
+				Setup: routeService(
+					mockedchargepoint.NewMockedChargepoint(
+						mockedchargepoint.NewController(t),
+						mockedchargepoint.NewAdjustableMaxCurrentController(t),
+						mockedchargepoint.NewAdjustableOfferedCurrentController(t),
+						mockedchargepoint.NewAdjustablePhaseModeController(t),
+						mockedchargepoint.NewAdjustableCableLockController(t).
+							MockChargepointCableLockReport(&chargepoint.CableReport{CableLock: true, CableCurrent: int64Ptr(t, 0)}, nil, false),
+					),
+					nil,
+				),
+				Nodes: []*suite.Node{
+					{
+						Command: suite.NullMessage("pt:j1/mt:cmd/rt:dev/rn:test_adapter/ad:1/sv:chargepoint/ad:2", "cmd.cable_lock.get_report", "chargepoint"),
+						Expectations: []*suite.Expectation{
+							suite.ExpectBool("pt:j1/mt:evt/rt:dev/rn:test_adapter/ad:1/sv:chargepoint/ad:2", "evt.cable_lock.report", "chargepoint", true).
+								ExpectProperty("cable_current", "0"),
 						},
 					},
 				},
@@ -837,4 +863,10 @@ func setupService(
 	ad := adapterhelper.PrepareSeededAdapter(t, "../../testdata/adapter/test_adapter", mqtt, factory, adapter.ThingSeeds{seed})
 
 	return chargepoint.RouteService(ad), task.Combine(chargepoint.TaskReporting(ad, duration)), mocks
+}
+
+func int64Ptr(t *testing.T, i int64) *int64 {
+	t.Helper()
+
+	return &i
 }
