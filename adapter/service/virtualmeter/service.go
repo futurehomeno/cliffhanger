@@ -60,11 +60,11 @@ func NewService(
 		cfg.ReportingStrategy = cache.ReportOnChangeOnly()
 	}
 
-	mr := cfg.ManagerWrapper.(*managerWrapper) //nolint:forcetypeassert
+	mr := cfg.ManagerWrapper.(*manager) //nolint:forcetypeassert
 
 	s := &service{
 		Service:           adapter.NewService(publisher, cfg.Specification),
-		manager:           mr.manager,
+		manager:           mr,
 		lock:              &sync.RWMutex{},
 		reportingCache:    cache.NewReportingCache(),
 		reportingStrategy: cfg.ReportingStrategy,

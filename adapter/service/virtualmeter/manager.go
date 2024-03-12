@@ -25,10 +25,6 @@ type (
 		WithAdapter(ad adapter.Adapter)
 	}
 
-	managerWrapper struct {
-		*manager
-	}
-
 	manager struct {
 		lock                      sync.RWMutex
 		ad                        adapter.Adapter
@@ -39,23 +35,19 @@ type (
 	}
 )
 
-var _ ManagerWrapper = &managerWrapper{}
-
 // NewManagerWrapper creates a new wrapper with a virtual meter manager.
 func NewManagerWrapper(db database.Database, recalculationPeriod, garbageCleaningPeriod time.Duration) ManagerWrapper {
-	return &managerWrapper{
-		manager: &manager{
-			lock:                      sync.RWMutex{},
-			virtualServices:           make(map[string]adapter.Service),
-			storage:                   NewStorage(db),
-			energyRecalculationPeriod: recalculationPeriod,
-			garbageCleaningPeriod:     garbageCleaningPeriod,
-		},
+	return &manager{
+		lock:                      sync.RWMutex{},
+		virtualServices:           make(map[string]adapter.Service),
+		storage:                   NewStorage(db),
+		energyRecalculationPeriod: recalculationPeriod,
+		garbageCleaningPeriod:     garbageCleaningPeriod,
 	}
 }
 
 // WithAdapter adds a provided adapter to the provided virtual meter manager. Used to avoid circular dependencies.
-func (m *managerWrapper) WithAdapter(ad adapter.Adapter) {
+func (m *manager) WithAdapter(ad adapter.Adapter) {
 	m.lock.Lock()
 	defer m.lock.Unlock()
 
@@ -64,18 +56,18 @@ func (m *managerWrapper) WithAdapter(ad adapter.Adapter) {
 
 // RegisterThing creates a virtual meter and numeric meter services for a thing based on the existing
 // services. VMS is then added to a think and numeric is added based on whether the virtual meter is already active.
-func (m *managerWrapper) RegisterThing(thing adapter.Thing, publisher adapter.Publisher) error {
+func (m *manager) RegisterThing(thing adapter.Thing, publisher adapter.Publisher) error {
 	m.lock.Lock()
 	defer m.lock.Unlock()
 
-	if len(thing.InclusionReport().Groups) == 0 {
-		vmsSpec, numericSpec := m.createVirtualServicesForThing(thing, "")
-
-		return m.registerVirtualServices(thing, publisher, vmsSpec, numericSpec)
-	}
-
 	for _, group := range thing.InclusionReport().Groups {
-		vmsSpec, numericSpec := m.createVirtualServicesForThing(thing, "_"+group)
+		vmsSpec, numericSpec := m.createVirtualServicesForThing(thing, group)
+
+		if vmsSpec == nil || numericSpec == nil {
+			continue
+		}
+
+		log.Infof("registering virtual service")
 
 		if err := m.registerVirtualServices(thing, publisher, vmsSpec, numericSpec); err != nil {
 			return err
@@ -418,13 +410,24 @@ func (m *manager) normalizeOutLvlSwitchLevel(level int64, serviceAddr string) (f
 // - outlvlswitch.Service.
 func (m *manager) createVirtualServicesForThing(t adapter.Thing, group string) (outLvlSwitchService *fimptype.Service, numericMeterService *fimptype.Service) {
 	for _, s := range t.Services("") {
+		if len(s.Specification().Groups) == 0 || s.Specification().Groups[0] != group {
+			continue
+		}
+
+		addr, err := fimpgo.NewAddressFromString(s.Topic())
+		if err != nil {
+			log.WithError(err).Errorf("manager: failed to parse address from topic %s when creating virtual service", s.Topic())
+
+			continue
+		}
+
 		switch s.(type) {
 		case outlvlswitch.Service:
 			return Specification(
 					m.ad.Name(),
 					m.ad.Address(),
-					t.Address()+group,
-					t.InclusionReport().Groups,
+					addr.ServiceAddress,
+					[]string{group},
 					[]numericmeter.Unit{numericmeter.UnitW},
 					[]string{ModeOn, ModeOff},
 				),
@@ -432,8 +435,8 @@ func (m *manager) createVirtualServicesForThing(t adapter.Thing, group string) (
 					numericmeter.MeterElec,
 					m.ad.Name(),
 					m.ad.Address(),
-					t.Address()+group,
-					t.InclusionReport().Groups,
+					addr.ServiceAddress,
+					[]string{group},
 					[]numericmeter.Unit{numericmeter.UnitW, numericmeter.UnitKWh},
 					numericmeter.WithIsVirtual(),
 				)
@@ -449,19 +452,13 @@ func (m *manager) createVirtualServicesForThing(t adapter.Thing, group string) (
 // Avoids updating if virtual service already exist.
 // VMS is always added while numeric meter is added only if virtual service is active.
 //
-//nolint:funlen,cyclop
-func (m *managerWrapper) registerVirtualServices(
+//nolint:funlen
+func (m *manager) registerVirtualServices(
 	thing adapter.Thing,
 	publisher adapter.Publisher,
 	vmsSpec *fimptype.Service,
 	numericSpec *fimptype.Service,
 ) error {
-	if vmsSpec == nil || numericSpec == nil {
-		log.Warnf("manager: failed to create virtual meter service for thing %s", thing.Address())
-
-		return nil
-	}
-
 	// avoid adding virtual service that already exists.
 	for _, s := range thing.Services(VirtualMeterElec) {
 		log.Infof("Comparing %s with %s", s.Topic(), vmsSpec.Address)
@@ -484,13 +481,15 @@ func (m *managerWrapper) registerVirtualServices(
 
 	srv := numericmeter.NewService(publisher, &numericmeter.Config{
 		Specification:     numericSpec,
-		Reporter:          newController(topic, m.manager),
+		Reporter:          newController(topic, m),
 		ReportingStrategy: nil,
 	})
 
 	log.Debugf("manager: registering a service template, topic: %s", topic)
 
 	device, err := m.storage.Device(topic)
+
+	log.Infof("I am updating device : %v", device)
 
 	if err != nil {
 		return fmt.Errorf("manager: failed to get device by address %s: %w", topic, err)

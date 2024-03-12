@@ -64,9 +64,9 @@ func handleStatePolling(sr adapter.ServiceRegistry) func() {
 }
 
 func handleGarbageCleaning(sr adapter.ServiceRegistry, mr ManagerWrapper) func() {
-	m, ok := mr.(*managerWrapper)
+	m, ok := mr.(*manager)
 	if !ok {
-		log.Errorf("task(vms): failed to cast manager to *managerWrapper during garbage cleaning")
+		log.Errorf("task(vms): failed to cast manager to *manager during garbage cleaning")
 
 		return func() {}
 	}
@@ -78,7 +78,7 @@ func handleGarbageCleaning(sr adapter.ServiceRegistry, mr ManagerWrapper) func()
 				continue
 			}
 
-			if err := m.manager.deleteDeviceEntry(vmeter.Topic()); err != nil {
+			if err := m.deleteDeviceEntry(vmeter.Topic()); err != nil {
 				log.WithError(err).Errorf("task(vms): failed to clean garbage")
 			}
 		}

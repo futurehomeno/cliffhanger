@@ -17,7 +17,7 @@ import (
 )
 
 const (
-	addr = "test:addr"
+	addr = "test"
 )
 
 var (
@@ -35,7 +35,8 @@ var (
 		&outlvlswitch.Config{
 			Specification: &fimptype.Service{
 				Name:    outlvlswitch.OutLvlSwitch,
-				Address: "/rt:dev/rn:test/ad:test:addr/sv:virtual_meter_elec/ad:test:addr",
+				Address: "/rt:dev/rn:test/ad:test/sv:out_level_switch/ad:test_ch1",
+				Groups:  []string{"ch1"},
 			},
 		})
 )
@@ -96,7 +97,7 @@ func TestVirtualMeterManager_Add(t *testing.T) { //nolint:paralleltest
 
 			db, _ := database.NewDatabase(workdir)
 			mr := NewManagerWrapper(db, time.Second, time.Hour)
-			m := mr.(*managerWrapper).manager //nolint:forcetypeassert
+			m := mr.(*manager) //nolint:forcetypeassert
 
 			mockAdapter := mockedadapter.NewAdapter(t)
 			if c.configuredService != nil {
@@ -172,7 +173,7 @@ func TestManager_Remove(t *testing.T) { //nolint:paralleltest
 
 			db, _ := database.NewDatabase(workdir)
 			mr := NewManagerWrapper(db, time.Second, time.Hour)
-			m := mr.(*managerWrapper).manager //nolint:forcetypeassert
+			m := mr.(*manager) //nolint:forcetypeassert
 
 			mockAdapter := mockedadapter.NewAdapter(t)
 			if c.configuredService != nil {
@@ -237,7 +238,7 @@ func TestManager_Update(t *testing.T) { //nolint:paralleltest
 
 			db, _ := database.NewDatabase(workdir)
 			mr := NewManagerWrapper(db, time.Second, time.Hour)
-			m := mr.(*managerWrapper).manager //nolint:forcetypeassert
+			m := mr.(*manager) //nolint:forcetypeassert
 
 			if c.registerDevice {
 				err := m.storage.SetDevice(addr, &Device{Modes: c.existingModes, CurrentMode: ModeOn})
@@ -306,7 +307,7 @@ func TestManager_Report(t *testing.T) { //nolint:paralleltest
 
 			db, _ := database.NewDatabase(workdir)
 			mr := NewManagerWrapper(db, time.Second, time.Hour)
-			m := mr.(*managerWrapper).manager //nolint:forcetypeassert
+			m := mr.(*manager) //nolint:forcetypeassert
 
 			if c.device != nil {
 				err := m.storage.SetDevice(addr, c.device)
@@ -402,7 +403,7 @@ func TestManager_Reset(t *testing.T) { //nolint:paralleltest
 
 			db, _ := database.NewDatabase(workdir)
 			mr := NewManagerWrapper(db, time.Second, time.Hour)
-			m := mr.(*managerWrapper).manager //nolint:forcetypeassert
+			m := mr.(*manager) //nolint:forcetypeassert
 
 			if c.device != nil {
 				err := m.storage.SetDevice(addr, c.device)
@@ -552,7 +553,7 @@ func TestManager_UpdateDeviceActivity(t *testing.T) { //nolint:paralleltest
 			assert.NoError(t, err, "should create a database")
 
 			mr := NewManagerWrapper(db, time.Second, time.Hour)
-			m := mr.(*managerWrapper).manager //nolint:forcetypeassert
+			m := mr.(*manager) //nolint:forcetypeassert
 
 			mockedAdapter := mockedadapter.NewAdapter(t).WithThingByAddress(addr, true, c.thing)
 			m.ad = mockedAdapter
@@ -593,23 +594,51 @@ func TestManager_RegisterDevice(t *testing.T) { //nolint:paralleltest
 			name: "should not error when didn't find any services to create",
 			thing: mockedadapter.NewThing(t).
 				WithInclusionReported(&fimptype.ThingInclusionReport{Address: addr, Groups: []string{"ch1"}}, true).
-				WithInclusionReported(&fimptype.ThingInclusionReport{Address: addr, Groups: []string{"ch1"}}, true).
-				WithServices("", true, []adapter.Service{}).
-				WithAddress(addr, true),
+				WithServices("", true, []adapter.Service{}),
 			adapter:     mockedadapter.NewAdapter(t),
+			expectError: false,
+		},
+		{
+			name: "should nor return error if skipped services without groups",
+			thing: mockedadapter.NewThing(t).
+				WithInclusionReported(&fimptype.ThingInclusionReport{Address: addr, Groups: []string{"ch1"}}, true).
+				WithServices("", true, []adapter.Service{
+					outlvlswitch.NewService(nil, &outlvlswitch.Config{
+						Specification: &fimptype.Service{
+							Name:    outlvlswitch.OutLvlSwitch,
+							Address: "/rt:dev/rn:test/ad:test/sv:out_level_switch/ad:test",
+							Groups:  []string{},
+						},
+					}),
+				}),
+		},
+		{
+			name: "should avoid updating if virtual meter already exists",
+			thing: mockedadapter.NewThing(t).
+				WithInclusionReported(&fimptype.ThingInclusionReport{Address: addr, Groups: []string{"ch1"}}, true).
+				WithServices(VirtualMeterElec, true, []adapter.Service{
+					&service{
+						Service: adapter.NewService(nil, &fimptype.Service{
+							Name:    VirtualMeterElec,
+							Address: "/rt:dev/rn:test/ad:test/sv:virtual_meter_elec/ad:test_ch1",
+							Groups:  []string{"ch1"},
+						}),
+					},
+				}).
+				WithServices("", true, []adapter.Service{outLvlSwitchServiceFullAddr}),
+			adapter: mockedadapter.NewAdapter(t).
+				WithName("test", true).
+				WithName("test", true).
+				WithAddress(addr, true).
+				WithAddress(addr, true),
 			expectError: false,
 		},
 		{
 			name: "should return error when update fails",
 			thing: mockedadapter.NewThing(t).
 				WithInclusionReported(&fimptype.ThingInclusionReport{Address: addr, Groups: []string{"ch1"}}, true).
-				WithInclusionReported(&fimptype.ThingInclusionReport{Address: addr, Groups: []string{"ch1"}}, true).
-				WithServices(VirtualMeterElec, true, []adapter.Service{outLvlSwitchServiceFullAddr}).
+				WithServices(VirtualMeterElec, true, []adapter.Service{}).
 				WithServices("", true, []adapter.Service{outLvlSwitchServiceFullAddr}).
-				WithAddress(addr, true).
-				WithAddress(addr, true).
-				WithInclusionReported(&fimptype.ThingInclusionReport{Address: addr}, true).
-				WithInclusionReported(&fimptype.ThingInclusionReport{Address: addr}, true).
 				WithUpdate(true, errors.New("some")),
 			adapter: mockedadapter.NewAdapter(t).
 				WithName("test", true).
@@ -622,36 +651,8 @@ func TestManager_RegisterDevice(t *testing.T) { //nolint:paralleltest
 			name: "should update thing if device already exists",
 			thing: mockedadapter.NewThing(t).
 				WithInclusionReported(&fimptype.ThingInclusionReport{Address: addr, Groups: []string{"ch1"}}, true).
-				WithInclusionReported(&fimptype.ThingInclusionReport{Address: addr, Groups: []string{"ch1"}}, true).
-				WithServices(VirtualMeterElec, true, []adapter.Service{outLvlSwitchServiceFullAddr}).
-				WithServices("", true, []adapter.Service{outLvlSwitchServiceFullAddr}).
-				WithAddress(addr, true).
-				WithAddress(addr, true).
-				WithInclusionReported(&fimptype.ThingInclusionReport{Address: addr}, true).
-				WithInclusionReported(&fimptype.ThingInclusionReport{Address: addr}, true).
-				WithUpdate(true, nil).
-				WithUpdate(true, nil),
-			adapter: mockedadapter.NewAdapter(t).
-				WithName("test", true).
-				WithName("test", true).
-				WithAddress(addr, true).
-				WithAddress(addr, true),
-			deviceKey: "/rt:dev/rn:test/ad:test:addr/sv:virtual_meter_elec/ad:test:addr_ch1",
-			device: &Device{
-				Modes: map[string]float64{ModeOn: 123},
-			},
-			expectError: false,
-		},
-		{
-			name: "should update thing if device already exists and groups are empty",
-			thing: mockedadapter.NewThing(t).
-				WithInclusionReported(&fimptype.ThingInclusionReport{Address: addr, Groups: []string{}}, true).
 				WithServices(VirtualMeterElec, true, []adapter.Service{}).
 				WithServices("", true, []adapter.Service{outLvlSwitchServiceFullAddr}).
-				WithAddress(addr, true).
-				WithAddress(addr, true).
-				WithInclusionReported(&fimptype.ThingInclusionReport{Address: addr}, true).
-				WithInclusionReported(&fimptype.ThingInclusionReport{Address: addr}, true).
 				WithUpdate(true, nil).
 				WithUpdate(true, nil),
 			adapter: mockedadapter.NewAdapter(t).
@@ -659,28 +660,7 @@ func TestManager_RegisterDevice(t *testing.T) { //nolint:paralleltest
 				WithName("test", true).
 				WithAddress(addr, true).
 				WithAddress(addr, true),
-			deviceKey: "/rt:dev/rn:test/ad:test:addr/sv:virtual_meter_elec/ad:test:addr",
-			device: &Device{
-				Modes: map[string]float64{ModeOn: 123},
-			},
-			expectError: false,
-		},
-		{
-			name: "should not update thing if services already exist and groups are empty",
-			thing: mockedadapter.NewThing(t).
-				WithInclusionReported(&fimptype.ThingInclusionReport{Address: addr, Groups: []string{}}, true).
-				WithServices(VirtualMeterElec, true, []adapter.Service{outLvlSwitchServiceFullAddr}).
-				WithServices("", true, []adapter.Service{outLvlSwitchServiceFullAddr}).
-				WithAddress(addr, true).
-				WithAddress(addr, true).
-				WithInclusionReported(&fimptype.ThingInclusionReport{Address: addr}, true).
-				WithInclusionReported(&fimptype.ThingInclusionReport{Address: addr}, true),
-			adapter: mockedadapter.NewAdapter(t).
-				WithName("test", true).
-				WithName("test", true).
-				WithAddress(addr, true).
-				WithAddress(addr, true),
-			deviceKey: "/rt:dev/rn:test/ad:test:addr/sv:virtual_meter_elec/ad:test:addr",
+			deviceKey: "/rt:dev/rn:test/ad:test/sv:virtual_meter_elec/ad:test_ch1",
 			device: &Device{
 				Modes: map[string]float64{ModeOn: 123},
 			},
@@ -690,20 +670,15 @@ func TestManager_RegisterDevice(t *testing.T) { //nolint:paralleltest
 			name: "should update uninitialized device",
 			thing: mockedadapter.NewThing(t).
 				WithInclusionReported(&fimptype.ThingInclusionReport{Address: addr, Groups: []string{"ch1"}}, true).
-				WithInclusionReported(&fimptype.ThingInclusionReport{Address: addr, Groups: []string{"ch1"}}, true).
-				WithServices(VirtualMeterElec, true, []adapter.Service{outLvlSwitchServiceFullAddr}).
+				WithServices(VirtualMeterElec, true, []adapter.Service{}).
 				WithServices("", true, []adapter.Service{outLvlSwitchServiceFullAddr}).
-				WithAddress(addr, true).
-				WithAddress(addr, true).
-				WithInclusionReported(&fimptype.ThingInclusionReport{Address: addr}, true).
-				WithInclusionReported(&fimptype.ThingInclusionReport{Address: addr}, true).
 				WithUpdate(true, nil),
 			adapter: mockedadapter.NewAdapter(t).
 				WithName("test", true).
 				WithName("test", true).
 				WithAddress(addr, true).
 				WithAddress(addr, true),
-			deviceKey: "/rt:dev/rn:test/ad:test:addr/sv:virtual_meter_elec/ad:test:addr_ch1",
+			deviceKey: "/rt:dev/rn:test/ad:test/sv:virtual_meter_elec/ad:test_ch1",
 			device: &Device{
 				Modes: nil,
 			},
@@ -720,7 +695,7 @@ func TestManager_RegisterDevice(t *testing.T) { //nolint:paralleltest
 			assert.NoError(t, err, "should create a database")
 
 			mr := NewManagerWrapper(db, time.Second, time.Hour)
-			m := mr.(*managerWrapper).manager //nolint:forcetypeassert
+			m := mr.(*manager) //nolint:forcetypeassert
 			m.ad = c.adapter
 
 			m.virtualServices = make(map[string]adapter.Service)

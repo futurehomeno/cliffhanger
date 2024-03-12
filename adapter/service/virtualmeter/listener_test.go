@@ -98,7 +98,7 @@ func TestHandlerLevelEvent(t *testing.T) { //nolint:paralleltest
 
 			db, _ := database.NewDatabase(workdir)
 			mr := NewManagerWrapper(db, 0, time.Hour)
-			m := mr.(*managerWrapper).manager //nolint:forcetypeassert
+			m := mr.(*manager) //nolint:forcetypeassert
 
 			if v.thing != nil {
 				m.ad = mockedadapter.NewAdapter(t).WithThingByTopic("", false, v.thing)
@@ -160,7 +160,7 @@ func TestHandlerConnectivityEvent(t *testing.T) { //nolint:paralleltest
 
 			db, _ := database.NewDatabase(workdir)
 			mr := NewManagerWrapper(db, 0, time.Hour)
-			m := mr.(*managerWrapper).manager //nolint:forcetypeassert
+			m := mr.(*manager) //nolint:forcetypeassert
 
 			if v.thing != nil {
 				m.ad = mockedadapter.NewAdapter(t).WithThingByAddress("ad1", true, v.thing)

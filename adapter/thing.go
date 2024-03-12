@@ -344,7 +344,7 @@ func (t *thing) Disconnect() {
 	c.Disconnect(t)
 }
 
-type ThingUpdate func(Thing)
+type ThingUpdate func(*thing)
 
 // Update applies provided ThingUpdate options to the thing and sends a report if requested.
 func (t *thing) Update(options ...ThingUpdate) error {
@@ -363,12 +363,7 @@ func (o ThingUpdate) Apply(t *thing) {
 }
 
 func ThingUpdateAddService(s Service) ThingUpdate {
-	return func(tt Thing) {
-		t, ok := tt.(*thing)
-		if !ok {
-			return
-		}
-
+	return func(t *thing) {
 		if t.services[s.Topic()] == nil {
 			t.services[s.Topic()] = s
 			t.inclusionReport.Services = append(t.inclusionReport.Services, *s.Specification())
@@ -377,12 +372,7 @@ func ThingUpdateAddService(s Service) ThingUpdate {
 }
 
 func ThingUpdateRemoveService(s Service) ThingUpdate {
-	return func(tt Thing) {
-		t, ok := tt.(*thing)
-		if !ok {
-			return
-		}
-
+	return func(t *thing) {
 		delete(t.services, s.Topic())
 
 		newServices := make([]fimptype.Service, 0)

@@ -12,6 +12,7 @@ generate-mocks:
 	$(call generate_mocks,"prime","SyncClient")
 	$(call generate_mocks,"root","Service|Resetter")
 	$(call generate_mocks,"database","Database")
+	find ./test/mocks -type f -name "thing_update.go" | xargs rm -rf #removes undesired mocks.
 
 lint:
 	golangci-lint run
