@@ -79,17 +79,17 @@ type ChargingSettings struct {
 // CableReport represents an extended cable status report.
 type CableReport struct {
 	CableLock    bool
-	CableCurrent int64
+	CableCurrent *int64
 }
 
 // reportProperties returns a map of report properties.
 func (r *CableReport) reportProperties() map[string]string {
-	if r.CableCurrent == 0 {
+	if r.CableCurrent == nil {
 		return nil
 	}
 
 	return map[string]string{
-		PropertyCableCurrent: strconv.Itoa(int(r.CableCurrent)),
+		PropertyCableCurrent: strconv.Itoa(int(*r.CableCurrent)),
 	}
 }
 
