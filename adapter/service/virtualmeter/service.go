@@ -36,7 +36,7 @@ type (
 
 	Config struct {
 		Specification     *fimptype.Service
-		ManagerWrapper    ManagerWrapper
+		Manager           Manager
 		ReportingStrategy cache.ReportingStrategy
 	}
 
@@ -60,7 +60,7 @@ func NewService(
 		cfg.ReportingStrategy = cache.ReportOnChangeOnly()
 	}
 
-	mr := cfg.ManagerWrapper.(*manager) //nolint:forcetypeassert
+	mr := cfg.Manager.(*manager) //nolint:forcetypeassert
 
 	s := &service{
 		Service:           adapter.NewService(publisher, cfg.Specification),

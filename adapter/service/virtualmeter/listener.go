@@ -28,7 +28,7 @@ var (
 )
 
 // NewHandlers creates a new handler for virtual meter that listens for the state updates of other services.
-func NewHandlers(mr ManagerWrapper) []*event.Handler {
+func NewHandlers(mr Manager) []*event.Handler {
 	m, ok := mr.(*manager)
 	if !ok {
 		log.Errorf("listener: failed to cast manager to *manager during handler creation")

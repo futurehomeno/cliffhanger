@@ -224,7 +224,7 @@ func setupService(
 	db, err := database.NewDatabase(workdir)
 	assert.NoError(t, err, "should create database")
 
-	managerWrapper := virtualmeter.NewManagerWrapper(db, recalculatingPeriod, time.Hour)
+	managerWrapper := virtualmeter.NewManager(db, recalculatingPeriod, time.Hour)
 	seed := &adapter.ThingSeed{ID: "B", CustomAddress: "2"}
 
 	factory := adapterhelper.FactoryHelper(func(a adapter.Adapter, publisher adapter.Publisher, thingState adapter.ThingState) (adapter.Thing, error) {

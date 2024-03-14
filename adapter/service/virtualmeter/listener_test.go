@@ -38,7 +38,7 @@ func TestHandlerLevelEvent(t *testing.T) { //nolint:paralleltest
 				Name:    VirtualMeterElec,
 				Address: "",
 			},
-			ManagerWrapper: NewManagerWrapper(nil, 0, time.Hour),
+			Manager: NewManager(nil, 0, time.Hour),
 		},
 	)
 
@@ -97,7 +97,7 @@ func TestHandlerLevelEvent(t *testing.T) { //nolint:paralleltest
 			defer adapterhelper.TearDownAdapter(workdir)[0](t)
 
 			db, _ := database.NewDatabase(workdir)
-			mr := NewManagerWrapper(db, 0, time.Hour)
+			mr := NewManager(db, 0, time.Hour)
 			m := mr.(*manager) //nolint:forcetypeassert
 
 			if v.thing != nil {
@@ -159,7 +159,7 @@ func TestHandlerConnectivityEvent(t *testing.T) { //nolint:paralleltest
 			defer adapterhelper.TearDownAdapter(workdir)[0](t)
 
 			db, _ := database.NewDatabase(workdir)
-			mr := NewManagerWrapper(db, 0, time.Hour)
+			mr := NewManager(db, 0, time.Hour)
 			m := mr.(*manager) //nolint:forcetypeassert
 
 			if v.thing != nil {

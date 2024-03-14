@@ -96,7 +96,7 @@ func TestVirtualMeterManager_Add(t *testing.T) { //nolint:paralleltest
 			defer c.teardown(t)
 
 			db, _ := database.NewDatabase(workdir)
-			mr := NewManagerWrapper(db, time.Second, time.Hour)
+			mr := NewManager(db, time.Second, time.Hour)
 			m := mr.(*manager) //nolint:forcetypeassert
 
 			mockAdapter := mockedadapter.NewAdapter(t)
@@ -172,7 +172,7 @@ func TestManager_Remove(t *testing.T) { //nolint:paralleltest
 			defer c.teardown(t)
 
 			db, _ := database.NewDatabase(workdir)
-			mr := NewManagerWrapper(db, time.Second, time.Hour)
+			mr := NewManager(db, time.Second, time.Hour)
 			m := mr.(*manager) //nolint:forcetypeassert
 
 			mockAdapter := mockedadapter.NewAdapter(t)
@@ -237,7 +237,7 @@ func TestManager_Update(t *testing.T) { //nolint:paralleltest
 			defer adapterhelper.TearDownAdapter(workdir)[0](t)
 
 			db, _ := database.NewDatabase(workdir)
-			mr := NewManagerWrapper(db, time.Second, time.Hour)
+			mr := NewManager(db, time.Second, time.Hour)
 			m := mr.(*manager) //nolint:forcetypeassert
 
 			if c.registerDevice {
@@ -306,7 +306,7 @@ func TestManager_Report(t *testing.T) { //nolint:paralleltest
 			defer adapterhelper.TearDownAdapter(workdir)[0](t)
 
 			db, _ := database.NewDatabase(workdir)
-			mr := NewManagerWrapper(db, time.Second, time.Hour)
+			mr := NewManager(db, time.Second, time.Hour)
 			m := mr.(*manager) //nolint:forcetypeassert
 
 			if c.device != nil {
@@ -402,7 +402,7 @@ func TestManager_Reset(t *testing.T) { //nolint:paralleltest
 			defer adapterhelper.TearDownAdapter(workdir)[0](t)
 
 			db, _ := database.NewDatabase(workdir)
-			mr := NewManagerWrapper(db, time.Second, time.Hour)
+			mr := NewManager(db, time.Second, time.Hour)
 			m := mr.(*manager) //nolint:forcetypeassert
 
 			if c.device != nil {
@@ -552,7 +552,7 @@ func TestManager_UpdateDeviceActivity(t *testing.T) { //nolint:paralleltest
 			db, err := database.NewDatabase(workdir)
 			assert.NoError(t, err, "should create a database")
 
-			mr := NewManagerWrapper(db, time.Second, time.Hour)
+			mr := NewManager(db, time.Second, time.Hour)
 			m := mr.(*manager) //nolint:forcetypeassert
 
 			mockedAdapter := mockedadapter.NewAdapter(t).WithThingByAddress(addr, true, c.thing)
@@ -694,7 +694,7 @@ func TestManager_RegisterDevice(t *testing.T) { //nolint:paralleltest
 			db, err := database.NewDatabase(workdir)
 			assert.NoError(t, err, "should create a database")
 
-			mr := NewManagerWrapper(db, time.Second, time.Hour)
+			mr := NewManager(db, time.Second, time.Hour)
 			m := mr.(*manager) //nolint:forcetypeassert
 			m.ad = c.adapter
 

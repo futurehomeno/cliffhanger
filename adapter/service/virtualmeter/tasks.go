@@ -15,7 +15,7 @@ import (
 // - state polling task.
 func Tasks(
 	serviceRegistry adapter.ServiceRegistry,
-	mr ManagerWrapper,
+	mr Manager,
 	reportingInterval,
 	pollingInterval,
 	cleaningInterval time.Duration,
@@ -63,7 +63,7 @@ func handleStatePolling(sr adapter.ServiceRegistry) func() {
 	}
 }
 
-func handleGarbageCleaning(sr adapter.ServiceRegistry, mr ManagerWrapper) func() {
+func handleGarbageCleaning(sr adapter.ServiceRegistry, mr Manager) func() {
 	m, ok := mr.(*manager)
 	if !ok {
 		log.Errorf("task(vms): failed to cast manager to *manager during garbage cleaning")

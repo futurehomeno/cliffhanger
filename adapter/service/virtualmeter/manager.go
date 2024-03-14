@@ -17,7 +17,7 @@ import (
 )
 
 type (
-	ManagerWrapper interface {
+	Manager interface {
 		// RegisterThing creates a virtual meter and numeric meter services for a thing based on the existing
 		// services. VMS is then added to a think and numeric is added based on whether the virtual meter is already active.
 		RegisterThing(thing adapter.Thing, publisher adapter.Publisher) error
@@ -35,8 +35,8 @@ type (
 	}
 )
 
-// NewManagerWrapper creates a new wrapper with a virtual meter manager.
-func NewManagerWrapper(db database.Database, recalculationPeriod, garbageCleaningPeriod time.Duration) ManagerWrapper {
+// NewManager creates a new wrapper with a virtual meter manager.
+func NewManager(db database.Database, recalculationPeriod, garbageCleaningPeriod time.Duration) Manager {
 	return &manager{
 		lock:                      sync.RWMutex{},
 		virtualServices:           make(map[string]adapter.Service),
@@ -67,7 +67,7 @@ func (m *manager) RegisterThing(thing adapter.Thing, publisher adapter.Publisher
 			continue
 		}
 
-		log.Infof("registering virtual service")
+		log.Debugf("manager: registering services %s and %s for group %s", vmsSpec.Name, numericSpec.Name, group)
 
 		if err := m.registerVirtualServices(thing, publisher, vmsSpec, numericSpec); err != nil {
 			return err
@@ -469,8 +469,8 @@ func (m *manager) registerVirtualServices(
 	}
 
 	vms := NewService(publisher, &Config{
-		Specification:  vmsSpec,
-		ManagerWrapper: m,
+		Specification: vmsSpec,
+		Manager:       m,
 	})
 
 	topic := vms.Topic()
@@ -488,8 +488,6 @@ func (m *manager) registerVirtualServices(
 	log.Debugf("manager: registering a service template, topic: %s", topic)
 
 	device, err := m.storage.Device(topic)
-
-	log.Infof("I am updating device : %v", device)
 
 	if err != nil {
 		return fmt.Errorf("manager: failed to get device by address %s: %w", topic, err)
