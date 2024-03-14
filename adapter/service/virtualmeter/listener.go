@@ -28,10 +28,17 @@ var (
 )
 
 // NewHandlers creates a new handler for virtual meter that listens for the state updates of other services.
-func NewHandlers(manager *manager) []*event.Handler {
+func NewHandlers(mr Manager) []*event.Handler {
+	m, ok := mr.(*manager)
+	if !ok {
+		log.Errorf("listener: failed to cast manager to *manager during handler creation")
+
+		return nil
+	}
+
 	return []*event.Handler{
-		event.NewHandler(&levelEventProcessor{processor{manager: manager}}, "virtual_meter_level", 3, outlvlswitch.WaitForLevelEvent()),
-		event.NewHandler(&connectivityEventProcessor{processor{manager: manager}}, "virtual_meter_connectivity", 3, adapter.WaitForConnectivityEvent()),
+		event.NewHandler(&levelEventProcessor{processor{manager: m}}, "virtual_meter_level", 3, outlvlswitch.WaitForLevelEvent()),
+		event.NewHandler(&connectivityEventProcessor{processor{manager: m}}, "virtual_meter_connectivity", 3, adapter.WaitForConnectivityEvent()),
 	}
 }
 
@@ -54,10 +61,6 @@ func (p *levelEventProcessor) Process(e event.Event) {
 	if err != nil {
 		log.WithError(err).Errorf("listener: failed to get virtual meter address by topic %s", levelEvent.Address())
 
-		return
-	}
-
-	if !levelEvent.HasChanged() && !p.manager.updateRequired(vmsAddr) {
 		return
 	}
 

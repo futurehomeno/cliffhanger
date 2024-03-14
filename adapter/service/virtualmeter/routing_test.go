@@ -216,6 +216,7 @@ func setupService(
 	thingCfg := &adapter.ThingConfig{
 		InclusionReport: &fimptype.ThingInclusionReport{
 			Address: "2",
+			Groups:  []string{"ch1"},
 		},
 		Connector: mockedadapter.NewConnector(t),
 	}
@@ -223,11 +224,19 @@ func setupService(
 	db, err := database.NewDatabase(workdir)
 	assert.NoError(t, err, "should create database")
 
-	managerWrapper := virtualmeter.NewManagerWrapper(db, recalculatingPeriod)
+	managerWrapper := virtualmeter.NewManager(db, recalculatingPeriod, time.Hour)
 	seed := &adapter.ThingSeed{ID: "B", CustomAddress: "2"}
 
 	factory := adapterhelper.FactoryHelper(func(a adapter.Adapter, publisher adapter.Publisher, thingState adapter.ThingState) (adapter.Thing, error) {
-		outLvlSwitchSpec := outlvlswitch.Specification("", "", "", "", 0, 0, []string{})
+		outLvlSwitchSpec := outlvlswitch.Specification(
+			"test_adapter",
+			"1",
+			"2",
+			outlvlswitch.SwitchTypeOnAndOff,
+			99,
+			0,
+			[]string{"ch1"},
+		)
 		outLvlSwitchService := outlvlswitch.NewService(
 			publisher,
 			&outlvlswitch.Config{
@@ -250,7 +259,7 @@ func setupService(
 	managerWrapper.WithAdapter(ad)
 	adapterhelper.SeedAdapter(t, ad, []*adapter.ThingSeed{seed})
 
-	reportingTask := virtualmeter.Tasks(ad, duration, duration)
+	reportingTask := virtualmeter.Tasks(ad, managerWrapper, duration, duration, duration)
 
 	return virtualmeter.RouteService(ad), task.Combine(reportingTask), mocks
 }

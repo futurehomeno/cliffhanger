@@ -129,7 +129,6 @@ func NewThing(
 		connector:                     cfg.Connector,
 		reportingCache:                cache.NewReportingCache(),
 		connectivityReportingStrategy: cfg.ConnectivityReportingStrategy,
-		connectivityRefresher:         createConnectivityRefresher(cfg.Connector),
 		inclusionReport:               cfg.InclusionReport,
 		services:                      servicesIndex,
 		lock:                          &sync.RWMutex{},
@@ -143,7 +142,6 @@ type thing struct {
 	connector                     Connector
 	reportingCache                cache.ReportingCache
 	connectivityReportingStrategy cache.ReportingStrategy
-	connectivityRefresher         cache.Refresher[*ConnectivityDetails]
 	inclusionReport               *fimptype.ThingInclusionReport
 	services                      map[string]Service
 	lock                          *sync.RWMutex
@@ -240,12 +238,7 @@ func (t *thing) ConnectivityReport() *ConnectivityReport {
 	t.lock.Lock()
 	defer t.lock.Unlock()
 
-	connectivityDetails, err := t.connectivityRefresher.Refresh()
-	if err != nil {
-		log.WithError(err).Errorf("thing: failed to refresh connectivity details for thing %s", t.Address())
-	}
-
-	t.publisher.PublishThingEvent(newConnectivityEvent(t, connectivityDetails))
+	connectivityDetails := t.connector.Connectivity()
 
 	report := &ConnectivityReport{
 		Address:             t.Address(),
@@ -269,6 +262,8 @@ func (t *thing) SendConnectivityReport(force bool) (bool, error) {
 
 	t.lock.Lock()
 	defer t.lock.Unlock()
+
+	t.publisher.PublishThingEvent(newConnectivityEvent(t, report.ConnectivityDetails))
 
 	if !force && !t.reportingCache.ReportRequired(t.connectivityReportingStrategy, EvtNetworkNodeReport, "", report) {
 		return false, nil
@@ -347,19 +342,6 @@ func (t *thing) Disconnect() {
 	}
 
 	c.Disconnect(t)
-}
-
-func createConnectivityRefresher(c Connector) cache.Refresher[*ConnectivityDetails] {
-	return cache.NewRefresher(func() (*ConnectivityDetails, error) {
-		if c == nil {
-			return &ConnectivityDetails{
-					ConnectionStatus: ConnectionStatusUp,
-				},
-				nil
-		}
-
-		return c.Connectivity(), nil
-	}, 20*time.Second)
 }
 
 type ThingUpdate func(*thing)
