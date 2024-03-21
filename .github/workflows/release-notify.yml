@@ -23,4 +23,4 @@ jobs:
           release_tag: ${{ github.event.release.tag_name }}
           release_url: ${{ github.event.release.html_url }}
           release_author: ${{ github.event.release.author.login }}
-
+          release_notes: ${{ github.event.release.body }}
