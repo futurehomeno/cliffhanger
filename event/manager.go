@@ -43,7 +43,7 @@ func (m *manager) Publish(event Event) {
 		case s.channel <- event:
 			continue
 		case <-time.After(time.Second):
-			log.Warnf("event manager: event subscriber ID %s is very busy or deadlocked, an event for domain %s and class %s was dropped", s.id, event.Domain(), event.Class())
+			log.Warnf("event manager: subscriber ID %s is busy or deadlocked, an event for domain %s and class %s was dropped", s.id, event.Domain(), event.Class())
 		}
 	}
 }
