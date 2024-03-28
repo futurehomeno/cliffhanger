@@ -107,6 +107,7 @@ func (m *manager) add(topic string, modes map[string]float64, unit string) error
 
 	device.Modes = modes
 	device.Unit = unit
+	device.LastTimeUpdated = time.Now() // this guarantees that event if accumulated energy is not recalculated, the time is updated.
 
 	if err := m.storage.SetDevice(topic, device); err != nil {
 		return fmt.Errorf("manager: failed add meter, can't save data: %w", err)
