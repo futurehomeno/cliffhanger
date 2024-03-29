@@ -110,7 +110,7 @@ func TestHandlerLevelEvent(t *testing.T) { //nolint:paralleltest
 				assert.NoError(t, err, "should set a device at start")
 			}
 
-			handlers := NewHandlers(mr)
+			handlers := NewHandlers(mr, 3)
 			eventManager := event.NewManager()
 			listener := event.NewListener(eventManager, handlers...)
 
@@ -172,7 +172,7 @@ func TestHandlerConnectivityEvent(t *testing.T) { //nolint:paralleltest
 				assert.NoError(t, err, "should set a device at start")
 			}
 
-			handlers := NewHandlers(mr)
+			handlers := NewHandlers(mr, 3)
 			eventManager := event.NewManager()
 			listener := event.NewListener(eventManager, handlers...)
 
