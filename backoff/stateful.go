@@ -2,7 +2,6 @@ package backoff
 
 import (
 	"sync"
-	"sync/atomic"
 	"time"
 )
 
