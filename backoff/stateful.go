@@ -1,6 +1,7 @@
 package backoff
 
 import (
+	"sync"
 	"sync/atomic"
 	"time"
 )
@@ -29,30 +30,46 @@ func NewStateful(
 
 // stateful is a backoff strategy that keeps track of the number of consecutive failures and the time of the last of them.
 type stateful struct {
-	backoff  Backoff
-	failures atomic.Uint32
+	backoff     Backoff
+	lastFailure time.Time
+	failures    uint32
+
+	m sync.Mutex
 }
 
 // Next returns the backoff delay based on the number of consecutive failures. It also increments the failure counter.
 func (e *stateful) Next() time.Duration {
-	failures := e.failures.Add(1)
+	e.m.Lock()
+	defer e.m.Unlock()
 
-	return e.backoff.Delay(failures)
+	e.lastFailure = time.Now()
+	e.failures++
+
+	return e.backoff.Delay(e.failures)
 }
 
 // Fail increments the failure counter.
 func (e *stateful) Fail() {
-	e.failures.Add(1)
+	e.m.Lock()
+	defer e.m.Unlock()
+
+	e.lastFailure = time.Now()
+	e.failures++
 }
 
 // Should returns true if the backoff should be applied or not based on the time of last failure and the number of consecutive failures.
 func (e *stateful) Should() bool {
-	failures := e.failures.Load()
+	e.m.Lock()
+	defer e.m.Unlock()
 
-	return e.backoff.Should(time.Now(), failures)
+	return e.backoff.Should(e.lastFailure, e.failures)
 }
 
 // Reset resets backoff failure counter.
 func (e *stateful) Reset() {
-	e.failures.Swap(0)
+	e.m.Lock()
+	defer e.m.Unlock()
+
+	e.lastFailure = time.Time{}
+	e.failures = 0
 }
