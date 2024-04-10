@@ -367,3 +367,15 @@ func (s *service) validateMode(mode map[string]bool) error {
 
 	return nil
 }
+
+func (m Mode) String() string {
+	return string(m)
+}
+
+func (p PlaybackAction) String() string {
+	return string(p)
+}
+
+func (m Metadata) String() string {
+	return string(m)
+}
