@@ -333,7 +333,7 @@ func (s *service) SendMetadataReport(force bool) (bool, error) {
 		return false, nil
 	}
 
-	message := fimpgo.NewObjectMessage(EvtMetadataReport, s.Name(), metadata, nil, nil, nil)
+	message := fimpgo.NewStrMapMessage(EvtMetadataReport, s.Name(), metadata, nil, nil, nil)
 
 	err = s.SendMessage(message)
 	if err != nil {

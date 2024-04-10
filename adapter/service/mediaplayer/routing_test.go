@@ -292,7 +292,7 @@ func TestRouteService(t *testing.T) { //nolint:paralleltest
 						Name:    "get metadata report - success",
 						Command: suite.NullMessage("pt:j1/mt:cmd/rt:dev/rn:test_adapter/ad:1/sv:media_player/ad:3", "cmd.metadata.get_report", "media_player"),
 						Expectations: []*suite.Expectation{
-							suite.ExpectObject("pt:j1/mt:evt/rt:dev/rn:test_adapter/ad:1/sv:media_player/ad:3", "evt.metadata.report", "media_player", sampleMetadata()),
+							suite.ExpectStringMap("pt:j1/mt:evt/rt:dev/rn:test_adapter/ad:1/sv:media_player/ad:3", "evt.metadata.report", "media_player", sampleMetadata()),
 						},
 					},
 					{
