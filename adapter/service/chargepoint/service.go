@@ -495,13 +495,6 @@ func (s *service) SupportsAdjustingOfferedCurrent() bool {
 	return err == nil
 }
 
-// SupportsAwarePhaseModes returns true if the chargepoint supports aware phase modes.
-func (s *service) SupportsAwarePhaseModes() bool {
-	_, err := s.awarePhaseModeController()
-
-	return err == nil
-}
-
 // SupportsAdjustingPhaseModes returns true if the chargepoint supports adjusting phase modes.
 func (s *service) SupportsAdjustingPhaseModes() bool {
 	_, err := s.adjustablePhaseModeController()
@@ -512,13 +505,6 @@ func (s *service) SupportsAdjustingPhaseModes() bool {
 // SupportsAwarePhaseModes returns true if the chargepoint supports aware phase modes.
 func (s *service) SupportsAwarePhaseModes() bool {
 	_, err := s.awarePhaseModeController()
-
-	return err == nil
-}
-
-// SupportsAdjustingCableLock returns true if the chargepoint supports adjusting phase modes.
-func (s *service) SupportsAdjustingCableLock() bool {
-	_, err := s.adjustableCableLockController()
 
 	return err == nil
 }
