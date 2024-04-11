@@ -180,7 +180,7 @@ func adjustablePhaseModeInterfaces() []fimptype.Interface {
 	}
 }
 
-// phaseModeAwareInterfaces returns interfaces for adjustable current controller.
+// phaseModeAwareInterfaces returns interfaces for phase mode aware controller.
 func phaseModeAwareInterfaces() []fimptype.Interface {
 	return []fimptype.Interface{
 		{
