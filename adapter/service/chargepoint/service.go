@@ -48,8 +48,14 @@ type AdjustableOfferedCurrentController interface {
 
 // AdjustablePhaseModeController is an interface representing capability of a charger device to adjust phase mode.
 type AdjustablePhaseModeController interface {
+	PhaseModeAwareController
+
 	// SetChargepointPhaseMode sets phase mode of a chargepoint.
 	SetChargepointPhaseMode(PhaseMode) error
+}
+
+// PhaseModeAwareController  is an interface representing capability of a charger device to aware phase mode.
+type PhaseModeAwareController interface {
 	// ChargepointPhaseModeReport returns phase mode of a chargepoint.
 	ChargepointPhaseModeReport() (PhaseMode, error)
 }
@@ -96,6 +102,8 @@ type Service interface {
 	SupportsAdjustingMaxCurrent() bool
 	// SupportsAdjustingPhaseModes returns true if the chargepoint supports adjusting phase modes.
 	SupportsAdjustingPhaseModes() bool
+	// IsPhaseModeAware returns true if the chargepoint is aware of phase modes.
+	IsPhaseModeAware() bool
 	// SupportsAdjustingOfferedCurrent returns true if the chargepoint supports adjusting offered current.
 	SupportsAdjustingOfferedCurrent() bool
 	// SupportsAdjustingCableLock returns true if the chargepoint supports adjusting cable lock.
@@ -146,6 +154,10 @@ func NewService(
 
 	if s.SupportsAdjustingPhaseModes() {
 		cfg.Specification.EnsureInterfaces(adjustablePhaseModeInterfaces()...)
+	}
+
+	if s.IsPhaseModeAware() {
+		cfg.Specification.EnsureInterfaces(phaseModeAwareInterfaces()...)
 	}
 
 	if s.SupportsAdjustingCableLock() {
@@ -433,7 +445,7 @@ func (s *service) SendPhaseModeReport(force bool) (bool, error) {
 	s.lock.Lock()
 	defer s.lock.Unlock()
 
-	controller, err := s.adjustablePhaseModeController()
+	controller, err := s.phaseModeAwareController()
 	if err != nil {
 		return false, err
 	}
@@ -492,6 +504,13 @@ func (s *service) SupportsAdjustingPhaseModes() bool {
 	return err == nil
 }
 
+// IsPhaseModeAware returns true if the chargepoint is aware of phase modes.
+func (s *service) IsPhaseModeAware() bool {
+	_, err := s.phaseModeAwareController()
+
+	return err == nil
+}
+
 // SupportsAdjustingCableLock returns true if the chargepoint supports adjusting phase modes.
 func (s *service) SupportsAdjustingCableLock() bool {
 	_, err := s.adjustableCableLockController()
@@ -531,12 +550,27 @@ func (s *service) adjustableOfferedCurrentController() (AdjustableOfferedCurrent
 
 // adjustablePhaseModeController returns the AdjustablePhaseModeController, if supported.
 func (s *service) adjustablePhaseModeController() (AdjustablePhaseModeController, error) {
-	phaseModes := s.Specification().PropertyStrings(PropertySupportedPhaseModes)
-	if len(phaseModes) == 0 {
-		return nil, fmt.Errorf("%s: adjusting phase modes is not supported", s.Name())
+	_, err := s.phaseModeAwareController()
+	if err != nil {
+		return nil, err
 	}
 
 	controller, ok := s.controller.(AdjustablePhaseModeController)
+	if !ok {
+		return nil, fmt.Errorf("%s: adjusting phase modes is not supported", s.Name())
+	}
+
+	return controller, nil
+}
+
+// phaseModeAwareController returns the PhaseModeAwareController, if supported.
+func (s *service) phaseModeAwareController() (PhaseModeAwareController, error) {
+	phaseModes := s.Specification().PropertyStrings(PropertySupportedPhaseModes)
+	if len(phaseModes) == 0 {
+		return nil, fmt.Errorf("%s: aware phase modes is not supported", s.Name())
+	}
+
+	controller, ok := s.controller.(PhaseModeAwareController)
 	if !ok {
 		return nil, fmt.Errorf("%s: adjusting phase modes is not supported", s.Name())
 	}

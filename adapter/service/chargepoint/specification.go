@@ -177,6 +177,12 @@ func adjustablePhaseModeInterfaces() []fimptype.Interface {
 			ValueType: fimpgo.VTypeString,
 			Version:   "1",
 		},
+	}
+}
+
+// phaseModeAwareInterfaces returns interfaces for phase mode aware controller.
+func phaseModeAwareInterfaces() []fimptype.Interface {
+	return []fimptype.Interface{
 		{
 			Type:      fimptype.TypeIn,
 			MsgType:   CmdPhaseModeGetReport,
