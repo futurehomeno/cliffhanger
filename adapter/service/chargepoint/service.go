@@ -101,7 +101,7 @@ type Service interface {
 	SupportsAdjustingMaxCurrent() bool
 	// SupportsAdjustingPhaseModes returns true if the chargepoint supports adjusting phase modes.
 	SupportsAdjustingPhaseModes() bool
-	// IsPhaseModeAware returns true if the chargepoint supports aware phase modes.
+	// IsPhaseModeAware returns true if the chargepoint is aware of phase modes.
 	IsPhaseModeAware() bool
 	// SupportsAdjustingOfferedCurrent returns true if the chargepoint supports adjusting offered current.
 	SupportsAdjustingOfferedCurrent() bool
