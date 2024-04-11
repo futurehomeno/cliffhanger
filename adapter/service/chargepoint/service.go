@@ -550,9 +550,9 @@ func (s *service) adjustableOfferedCurrentController() (AdjustableOfferedCurrent
 
 // adjustablePhaseModeController returns the AdjustablePhaseModeController, if supported.
 func (s *service) adjustablePhaseModeController() (AdjustablePhaseModeController, error) {
-	phaseModes := s.Specification().PropertyStrings(PropertySupportedPhaseModes)
-	if len(phaseModes) == 0 {
-		return nil, fmt.Errorf("%s: adjusting phase modes is not supported", s.Name())
+	_, err := s.phaseModeAwareController()
+	if err != nil {
+		return nil, err
 	}
 
 	controller, ok := s.controller.(AdjustablePhaseModeController)
