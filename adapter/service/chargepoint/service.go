@@ -49,6 +49,7 @@ type AdjustableOfferedCurrentController interface {
 // AdjustablePhaseModeController is an interface representing capability of a charger device to adjust phase mode.
 type AdjustablePhaseModeController interface {
 	PhaseModeAwareController
+
 	// SetChargepointPhaseMode sets phase mode of a chargepoint.
 	SetChargepointPhaseMode(PhaseMode) error
 }
