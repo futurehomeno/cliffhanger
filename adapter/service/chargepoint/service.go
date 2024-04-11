@@ -504,7 +504,7 @@ func (s *service) SupportsAdjustingPhaseModes() bool {
 	return err == nil
 }
 
-// SupportsAwarePhaseModes returns true if the chargepoint supports aware phase modes.
+// IsPhaseModeAware returns true if the chargepoint is aware of phase modes.
 func (s *service) IsPhaseModeAware() bool {
 	_, err := s.phaseModeAwareController()
 
