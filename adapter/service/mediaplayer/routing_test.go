@@ -27,6 +27,7 @@ func TestRouteService(t *testing.T) { //nolint:paralleltest
 					mockedmediaplayer.NewController(t).
 						MockedMediaPlayerPlaybackSet("play", nil, true).
 						MockedMediaPlayerPlaybackReport("play", nil, true).
+						MockedMediaPlayerMetadataReport(sampleMetadata(), nil, true).
 						MockedMediaPlayerPlaybackSet("play", errors.New("cannot set play"), true).
 						MockedMediaPlayerPlaybackSet("play", nil, true).
 						MockedMediaPlayerPlaybackReport("play", errors.New("cannot return report"), true).

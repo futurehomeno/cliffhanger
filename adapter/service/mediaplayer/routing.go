@@ -154,6 +154,11 @@ func handleCmdPlaybackSet(registry adapter.ServiceRegistry) router.MessageHandle
 				return nil, fmt.Errorf("adapter: failed to get playback report: %w", err)
 			}
 
+			_, err = mediaPlayer.SendMetadataReport(false)
+			if err != nil {
+				return nil, fmt.Errorf("adapter: failed to get metadata report: %w", err)
+			}
+
 			return nil, nil
 		}),
 	)
