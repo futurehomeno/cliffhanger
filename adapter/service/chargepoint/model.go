@@ -38,6 +38,8 @@ const (
 	GridTypeTN GridType = "TN"
 
 	PhaseModeNL1L2L3 PhaseMode = "NL1L2L3"
+	PhaseModeNL1L2   PhaseMode = "NL1L2"
+	PhaseModeNL2L3   PhaseMode = "NL2L3"
 	PhaseModeNL1     PhaseMode = "NL1"
 	PhaseModeNL2     PhaseMode = "NL2"
 	PhaseModeNL3     PhaseMode = "NL3"
@@ -45,8 +47,6 @@ const (
 	PhaseModeL1L2    PhaseMode = "L1L2"
 	PhaseModeL2L3    PhaseMode = "L2L3"
 	PhaseModeL3L1    PhaseMode = "L3L1"
-	PhaseModeNL1L2   PhaseMode = "NL1L2"
-	PhaseModeNL2L3   PhaseMode = "NL2L3"
 )
 
 // State represents a chargepoint state.
