@@ -38,6 +38,8 @@ const (
 	GridTypeTN GridType = "TN"
 
 	PhaseModeNL1L2L3 PhaseMode = "NL1L2L3"
+	PhaseModeNL1L2   PhaseMode = "NL1L2"
+	PhaseModeNL2L3   PhaseMode = "NL2L3"
 	PhaseModeNL1     PhaseMode = "NL1"
 	PhaseModeNL2     PhaseMode = "NL2"
 	PhaseModeNL3     PhaseMode = "NL3"
