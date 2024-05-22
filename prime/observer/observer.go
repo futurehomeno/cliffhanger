@@ -32,6 +32,7 @@ func New(
 		lock:            &sync.RWMutex{},
 		refreshed:       false,
 		refreshInterval: refreshInterval,
+		set:             newSet(nil),
 	}
 
 	for _, component := range components {
@@ -242,7 +243,7 @@ func (o *observer) doRefresh(force bool) error {
 		return fmt.Errorf("observer: error while refreshing components: %w", err)
 	}
 
-	o.set = &set{ComponentSet: componentSet}
+	o.set = newSet(componentSet)
 	o.refreshed = true
 	o.lastRefresh = time.Now()
 

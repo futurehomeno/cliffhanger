@@ -8,6 +8,14 @@ type set struct {
 	*prime.ComponentSet
 }
 
+func newSet(componentSet *prime.ComponentSet) *set {
+	if componentSet == nil {
+		componentSet = &prime.ComponentSet{}
+	}
+
+	return &set{ComponentSet: componentSet}
+}
+
 func (s *set) getDevices() prime.Devices {
 	devices := make(prime.Devices, len(s.Devices))
 	copy(devices, s.Devices)
