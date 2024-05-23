@@ -6,6 +6,8 @@ import (
 	"time"
 
 	"github.com/futurehomeno/fimpgo"
+	"github.com/sirupsen/logrus"
+	"github.com/sirupsen/logrus/hooks/test"
 	"github.com/stretchr/testify/assert"
 
 	"github.com/futurehomeno/cliffhanger/event"
@@ -26,7 +28,7 @@ func TestObserver(t *testing.T) { //nolint:paralleltest
 		Cases: []*suite.Case{
 			{
 				Name:  "Observer",
-				Setup: setupObserverTest(&testObserver, &testEventManager),
+				Setup: setupObserverTest(&testObserver, &testEventManager, 5*time.Second),
 				Nodes: []*suite.Node{
 					{
 						Name: "Initialize observer on startup",
@@ -637,10 +639,89 @@ func TestObserver(t *testing.T) { //nolint:paralleltest
 	s.Run(t)
 }
 
-func setupObserverTest(testObserver *observer.Observer, testEventManager *event.Manager) suite.BaseSetup {
+func TestObserver_AddOrEdit_NoComponentsAtStartup(t *testing.T) { //nolint:paralleltest
+	var (
+		testObserver     observer.Observer
+		testEventManager event.Manager
+
+		loggerHook = test.NewLocal(logrus.StandardLogger())
+	)
+
+	s := &suite.Suite{
+		Cases: []*suite.Case{
+			{
+				Name:  "Observer",
+				Setup: setupObserverTest(&testObserver, &testEventManager, time.Millisecond),
+				Nodes: []*suite.Node{
+					suite.SleepNode(5 * time.Millisecond),
+					{
+						Name: "add new device",
+						Command: suite.ObjectMessage(prime.NotifyTopic, prime.EvtPD7Notify, prime.ServiceName, &prime.Notify{
+							Cmd:       prime.CmdAdd,
+							Component: prime.ComponentDevice,
+							ParamRaw:  json.RawMessage(`{"id":1}`),
+						}),
+						Callbacks: []suite.Callback{
+							func(t *testing.T) {
+								time.Sleep(30 * time.Millisecond)
+								assertNoPanicLogs(t, loggerHook)
+							},
+						},
+					},
+					{
+						Name: "add new thing",
+						Command: suite.ObjectMessage(prime.NotifyTopic, prime.EvtPD7Notify, prime.ServiceName, &prime.Notify{
+							Cmd:       prime.CmdAdd,
+							Component: prime.ComponentThing,
+							ParamRaw:  json.RawMessage(`{"id":1}`),
+						}),
+						Callbacks: []suite.Callback{
+							func(t *testing.T) {
+								time.Sleep(30 * time.Millisecond)
+								assertNoPanicLogs(t, loggerHook)
+							},
+						},
+					},
+					{
+						Name: "add new room",
+						Command: suite.ObjectMessage(prime.NotifyTopic, prime.EvtPD7Notify, prime.ServiceName, &prime.Notify{
+							Cmd:       prime.CmdAdd,
+							Component: prime.ComponentRoom,
+							ParamRaw:  json.RawMessage(`{"id":1}`),
+						}),
+						Callbacks: []suite.Callback{
+							func(t *testing.T) {
+								time.Sleep(30 * time.Millisecond)
+								assertNoPanicLogs(t, loggerHook)
+							},
+						},
+					},
+					{
+						Name: "add new area",
+						Command: suite.ObjectMessage(prime.NotifyTopic, prime.EvtPD7Notify, prime.ServiceName, &prime.Notify{
+							Cmd:       prime.CmdAdd,
+							Component: prime.ComponentArea,
+							ParamRaw:  json.RawMessage(`{"id":1}`),
+						}),
+						Callbacks: []suite.Callback{
+							func(t *testing.T) {
+								time.Sleep(30 * time.Millisecond)
+								assertNoPanicLogs(t, loggerHook)
+							},
+						},
+					},
+				},
+			},
+		},
+	}
+
+	s.Run(t)
+}
+
+func setupObserverTest(testObserver *observer.Observer, testEventManager *event.Manager, primeClientTimeout time.Duration) suite.BaseSetup {
 	return func(t *testing.T, mqtt *fimpgo.MqttTransport) (routing []*router.Routing, tasks []*task.Task, mocks []suite.Mock) {
 		syncClient := fimpgo.NewSyncClient(mqtt)
-		primeClient := prime.NewClient(syncClient, "testResource", 5*time.Second)
+		primeClient := prime.NewClient(syncClient, "testResource", primeClientTimeout)
 		*testEventManager = event.NewManager()
 
 		var err error
@@ -651,5 +732,13 @@ func setupObserverTest(testObserver *observer.Observer, testEventManager *event.
 		}
 
 		return observer.RouteObserver(*testObserver), observer.TaskObserver(*testObserver, time.Minute), nil
+	}
+}
+
+func assertNoPanicLogs(t *testing.T, hook *test.Hook) {
+	defer hook.Reset()
+
+	for _, entry := range hook.AllEntries() {
+		assert.NotContains(t, entry.Message, "panic")
 	}
 }
