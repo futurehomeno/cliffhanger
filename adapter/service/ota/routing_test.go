@@ -33,7 +33,7 @@ func TestRouteService(t *testing.T) { //nolint:paralleltest
 				),
 				Nodes: []*suite.Node{
 					{
-						Command: suite.StringMessage("pt:j1/mt:cmd/rt:dev/rn:test_adapter/ad:1/sv:ota/ad:1", "cmd.ota_update.start", "ota", testFirmwarePath),
+						Commands: []*fimpgo.Message{suite.StringMessage("pt:j1/mt:cmd/rt:dev/rn:test_adapter/ad:1/sv:ota/ad:1", "cmd.ota_update.start", "ota", testFirmwarePath)},
 						Expectations: []*suite.Expectation{
 							suite.ExpectNull("pt:j1/mt:evt/rt:dev/rn:test_adapter/ad:1/sv:ota/ad:1", "evt.ota_start.report", "ota").Never(),
 							suite.ExpectError("pt:j1/mt:evt/rt:dev/rn:test_adapter/ad:1/sv:ota/ad:1", "ota").Never(),
@@ -49,7 +49,7 @@ func TestRouteService(t *testing.T) { //nolint:paralleltest
 				),
 				Nodes: []*suite.Node{
 					{
-						Command: suite.StringMessage("pt:j1/mt:cmd/rt:dev/rn:test_adapter/ad:1/sv:ota/ad:1", "cmd.ota_update.start", "ota", testFirmwarePath),
+						Commands: []*fimpgo.Message{suite.StringMessage("pt:j1/mt:cmd/rt:dev/rn:test_adapter/ad:1/sv:ota/ad:1", "cmd.ota_update.start", "ota", testFirmwarePath)},
 						Expectations: []*suite.Expectation{
 							suite.ExpectError("pt:j1/mt:evt/rt:dev/rn:test_adapter/ad:1/sv:ota/ad:1", "ota"),
 						},
@@ -64,7 +64,7 @@ func TestRouteService(t *testing.T) { //nolint:paralleltest
 				),
 				Nodes: []*suite.Node{
 					{
-						Command: suite.IntMessage("pt:j1/mt:cmd/rt:dev/rn:test_adapter/ad:1/sv:ota/ad:1", "cmd.ota_update.start", "ota", 1),
+						Commands: []*fimpgo.Message{suite.IntMessage("pt:j1/mt:cmd/rt:dev/rn:test_adapter/ad:1/sv:ota/ad:1", "cmd.ota_update.start", "ota", 1)},
 						Expectations: []*suite.Expectation{
 							suite.ExpectError("pt:j1/mt:evt/rt:dev/rn:test_adapter/ad:1/sv:ota/ad:1", "ota"),
 						},

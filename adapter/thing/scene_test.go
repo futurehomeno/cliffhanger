@@ -43,8 +43,8 @@ func TestRouteScene(t *testing.T) { //nolint:paralleltest
 				),
 				Nodes: []*suite.Node{
 					{
-						Name:    "set scene",
-						Command: suite.StringMessage("pt:j1/mt:cmd/rt:dev/rn:test_adapter/ad:1/sv:scene_ctrl/ad:2", "cmd.scene.set", "scene_ctrl", sceneColorloop),
+						Name:     "set scene",
+						Commands: []*fimpgo.Message{suite.StringMessage("pt:j1/mt:cmd/rt:dev/rn:test_adapter/ad:1/sv:scene_ctrl/ad:2", "cmd.scene.set", "scene_ctrl", sceneColorloop)},
 						Expectations: []*suite.Expectation{
 							suite.ExpectString("pt:j1/mt:evt/rt:dev/rn:test_adapter/ad:1/sv:scene_ctrl/ad:2", "evt.scene.report", "scene_ctrl", sceneColorloop),
 						},
@@ -60,8 +60,8 @@ func TestRouteScene(t *testing.T) { //nolint:paralleltest
 				),
 				Nodes: []*suite.Node{
 					{
-						Name:    "get scene",
-						Command: suite.NullMessage("pt:j1/mt:cmd/rt:dev/rn:test_adapter/ad:1/sv:scene_ctrl/ad:2", "cmd.scene.get_report", "scene_ctrl"),
+						Name:     "get scene",
+						Commands: []*fimpgo.Message{suite.NullMessage("pt:j1/mt:cmd/rt:dev/rn:test_adapter/ad:1/sv:scene_ctrl/ad:2", "cmd.scene.get_report", "scene_ctrl")},
 						Expectations: []*suite.Expectation{
 							suite.ExpectString("pt:j1/mt:evt/rt:dev/rn:test_adapter/ad:1/sv:scene_ctrl/ad:2", "evt.scene.report", "scene_ctrl", sceneColorloop),
 						},
@@ -77,29 +77,29 @@ func TestRouteScene(t *testing.T) { //nolint:paralleltest
 				),
 				Nodes: []*suite.Node{
 					{
-						Name:    "controller error",
-						Command: suite.StringMessage("pt:j1/mt:cmd/rt:dev/rn:test_adapter/ad:1/sv:scene_ctrl/ad:2", "cmd.scene.set", "scene_ctrl", sceneColorloop),
+						Name:     "controller error",
+						Commands: []*fimpgo.Message{suite.StringMessage("pt:j1/mt:cmd/rt:dev/rn:test_adapter/ad:1/sv:scene_ctrl/ad:2", "cmd.scene.set", "scene_ctrl", sceneColorloop)},
 						Expectations: []*suite.Expectation{
 							suite.ExpectError("pt:j1/mt:evt/rt:dev/rn:test_adapter/ad:1/sv:scene_ctrl/ad:2", "scene_ctrl"),
 						},
 					},
 					{
-						Name:    "invalid value type",
-						Command: suite.IntMessage("pt:j1/mt:cmd/rt:dev/rn:test_adapter/ad:1/sv:scene_ctrl/ad:2", "cmd.scene.set", "scene_ctrl", 1),
+						Name:     "invalid value type",
+						Commands: []*fimpgo.Message{suite.IntMessage("pt:j1/mt:cmd/rt:dev/rn:test_adapter/ad:1/sv:scene_ctrl/ad:2", "cmd.scene.set", "scene_ctrl", 1)},
 						Expectations: []*suite.Expectation{
 							suite.ExpectError("pt:j1/mt:evt/rt:dev/rn:test_adapter/ad:1/sv:scene_ctrl/ad:2", "scene_ctrl"),
 						},
 					},
 					{
-						Name:    "wrong address",
-						Command: suite.StringMessage("pt:j1/mt:cmd/rt:dev/rn:test_adapter/ad:1/sv:scene_ctrl/ad:3", "cmd.scene.set", "scene_ctrl", sceneColorloop),
+						Name:     "wrong address",
+						Commands: []*fimpgo.Message{suite.StringMessage("pt:j1/mt:cmd/rt:dev/rn:test_adapter/ad:1/sv:scene_ctrl/ad:3", "cmd.scene.set", "scene_ctrl", sceneColorloop)},
 						Expectations: []*suite.Expectation{
 							suite.ExpectError("pt:j1/mt:evt/rt:dev/rn:test_adapter/ad:1/sv:scene_ctrl/ad:3", "scene_ctrl"),
 						},
 					},
 					{
-						Name:    "unsupported scene",
-						Command: suite.StringMessage("pt:j1/mt:cmd/rt:dev/rn:test_adapter/ad:1/sv:scene_ctrl/ad:2", "cmd.scene.set", "scene_ctrl", sceneUnsupported),
+						Name:     "unsupported scene",
+						Commands: []*fimpgo.Message{suite.StringMessage("pt:j1/mt:cmd/rt:dev/rn:test_adapter/ad:1/sv:scene_ctrl/ad:2", "cmd.scene.set", "scene_ctrl", sceneUnsupported)},
 						Expectations: []*suite.Expectation{
 							suite.ExpectError("pt:j1/mt:evt/rt:dev/rn:test_adapter/ad:1/sv:scene_ctrl/ad:2", "scene_ctrl"),
 						},
@@ -116,8 +116,8 @@ func TestRouteScene(t *testing.T) { //nolint:paralleltest
 				),
 				Nodes: []*suite.Node{
 					{
-						Name:    "report error",
-						Command: suite.StringMessage("pt:j1/mt:cmd/rt:dev/rn:test_adapter/ad:1/sv:scene_ctrl/ad:2", "cmd.scene.set", "scene_ctrl", sceneColorloop),
+						Name:     "report error",
+						Commands: []*fimpgo.Message{suite.StringMessage("pt:j1/mt:cmd/rt:dev/rn:test_adapter/ad:1/sv:scene_ctrl/ad:2", "cmd.scene.set", "scene_ctrl", sceneColorloop)},
 						Expectations: []*suite.Expectation{
 							suite.ExpectError("pt:j1/mt:evt/rt:dev/rn:test_adapter/ad:1/sv:scene_ctrl/ad:2", "scene_ctrl"),
 						},

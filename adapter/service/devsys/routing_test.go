@@ -30,15 +30,15 @@ func TestRouteCarCharger(t *testing.T) { //nolint:paralleltest
 				),
 				Nodes: []*suite.Node{
 					{
-						Name:    "reboot with unspecified mode",
-						Command: suite.NullMessage("pt:j1/mt:cmd/rt:dev/rn:test_adapter/ad:1/sv:dev_sys/ad:2", "cmd.thing.reboot", "dev_sys"),
+						Name:     "reboot with unspecified mode",
+						Commands: []*fimpgo.Message{suite.NullMessage("pt:j1/mt:cmd/rt:dev/rn:test_adapter/ad:1/sv:dev_sys/ad:2", "cmd.thing.reboot", "dev_sys")},
 						Expectations: []*suite.Expectation{
 							suite.ExpectSuccess("pt:j1/mt:evt/rt:dev/rn:test_adapter/ad:1/sv:dev_sys/ad:2", "dev_sys"),
 						},
 					},
 					{
-						Name:    "reboot with specified mode",
-						Command: suite.BoolMessage("pt:j1/mt:cmd/rt:dev/rn:test_adapter/ad:1/sv:dev_sys/ad:2", "cmd.thing.reboot", "dev_sys", true),
+						Name:     "reboot with specified mode",
+						Commands: []*fimpgo.Message{suite.BoolMessage("pt:j1/mt:cmd/rt:dev/rn:test_adapter/ad:1/sv:dev_sys/ad:2", "cmd.thing.reboot", "dev_sys", true)},
 						Expectations: []*suite.Expectation{
 							suite.ExpectSuccess("pt:j1/mt:evt/rt:dev/rn:test_adapter/ad:1/sv:dev_sys/ad:2", "dev_sys"),
 						},
@@ -53,8 +53,8 @@ func TestRouteCarCharger(t *testing.T) { //nolint:paralleltest
 				),
 				Nodes: []*suite.Node{
 					{
-						Name:    "reboot is unsupported",
-						Command: suite.NullMessage("pt:j1/mt:cmd/rt:dev/rn:test_adapter/ad:1/sv:dev_sys/ad:2", "cmd.thing.reboot", "dev_sys"),
+						Name:     "reboot is unsupported",
+						Commands: []*fimpgo.Message{suite.NullMessage("pt:j1/mt:cmd/rt:dev/rn:test_adapter/ad:1/sv:dev_sys/ad:2", "cmd.thing.reboot", "dev_sys")},
 						Expectations: []*suite.Expectation{
 							suite.ExpectError("pt:j1/mt:evt/rt:dev/rn:test_adapter/ad:1/sv:dev_sys/ad:2", "dev_sys"),
 						},
@@ -70,15 +70,15 @@ func TestRouteCarCharger(t *testing.T) { //nolint:paralleltest
 				),
 				Nodes: []*suite.Node{
 					{
-						Name:    "reboot failed",
-						Command: suite.NullMessage("pt:j1/mt:cmd/rt:dev/rn:test_adapter/ad:1/sv:dev_sys/ad:2", "cmd.thing.reboot", "dev_sys"),
+						Name:     "reboot failed",
+						Commands: []*fimpgo.Message{suite.NullMessage("pt:j1/mt:cmd/rt:dev/rn:test_adapter/ad:1/sv:dev_sys/ad:2", "cmd.thing.reboot", "dev_sys")},
 						Expectations: []*suite.Expectation{
 							suite.ExpectError("pt:j1/mt:evt/rt:dev/rn:test_adapter/ad:1/sv:dev_sys/ad:2", "dev_sys"),
 						},
 					},
 					{
-						Name:    "reboot failed - service not found",
-						Command: suite.NullMessage("pt:j1/mt:cmd/rt:dev/rn:test_adapter/ad:1/sv:dev_sys/ad:3", "cmd.thing.reboot", "dev_sys"),
+						Name:     "reboot failed - service not found",
+						Commands: []*fimpgo.Message{suite.NullMessage("pt:j1/mt:cmd/rt:dev/rn:test_adapter/ad:1/sv:dev_sys/ad:3", "cmd.thing.reboot", "dev_sys")},
 						Expectations: []*suite.Expectation{
 							suite.ExpectError("pt:j1/mt:evt/rt:dev/rn:test_adapter/ad:1/sv:dev_sys/ad:3", "dev_sys"),
 						},

@@ -42,40 +42,40 @@ func TestRouteService(t *testing.T) { //nolint:paralleltest
 				),
 				Nodes: []*suite.Node{
 					{
-						Name:    "Start level transition",
-						Command: suite.StringMessage("pt:j1/mt:cmd/rt:dev/rn:test_adapter/ad:1/sv:out_lvl_switch/ad:2", "cmd.lvl.start", "out_lvl_switch", "up"),
+						Name:     "Start level transition",
+						Commands: []*fimpgo.Message{suite.StringMessage("pt:j1/mt:cmd/rt:dev/rn:test_adapter/ad:1/sv:out_lvl_switch/ad:2", "cmd.lvl.start", "out_lvl_switch", "up")},
 						Expectations: []*suite.Expectation{
 							suite.ExpectInt("pt:j1/mt:evt/rt:dev/rn:test_adapter/ad:1/sv:out_lvl_switch/ad:2", "evt.lvl.report", "out_lvl_switch", 1),
 						},
 					},
 					{
-						Name:    "Stop level transition",
-						Command: suite.StringMessage("pt:j1/mt:cmd/rt:dev/rn:test_adapter/ad:1/sv:out_lvl_switch/ad:2", "cmd.lvl.stop", "out_lvl_switch", ""),
+						Name:     "Stop level transition",
+						Commands: []*fimpgo.Message{suite.StringMessage("pt:j1/mt:cmd/rt:dev/rn:test_adapter/ad:1/sv:out_lvl_switch/ad:2", "cmd.lvl.stop", "out_lvl_switch", "")},
 						Expectations: []*suite.Expectation{
 							suite.ExpectInt("pt:j1/mt:evt/rt:dev/rn:test_adapter/ad:1/sv:out_lvl_switch/ad:2", "evt.lvl.report", "out_lvl_switch", 2),
 						},
 					},
 					{
-						Name:    "Switch binary",
-						Command: suite.BoolMessage("pt:j1/mt:cmd/rt:dev/rn:test_adapter/ad:1/sv:out_lvl_switch/ad:2", "cmd.binary.set", "out_lvl_switch", true),
+						Name:     "Switch binary",
+						Commands: []*fimpgo.Message{suite.BoolMessage("pt:j1/mt:cmd/rt:dev/rn:test_adapter/ad:1/sv:out_lvl_switch/ad:2", "cmd.binary.set", "out_lvl_switch", true)},
 						Expectations: []*suite.Expectation{
 							suite.ExpectInt("pt:j1/mt:evt/rt:dev/rn:test_adapter/ad:1/sv:out_lvl_switch/ad:2", "evt.lvl.report", "out_lvl_switch", 3),
 						},
 					},
 					{
-						Name:    "Set level",
-						Command: suite.IntMessage("pt:j1/mt:cmd/rt:dev/rn:test_adapter/ad:1/sv:out_lvl_switch/ad:2", "cmd.lvl.set", "out_lvl_switch", 1),
+						Name:     "Set level",
+						Commands: []*fimpgo.Message{suite.IntMessage("pt:j1/mt:cmd/rt:dev/rn:test_adapter/ad:1/sv:out_lvl_switch/ad:2", "cmd.lvl.set", "out_lvl_switch", 1)},
 						Expectations: []*suite.Expectation{
 							suite.ExpectInt("pt:j1/mt:evt/rt:dev/rn:test_adapter/ad:1/sv:out_lvl_switch/ad:2", "evt.lvl.report", "out_lvl_switch", 4),
 						},
 					},
 					{
 						Name: "Start level transition. Should avoid processing properties when not supported.",
-						Command: suite.NewMessageBuilder().
+						Commands: []*fimpgo.Message{suite.NewMessageBuilder().
 							StringMessage("pt:j1/mt:cmd/rt:dev/rn:test_adapter/ad:1/sv:out_lvl_switch/ad:2", "cmd.lvl.start", "out_lvl_switch", "up").
 							AddProperty("duration", "5").
 							AddProperty("start_lvl", "4").
-							Build(),
+							Build()},
 						Expectations: []*suite.Expectation{
 							suite.ExpectInt("pt:j1/mt:evt/rt:dev/rn:test_adapter/ad:1/sv:out_lvl_switch/ad:2", "evt.lvl.report", "out_lvl_switch", 5),
 						},
@@ -100,21 +100,21 @@ func TestRouteService(t *testing.T) { //nolint:paralleltest
 				Nodes: []*suite.Node{
 					{
 						Name: "Start level transition",
-						Command: suite.NewMessageBuilder().
+						Commands: []*fimpgo.Message{suite.NewMessageBuilder().
 							StringMessage("pt:j1/mt:cmd/rt:dev/rn:test_adapter/ad:1/sv:out_lvl_switch/ad:2", "cmd.lvl.start", "out_lvl_switch", "up").
 							AddProperty("duration", "5").
 							AddProperty("start_lvl", "4").
-							Build(),
+							Build()},
 						Expectations: []*suite.Expectation{
 							suite.ExpectInt("pt:j1/mt:evt/rt:dev/rn:test_adapter/ad:1/sv:out_lvl_switch/ad:2", "evt.lvl.report", "out_lvl_switch", 2),
 						},
 					},
 					{
 						Name: "Set level",
-						Command: suite.NewMessageBuilder().
+						Commands: []*fimpgo.Message{suite.NewMessageBuilder().
 							IntMessage("pt:j1/mt:cmd/rt:dev/rn:test_adapter/ad:1/sv:out_lvl_switch/ad:2", "cmd.lvl.set", "out_lvl_switch", 1).
 							AddProperty("duration", "1").
-							Build(),
+							Build()},
 						Expectations: []*suite.Expectation{
 							suite.ExpectInt("pt:j1/mt:evt/rt:dev/rn:test_adapter/ad:1/sv:out_lvl_switch/ad:2", "evt.lvl.report", "out_lvl_switch", 3),
 						},
@@ -136,99 +136,99 @@ func TestRouteService(t *testing.T) { //nolint:paralleltest
 				),
 				Nodes: []*suite.Node{
 					{
-						Name:    "Start level transition",
-						Command: suite.StringMessage("pt:j1/mt:cmd/rt:dev/rn:test_adapter/ad:1/sv:out_lvl_switch/ad:2", "cmd.lvl.start", "out_lvl_switch", "up"),
+						Name:     "Start level transition",
+						Commands: []*fimpgo.Message{suite.StringMessage("pt:j1/mt:cmd/rt:dev/rn:test_adapter/ad:1/sv:out_lvl_switch/ad:2", "cmd.lvl.start", "out_lvl_switch", "up")},
 						Expectations: []*suite.Expectation{
 							suite.ExpectError("pt:j1/mt:evt/rt:dev/rn:test_adapter/ad:1/sv:out_lvl_switch/ad:2", "out_lvl_switch"),
 						},
 					},
 					{
-						Name:    "Start level transition. Not string value",
-						Command: suite.BoolMessage("pt:j1/mt:cmd/rt:dev/rn:test_adapter/ad:1/sv:out_lvl_switch/ad:2", "cmd.lvl.start", "out_lvl_switch", true),
+						Name:     "Start level transition. Not string value",
+						Commands: []*fimpgo.Message{suite.BoolMessage("pt:j1/mt:cmd/rt:dev/rn:test_adapter/ad:1/sv:out_lvl_switch/ad:2", "cmd.lvl.start", "out_lvl_switch", true)},
 						Expectations: []*suite.Expectation{
 							suite.ExpectError("pt:j1/mt:evt/rt:dev/rn:test_adapter/ad:1/sv:out_lvl_switch/ad:2", "out_lvl_switch"),
 						},
 					},
 					{
-						Name:    "Start level transition. Incorrect value",
-						Command: suite.StringMessage("pt:j1/mt:cmd/rt:dev/rn:test_adapter/ad:1/sv:out_lvl_switch/ad:2", "cmd.lvl.start", "out_lvl_switch", "invalid"),
+						Name:     "Start level transition. Incorrect value",
+						Commands: []*fimpgo.Message{suite.StringMessage("pt:j1/mt:cmd/rt:dev/rn:test_adapter/ad:1/sv:out_lvl_switch/ad:2", "cmd.lvl.start", "out_lvl_switch", "invalid")},
 						Expectations: []*suite.Expectation{
 							suite.ExpectError("pt:j1/mt:evt/rt:dev/rn:test_adapter/ad:1/sv:out_lvl_switch/ad:2", "out_lvl_switch"),
 						},
 					},
 					{
 						Name: "Start level transition with invalid duration property",
-						Command: suite.NewMessageBuilder().
+						Commands: []*fimpgo.Message{suite.NewMessageBuilder().
 							StringMessage("pt:j1/mt:cmd/rt:dev/rn:test_adapter/ad:1/sv:out_lvl_switch/ad:2", "cmd.lvl.start", "out_lvl_switch", "up").
 							AddProperty("duration", "invalid").
-							Build(),
+							Build()},
 						Expectations: []*suite.Expectation{
 							suite.ExpectError("pt:j1/mt:evt/rt:dev/rn:test_adapter/ad:1/sv:out_lvl_switch/ad:2", "out_lvl_switch"),
 						},
 					},
 					{
 						Name: "Start level transition  with invalid start_lvl property",
-						Command: suite.NewMessageBuilder().
+						Commands: []*fimpgo.Message{suite.NewMessageBuilder().
 							StringMessage("pt:j1/mt:cmd/rt:dev/rn:test_adapter/ad:1/sv:out_lvl_switch/ad:2", "cmd.lvl.start", "out_lvl_switch", "up").
 							AddProperty("duration", "3").
 							AddProperty("start_lvl", "invalid int").
-							Build(),
+							Build()},
 						Expectations: []*suite.Expectation{
 							suite.ExpectError("pt:j1/mt:evt/rt:dev/rn:test_adapter/ad:1/sv:out_lvl_switch/ad:2", "out_lvl_switch"),
 						},
 					},
 					{
 						Name: "Start level transition with start_lvl property out of range",
-						Command: suite.NewMessageBuilder().
+						Commands: []*fimpgo.Message{suite.NewMessageBuilder().
 							StringMessage("pt:j1/mt:cmd/rt:dev/rn:test_adapter/ad:1/sv:out_lvl_switch/ad:2", "cmd.lvl.start", "out_lvl_switch", "up").
 							AddProperty("duration", "4").
 							AddProperty("start_lvl", "109").
-							Build(),
+							Build()},
 						Expectations: []*suite.Expectation{
 							suite.ExpectError("pt:j1/mt:evt/rt:dev/rn:test_adapter/ad:1/sv:out_lvl_switch/ad:2", "out_lvl_switch"),
 						},
 					},
 					{
-						Name:    "Stop level transition",
-						Command: suite.StringMessage("pt:j1/mt:cmd/rt:dev/rn:test_adapter/ad:1/sv:out_lvl_switch/ad:2", "cmd.lvl.stop", "out_lvl_switch", ""),
+						Name:     "Stop level transition",
+						Commands: []*fimpgo.Message{suite.StringMessage("pt:j1/mt:cmd/rt:dev/rn:test_adapter/ad:1/sv:out_lvl_switch/ad:2", "cmd.lvl.stop", "out_lvl_switch", "")},
 						Expectations: []*suite.Expectation{
 							suite.ExpectError("pt:j1/mt:evt/rt:dev/rn:test_adapter/ad:1/sv:out_lvl_switch/ad:2", "out_lvl_switch"),
 						},
 					},
 					{
-						Name:    "Set binary cmd",
-						Command: suite.BoolMessage("pt:j1/mt:cmd/rt:dev/rn:test_adapter/ad:1/sv:out_lvl_switch/ad:2", "cmd.binary.set", "out_lvl_switch", true),
+						Name:     "Set binary cmd",
+						Commands: []*fimpgo.Message{suite.BoolMessage("pt:j1/mt:cmd/rt:dev/rn:test_adapter/ad:1/sv:out_lvl_switch/ad:2", "cmd.binary.set", "out_lvl_switch", true)},
 						Expectations: []*suite.Expectation{
 							suite.ExpectError("pt:j1/mt:evt/rt:dev/rn:test_adapter/ad:1/sv:out_lvl_switch/ad:2", "out_lvl_switch"),
 						},
 					},
 					{
-						Name:    "Set binary cmd. Not boolean value",
-						Command: suite.StringMessage("pt:j1/mt:cmd/rt:dev/rn:test_adapter/ad:1/sv:out_lvl_switch/ad:2", "cmd.binary.set", "out_lvl_switch", "invalid"),
+						Name:     "Set binary cmd. Not boolean value",
+						Commands: []*fimpgo.Message{suite.StringMessage("pt:j1/mt:cmd/rt:dev/rn:test_adapter/ad:1/sv:out_lvl_switch/ad:2", "cmd.binary.set", "out_lvl_switch", "invalid")},
 						Expectations: []*suite.Expectation{
 							suite.ExpectError("pt:j1/mt:evt/rt:dev/rn:test_adapter/ad:1/sv:out_lvl_switch/ad:2", "out_lvl_switch"),
 						},
 					},
 					{
-						Name:    "Set level",
-						Command: suite.IntMessage("pt:j1/mt:cmd/rt:dev/rn:test_adapter/ad:1/sv:out_lvl_switch/ad:2", "cmd.lvl.set", "out_lvl_switch", 1),
+						Name:     "Set level",
+						Commands: []*fimpgo.Message{suite.IntMessage("pt:j1/mt:cmd/rt:dev/rn:test_adapter/ad:1/sv:out_lvl_switch/ad:2", "cmd.lvl.set", "out_lvl_switch", 1)},
 						Expectations: []*suite.Expectation{
 							suite.ExpectError("pt:j1/mt:evt/rt:dev/rn:test_adapter/ad:1/sv:out_lvl_switch/ad:2", "out_lvl_switch"),
 						},
 					},
 					{
-						Name:    "Set level. Invalid value.",
-						Command: suite.StringMessage("pt:j1/mt:cmd/rt:dev/rn:test_adapter/ad:1/sv:out_lvl_switch/ad:2", "cmd.lvl.set", "out_lvl_switch", "invalid"),
+						Name:     "Set level. Invalid value.",
+						Commands: []*fimpgo.Message{suite.StringMessage("pt:j1/mt:cmd/rt:dev/rn:test_adapter/ad:1/sv:out_lvl_switch/ad:2", "cmd.lvl.set", "out_lvl_switch", "invalid")},
 						Expectations: []*suite.Expectation{
 							suite.ExpectError("pt:j1/mt:evt/rt:dev/rn:test_adapter/ad:1/sv:out_lvl_switch/ad:2", "out_lvl_switch"),
 						},
 					},
 					{
 						Name: "Set level. Invalid duration property",
-						Command: suite.NewMessageBuilder().
+						Commands: []*fimpgo.Message{suite.NewMessageBuilder().
 							IntMessage("pt:j1/mt:cmd/rt:dev/rn:test_adapter/ad:1/sv:out_lvl_switch/ad:2", "cmd.lvl.set", "out_lvl_switch", 1).
 							AddProperty("duration", "invalid").
-							Build(),
+							Build()},
 						Expectations: []*suite.Expectation{
 							suite.ExpectError("pt:j1/mt:evt/rt:dev/rn:test_adapter/ad:1/sv:out_lvl_switch/ad:2", "out_lvl_switch"),
 						},

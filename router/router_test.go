@@ -29,8 +29,8 @@ func Test_Router(t *testing.T) { //nolint:paralleltest
 				Routing: []*router.Routing{panicRouting},
 				Nodes: []*suite.Node{
 					{
-						Name:    "Send command raising panic",
-						Command: suite.NullMessage("pt:j1/mt:cmd/rt:app/rn:test/ad:1", "cmd.test.test_command", "test_service"),
+						Name:     "Send command raising panic",
+						Commands: []*fimpgo.Message{suite.NullMessage("pt:j1/mt:cmd/rt:app/rn:test/ad:1", "cmd.test.test_command", "test_service")},
 						Expectations: []*suite.Expectation{
 							suite.ExpectString("pt:j1/mt:evt/rt:app/rn:test/ad:1", "evt.test.test_event", "test_service", "test_value").Never(),
 						},
@@ -94,12 +94,12 @@ func Test_Router_Concurrency(t *testing.T) { //nolint:paralleltest
 						Timeout: 1 * time.Nanosecond,
 					},
 					{
-						Name:    "Send command 1",
-						Command: suite.NullMessage("pt:j1/mt:cmd/rt:app/rn:test/ad:1", "cmd.test.test_command_1", "test_service"),
+						Name:     "Send command 1",
+						Commands: []*fimpgo.Message{suite.NullMessage("pt:j1/mt:cmd/rt:app/rn:test/ad:1", "cmd.test.test_command_1", "test_service")},
 					},
 					{
-						Name:    "Send command 2",
-						Command: suite.NullMessage("pt:j1/mt:cmd/rt:app/rn:test/ad:1", "cmd.test.test_command_2", "test_service"),
+						Name:     "Send command 2",
+						Commands: []*fimpgo.Message{suite.NullMessage("pt:j1/mt:cmd/rt:app/rn:test/ad:1", "cmd.test.test_command_2", "test_service")},
 					},
 					{
 						Name: "Check commands",
@@ -147,12 +147,12 @@ func Test_Router_Concurrency(t *testing.T) { //nolint:paralleltest
 						Timeout: 1 * time.Nanosecond,
 					},
 					{
-						Name:    "Send command 1",
-						Command: suite.NullMessage("pt:j1/mt:cmd/rt:app/rn:test/ad:1", "cmd.test.test_command_1", "test_service"),
+						Name:     "Send command 1",
+						Commands: []*fimpgo.Message{suite.NullMessage("pt:j1/mt:cmd/rt:app/rn:test/ad:1", "cmd.test.test_command_1", "test_service")},
 					},
 					{
-						Name:    "Send command 2",
-						Command: suite.NullMessage("pt:j1/mt:cmd/rt:app/rn:test/ad:1", "cmd.test.test_command_2", "test_service"),
+						Name:     "Send command 2",
+						Commands: []*fimpgo.Message{suite.NullMessage("pt:j1/mt:cmd/rt:app/rn:test/ad:1", "cmd.test.test_command_2", "test_service")},
 					},
 					{
 						Name: "Check commands",
@@ -199,13 +199,13 @@ func Test_Router_Concurrency(t *testing.T) { //nolint:paralleltest
 						Timeout: 1 * time.Nanosecond,
 					},
 					{
-						Name:    "Send command 1",
-						Command: suite.NullMessage("pt:j1/mt:cmd/rt:app/rn:test/ad:1", "cmd.test.test_command_1", "test_service"),
+						Name:     "Send command 1",
+						Commands: []*fimpgo.Message{suite.NullMessage("pt:j1/mt:cmd/rt:app/rn:test/ad:1", "cmd.test.test_command_1", "test_service")},
 					},
 					suite.SleepNode(50 * time.Millisecond),
 					{
-						Name:    "Send command 2",
-						Command: suite.NullMessage("pt:j1/mt:cmd/rt:app/rn:test/ad:1", "cmd.test.test_command_2", "test_service"),
+						Name:     "Send command 2",
+						Commands: []*fimpgo.Message{suite.NullMessage("pt:j1/mt:cmd/rt:app/rn:test/ad:1", "cmd.test.test_command_2", "test_service")},
 						Expectations: []*suite.Expectation{
 							suite.ExpectString("pt:j1/mt:evt/rt:app/rn:test/ad:1", "evt.test.test_event", "test_service", "cmd.test.test_command_1"),
 							suite.ExpectError("pt:j1/mt:evt/rt:app/rn:test/ad:1", "test_service"),
@@ -266,16 +266,16 @@ func Test_Router_OptionalSuccessConfirmation(t *testing.T) { //nolint:parallelte
 				},
 				Nodes: []*suite.Node{
 					{
-						Name:    "Message processor returns nil - send success confirmation",
-						Command: suite.NullMessage("pt:j1/mt:cmd/rt:app/rn:test/ad:1", "cmd.test.confirm1", "test_service"),
+						Name:     "Message processor returns nil - send success confirmation",
+						Commands: []*fimpgo.Message{suite.NullMessage("pt:j1/mt:cmd/rt:app/rn:test/ad:1", "cmd.test.confirm1", "test_service")},
 						Expectations: []*suite.Expectation{
 							suite.ExpectNull("pt:j1/mt:evt/rt:app/rn:test/ad:1", "evt.success.report", "test_service").ExactlyOnce(),
 						},
 						Timeout: timeout,
 					},
 					{
-						Name:    "Message processor returns a message - do not send success confirmation",
-						Command: suite.NullMessage("pt:j1/mt:cmd/rt:app/rn:test/ad:1", "cmd.test.confirm2", "test_service"),
+						Name:     "Message processor returns a message - do not send success confirmation",
+						Commands: []*fimpgo.Message{suite.NullMessage("pt:j1/mt:cmd/rt:app/rn:test/ad:1", "cmd.test.confirm2", "test_service")},
 						Expectations: []*suite.Expectation{
 							suite.ExpectNull("pt:j1/mt:evt/rt:app/rn:test/ad:1", "evt.success.report", "test_service").Never(),
 							suite.ExpectString("pt:j1/mt:evt/rt:app/rn:test/ad:1", "evt.test.test_event", "test_service", "test").ExactlyOnce(),
@@ -283,8 +283,8 @@ func Test_Router_OptionalSuccessConfirmation(t *testing.T) { //nolint:parallelte
 						Timeout: timeout,
 					},
 					{
-						Name:    "Error returned by processor cannot trigger success confirmation",
-						Command: suite.NullMessage("pt:j1/mt:cmd/rt:app/rn:test/ad:1", "cmd.test.confirm3", "test_service"),
+						Name:     "Error returned by processor cannot trigger success confirmation",
+						Commands: []*fimpgo.Message{suite.NullMessage("pt:j1/mt:cmd/rt:app/rn:test/ad:1", "cmd.test.confirm3", "test_service")},
 						Expectations: []*suite.Expectation{
 							suite.ExpectNull("pt:j1/mt:evt/rt:app/rn:test/ad:1", "evt.success.report", "test_service").Never(),
 							suite.ExpectError("pt:j1/mt:evt/rt:app/rn:test/ad:1", "test_service").ExactlyOnce(),
@@ -302,16 +302,16 @@ func Test_Router_OptionalSuccessConfirmation(t *testing.T) { //nolint:parallelte
 				},
 				Nodes: []*suite.Node{
 					{
-						Name:    "Message processor returns nil - do not send success confirmation",
-						Command: suite.NullMessage("pt:j1/mt:cmd/rt:app/rn:test/ad:1", "cmd.test.do_not_confirm1", "test_service"),
+						Name:     "Message processor returns nil - do not send success confirmation",
+						Commands: []*fimpgo.Message{suite.NullMessage("pt:j1/mt:cmd/rt:app/rn:test/ad:1", "cmd.test.do_not_confirm1", "test_service")},
 						Expectations: []*suite.Expectation{
 							suite.ExpectNull("pt:j1/mt:evt/rt:app/rn:test/ad:1", "evt.success.report", "test_service").Never(),
 						},
 						Timeout: timeout,
 					},
 					{
-						Name:    "Message processor returns a message - do not send success confirmation",
-						Command: suite.NullMessage("pt:j1/mt:cmd/rt:app/rn:test/ad:1", "cmd.test.do_not_confirm2", "test_service"),
+						Name:     "Message processor returns a message - do not send success confirmation",
+						Commands: []*fimpgo.Message{suite.NullMessage("pt:j1/mt:cmd/rt:app/rn:test/ad:1", "cmd.test.do_not_confirm2", "test_service")},
 						Expectations: []*suite.Expectation{
 							suite.ExpectNull("pt:j1/mt:evt/rt:app/rn:test/ad:1", "evt.success.report", "test_service").Never(),
 							suite.ExpectString("pt:j1/mt:evt/rt:app/rn:test/ad:1", "evt.test.test_event", "test_service", "test").ExactlyOnce(),
@@ -319,8 +319,8 @@ func Test_Router_OptionalSuccessConfirmation(t *testing.T) { //nolint:parallelte
 						Timeout: timeout,
 					},
 					{
-						Name:    "Error returned by processor cannot trigger success confirmation",
-						Command: suite.NullMessage("pt:j1/mt:cmd/rt:app/rn:test/ad:1", "cmd.test.do_not_confirm3", "test_service"),
+						Name:     "Error returned by processor cannot trigger success confirmation",
+						Commands: []*fimpgo.Message{suite.NullMessage("pt:j1/mt:cmd/rt:app/rn:test/ad:1", "cmd.test.do_not_confirm3", "test_service")},
 						Expectations: []*suite.Expectation{
 							suite.ExpectNull("pt:j1/mt:evt/rt:app/rn:test/ad:1", "evt.success.report", "test_service").Never(),
 							suite.ExpectError("pt:j1/mt:evt/rt:app/rn:test/ad:1", "test_service").ExactlyOnce(),
@@ -371,9 +371,9 @@ func Test_Router_PanicCallback(t *testing.T) { //nolint:paralleltest
 				},
 				Nodes: []*suite.Node{
 					{
-						Name:    "send a command raising panic",
-						Command: suite.NullMessage("pt:j1/mt:cmd/rt:app/rn:test/ad:1", "cmd.test.test_command", "test_service"),
-						Timeout: -1,
+						Name:     "send a command raising panic",
+						Commands: []*fimpgo.Message{suite.NullMessage("pt:j1/mt:cmd/rt:app/rn:test/ad:1", "cmd.test.test_command", "test_service")},
+						Timeout:  -1,
 					},
 					suite.SleepNode(50 * time.Millisecond),
 					{
@@ -406,9 +406,9 @@ func Test_Router_PanicCallback(t *testing.T) { //nolint:paralleltest
 				},
 				Nodes: []*suite.Node{
 					{
-						Name:    "send a command not raising panic",
-						Command: suite.NullMessage("pt:j1/mt:cmd/rt:app/rn:test/ad:1", "cmd.test.test_command", "test_service"),
-						Timeout: -1,
+						Name:     "send a command not raising panic",
+						Commands: []*fimpgo.Message{suite.NullMessage("pt:j1/mt:cmd/rt:app/rn:test/ad:1", "cmd.test.test_command", "test_service")},
+						Timeout:  -1,
 					},
 					suite.SleepNode(50 * time.Millisecond),
 					{
@@ -468,9 +468,9 @@ func Test_Router_StatsCallback(t *testing.T) { //nolint:paralleltest
 				},
 				Nodes: []*suite.Node{
 					{
-						Name:    "send a command that should be processed",
-						Command: suite.NullMessage("pt:j1/mt:cmd/rt:app/rn:test/ad:1", "cmd.test.test_command", "test_service"),
-						Timeout: -1,
+						Name:     "send a command that should be processed",
+						Commands: []*fimpgo.Message{suite.NullMessage("pt:j1/mt:cmd/rt:app/rn:test/ad:1", "cmd.test.test_command", "test_service")},
+						Timeout:  -1,
 					},
 					suite.SleepNode(50 * time.Millisecond),
 					{
@@ -508,9 +508,9 @@ func Test_Router_StatsCallback(t *testing.T) { //nolint:paralleltest
 				},
 				Nodes: []*suite.Node{
 					{
-						Name:    "send a command that should be processed",
-						Command: suite.NullMessage("pt:j1/mt:cmd/rt:app/rn:test/ad:1", "cmd.test.test_command", "test_service"),
-						Timeout: -1,
+						Name:     "send a command that should be processed",
+						Commands: []*fimpgo.Message{suite.NullMessage("pt:j1/mt:cmd/rt:app/rn:test/ad:1", "cmd.test.test_command", "test_service")},
+						Timeout:  -1,
 					},
 					suite.SleepNode(50 * time.Millisecond),
 					{
@@ -550,9 +550,9 @@ func Test_Router_StatsCallback(t *testing.T) { //nolint:paralleltest
 				},
 				Nodes: []*suite.Node{
 					{
-						Name:    "send a command that should be processed",
-						Command: suite.NullMessage("pt:j1/mt:cmd/rt:app/rn:test/ad:1", "cmd.test.test_command", "test_service"),
-						Timeout: -1,
+						Name:     "send a command that should be processed",
+						Commands: []*fimpgo.Message{suite.NullMessage("pt:j1/mt:cmd/rt:app/rn:test/ad:1", "cmd.test.test_command", "test_service")},
+						Timeout:  -1,
 					},
 					suite.SleepNode(50 * time.Millisecond),
 					{

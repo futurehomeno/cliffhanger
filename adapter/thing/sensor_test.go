@@ -34,9 +34,9 @@ func TestRouteSensor(t *testing.T) { //nolint:paralleltest
 				Nodes: []*suite.Node{
 					{
 						Name: "get report",
-						Command: suite.NewMessageBuilder().
+						Commands: []*fimpgo.Message{suite.NewMessageBuilder().
 							NullMessage("pt:j1/mt:cmd/rt:dev/rn:test_adapter/ad:1/sv:sensor_presence/ad:2", "cmd.presence.get_report", "sensor_presence").
-							Build(),
+							Build()},
 						Expectations: []*suite.Expectation{
 							suite.ExpectBool("pt:j1/mt:evt/rt:dev/rn:test_adapter/ad:1/sv:sensor_presence/ad:2", "evt.presence.report", "sensor_presence", true),
 						},
@@ -54,18 +54,18 @@ func TestRouteSensor(t *testing.T) { //nolint:paralleltest
 				Nodes: []*suite.Node{
 					{
 						Name: "get report error",
-						Command: suite.NewMessageBuilder().
+						Commands: []*fimpgo.Message{suite.NewMessageBuilder().
 							NullMessage("pt:j1/mt:cmd/rt:dev/rn:test_adapter/ad:1/sv:sensor_presence/ad:2", "cmd.presence.get_report", "sensor_presence").
-							Build(),
+							Build()},
 						Expectations: []*suite.Expectation{
 							suite.ExpectError("pt:j1/mt:evt/rt:dev/rn:test_adapter/ad:1/sv:sensor_presence/ad:2", "sensor_presence"),
 						},
 					},
 					{
 						Name: "wrong address",
-						Command: suite.NewMessageBuilder().
+						Commands: []*fimpgo.Message{suite.NewMessageBuilder().
 							NullMessage("pt:j1/mt:cmd/rt:dev/rn:test_adapter/ad:1/sv:sensor_presence/ad:3", "cmd.presence.get_report", "sensor_presence").
-							Build(),
+							Build()},
 						Expectations: []*suite.Expectation{
 							suite.ExpectError("pt:j1/mt:evt/rt:dev/rn:test_adapter/ad:1/sv:sensor_presence/ad:3", "sensor_presence"),
 						},

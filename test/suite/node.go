@@ -32,8 +32,8 @@ func NewNode(name string) *Node {
 
 type Node struct {
 	Name          string
-	Command       *fimpgo.Message
-	CommandFn     func(t *testing.T) *fimpgo.Message
+	Commands      []*fimpgo.Message
+	CommandFns    []func(t *testing.T) *fimpgo.Message
 	Expectations  []*Expectation
 	Timeout       time.Duration
 	InitCallbacks []Callback
@@ -47,13 +47,13 @@ func (n *Node) WithName(name string) *Node {
 }
 
 func (n *Node) WithCommand(command *fimpgo.Message) *Node {
-	n.Command = command
+	n.Commands = append(n.Commands, command)
 
 	return n
 }
 
 func (n *Node) WithCommandFn(commandFn func(t *testing.T) *fimpgo.Message) *Node {
-	n.CommandFn = commandFn
+	n.CommandFns = append(n.CommandFns, commandFn)
 
 	return n
 }
@@ -96,11 +96,13 @@ func (n *Node) Run(t *testing.T, mqtt *fimpgo.MqttTransport) {
 		callback(t)
 	}
 
-	if n.CommandFn != nil {
-		n.Command = n.CommandFn(t)
+	for _, cmdFn := range n.CommandFns {
+		n.Commands = append(n.Commands, cmdFn(t))
 	}
 
-	publishMessage(t, mqtt, n.Command)
+	for _, cmdMsg := range n.Commands {
+		publishMessage(t, mqtt, cmdMsg)
+	}
 
 	for _, callback := range n.Callbacks {
 		callback(t)

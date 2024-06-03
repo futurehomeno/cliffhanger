@@ -42,69 +42,69 @@ func TestRouteThermostat(t *testing.T) { //nolint:paralleltest
 				),
 				Nodes: []*suite.Node{
 					{
-						Name:    "Mode",
-						Command: suite.NullMessage("pt:j1/mt:cmd/rt:dev/rn:test_adapter/ad:1/sv:thermostat/ad:2", "cmd.mode.get_report", "thermostat"),
+						Name:     "Mode",
+						Commands: []*fimpgo.Message{suite.NullMessage("pt:j1/mt:cmd/rt:dev/rn:test_adapter/ad:1/sv:thermostat/ad:2", "cmd.mode.get_report", "thermostat")},
 						Expectations: []*suite.Expectation{
 							suite.ExpectString("pt:j1/mt:evt/rt:dev/rn:test_adapter/ad:1/sv:thermostat/ad:2", "evt.mode.report", "thermostat", "test_mode_a"),
 						},
 					},
 					{
-						Name:    "Setpoint",
-						Command: suite.StringMessage("pt:j1/mt:cmd/rt:dev/rn:test_adapter/ad:1/sv:thermostat/ad:2", "cmd.setpoint.get_report", "thermostat", "test_mode_a"),
+						Name:     "Setpoint",
+						Commands: []*fimpgo.Message{suite.StringMessage("pt:j1/mt:cmd/rt:dev/rn:test_adapter/ad:1/sv:thermostat/ad:2", "cmd.setpoint.get_report", "thermostat", "test_mode_a")},
 						Expectations: []*suite.Expectation{
 							suite.ExpectStringMap("pt:j1/mt:evt/rt:dev/rn:test_adapter/ad:1/sv:thermostat/ad:2", "evt.setpoint.report", "thermostat", map[string]string{"type": "test_mode_a", "temp": "21.0", "unit": "C"}),
 						},
 					},
 					{
-						Name:    "State",
-						Command: suite.NullMessage("pt:j1/mt:cmd/rt:dev/rn:test_adapter/ad:1/sv:thermostat/ad:2", "cmd.state.get_report", "thermostat"),
+						Name:     "State",
+						Commands: []*fimpgo.Message{suite.NullMessage("pt:j1/mt:cmd/rt:dev/rn:test_adapter/ad:1/sv:thermostat/ad:2", "cmd.state.get_report", "thermostat")},
 						Expectations: []*suite.Expectation{
 							suite.ExpectString("pt:j1/mt:evt/rt:dev/rn:test_adapter/ad:1/sv:thermostat/ad:2", "evt.state.report", "thermostat", "idle"),
 						},
 					},
 					{
-						Name:    "Temperature",
-						Command: suite.StringMessage("pt:j1/mt:cmd/rt:dev/rn:test_adapter/ad:1/sv:sensor_temp/ad:2", "cmd.sensor.get_report", "sensor_temp", "C"),
+						Name:     "Temperature",
+						Commands: []*fimpgo.Message{suite.StringMessage("pt:j1/mt:cmd/rt:dev/rn:test_adapter/ad:1/sv:sensor_temp/ad:2", "cmd.sensor.get_report", "sensor_temp", "C")},
 						Expectations: []*suite.Expectation{
 							suite.ExpectFloat("pt:j1/mt:evt/rt:dev/rn:test_adapter/ad:1/sv:sensor_temp/ad:2", "evt.sensor.report", "sensor_temp", 21.5).
 								ExpectProperty("unit", "C"),
 						},
 					},
 					{
-						Name:    "All sensor units",
-						Command: suite.StringMessage("pt:j1/mt:cmd/rt:dev/rn:test_adapter/ad:1/sv:sensor_temp/ad:2", "cmd.sensor.get_report", "sensor_temp", ""),
+						Name:     "All sensor units",
+						Commands: []*fimpgo.Message{suite.StringMessage("pt:j1/mt:cmd/rt:dev/rn:test_adapter/ad:1/sv:sensor_temp/ad:2", "cmd.sensor.get_report", "sensor_temp", "")},
 						Expectations: []*suite.Expectation{
 							suite.ExpectFloat("pt:j1/mt:evt/rt:dev/rn:test_adapter/ad:1/sv:sensor_temp/ad:2", "evt.sensor.report", "sensor_temp", 21.5).
 								ExpectProperty("unit", "C"),
 						},
 					},
 					{
-						Name:    "All sensor units with null",
-						Command: suite.NullMessage("pt:j1/mt:cmd/rt:dev/rn:test_adapter/ad:1/sv:sensor_temp/ad:2", "cmd.sensor.get_report", "sensor_temp"),
+						Name:     "All sensor units with null",
+						Commands: []*fimpgo.Message{suite.NullMessage("pt:j1/mt:cmd/rt:dev/rn:test_adapter/ad:1/sv:sensor_temp/ad:2", "cmd.sensor.get_report", "sensor_temp")},
 						Expectations: []*suite.Expectation{
 							suite.ExpectFloat("pt:j1/mt:evt/rt:dev/rn:test_adapter/ad:1/sv:sensor_temp/ad:2", "evt.sensor.report", "sensor_temp", 21.5).
 								ExpectProperty("unit", "C"),
 						},
 					},
 					{
-						Name:    "Power",
-						Command: suite.StringMessage("pt:j1/mt:cmd/rt:dev/rn:test_adapter/ad:1/sv:meter_elec/ad:2", "cmd.meter.get_report", "meter_elec", "W"),
+						Name:     "Power",
+						Commands: []*fimpgo.Message{suite.StringMessage("pt:j1/mt:cmd/rt:dev/rn:test_adapter/ad:1/sv:meter_elec/ad:2", "cmd.meter.get_report", "meter_elec", "W")},
 						Expectations: []*suite.Expectation{
 							suite.ExpectFloat("pt:j1/mt:evt/rt:dev/rn:test_adapter/ad:1/sv:meter_elec/ad:2", "evt.meter.report", "meter_elec", 2).
 								ExpectProperty("unit", "W"),
 						},
 					},
 					{
-						Name:    "Energy",
-						Command: suite.StringMessage("pt:j1/mt:cmd/rt:dev/rn:test_adapter/ad:1/sv:meter_elec/ad:2", "cmd.meter.get_report", "meter_elec", "kWh"),
+						Name:     "Energy",
+						Commands: []*fimpgo.Message{suite.StringMessage("pt:j1/mt:cmd/rt:dev/rn:test_adapter/ad:1/sv:meter_elec/ad:2", "cmd.meter.get_report", "meter_elec", "kWh")},
 						Expectations: []*suite.Expectation{
 							suite.ExpectFloat("pt:j1/mt:evt/rt:dev/rn:test_adapter/ad:1/sv:meter_elec/ad:2", "evt.meter.report", "meter_elec", 123.45).
 								ExpectProperty("unit", "kWh"),
 						},
 					},
 					{
-						Name:    "All electricity units",
-						Command: suite.StringMessage("pt:j1/mt:cmd/rt:dev/rn:test_adapter/ad:1/sv:meter_elec/ad:2", "cmd.meter.get_report", "meter_elec", ""),
+						Name:     "All electricity units",
+						Commands: []*fimpgo.Message{suite.StringMessage("pt:j1/mt:cmd/rt:dev/rn:test_adapter/ad:1/sv:meter_elec/ad:2", "cmd.meter.get_report", "meter_elec", "")},
 						Expectations: []*suite.Expectation{
 							suite.ExpectFloat("pt:j1/mt:evt/rt:dev/rn:test_adapter/ad:1/sv:meter_elec/ad:2", "evt.meter.report", "meter_elec", 2).
 								ExpectProperty("unit", "W"),
@@ -113,8 +113,8 @@ func TestRouteThermostat(t *testing.T) { //nolint:paralleltest
 						},
 					},
 					{
-						Name:    "All electricity units with null",
-						Command: suite.NullMessage("pt:j1/mt:cmd/rt:dev/rn:test_adapter/ad:1/sv:meter_elec/ad:2", "cmd.meter.get_report", "meter_elec"),
+						Name:     "All electricity units with null",
+						Commands: []*fimpgo.Message{suite.NullMessage("pt:j1/mt:cmd/rt:dev/rn:test_adapter/ad:1/sv:meter_elec/ad:2", "cmd.meter.get_report", "meter_elec")},
 						Expectations: []*suite.Expectation{
 							suite.ExpectFloat("pt:j1/mt:evt/rt:dev/rn:test_adapter/ad:1/sv:meter_elec/ad:2", "evt.meter.report", "meter_elec", 2).
 								ExpectProperty("unit", "W"),
@@ -139,120 +139,120 @@ func TestRouteThermostat(t *testing.T) { //nolint:paralleltest
 				),
 				Nodes: []*suite.Node{
 					{
-						Name:    "Controller error on mode report",
-						Command: suite.NullMessage("pt:j1/mt:cmd/rt:dev/rn:test_adapter/ad:1/sv:thermostat/ad:2", "cmd.mode.get_report", "thermostat"),
+						Name:     "Controller error on mode report",
+						Commands: []*fimpgo.Message{suite.NullMessage("pt:j1/mt:cmd/rt:dev/rn:test_adapter/ad:1/sv:thermostat/ad:2", "cmd.mode.get_report", "thermostat")},
 						Expectations: []*suite.Expectation{
 							suite.ExpectError("pt:j1/mt:evt/rt:dev/rn:test_adapter/ad:1/sv:thermostat/ad:2", "thermostat"),
 						},
 					},
 					{
-						Name:    "Non existent thing on mode report",
-						Command: suite.NullMessage("pt:j1/mt:cmd/rt:dev/rn:test_adapter/ad:1/sv:thermostat/ad:3", "cmd.mode.get_report", "thermostat"),
+						Name:     "Non existent thing on mode report",
+						Commands: []*fimpgo.Message{suite.NullMessage("pt:j1/mt:cmd/rt:dev/rn:test_adapter/ad:1/sv:thermostat/ad:3", "cmd.mode.get_report", "thermostat")},
 						Expectations: []*suite.Expectation{
 							suite.ExpectError("pt:j1/mt:evt/rt:dev/rn:test_adapter/ad:1/sv:thermostat/ad:3", "thermostat"),
 						},
 					},
 					{
-						Name:    "Controller error on setpoint report",
-						Command: suite.StringMessage("pt:j1/mt:cmd/rt:dev/rn:test_adapter/ad:1/sv:thermostat/ad:2", "cmd.setpoint.get_report", "thermostat", "test_mode_a"),
+						Name:     "Controller error on setpoint report",
+						Commands: []*fimpgo.Message{suite.StringMessage("pt:j1/mt:cmd/rt:dev/rn:test_adapter/ad:1/sv:thermostat/ad:2", "cmd.setpoint.get_report", "thermostat", "test_mode_a")},
 						Expectations: []*suite.Expectation{
 							suite.ExpectError("pt:j1/mt:evt/rt:dev/rn:test_adapter/ad:1/sv:thermostat/ad:2", "thermostat"),
 						},
 					},
 					{
-						Name:    "Non existent thing on setpoint report",
-						Command: suite.StringMessage("pt:j1/mt:cmd/rt:dev/rn:test_adapter/ad:1/sv:thermostat/ad:3", "cmd.setpoint.get_report", "thermostat", "test_mode_a"),
+						Name:     "Non existent thing on setpoint report",
+						Commands: []*fimpgo.Message{suite.StringMessage("pt:j1/mt:cmd/rt:dev/rn:test_adapter/ad:1/sv:thermostat/ad:3", "cmd.setpoint.get_report", "thermostat", "test_mode_a")},
 						Expectations: []*suite.Expectation{
 							suite.ExpectError("pt:j1/mt:evt/rt:dev/rn:test_adapter/ad:1/sv:thermostat/ad:3", "thermostat"),
 						},
 					},
 					{
-						Name:    "Unsupported mode on setpoint report",
-						Command: suite.StringMessage("pt:j1/mt:cmd/rt:dev/rn:test_adapter/ad:1/sv:thermostat/ad:2", "cmd.setpoint.get_report", "thermostat", "unsupported_mode"),
+						Name:     "Unsupported mode on setpoint report",
+						Commands: []*fimpgo.Message{suite.StringMessage("pt:j1/mt:cmd/rt:dev/rn:test_adapter/ad:1/sv:thermostat/ad:2", "cmd.setpoint.get_report", "thermostat", "unsupported_mode")},
 						Expectations: []*suite.Expectation{
 							suite.ExpectError("pt:j1/mt:evt/rt:dev/rn:test_adapter/ad:1/sv:thermostat/ad:2", "thermostat"),
 						},
 					},
 					{
-						Name:    "Wrong value type on setpoint report",
-						Command: suite.NullMessage("pt:j1/mt:cmd/rt:dev/rn:test_adapter/ad:1/sv:thermostat/ad:2", "cmd.setpoint.get_report", "thermostat"),
+						Name:     "Wrong value type on setpoint report",
+						Commands: []*fimpgo.Message{suite.NullMessage("pt:j1/mt:cmd/rt:dev/rn:test_adapter/ad:1/sv:thermostat/ad:2", "cmd.setpoint.get_report", "thermostat")},
 						Expectations: []*suite.Expectation{
 							suite.ExpectError("pt:j1/mt:evt/rt:dev/rn:test_adapter/ad:1/sv:thermostat/ad:2", "thermostat"),
 						},
 					},
 					{
-						Name:    "Controller error on state report",
-						Command: suite.NullMessage("pt:j1/mt:cmd/rt:dev/rn:test_adapter/ad:1/sv:thermostat/ad:2", "cmd.state.get_report", "thermostat"),
+						Name:     "Controller error on state report",
+						Commands: []*fimpgo.Message{suite.NullMessage("pt:j1/mt:cmd/rt:dev/rn:test_adapter/ad:1/sv:thermostat/ad:2", "cmd.state.get_report", "thermostat")},
 						Expectations: []*suite.Expectation{
 							suite.ExpectError("pt:j1/mt:evt/rt:dev/rn:test_adapter/ad:1/sv:thermostat/ad:2", "thermostat"),
 						},
 					},
 					{
-						Name:    "Non existent thing on state report",
-						Command: suite.NullMessage("pt:j1/mt:cmd/rt:dev/rn:test_adapter/ad:1/sv:thermostat/ad:3", "cmd.state.get_report", "thermostat"),
+						Name:     "Non existent thing on state report",
+						Commands: []*fimpgo.Message{suite.NullMessage("pt:j1/mt:cmd/rt:dev/rn:test_adapter/ad:1/sv:thermostat/ad:3", "cmd.state.get_report", "thermostat")},
 						Expectations: []*suite.Expectation{
 							suite.ExpectError("pt:j1/mt:evt/rt:dev/rn:test_adapter/ad:1/sv:thermostat/ad:3", "thermostat"),
 						},
 					},
 					{
-						Name:    "Reporter error on numeric sensor report",
-						Command: suite.StringMessage("pt:j1/mt:cmd/rt:dev/rn:test_adapter/ad:1/sv:sensor_temp/ad:2", "cmd.sensor.get_report", "sensor_temp", "C"),
+						Name:     "Reporter error on numeric sensor report",
+						Commands: []*fimpgo.Message{suite.StringMessage("pt:j1/mt:cmd/rt:dev/rn:test_adapter/ad:1/sv:sensor_temp/ad:2", "cmd.sensor.get_report", "sensor_temp", "C")},
 						Expectations: []*suite.Expectation{
 							suite.ExpectError("pt:j1/mt:evt/rt:dev/rn:test_adapter/ad:1/sv:sensor_temp/ad:2", "sensor_temp"),
 						},
 					},
 					{
-						Name:    "Wrong value type on numeric sensor report",
-						Command: suite.FloatMessage("pt:j1/mt:cmd/rt:dev/rn:test_adapter/ad:1/sv:sensor_temp/ad:2", "cmd.sensor.get_report", "sensor_temp", 0),
+						Name:     "Wrong value type on numeric sensor report",
+						Commands: []*fimpgo.Message{suite.FloatMessage("pt:j1/mt:cmd/rt:dev/rn:test_adapter/ad:1/sv:sensor_temp/ad:2", "cmd.sensor.get_report", "sensor_temp", 0)},
 						Expectations: []*suite.Expectation{
 							suite.ExpectError("pt:j1/mt:evt/rt:dev/rn:test_adapter/ad:1/sv:sensor_temp/ad:2", "sensor_temp"),
 						},
 					},
 					{
-						Name:    "Unsupported unit on numeric sensor report",
-						Command: suite.StringMessage("pt:j1/mt:cmd/rt:dev/rn:test_adapter/ad:1/sv:sensor_temp/ad:2", "cmd.sensor.get_report", "sensor_temp", "F"),
+						Name:     "Unsupported unit on numeric sensor report",
+						Commands: []*fimpgo.Message{suite.StringMessage("pt:j1/mt:cmd/rt:dev/rn:test_adapter/ad:1/sv:sensor_temp/ad:2", "cmd.sensor.get_report", "sensor_temp", "F")},
 						Expectations: []*suite.Expectation{
 							suite.ExpectError("pt:j1/mt:evt/rt:dev/rn:test_adapter/ad:1/sv:sensor_temp/ad:2", "sensor_temp"),
 						},
 					},
 					{
-						Name:    "Non existent thing on numeric sensor report",
-						Command: suite.NullMessage("pt:j1/mt:cmd/rt:dev/rn:test_adapter/ad:1/sv:sensor_temp/ad:3", "cmd.sensor.get_report", "sensor_temp"),
+						Name:     "Non existent thing on numeric sensor report",
+						Commands: []*fimpgo.Message{suite.NullMessage("pt:j1/mt:cmd/rt:dev/rn:test_adapter/ad:1/sv:sensor_temp/ad:3", "cmd.sensor.get_report", "sensor_temp")},
 						Expectations: []*suite.Expectation{
 							suite.ExpectError("pt:j1/mt:evt/rt:dev/rn:test_adapter/ad:1/sv:sensor_temp/ad:3", "sensor_temp"),
 						},
 					},
 					{
-						Name:    "Wrong sensor on numeric sensor report",
-						Command: suite.NullMessage("pt:j1/mt:cmd/rt:dev/rn:test_adapter/ad:1/sv:sensor_temp/ad:2", "cmd.sensor.get_report", "sensor_wattemp"),
+						Name:     "Wrong sensor on numeric sensor report",
+						Commands: []*fimpgo.Message{suite.NullMessage("pt:j1/mt:cmd/rt:dev/rn:test_adapter/ad:1/sv:sensor_temp/ad:2", "cmd.sensor.get_report", "sensor_wattemp")},
 						Expectations: []*suite.Expectation{
 							suite.ExpectError("pt:j1/mt:evt/rt:dev/rn:test_adapter/ad:1/sv:sensor_temp/ad:2", "sensor_wattemp"),
 						},
 					},
 					{
-						Name:    "Reporter error on electricity meter report",
-						Command: suite.StringMessage("pt:j1/mt:cmd/rt:dev/rn:test_adapter/ad:1/sv:meter_elec/ad:2", "cmd.meter.get_report", "meter_elec", "W"),
+						Name:     "Reporter error on electricity meter report",
+						Commands: []*fimpgo.Message{suite.StringMessage("pt:j1/mt:cmd/rt:dev/rn:test_adapter/ad:1/sv:meter_elec/ad:2", "cmd.meter.get_report", "meter_elec", "W")},
 						Expectations: []*suite.Expectation{
 							suite.ExpectError("pt:j1/mt:evt/rt:dev/rn:test_adapter/ad:1/sv:meter_elec/ad:2", "meter_elec"),
 						},
 					},
 					{
-						Name:    "Wrong value type on electricity meter report",
-						Command: suite.FloatMessage("pt:j1/mt:cmd/rt:dev/rn:test_adapter/ad:1/sv:meter_elec/ad:2", "cmd.meter.get_report", "meter_elec", 0),
+						Name:     "Wrong value type on electricity meter report",
+						Commands: []*fimpgo.Message{suite.FloatMessage("pt:j1/mt:cmd/rt:dev/rn:test_adapter/ad:1/sv:meter_elec/ad:2", "cmd.meter.get_report", "meter_elec", 0)},
 						Expectations: []*suite.Expectation{
 							suite.ExpectError("pt:j1/mt:evt/rt:dev/rn:test_adapter/ad:1/sv:meter_elec/ad:2", "meter_elec"),
 						},
 					},
 					{
-						Name:    "Unsupported unit on electricity meter report",
-						Command: suite.StringMessage("pt:j1/mt:cmd/rt:dev/rn:test_adapter/ad:1/sv:meter_elec/ad:2", "cmd.meter.get_report", "meter_elec", "A"),
+						Name:     "Unsupported unit on electricity meter report",
+						Commands: []*fimpgo.Message{suite.StringMessage("pt:j1/mt:cmd/rt:dev/rn:test_adapter/ad:1/sv:meter_elec/ad:2", "cmd.meter.get_report", "meter_elec", "A")},
 						Expectations: []*suite.Expectation{
 							suite.ExpectError("pt:j1/mt:evt/rt:dev/rn:test_adapter/ad:1/sv:meter_elec/ad:2", "meter_elec"),
 						},
 					},
 					{
-						Name:    "Non existent thing on electricity meter report",
-						Command: suite.StringMessage("pt:j1/mt:cmd/rt:dev/rn:test_adapter/ad:1/sv:meter_elec/ad:3", "cmd.meter.get_report", "meter_elec", "W"),
+						Name:     "Non existent thing on electricity meter report",
+						Commands: []*fimpgo.Message{suite.StringMessage("pt:j1/mt:cmd/rt:dev/rn:test_adapter/ad:1/sv:meter_elec/ad:3", "cmd.meter.get_report", "meter_elec", "W")},
 						Expectations: []*suite.Expectation{
 							suite.ExpectError("pt:j1/mt:evt/rt:dev/rn:test_adapter/ad:1/sv:meter_elec/ad:3", "meter_elec"),
 						},
@@ -275,23 +275,23 @@ func TestRouteThermostat(t *testing.T) { //nolint:paralleltest
 				),
 				Nodes: []*suite.Node{
 					{
-						Name:    "Set mode not supporting a setpoint",
-						Command: suite.StringMessage("pt:j1/mt:cmd/rt:dev/rn:test_adapter/ad:1/sv:thermostat/ad:2", "cmd.mode.set", "thermostat", "test_mode_c"),
+						Name:     "Set mode not supporting a setpoint",
+						Commands: []*fimpgo.Message{suite.StringMessage("pt:j1/mt:cmd/rt:dev/rn:test_adapter/ad:1/sv:thermostat/ad:2", "cmd.mode.set", "thermostat", "test_mode_c")},
 						Expectations: []*suite.Expectation{
 							suite.ExpectString("pt:j1/mt:evt/rt:dev/rn:test_adapter/ad:1/sv:thermostat/ad:2", "evt.mode.report", "thermostat", "test_mode_c"),
 						},
 					},
 					{
-						Name:    "Set mode supporting a setpoint",
-						Command: suite.StringMessage("pt:j1/mt:cmd/rt:dev/rn:test_adapter/ad:1/sv:thermostat/ad:2", "cmd.mode.set", "thermostat", "test_mode_a"),
+						Name:     "Set mode supporting a setpoint",
+						Commands: []*fimpgo.Message{suite.StringMessage("pt:j1/mt:cmd/rt:dev/rn:test_adapter/ad:1/sv:thermostat/ad:2", "cmd.mode.set", "thermostat", "test_mode_a")},
 						Expectations: []*suite.Expectation{
 							suite.ExpectString("pt:j1/mt:evt/rt:dev/rn:test_adapter/ad:1/sv:thermostat/ad:2", "evt.mode.report", "thermostat", "test_mode_a"),
 							suite.ExpectStringMap("pt:j1/mt:evt/rt:dev/rn:test_adapter/ad:1/sv:thermostat/ad:2", "evt.setpoint.report", "thermostat", map[string]string{"type": "test_mode_a", "temp": "21.0", "unit": "C"}),
 						},
 					},
 					{
-						Name:    "Set setpoint",
-						Command: suite.StringMapMessage("pt:j1/mt:cmd/rt:dev/rn:test_adapter/ad:1/sv:thermostat/ad:2", "cmd.setpoint.set", "thermostat", map[string]string{"type": "test_mode_a", "temp": "20.0", "unit": "C"}),
+						Name:     "Set setpoint",
+						Commands: []*fimpgo.Message{suite.StringMapMessage("pt:j1/mt:cmd/rt:dev/rn:test_adapter/ad:1/sv:thermostat/ad:2", "cmd.setpoint.set", "thermostat", map[string]string{"type": "test_mode_a", "temp": "20.0", "unit": "C"})},
 						Expectations: []*suite.Expectation{
 							suite.ExpectStringMap("pt:j1/mt:evt/rt:dev/rn:test_adapter/ad:1/sv:thermostat/ad:2", "evt.setpoint.report", "thermostat", map[string]string{"type": "test_mode_a", "temp": "20.0", "unit": "C"}),
 						},
@@ -309,85 +309,85 @@ func TestRouteThermostat(t *testing.T) { //nolint:paralleltest
 				),
 				Nodes: []*suite.Node{
 					{
-						Name:    "Controller error when setting mode",
-						Command: suite.StringMessage("pt:j1/mt:cmd/rt:dev/rn:test_adapter/ad:1/sv:thermostat/ad:2", "cmd.mode.set", "thermostat", "test_mode_a"),
+						Name:     "Controller error when setting mode",
+						Commands: []*fimpgo.Message{suite.StringMessage("pt:j1/mt:cmd/rt:dev/rn:test_adapter/ad:1/sv:thermostat/ad:2", "cmd.mode.set", "thermostat", "test_mode_a")},
 						Expectations: []*suite.Expectation{
 							suite.ExpectError("pt:j1/mt:evt/rt:dev/rn:test_adapter/ad:1/sv:thermostat/ad:2", "thermostat"),
 						},
 					},
 					{
-						Name:    "Unsupported mode",
-						Command: suite.StringMessage("pt:j1/mt:cmd/rt:dev/rn:test_adapter/ad:1/sv:thermostat/ad:2", "cmd.mode.set", "thermostat", "unsupported_mode"),
+						Name:     "Unsupported mode",
+						Commands: []*fimpgo.Message{suite.StringMessage("pt:j1/mt:cmd/rt:dev/rn:test_adapter/ad:1/sv:thermostat/ad:2", "cmd.mode.set", "thermostat", "unsupported_mode")},
 						Expectations: []*suite.Expectation{
 							suite.ExpectError("pt:j1/mt:evt/rt:dev/rn:test_adapter/ad:1/sv:thermostat/ad:2", "thermostat"),
 						},
 					},
 					{
-						Name:    "Setting mode with with wrong type of value",
-						Command: suite.NullMessage("pt:j1/mt:cmd/rt:dev/rn:test_adapter/ad:1/sv:thermostat/ad:2", "cmd.mode.set", "thermostat"),
+						Name:     "Setting mode with with wrong type of value",
+						Commands: []*fimpgo.Message{suite.NullMessage("pt:j1/mt:cmd/rt:dev/rn:test_adapter/ad:1/sv:thermostat/ad:2", "cmd.mode.set", "thermostat")},
 						Expectations: []*suite.Expectation{
 							suite.ExpectError("pt:j1/mt:evt/rt:dev/rn:test_adapter/ad:1/sv:thermostat/ad:2", "thermostat"),
 						},
 					},
 					{
-						Name:    "Setting mode of non-existent thing",
-						Command: suite.StringMessage("pt:j1/mt:cmd/rt:dev/rn:test_adapter/ad:1/sv:thermostat/ad:3", "cmd.mode.set", "thermostat", "test_mode_a"),
+						Name:     "Setting mode of non-existent thing",
+						Commands: []*fimpgo.Message{suite.StringMessage("pt:j1/mt:cmd/rt:dev/rn:test_adapter/ad:1/sv:thermostat/ad:3", "cmd.mode.set", "thermostat", "test_mode_a")},
 						Expectations: []*suite.Expectation{
 							suite.ExpectError("pt:j1/mt:evt/rt:dev/rn:test_adapter/ad:1/sv:thermostat/ad:3", "thermostat"),
 						},
 					},
 					{
-						Name:    "Controller error when setting setpoint",
-						Command: suite.StringMapMessage("pt:j1/mt:cmd/rt:dev/rn:test_adapter/ad:1/sv:thermostat/ad:2", "cmd.setpoint.set", "thermostat", map[string]string{"type": "test_mode_a", "temp": "20.0", "unit": "C"}),
+						Name:     "Controller error when setting setpoint",
+						Commands: []*fimpgo.Message{suite.StringMapMessage("pt:j1/mt:cmd/rt:dev/rn:test_adapter/ad:1/sv:thermostat/ad:2", "cmd.setpoint.set", "thermostat", map[string]string{"type": "test_mode_a", "temp": "20.0", "unit": "C"})},
 						Expectations: []*suite.Expectation{
 							suite.ExpectError("pt:j1/mt:evt/rt:dev/rn:test_adapter/ad:1/sv:thermostat/ad:2", "thermostat"),
 						},
 					},
 					{
-						Name:    "Unsupported mode when setting setpoint",
-						Command: suite.StringMapMessage("pt:j1/mt:cmd/rt:dev/rn:test_adapter/ad:1/sv:thermostat/ad:2", "cmd.setpoint.set", "thermostat", map[string]string{"type": "test_mode_c", "temp": "20.0", "unit": "C"}),
+						Name:     "Unsupported mode when setting setpoint",
+						Commands: []*fimpgo.Message{suite.StringMapMessage("pt:j1/mt:cmd/rt:dev/rn:test_adapter/ad:1/sv:thermostat/ad:2", "cmd.setpoint.set", "thermostat", map[string]string{"type": "test_mode_c", "temp": "20.0", "unit": "C"})},
 						Expectations: []*suite.Expectation{
 							suite.ExpectError("pt:j1/mt:evt/rt:dev/rn:test_adapter/ad:1/sv:thermostat/ad:2", "thermostat"),
 						},
 					},
 					{
-						Name:    "Missing unit when setting setpoint",
-						Command: suite.StringMapMessage("pt:j1/mt:cmd/rt:dev/rn:test_adapter/ad:1/sv:thermostat/ad:2", "cmd.setpoint.set", "thermostat", map[string]string{"type": "test_mode_a", "temp": "20.0"}),
+						Name:     "Missing unit when setting setpoint",
+						Commands: []*fimpgo.Message{suite.StringMapMessage("pt:j1/mt:cmd/rt:dev/rn:test_adapter/ad:1/sv:thermostat/ad:2", "cmd.setpoint.set", "thermostat", map[string]string{"type": "test_mode_a", "temp": "20.0"})},
 						Expectations: []*suite.Expectation{
 							suite.ExpectError("pt:j1/mt:evt/rt:dev/rn:test_adapter/ad:1/sv:thermostat/ad:2", "thermostat"),
 						},
 					},
 					{
-						Name:    "Missing temperature when setting setpoint",
-						Command: suite.StringMapMessage("pt:j1/mt:cmd/rt:dev/rn:test_adapter/ad:1/sv:thermostat/ad:2", "cmd.setpoint.set", "thermostat", map[string]string{"type": "test_mode_a", "unit": "C"}),
+						Name:     "Missing temperature when setting setpoint",
+						Commands: []*fimpgo.Message{suite.StringMapMessage("pt:j1/mt:cmd/rt:dev/rn:test_adapter/ad:1/sv:thermostat/ad:2", "cmd.setpoint.set", "thermostat", map[string]string{"type": "test_mode_a", "unit": "C"})},
 						Expectations: []*suite.Expectation{
 							suite.ExpectError("pt:j1/mt:evt/rt:dev/rn:test_adapter/ad:1/sv:thermostat/ad:2", "thermostat"),
 						},
 					},
 					{
-						Name:    "Missing mode when setting setpoint",
-						Command: suite.StringMapMessage("pt:j1/mt:cmd/rt:dev/rn:test_adapter/ad:1/sv:thermostat/ad:2", "cmd.setpoint.set", "thermostat", map[string]string{"temp": "20.0", "unit": "C"}),
+						Name:     "Missing mode when setting setpoint",
+						Commands: []*fimpgo.Message{suite.StringMapMessage("pt:j1/mt:cmd/rt:dev/rn:test_adapter/ad:1/sv:thermostat/ad:2", "cmd.setpoint.set", "thermostat", map[string]string{"temp": "20.0", "unit": "C"})},
 						Expectations: []*suite.Expectation{
 							suite.ExpectError("pt:j1/mt:evt/rt:dev/rn:test_adapter/ad:1/sv:thermostat/ad:2", "thermostat"),
 						},
 					},
 					{
-						Name:    "Invalid temperature when setting setpoint",
-						Command: suite.StringMapMessage("pt:j1/mt:cmd/rt:dev/rn:test_adapter/ad:1/sv:thermostat/ad:2", "cmd.setpoint.set", "thermostat", map[string]string{"type": "test_mode_a", "temp": "20C", "unit": "C"}),
+						Name:     "Invalid temperature when setting setpoint",
+						Commands: []*fimpgo.Message{suite.StringMapMessage("pt:j1/mt:cmd/rt:dev/rn:test_adapter/ad:1/sv:thermostat/ad:2", "cmd.setpoint.set", "thermostat", map[string]string{"type": "test_mode_a", "temp": "20C", "unit": "C"})},
 						Expectations: []*suite.Expectation{
 							suite.ExpectError("pt:j1/mt:evt/rt:dev/rn:test_adapter/ad:1/sv:thermostat/ad:2", "thermostat"),
 						},
 					},
 					{
-						Name:    "Setting setpoint with wrong type of value",
-						Command: suite.StringMessage("pt:j1/mt:cmd/rt:dev/rn:test_adapter/ad:1/sv:thermostat/ad:2", "cmd.setpoint.set", "thermostat", "22"),
+						Name:     "Setting setpoint with wrong type of value",
+						Commands: []*fimpgo.Message{suite.StringMessage("pt:j1/mt:cmd/rt:dev/rn:test_adapter/ad:1/sv:thermostat/ad:2", "cmd.setpoint.set", "thermostat", "22")},
 						Expectations: []*suite.Expectation{
 							suite.ExpectError("pt:j1/mt:evt/rt:dev/rn:test_adapter/ad:1/sv:thermostat/ad:2", "thermostat"),
 						},
 					},
 					{
-						Name:    "Setting setpoint of non-existent thing",
-						Command: suite.StringMapMessage("pt:j1/mt:cmd/rt:dev/rn:test_adapter/ad:1/sv:thermostat/ad:3", "cmd.setpoint.set", "thermostat", map[string]string{"type": "test_mode_a", "temp": "21.0", "unit": "C"}),
+						Name:     "Setting setpoint of non-existent thing",
+						Commands: []*fimpgo.Message{suite.StringMapMessage("pt:j1/mt:cmd/rt:dev/rn:test_adapter/ad:1/sv:thermostat/ad:3", "cmd.setpoint.set", "thermostat", map[string]string{"type": "test_mode_a", "temp": "21.0", "unit": "C"})},
 						Expectations: []*suite.Expectation{
 							suite.ExpectError("pt:j1/mt:evt/rt:dev/rn:test_adapter/ad:1/sv:thermostat/ad:3", "thermostat"),
 						},

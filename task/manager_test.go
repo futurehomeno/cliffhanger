@@ -4,6 +4,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/futurehomeno/fimpgo"
 	"github.com/stretchr/testify/assert"
 
 	"github.com/futurehomeno/cliffhanger/task"
@@ -147,8 +148,8 @@ func TestManager(t *testing.T) {
 				Tasks: []*task.Task{task.New(func() { panic("test panic 1") }, 0)},
 				Nodes: []*suite.Node{
 					{
-						Name:    "Execute task raising panic",
-						Command: suite.NullMessage("pt:j1/mt:cmd/rt:app/rn:test/ad:1", "cmd.test.test_command", "test_service"),
+						Name:     "Execute task raising panic",
+						Commands: []*fimpgo.Message{suite.NullMessage("pt:j1/mt:cmd/rt:app/rn:test/ad:1", "cmd.test.test_command", "test_service")},
 						Expectations: []*suite.Expectation{
 							suite.ExpectString("pt:j1/mt:evt/rt:app/rn:test/ad:1", "evt.test.test_event", "test_service", "test_value").Never(),
 						},
