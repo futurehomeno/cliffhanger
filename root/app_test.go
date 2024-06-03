@@ -95,6 +95,7 @@ func TestApp_Run(t *testing.T) { //nolint:paralleltest
 
 			go func() {
 				time.Sleep(100 * time.Millisecond)
+
 				if tc.triggerStop {
 					_ = app.Stop()
 				}

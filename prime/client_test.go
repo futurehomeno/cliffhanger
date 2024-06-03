@@ -561,6 +561,7 @@ func TestClient(t *testing.T) {
 
 		t.Run(tc.name, func(t *testing.T) {
 			t.Parallel()
+
 			client := prime.NewClient(tc.syncClientMock, "test", 5*time.Second)
 
 			got, err := tc.call(client)

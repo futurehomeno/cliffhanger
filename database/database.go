@@ -250,7 +250,7 @@ func (d *database) Keys(bucket string) ([]string, error) {
 	var keys []string
 
 	err := d.db.View(func(tx *buntdb.Tx) error {
-		return tx.AscendKeys(fmt.Sprintf("%s:*", bucket), func(key, value string) bool {
+		return tx.AscendKeys(fmt.Sprintf("%s:*", bucket), func(key, _ string) bool {
 			keys = append(keys, key)
 
 			return true
@@ -275,7 +275,7 @@ func (d *database) KeysFrom(bucket, from string) ([]string, error) {
 	toString := fmt.Sprintf("%s:%s", bucket, string([]byte{255}))
 
 	err := d.db.View(func(tx *buntdb.Tx) error {
-		return tx.AscendRange("", fromString, toString, func(key, value string) bool {
+		return tx.AscendRange("", fromString, toString, func(key, _ string) bool {
 			keys = append(keys, key)
 
 			return true
@@ -300,7 +300,7 @@ func (d *database) KeysBetween(bucket, from, to string) ([]string, error) {
 	toString := fmt.Sprintf("%s:%s", bucket, to)
 
 	err := d.db.View(func(tx *buntdb.Tx) error {
-		return tx.AscendRange("", fromString, toString, func(key, value string) bool {
+		return tx.AscendRange("", fromString, toString, func(key, _ string) bool {
 			keys = append(keys, key)
 
 			return true

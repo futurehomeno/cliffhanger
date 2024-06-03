@@ -39,25 +39,25 @@ func TestHandleCmdLogGetLevel(t *testing.T) { //nolint:paralleltest
 	}{
 		{
 			name:       "happy path",
-			logSetter:  func(s string) error { return nil },
+			logSetter:  func(_ string) error { return nil },
 			msg:        makeCommand("string", "error"),
 			wantLogLvl: log.ErrorLevel,
 		},
 		{
 			name:      "error when checking payload value",
-			logSetter: func(s string) error { return nil },
+			logSetter: func(_ string) error { return nil },
 			msg:       makeCommand("bool", true),
 			wantErr:   true,
 		},
 		{
 			name:      "error when parsing log level",
-			logSetter: func(s string) error { return nil },
+			logSetter: func(_ string) error { return nil },
 			msg:       makeCommand("string", "dummy"),
 			wantErr:   true,
 		},
 		{
 			name:      "error when saving log level",
-			logSetter: func(s string) error { return errors.New("test error") },
+			logSetter: func(_ string) error { return errors.New("test error") },
 			msg:       makeCommand("string", "error"),
 			wantErr:   true,
 		},
@@ -92,7 +92,7 @@ func TestRouteConfig(t *testing.T) { //nolint:paralleltest
 		Cases: []*suite.Case{
 			{
 				Name: "Successful getter and setter",
-				Setup: suite.BaseSetup(func(t *testing.T, mqtt *fimpgo.MqttTransport) (routing []*router.Routing, tasks []*task.Task, mocks []suite.Mock) {
+				Setup: suite.BaseSetup(func(t *testing.T, _ *fimpgo.MqttTransport) (routing []*router.Routing, tasks []*task.Task, mocks []suite.Mock) {
 					t.Helper()
 
 					mDuration := newConfigMock[time.Duration]().mockGetter(time.Second).mockSetter(time.Minute, nil)
@@ -347,7 +347,7 @@ func TestRouteConfig(t *testing.T) { //nolint:paralleltest
 			},
 			{
 				Name: "Errors and edge cases",
-				Setup: suite.BaseSetup(func(t *testing.T, mqtt *fimpgo.MqttTransport) (routing []*router.Routing, tasks []*task.Task, mocks []suite.Mock) {
+				Setup: suite.BaseSetup(func(t *testing.T, _ *fimpgo.MqttTransport) (routing []*router.Routing, tasks []*task.Task, mocks []suite.Mock) {
 					t.Helper()
 
 					mDuration := newConfigMock[time.Duration]().mockSetter(time.Second, errors.New("test"))

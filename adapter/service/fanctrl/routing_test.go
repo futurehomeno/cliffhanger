@@ -29,13 +29,14 @@ func TestRouteService(t *testing.T) { //nolint:paralleltest
 				Nodes: []*cliffSuite.Node{
 					{
 						Name: "Cmd mode get report",
-						Commands: []*fimpgo.Message{cliffSuite.NewMessageBuilder().
-							NullMessage(
-								"pt:j1/mt:cmd/rt:dev/rn:test_adapter/ad:1/sv:fan_ctrl/ad:2",
-								"cmd.mode.get_report",
-								"fan_ctrl",
-							).
-							Build(),
+						Commands: []*fimpgo.Message{
+							cliffSuite.NewMessageBuilder().
+								NullMessage(
+									"pt:j1/mt:cmd/rt:dev/rn:test_adapter/ad:1/sv:fan_ctrl/ad:2",
+									"cmd.mode.get_report",
+									"fan_ctrl",
+								).
+								Build(),
 						},
 						Expectations: []*cliffSuite.Expectation{
 							cliffSuite.ExpectString("pt:j1/mt:evt/rt:dev/rn:test_adapter/ad:1/sv:fan_ctrl/ad:2", "evt.mode.report", "fan_ctrl", "normal"),
@@ -153,7 +154,7 @@ func setupService(t *testing.T, mqtt *fimpgo.MqttTransport, controller *mockedfa
 
 	seed := &adapter.ThingSeed{ID: "B", CustomAddress: "2"}
 
-	factory := adapterhelper.FactoryHelper(func(a adapter.Adapter, p adapter.Publisher, ts adapter.ThingState) (adapter.Thing, error) {
+	factory := adapterhelper.FactoryHelper(func(_ adapter.Adapter, p adapter.Publisher, ts adapter.ThingState) (adapter.Thing, error) {
 		return adapter.NewThing(p, ts, thingCfg, fanctrl.NewService(p, fanCfg)), nil
 	})
 	ad := adapterhelper.PrepareSeededAdapter(t, "../../testdata/adapter/test_adapter", mqtt, factory, adapter.ThingSeeds{seed})

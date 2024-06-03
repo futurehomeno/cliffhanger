@@ -196,7 +196,7 @@ func setupBattery(
 
 	seed := &adapter.ThingSeed{ID: "B", CustomAddress: "2"}
 
-	factory := adapterhelper.FactoryHelper(func(adapter adapter.Adapter, publisher adapter.Publisher, thingState adapter.ThingState) (adapter.Thing, error) {
+	factory := adapterhelper.FactoryHelper(func(_ adapter.Adapter, publisher adapter.Publisher, thingState adapter.ThingState) (adapter.Thing, error) {
 		return thing.NewBattery(publisher, thingState, cfg), nil
 	})
 

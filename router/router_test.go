@@ -16,7 +16,7 @@ import (
 func Test_Router(t *testing.T) { //nolint:paralleltest
 	panicRouting := router.NewRouting(router.NewMessageHandler(
 		router.MessageProcessorFn(
-			func(message *fimpgo.Message) (reply *fimpgo.FimpMessage, err error) {
+			func(_ *fimpgo.Message) (reply *fimpgo.FimpMessage, err error) {
 				panic("test panic")
 			})),
 		router.ForService("test_service"),
@@ -360,7 +360,7 @@ func Test_Router_PanicCallback(t *testing.T) { //nolint:paralleltest
 				Routing: []*router.Routing{
 					router.NewRouting(router.NewMessageHandler(
 						router.MessageProcessorFn(
-							func(message *fimpgo.Message) (reply *fimpgo.FimpMessage, err error) {
+							func(_ *fimpgo.Message) (reply *fimpgo.FimpMessage, err error) {
 								panic("oops")
 							})),
 						router.ForService("test_service"),
@@ -395,7 +395,7 @@ func Test_Router_PanicCallback(t *testing.T) { //nolint:paralleltest
 				Routing: []*router.Routing{
 					router.NewRouting(router.NewMessageHandler(
 						router.MessageProcessorFn(
-							func(message *fimpgo.Message) (reply *fimpgo.FimpMessage, err error) {
+							func(_ *fimpgo.Message) (_ *fimpgo.FimpMessage, err error) {
 								return nil, nil
 							})),
 						router.ForService("test_service"),
@@ -456,7 +456,7 @@ func Test_Router_StatsCallback(t *testing.T) { //nolint:paralleltest
 				Routing: []*router.Routing{
 					router.NewRouting(router.NewMessageHandler(
 						router.MessageProcessorFn(
-							func(message *fimpgo.Message) (reply *fimpgo.FimpMessage, err error) {
+							func(_ *fimpgo.Message) (reply *fimpgo.FimpMessage, err error) {
 								return nil, nil
 							})),
 						router.ForService("test_service"),
@@ -496,7 +496,7 @@ func Test_Router_StatsCallback(t *testing.T) { //nolint:paralleltest
 				Routing: []*router.Routing{
 					router.NewRouting(router.NewMessageHandler(
 						router.MessageProcessorFn(
-							func(message *fimpgo.Message) (reply *fimpgo.FimpMessage, err error) {
+							func(_ *fimpgo.Message) (reply *fimpgo.FimpMessage, err error) {
 								return fimpgo.NewStringMessage("evt.test.test_response", "test_service", "test", nil, nil, nil), nil
 							})),
 						router.ForService("test_service"),
@@ -538,7 +538,7 @@ func Test_Router_StatsCallback(t *testing.T) { //nolint:paralleltest
 				Routing: []*router.Routing{
 					router.NewRouting(router.NewMessageHandler(
 						router.MessageProcessorFn(
-							func(message *fimpgo.Message) (reply *fimpgo.FimpMessage, err error) {
+							func(_ *fimpgo.Message) (reply *fimpgo.FimpMessage, err error) {
 								panic("oops")
 							})),
 						router.ForService("test_service"),

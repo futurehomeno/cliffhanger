@@ -54,6 +54,7 @@ func TestStorage_Device(t *testing.T) { //nolint:paralleltest
 			db, _ := database.NewDatabase(workdir)
 
 			storage := virtualmeter.NewStorage(db)
+
 			defer adapterhelper.TearDownAdapter(workdir)[0](t)
 
 			err := storage.SetDevice(v.setAddr, v.device)
