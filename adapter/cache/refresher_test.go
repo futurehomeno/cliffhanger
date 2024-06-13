@@ -105,8 +105,10 @@ func TestRefresher_Refresh(t *testing.T) {
 
 			refresher := cache.NewRefresher(tc.refreshMock.refresh, tc.refresherInterval, tc.refresherOptions...)
 
-			var got interface{}
-			var err error
+			var (
+				got interface{}
+				err error
+			)
 
 			for i := 0; i < tc.repeatCount+1; i++ {
 				if i == tc.resetAt {
