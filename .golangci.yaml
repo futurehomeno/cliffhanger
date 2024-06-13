@@ -1,14 +1,14 @@
-run:
-  skip-dirs:
-    - test
 issues:
   fix: false
+  exclude-dirs:
+    - test
   exclude-rules:
     - path: _test\.go
       linters:
         - lll
         - funlen
         - dupl
+        - revive
     - path: adapter/thing/
       linters:
         - dupl
@@ -85,16 +85,10 @@ linters:
     - depguard # Not used.
     - tagliatelle # Need to maintain compatibility with legacy JSON models.
     - wrapcheck # Too be enabled if comfortable to work with.
-    - goerr113 # Too restrictive as forbids dynamic declaration of errors.
-    - exhaustivestruct # Too restrictive as partial struct initialization is a common and valid scenario.
     - gochecknoglobals # Too restrictive and controversial.
     - gochecknoinits # Too restrictive and controversial.
     - gomnd # Too restrictive and generating configuration-related false positives.
     - prealloc # Too restrictive and generating a lot of false positives.
-    - golint # Deprecated.
-    - interfacer # Deprecated.
-    - maligned # Deprecated.
-    - scopelint # Deprecated.
   fast: false
 linters-settings:
   lll:

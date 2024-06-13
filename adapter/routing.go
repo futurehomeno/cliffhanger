@@ -162,7 +162,7 @@ func routeCmdNetworkGetAllNodes(adapter Adapter) *router.Routing {
 // handleCmdNetworkGetAllNodes returns a handler responsible for handling the command.
 func handleCmdNetworkGetAllNodes(adapter Adapter) router.MessageHandler {
 	return router.NewMessageHandler(
-		router.MessageProcessorFn(func(message *fimpgo.Message) (reply *fimpgo.FimpMessage, err error) {
+		router.MessageProcessorFn(func(_ *fimpgo.Message) (reply *fimpgo.FimpMessage, err error) {
 			err = adapter.SendConnectivityReport()
 			if err != nil {
 				return nil, fmt.Errorf("adapter: failed to send connectivity report: %w", err)

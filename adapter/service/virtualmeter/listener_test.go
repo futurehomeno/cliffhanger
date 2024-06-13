@@ -118,6 +118,7 @@ func TestHandlerLevelEvent(t *testing.T) { //nolint:paralleltest
 			assert.NoError(t, err, "listener should start")
 
 			time.Sleep(100 * time.Millisecond)
+
 			defer listener.Stop() //nolint:errcheck
 
 			if v.levelEvent != nil {
@@ -125,6 +126,7 @@ func TestHandlerLevelEvent(t *testing.T) { //nolint:paralleltest
 			}
 
 			time.Sleep(50 * time.Millisecond)
+
 			d, err := m.storage.Device("")
 			assert.NoError(t, err, "should return a device")
 			assert.Equal(t, v.expectedDevice, d, "should return the same device as was saved")
@@ -180,6 +182,7 @@ func TestHandlerConnectivityEvent(t *testing.T) { //nolint:paralleltest
 			assert.NoError(t, err, "listener should start")
 
 			time.Sleep(100 * time.Millisecond)
+
 			defer listener.Stop() //nolint:errcheck
 
 			if v.connectivityEvent != nil {
@@ -187,7 +190,9 @@ func TestHandlerConnectivityEvent(t *testing.T) { //nolint:paralleltest
 			}
 
 			time.Sleep(50 * time.Millisecond)
+
 			d, err := m.storage.Device(addr)
+
 			assert.NoError(t, err, "should return a device")
 			assert.Equal(t, v.expectedDevice, d, "should return the same device as was saved")
 		})

@@ -112,13 +112,15 @@ func RouteCmdConfigSetString[T ~string](serviceName, setting string, setter func
 
 // RouteCmdConfigGetInt returns a routing responsible for handling the command.
 func RouteCmdConfigGetInt[T ~int | ~int8 | ~int16 | ~int32 | ~int64 | ~uint | ~uint8 | ~uint16 | ~uint32 | ~uint64](
-	serviceName, setting string, getter func() T, options ...RoutingOption) *router.Routing {
+	serviceName, setting string, getter func() T, options ...RoutingOption,
+) *router.Routing {
 	return routeCmdConfigGet(serviceName, setting, fimpgo.VTypeInt, getter, options...)
 }
 
 // RouteCmdConfigSetInt returns a routing responsible for handling the command.
 func RouteCmdConfigSetInt[T ~int | ~int8 | ~int16 | ~int32 | ~int64 | ~uint | ~uint8 | ~uint16 | ~uint32 | ~uint64](
-	serviceName, setting string, setter func(T) error, options ...RoutingOption) *router.Routing {
+	serviceName, setting string, setter func(T) error, options ...RoutingOption,
+) *router.Routing {
 	return routeCmdConfigSet(serviceName, setting, fimpgo.VTypeInt, setter, options...)
 }
 
@@ -144,7 +146,7 @@ func RouteCmdConfigSetBool[T ~bool](serviceName, setting string, setter func(T) 
 
 // RouteCmdConfigGetDuration returns a routing responsible for handling the command.
 func RouteCmdConfigGetDuration(serviceName, setting string, getter func() time.Duration, options ...RoutingOption) *router.Routing {
-	return routeCmdConfigGet(serviceName, setting, fimpgo.VTypeString, func() string { return getter().String() })
+	return routeCmdConfigGet(serviceName, setting, fimpgo.VTypeString, func() string { return getter().String() }, options...)
 }
 
 // RouteCmdConfigSetDuration returns a routing responsible for handling the command.
@@ -173,23 +175,29 @@ func RouteCmdConfigSetStringMap[M ~map[K]V, K ~string, V ~string](serviceName, s
 
 // RouteCmdConfigGetIntMap returns a routing responsible for handling the command.
 func RouteCmdConfigGetIntMap[M ~map[K]V, K ~string, V ~int | ~int8 | ~int16 | ~int32 | ~int64 | ~uint | ~uint8 | ~uint16 | ~uint32 | ~uint64](
-	serviceName, setting string, getter func() M, options ...RoutingOption) *router.Routing {
+	serviceName, setting string, getter func() M, options ...RoutingOption,
+) *router.Routing {
 	return routeCmdConfigGet(serviceName, setting, fimpgo.VTypeIntMap, getter, options...)
 }
 
 // RouteCmdConfigSetIntMap returns a routing responsible for handling the command.
 func RouteCmdConfigSetIntMap[M ~map[K]V, K ~string, V ~int | ~int8 | ~int16 | ~int32 | ~int64 | ~uint | ~uint8 | ~uint16 | ~uint32 | ~uint64](
-	serviceName, setting string, setter func(M) error, options ...RoutingOption) *router.Routing {
+	serviceName, setting string, setter func(M) error, options ...RoutingOption,
+) *router.Routing {
 	return routeCmdConfigSet(serviceName, setting, fimpgo.VTypeIntMap, setter, options...)
 }
 
 // RouteCmdConfigGetFloatMap returns a routing responsible for handling the command.
-func RouteCmdConfigGetFloatMap[M ~map[K]V, K ~string, V ~float32 | ~float64](serviceName, setting string, getter func() M, options ...RoutingOption) *router.Routing {
+func RouteCmdConfigGetFloatMap[M ~map[K]V, K ~string, V ~float32 | ~float64](
+	serviceName, setting string, getter func() M, options ...RoutingOption,
+) *router.Routing {
 	return routeCmdConfigGet(serviceName, setting, fimpgo.VTypeFloatMap, getter, options...)
 }
 
 // RouteCmdConfigSetFloatMap returns a routing responsible for handling the command.
-func RouteCmdConfigSetFloatMap[M ~map[K]V, K ~string, V ~float32 | ~float64](serviceName, setting string, setter func(M) error, options ...RoutingOption) *router.Routing {
+func RouteCmdConfigSetFloatMap[M ~map[K]V, K ~string, V ~float32 | ~float64](
+	serviceName, setting string, setter func(M) error, options ...RoutingOption,
+) *router.Routing {
 	return routeCmdConfigSet(serviceName, setting, fimpgo.VTypeFloatMap, setter, options...)
 }
 
@@ -215,13 +223,15 @@ func RouteCmdConfigSetStringArray[T ~string](serviceName, setting string, setter
 
 // RouteCmdConfigGetIntArray returns a routing responsible for handling the command.
 func RouteCmdConfigGetIntArray[T ~int | ~int8 | ~int16 | ~int32 | ~int64 | ~uint | ~uint8 | ~uint16 | ~uint32 | ~uint64](
-	serviceName, setting string, getter func() []T, options ...RoutingOption) *router.Routing {
+	serviceName, setting string, getter func() []T, options ...RoutingOption,
+) *router.Routing {
 	return routeCmdConfigGet(serviceName, setting, fimpgo.VTypeIntArray, getter, options...)
 }
 
 // RouteCmdConfigSetIntArray returns a routing responsible for handling the command.
 func RouteCmdConfigSetIntArray[T ~int | ~int8 | ~int16 | ~int32 | ~int64 | ~uint | ~uint8 | ~uint16 | ~uint32 | ~uint64](
-	serviceName, setting string, setter func([]T) error, options ...RoutingOption) *router.Routing {
+	serviceName, setting string, setter func([]T) error, options ...RoutingOption,
+) *router.Routing {
 	return routeCmdConfigSet(serviceName, setting, fimpgo.VTypeIntArray, setter, options...)
 }
 

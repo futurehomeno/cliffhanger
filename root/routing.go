@@ -25,7 +25,7 @@ func routeFactoryReset(rootApp App) *router.Routing {
 // handleFactoryReset handles factory reset event.
 func handleFactoryReset(rootApp App) router.MessageHandler {
 	return router.NewMessageHandler(
-		router.MessageProcessorFn(func(message *fimpgo.Message) (*fimpgo.FimpMessage, error) {
+		router.MessageProcessorFn(func(_ *fimpgo.Message) (*fimpgo.FimpMessage, error) {
 			// Factory reset requires stopping the application first, which includes stopping the message router.
 			// In order to avoid a deadlock we need to run the reset in a separate goroutine, so the message router can be stopped.
 			go func() {
