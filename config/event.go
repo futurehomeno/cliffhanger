@@ -10,8 +10,8 @@ const (
 	eventClassConfigurationChange = "configuration_change"
 )
 
-// newScheduleUpdateEvent creates a new schedule update event.
-func newConfigurationChangeEvent(service, setting string) event.Event {
+// NewConfigurationChangeEvent creates a new schedule update event.
+func NewConfigurationChangeEvent(service, setting string) event.Event {
 	return event.NewWithPayload(eventDomain, eventClassConfigurationChange, &configurationChange{
 		Service: service,
 		Setting: setting,

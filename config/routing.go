@@ -311,7 +311,7 @@ func handleCmdConfigSet[T any](serviceName, settingInterface, setting, valueType
 
 			opt := getRoutingOptions(options...)
 			if opt.eventManager != nil {
-				opt.eventManager.Publish(newConfigurationChangeEvent(serviceName, setting))
+				opt.eventManager.Publish(NewConfigurationChangeEvent(serviceName, setting))
 			}
 
 			return fimpgo.NewMessage(
