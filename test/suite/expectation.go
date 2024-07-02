@@ -459,14 +459,20 @@ func (e *Expectation) Never() *Expectation {
 	return e
 }
 
-func (e *Expectation) vote(message *fimpgo.Message) bool {
+func (e *Expectation) vote(message *fimpgo.Message) (voted bool, votesCount int) {
+	voted = true
+
 	for _, v := range e.Voters {
 		if !v.Vote(message) {
-			return false
+			voted = false
+
+			continue
 		}
+
+		votesCount++
 	}
 
-	return true
+	return
 }
 
 func (e *Expectation) assert() bool {
