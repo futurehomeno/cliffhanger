@@ -431,35 +431,13 @@ func Test_Router_PanicCallback(t *testing.T) { //nolint:paralleltest
 }
 
 func Test_Router_StatsCallback(t *testing.T) { //nolint:paralleltest
-	var (
-		mu             sync.Mutex
-		callbackCalled bool
-		stats          router.Stats
-	)
-
-	tearDownFn := func(t *testing.T) {
-		t.Helper()
-
-		mu.Lock()
-		defer mu.Unlock()
-
-		callbackCalled = false
-		stats = router.Stats{}
-	}
-
-	callbackFn := func(s router.Stats) {
-		mu.Lock()
-		defer mu.Unlock()
-
-		callbackCalled = true
-		stats = s
-	}
+	helper := newStatsTestHelper(t)
 
 	s := &suite.Suite{
 		Cases: []*suite.Case{
 			{
 				Name:     "processing stats without a response",
-				TearDown: []suite.Callback{tearDownFn},
+				TearDown: []suite.Callback{helper.tearDownFn()},
 				Routing: []*router.Routing{
 					router.NewRouting(router.NewMessageHandler(
 						router.MessageProcessorFn(
@@ -471,7 +449,7 @@ func Test_Router_StatsCallback(t *testing.T) { //nolint:paralleltest
 					),
 				},
 				RouterOptions: []router.Option{
-					router.WithStatsCallback(callbackFn),
+					router.WithStatsCallback(helper.statsCallback()),
 				},
 				Nodes: []*suite.Node{
 					{
@@ -487,9 +465,9 @@ func Test_Router_StatsCallback(t *testing.T) { //nolint:paralleltest
 							func(t *testing.T) {
 								t.Helper()
 
-								mu.Lock()
-								assert.True(t, callbackCalled)
-								mu.Unlock()
+								assert.True(t, helper.callbackCalled())
+
+								stats := helper.getStats()
 
 								assert.Equal(t, "cmd.test.test_command", stats.InputMessage.Payload.Type)
 								assert.Equal(t, "test_service", stats.InputMessage.Payload.Service)
@@ -502,7 +480,7 @@ func Test_Router_StatsCallback(t *testing.T) { //nolint:paralleltest
 			},
 			{
 				Name:     "processing stats with a response",
-				TearDown: []suite.Callback{tearDownFn},
+				TearDown: []suite.Callback{helper.tearDownFn()},
 				Routing: []*router.Routing{
 					router.NewRouting(router.NewMessageHandler(
 						router.MessageProcessorFn(
@@ -514,7 +492,7 @@ func Test_Router_StatsCallback(t *testing.T) { //nolint:paralleltest
 					),
 				},
 				RouterOptions: []router.Option{
-					router.WithStatsCallback(callbackFn),
+					router.WithStatsCallback(helper.statsCallback()),
 				},
 				Nodes: []*suite.Node{
 					{
@@ -530,9 +508,9 @@ func Test_Router_StatsCallback(t *testing.T) { //nolint:paralleltest
 							func(t *testing.T) {
 								t.Helper()
 
-								mu.Lock()
-								assert.True(t, callbackCalled)
-								mu.Unlock()
+								assert.True(t, helper.callbackCalled())
+
+								stats := helper.getStats()
 
 								assert.Equal(t, "cmd.test.test_command", stats.InputMessage.Payload.Type)
 								assert.Equal(t, "test_service", stats.InputMessage.Payload.Service)
@@ -547,7 +525,7 @@ func Test_Router_StatsCallback(t *testing.T) { //nolint:paralleltest
 			},
 			{
 				Name:     "panic should not make stats callback fired",
-				TearDown: []suite.Callback{tearDownFn},
+				TearDown: []suite.Callback{helper.tearDownFn()},
 				Routing: []*router.Routing{
 					router.NewRouting(router.NewMessageHandler(
 						router.MessageProcessorFn(
@@ -559,7 +537,7 @@ func Test_Router_StatsCallback(t *testing.T) { //nolint:paralleltest
 					),
 				},
 				RouterOptions: []router.Option{
-					router.WithStatsCallback(callbackFn),
+					router.WithStatsCallback(helper.statsCallback()),
 				},
 				Nodes: []*suite.Node{
 					{
@@ -575,9 +553,7 @@ func Test_Router_StatsCallback(t *testing.T) { //nolint:paralleltest
 							func(t *testing.T) {
 								t.Helper()
 
-								mu.Lock()
-								assert.False(t, callbackCalled)
-								mu.Unlock()
+								assert.False(t, helper.called)
 							},
 						},
 					},
@@ -587,4 +563,52 @@ func Test_Router_StatsCallback(t *testing.T) { //nolint:paralleltest
 	}
 
 	s.Run(t)
+}
+
+type statsTestHelper struct {
+	mu     sync.RWMutex
+	called bool
+	stats  router.Stats
+}
+
+func newStatsTestHelper(t *testing.T) *statsTestHelper {
+	t.Helper()
+
+	return &statsTestHelper{}
+}
+
+func (h *statsTestHelper) callbackCalled() bool {
+	h.mu.RLock()
+	defer h.mu.RUnlock()
+
+	return h.called
+}
+
+func (h *statsTestHelper) getStats() router.Stats {
+	h.mu.RLock()
+	defer h.mu.RUnlock()
+
+	return h.stats
+}
+
+func (h *statsTestHelper) statsCallback() func(router.Stats) {
+	return func(s router.Stats) {
+		h.mu.Lock()
+		defer h.mu.Unlock()
+
+		h.called = true
+		h.stats = s
+	}
+}
+
+func (h *statsTestHelper) tearDownFn() func(t *testing.T) {
+	return func(t *testing.T) {
+		t.Helper()
+
+		h.mu.Lock()
+		defer h.mu.Unlock()
+
+		h.called = false
+		h.stats = router.Stats{}
+	}
 }
