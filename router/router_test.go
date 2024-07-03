@@ -432,6 +432,7 @@ func Test_Router_PanicCallback(t *testing.T) { //nolint:paralleltest
 
 func Test_Router_StatsCallback(t *testing.T) { //nolint:paralleltest
 	var (
+		mu             sync.Mutex
 		callbackCalled bool
 		stats          router.Stats
 	)
@@ -439,11 +440,17 @@ func Test_Router_StatsCallback(t *testing.T) { //nolint:paralleltest
 	tearDownFn := func(t *testing.T) {
 		t.Helper()
 
+		mu.Lock()
+		defer mu.Unlock()
+
 		callbackCalled = false
 		stats = router.Stats{}
 	}
 
 	callbackFn := func(s router.Stats) {
+		mu.Lock()
+		defer mu.Unlock()
+
 		callbackCalled = true
 		stats = s
 	}
@@ -480,7 +487,10 @@ func Test_Router_StatsCallback(t *testing.T) { //nolint:paralleltest
 							func(t *testing.T) {
 								t.Helper()
 
+								mu.Lock()
 								assert.True(t, callbackCalled)
+								mu.Unlock()
+
 								assert.Equal(t, "cmd.test.test_command", stats.InputMessage.Payload.Type)
 								assert.Equal(t, "test_service", stats.InputMessage.Payload.Service)
 								assert.Nil(t, stats.OutputMessage)
@@ -520,7 +530,10 @@ func Test_Router_StatsCallback(t *testing.T) { //nolint:paralleltest
 							func(t *testing.T) {
 								t.Helper()
 
+								mu.Lock()
 								assert.True(t, callbackCalled)
+								mu.Unlock()
+
 								assert.Equal(t, "cmd.test.test_command", stats.InputMessage.Payload.Type)
 								assert.Equal(t, "test_service", stats.InputMessage.Payload.Service)
 								assert.Equal(t, "evt.test.test_response", stats.OutputMessage.Payload.Type)
@@ -562,7 +575,9 @@ func Test_Router_StatsCallback(t *testing.T) { //nolint:paralleltest
 							func(t *testing.T) {
 								t.Helper()
 
+								mu.Lock()
 								assert.False(t, callbackCalled)
+								mu.Unlock()
 							},
 						},
 					},
