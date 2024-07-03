@@ -22,8 +22,10 @@ type Router struct {
 	mqtt   *fimpgo.MqttTransport
 	router router.Router
 
-	mu              sync.RWMutex
-	expectations    []*Expectation
+	mu           sync.RWMutex
+	expectations []*Expectation
+
+	registryMu      sync.RWMutex
 	messageRegistry map[*Expectation]*messageBucket
 }
 
@@ -38,6 +40,10 @@ func NewTestRouter(t *testing.T, mqtt *fimpgo.MqttTransport) *Router {
 
 	channelID := "test-router-" + uuid.New().String()
 	r.router = router.NewRouter(mqtt, channelID, r.expectationsRouting())
+	//WithOptions(
+	//	router.WithAsyncProcessing(5),
+	//	router.WithMessageBuffer(20),
+	//)
 
 	return r
 }
@@ -148,7 +154,10 @@ func (r *Router) failedExpectationsMessage() string {
 		sb.WriteString("---------------------------------------------------------------------------\n")
 		sb.WriteString(fmt.Sprintf("Expectation #%d, occurrence: %s, called times: %d\n", i, e.Occurrence, e.called))
 
+		r.registryMu.RLock()
 		item, ok := r.messageRegistry[e]
+		r.registryMu.RUnlock()
+
 		if !ok {
 			continue
 		}
@@ -189,6 +198,10 @@ func (r *Router) cleanUpExpectations() {
 	defer r.mu.Unlock()
 
 	r.expectations = nil
+
+	r.registryMu.Lock()
+	defer r.registryMu.Unlock()
+
 	r.messageRegistry = make(map[*Expectation]*messageBucket)
 }
 
@@ -205,10 +218,11 @@ func (r *Router) expectationsRouting() *router.Routing {
 func (r *Router) processMessage(message *fimpgo.Message) (*fimpgo.FimpMessage, error) {
 	r.t.Helper()
 
-	r.mu.Lock()
-	defer r.mu.Unlock()
+	r.mu.RLock()
+	expectations := r.expectations
+	r.mu.RUnlock()
 
-	for _, e := range r.expectations {
+	for _, e := range expectations {
 		voted, votes := e.vote(message)
 
 		r.registerIncomingMessage(message, e, votes)
@@ -217,7 +231,9 @@ func (r *Router) processMessage(message *fimpgo.Message) (*fimpgo.FimpMessage, e
 			continue
 		}
 
+		r.mu.Lock()
 		e.called++
+		r.mu.Unlock()
 
 		if e.PublishFn != nil {
 			e.Publish = e.PublishFn()
@@ -239,6 +255,9 @@ func (r *Router) registerIncomingMessage(message *fimpgo.Message, expectation *E
 	if votes == 0 {
 		return
 	}
+
+	r.registryMu.Lock()
+	defer r.registryMu.Unlock()
 
 	bucket, ok := r.messageRegistry[expectation]
 	if !ok {
