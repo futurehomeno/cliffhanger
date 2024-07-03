@@ -40,10 +40,6 @@ func NewTestRouter(t *testing.T, mqtt *fimpgo.MqttTransport) *Router {
 
 	channelID := "test-router-" + uuid.New().String()
 	r.router = router.NewRouter(mqtt, channelID, r.expectationsRouting())
-	//WithOptions(
-	//	router.WithAsyncProcessing(5),
-	//	router.WithMessageBuffer(20),
-	//)
 
 	return r
 }
@@ -155,7 +151,7 @@ func (r *Router) failedExpectationsMessage() string {
 		sb.WriteString(fmt.Sprintf("Expectation #%d, occurrence: %s, called times: %d\n", i, e.Occurrence, e.called))
 
 		r.registryMu.RLock()
-		item, ok := r.messageRegistry[e]
+		bucket, ok := r.messageRegistry[e]
 		r.registryMu.RUnlock()
 
 		if !ok {
@@ -164,7 +160,7 @@ func (r *Router) failedExpectationsMessage() string {
 
 		sb.WriteString("\nThe closest messages I have are:\n")
 
-		for _, m := range item.messages {
+		for _, m := range bucket.messages {
 			sb.WriteString(fmt.Sprintf("\nTopic: %s\n", getMessageTopic(r.t, m)))
 
 			b, err := m.Payload.SerializeToJson()
