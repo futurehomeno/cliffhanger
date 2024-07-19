@@ -62,8 +62,14 @@ type PhaseModeAwareController interface {
 
 // AdjustableCableLockController is an interface representing capability of a charger device to adjust cable lock.
 type AdjustableCableLockController interface {
+	CableLockAwareController
+
 	// SetChargepointCableLock locks and unlocks the cable connector.
 	SetChargepointCableLock(bool) error
+}
+
+// CableLockAwareController  is an interface representing capability of a charger device to aware cable lock.
+type CableLockAwareController interface {
 	// ChargepointCableLockReport returns a current state of the chargepoint cable lock.
 	ChargepointCableLockReport() (*CableReport, error)
 }
@@ -336,7 +342,7 @@ func (s *service) SendCableLockReport(force bool) (bool, error) {
 	s.lock.Lock()
 	defer s.lock.Unlock()
 
-	controller, err := s.adjustableCableLockController()
+	controller, err := s.cableLockAwareController()
 	if err != nil {
 		return false, err
 	}
@@ -572,7 +578,7 @@ func (s *service) phaseModeAwareController() (PhaseModeAwareController, error) {
 
 	controller, ok := s.controller.(PhaseModeAwareController)
 	if !ok {
-		return nil, fmt.Errorf("%s: adjusting phase modes is not supported", s.Name())
+		return nil, fmt.Errorf("%s: aware phase modes is not supported", s.Name())
 	}
 
 	return controller, nil
@@ -580,9 +586,24 @@ func (s *service) phaseModeAwareController() (PhaseModeAwareController, error) {
 
 // adjustableCableLockController returns the AdjustableCableLockController, if supported.
 func (s *service) adjustableCableLockController() (AdjustableCableLockController, error) {
+	_, err := s.cableLockAwareController()
+	if err != nil {
+		return nil, err
+	}
+
 	controller, ok := s.controller.(AdjustableCableLockController)
 	if !ok {
 		return nil, fmt.Errorf("%s: adjusting cable lock is not supported", s.Name())
+	}
+
+	return controller, nil
+}
+
+// awareCableLockController returns the AwareCableLockController, if supported.
+func (s *service) cableLockAwareController() (CableLockAwareController, error) {
+	controller, ok := s.controller.(CableLockAwareController)
+	if !ok {
+		return nil, fmt.Errorf("%s: aware cable lock is not supported", s.Name())
 	}
 
 	return controller, nil
