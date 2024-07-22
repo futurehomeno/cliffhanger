@@ -225,6 +225,8 @@ func (t *thing) SendInclusionReport(force bool) (bool, error) {
 		return false, fmt.Errorf("thing: failed to send inclusion report: %w", err)
 	}
 
+	t.publisher.PublishThingEvent(NewInclusionReportSentEvent(t.Address(), *report))
+
 	err = t.state.SetInclusionChecksum(checksum)
 	if err != nil {
 		return false, fmt.Errorf("thing: failed to set inclusion checksum: %w", err)
