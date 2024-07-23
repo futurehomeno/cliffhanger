@@ -65,56 +65,15 @@ func TestParametersReport(t *testing.T) { //nolint:paralleltest
 	s.Run(t)
 }
 
-func testSetup(isParametersService bool) suite.ServiceSetup {
+func testSetup(wantParametersService bool) suite.ServiceSetup {
 	return func(t *testing.T) (service suite.Service, mocks []suite.Mock) {
 		t.Helper()
 
 		mqtt := fimpgo.NewMqttTransport("tcp://localhost:11883", "parameters_test", "", "", true, 1, 1)
-
-		thingCfg := &adapter.ThingConfig{
-			InclusionReport: &fimptype.ThingInclusionReport{
-				Address: "1",
-			},
-			Connector: mockedadapter.NewDefaultConnector(t),
-		}
-
-		chargepointCfg := &chargepoint.Config{
-			Specification: chargepoint.Specification(
-				"test_adapter",
-				"1",
-				"1",
-				nil,
-				[]chargepoint.State{"ready_to_charge", "charging", "error"},
-				chargepoint.WithChargingModes([]string{"normal", "slow"}...),
-			),
-			Controller: mockedchargepoint.NewController(t),
-		}
-
 		eventManager := event.NewManager()
+		factory := thingFactory(t, wantParametersService)
 
 		seed := &adapter.ThingSeed{ID: "1"}
-
-		factory := adapterhelper.FactoryHelper(func(a adapter.Adapter, publisher adapter.Publisher, thingState adapter.ThingState) (adapter.Thing, error) {
-			var services []adapter.Service
-
-			if isParametersService {
-				serviceParameterCfg := &parameters.Config{
-					Specification: parameters.Specification(
-						"test_adapter",
-						"1",
-						"1",
-						nil,
-					),
-					Controller: mockedparameters.NewController(t).MockGetParameterSpecifications(testSpecifications(t), nil, true),
-				}
-
-				services = append(services, parameters.NewService(publisher, serviceParameterCfg))
-			}
-
-			services = append(services, chargepoint.NewService(publisher, chargepointCfg))
-
-			return adapter.NewThing(publisher, thingState, thingCfg, services...), nil
-		})
 
 		ad := prepareAdapter(t, "../../testdata/adapter/test_adapter", mqtt, factory, eventManager)
 		adapterhelper.SeedAdapter(t, ad, adapter.ThingSeeds{seed})
@@ -161,4 +120,49 @@ func build(mqtt *fimpgo.MqttTransport, listener event.Listener, ad adapter.Adapt
 		WithRouting(adapter.RouteAdapter(ad)...).
 		WithServices(listener).
 		Build()
+}
+
+func thingFactory(t *testing.T, wantParametersService bool) adapterhelper.FactoryHelper {
+	t.Helper()
+
+	parametersCfg := &parameters.Config{
+		Specification: parameters.Specification(
+			"test_adapter",
+			"1",
+			"1",
+			nil,
+		),
+		Controller: mockedparameters.NewController(t).MockGetParameterSpecifications(testSpecifications(t), nil, true),
+	}
+
+	chargepointCfg := &chargepoint.Config{
+		Specification: chargepoint.Specification(
+			"test_adapter",
+			"1",
+			"1",
+			nil,
+			[]chargepoint.State{"ready_to_charge", "charging", "error"},
+			chargepoint.WithChargingModes([]string{"normal", "slow"}...),
+		),
+		Controller: mockedchargepoint.NewController(t),
+	}
+
+	thingCfg := &adapter.ThingConfig{
+		InclusionReport: &fimptype.ThingInclusionReport{
+			Address: "1",
+		},
+		Connector: mockedadapter.NewDefaultConnector(t),
+	}
+
+	return func(a adapter.Adapter, publisher adapter.Publisher, thingState adapter.ThingState) (adapter.Thing, error) {
+		var services []adapter.Service
+
+		if wantParametersService {
+			services = append(services, parameters.NewService(publisher, parametersCfg))
+		}
+
+		services = append(services, chargepoint.NewService(publisher, chargepointCfg))
+
+		return adapter.NewThing(publisher, thingState, thingCfg, services...), nil
+	}
 }
