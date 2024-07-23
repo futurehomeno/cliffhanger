@@ -11,14 +11,14 @@ import (
 )
 
 // NewInclusionReportSentEventHandler creates a new inclusion report sent event handler.
-func NewInclusionReportSentEventHandler(ad adapter.ThingRegistry) *event.Handler {
+func NewInclusionReportSentEventHandler(thing adapter.ThingRegistry) *event.Handler {
 	processor := event.ProcessorFn(func(e event.Event) {
 		ep, ok := e.(adapter.ThingEvent)
 		if !ok {
 			return
 		}
 
-		thing := ad.ThingByAddress(ep.Address())
+		thing := thing.ThingByAddress(ep.Address())
 
 		if thing == nil {
 			log.Errorf("inclusion report sent event: thing with address %s not found", ep.Address())
