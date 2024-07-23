@@ -23,10 +23,6 @@ import (
 )
 
 const (
-	workdir = "../../../testdata/adapter/test_adapter"
-)
-
-const (
 	testServiceName = "test_adapter"
 )
 
@@ -71,6 +67,8 @@ func TestParametersReport(t *testing.T) { //nolint:paralleltest
 
 func testSetup(isParametersService bool) suite.ServiceSetup {
 	return func(t *testing.T) (service suite.Service, mocks []suite.Mock) {
+		t.Helper()
+
 		mqtt := fimpgo.NewMqttTransport("tcp://localhost:11883", "parameters_test", "", "", true, 1, 1)
 
 		thingCfg := &adapter.ThingConfig{
@@ -139,6 +137,8 @@ func prepareAdapter(
 	factory adapterhelper.FactoryHelper,
 	eventManager event.Manager,
 ) adapter.Adapter {
+	t.Helper()
+
 	state, err := adapter.NewState(workDir)
 	if err != nil {
 		t.Fatal(fmt.Errorf("adapter helper: failed to create adapter state: %w", err))

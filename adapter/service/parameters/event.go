@@ -22,6 +22,7 @@ func NewInclusionReportSentEventHandler(thing adapter.ThingRegistry) *event.Hand
 
 		if thing == nil {
 			log.Errorf("inclusion report sent event: thing with address %s not found", ep.Address())
+
 			return
 		}
 
@@ -33,7 +34,6 @@ func NewInclusionReportSentEventHandler(thing adapter.ThingRegistry) *event.Hand
 		if _, err := parameterSrv.SendSupportedParamsReport(true); err != nil {
 			log.WithError(err)
 		}
-
 	})
 
 	return event.NewHandler(
@@ -44,7 +44,7 @@ func NewInclusionReportSentEventHandler(thing adapter.ThingRegistry) *event.Hand
 	)
 }
 
-// WaitForInclusionReportSent creates a filter for a new inclusion report sent event
+// WaitForInclusionReportSent creates a filter for a new inclusion report sent event.
 func WaitForInclusionReportSent() event.Filter {
 	return event.And(
 		event.WaitForDomain(adapter.EventDomainAdapterThing),
