@@ -47,6 +47,13 @@ func ForTopic(topic string) MessageVoter {
 	})
 }
 
+// ForMessageType is a message voter allowing a routing to handle message only if it is relevant.
+func ForMessageType(messageType string) MessageVoter {
+	return MessageVoterFn(func(message *fimpgo.Message) bool {
+		return message.Addr.MsgType == messageType
+	})
+}
+
 // ForResourceType is a message voter allowing a routing to handle message only if it is relevant.
 func ForResourceType(resourceType string) MessageVoter {
 	return MessageVoterFn(func(message *fimpgo.Message) bool {
@@ -79,6 +86,13 @@ func ForServicePrefix(prefix string) MessageVoter {
 func ForType(messageType string) MessageVoter {
 	return MessageVoterFn(func(message *fimpgo.Message) bool {
 		return message.Payload.Type == messageType
+	})
+}
+
+// ForSource is a message voter allowing a routing to handle message only if it is relevant.
+func ForSource(source string) MessageVoter {
+	return MessageVoterFn(func(message *fimpgo.Message) bool {
+		return message.Payload.Source == source
 	})
 }
 
