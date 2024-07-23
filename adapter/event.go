@@ -1,6 +1,8 @@
 package adapter
 
 import (
+	"github.com/futurehomeno/fimpgo/fimptype"
+
 	"github.com/futurehomeno/cliffhanger/event"
 )
 
@@ -8,7 +10,8 @@ const (
 	EventDomainAdapterService = "adapter_service"
 	EventDomainAdapterThing   = "adapter_thing"
 
-	EventClassAdapterThing = "thing"
+	EventClassAdapterThing        = "thing"
+	EventClassInclusionReportSent = "inclusion_report_sent"
 )
 
 type (
@@ -56,6 +59,13 @@ func NewServiceEvent(eventType string, hasChanged bool) ServiceEvent {
 func NewThingEvent(address string, payload interface{}) ThingEvent {
 	return &thingEvent{
 		Event:   event.NewWithPayload(EventDomainAdapterThing, EventClassAdapterThing, payload),
+		address: address,
+	}
+}
+
+func NewInclusionReportSentEvent(address string, payload fimptype.ThingInclusionReport) ThingEvent {
+	return &thingEvent{
+		Event:   event.NewWithPayload(EventDomainAdapterThing, EventClassInclusionReportSent, payload),
 		address: address,
 	}
 }
