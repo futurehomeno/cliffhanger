@@ -125,6 +125,11 @@ func build(mqtt *fimpgo.MqttTransport, listener event.Listener, ad adapter.Adapt
 func thingFactory(t *testing.T, wantParametersService bool) adapterhelper.FactoryHelper {
 	t.Helper()
 
+	parametersCtrl := mockedparameters.NewController(t)
+	if wantParametersService {
+		parametersCtrl.MockGetParameterSpecifications(testSpecifications(t), nil, true)
+	}
+
 	parametersCfg := &parameters.Config{
 		Specification: parameters.Specification(
 			"test_adapter",
@@ -132,7 +137,7 @@ func thingFactory(t *testing.T, wantParametersService bool) adapterhelper.Factor
 			"1",
 			nil,
 		),
-		Controller: mockedparameters.NewController(t).MockGetParameterSpecifications(testSpecifications(t), nil, true),
+		Controller: parametersCtrl,
 	}
 
 	chargepointCfg := &chargepoint.Config{
