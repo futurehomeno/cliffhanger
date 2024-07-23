@@ -31,30 +31,30 @@ func TestParametersReport(t *testing.T) { //nolint:paralleltest
 		Cases: []*suite.Case{
 			{
 				Name:     "Supported parameters report after inclusion report",
-				TearDown: adapterhelper.TearDownAdapter("../../testdata/adapter/test_adapter"),
+				TearDown: adapterhelper.TearDownAdapter("testdata/adapter/" + testServiceName),
 				Setup:    testSetup(true),
 				Nodes: []*suite.Node{
 					{
 						Name:    "Thing with parameters service",
-						Command: suite.StringMessage("pt:j1/mt:cmd/rt:ad/rn:test_adapter/ad:1", "cmd.thing.get_inclusion_report", testServiceName, "1"),
+						Command: suite.StringMessage(fmt.Sprintf("pt:j1/mt:cmd/rt:ad/rn:%s/ad:1", testServiceName), "cmd.thing.get_inclusion_report", testServiceName, "1"),
 						Expectations: []*suite.Expectation{
-							suite.ExpectMessage("pt:j1/mt:evt/rt:ad/rn:test_adapter/ad:1", "evt.thing.inclusion_report", testServiceName),
-							suite.ExpectMessage("pt:j1/mt:evt/rt:dev/rn:test_adapter/ad:1/sv:parameters/ad:1", "evt.sup_params.report", parameters.Parameters),
+							suite.ExpectMessage(fmt.Sprintf("pt:j1/mt:evt/rt:ad/rn:%s/ad:1", testServiceName), "evt.thing.inclusion_report", testServiceName),
+							suite.ExpectMessage(fmt.Sprintf("pt:j1/mt:evt/rt:dev/rn:%s/ad:1/sv:parameters/ad:1", testServiceName), "evt.sup_params.report", parameters.Parameters),
 						},
 					},
 				},
 			},
 			{
 				Name:     "No supported parameters report after inclusion report",
-				TearDown: adapterhelper.TearDownAdapter("../../testdata/adapter/test_adapter"),
+				TearDown: adapterhelper.TearDownAdapter("testdata/adapter/" + testServiceName),
 				Setup:    testSetup(false),
 				Nodes: []*suite.Node{
 					{
 						Name:    "Thing without parameters service",
-						Command: suite.StringMessage("pt:j1/mt:cmd/rt:ad/rn:test_adapter/ad:1", "cmd.thing.get_inclusion_report", testServiceName, "1"),
+						Command: suite.StringMessage(fmt.Sprintf("pt:j1/mt:cmd/rt:ad/rn:%s/ad:1", testServiceName), "cmd.thing.get_inclusion_report", testServiceName, "1"),
 						Expectations: []*suite.Expectation{
-							suite.ExpectMessage("pt:j1/mt:evt/rt:ad/rn:test_adapter/ad:1", "evt.thing.inclusion_report", testServiceName),
-							suite.ExpectMessage("pt:j1/mt:evt/rt:dev/rn:test_adapter/ad:1/sv:parameters/ad:1", "evt.sup_params.report", parameters.Parameters).Never(),
+							suite.ExpectMessage(fmt.Sprintf("pt:j1/mt:evt/rt:ad/rn:%s/ad:1", testServiceName), "evt.thing.inclusion_report", testServiceName),
+							suite.ExpectMessage(fmt.Sprintf("pt:j1/mt:evt/rt:dev/rn:%s/ad:1/sv:parameters/ad:1", testServiceName), "evt.sup_params.report", parameters.Parameters).Never(),
 						},
 					},
 				},
@@ -75,7 +75,7 @@ func testSetup(wantParametersService bool) suite.ServiceSetup {
 
 		seed := &adapter.ThingSeed{ID: "1"}
 
-		ad := prepareAdapter(t, "../../testdata/adapter/test_adapter", mqtt, factory, eventManager)
+		ad := prepareAdapter(t, "testdata/adapter/"+testServiceName, mqtt, factory, eventManager)
 		adapterhelper.SeedAdapter(t, ad, adapter.ThingSeeds{seed})
 
 		listener := event.NewListener(eventManager, parameters.NewInclusionReportSentEventHandler(ad))
@@ -103,7 +103,7 @@ func prepareAdapter(
 		t.Fatal(fmt.Errorf("adapter helper: failed to create adapter state: %w", err))
 	}
 
-	a := adapter.NewAdapter(mqtt, eventManager, factory, state, "test_adapter", "1")
+	a := adapter.NewAdapter(mqtt, eventManager, factory, state, testServiceName, "1")
 
 	return a
 }
@@ -114,8 +114,8 @@ func build(mqtt *fimpgo.MqttTransport, listener event.Listener, ad adapter.Adapt
 		WithServiceDiscovery(&discovery.Resource{}).
 		WithLifecycle(lifecycle.New()).
 		WithTopicSubscription(
-			router.TopicPatternAdapter("test_adapter"),
-			router.TopicPatternDevices("test_adapter"),
+			router.TopicPatternAdapter(testServiceName),
+			router.TopicPatternDevices(testServiceName),
 		).
 		WithRouting(adapter.RouteAdapter(ad)...).
 		WithServices(listener).
@@ -132,7 +132,7 @@ func thingFactory(t *testing.T, wantParametersService bool) adapterhelper.Factor
 
 	parametersCfg := &parameters.Config{
 		Specification: parameters.Specification(
-			"test_adapter",
+			testServiceName,
 			"1",
 			"1",
 			nil,
@@ -142,7 +142,7 @@ func thingFactory(t *testing.T, wantParametersService bool) adapterhelper.Factor
 
 	chargepointCfg := &chargepoint.Config{
 		Specification: chargepoint.Specification(
-			"test_adapter",
+			testServiceName,
 			"1",
 			"1",
 			nil,

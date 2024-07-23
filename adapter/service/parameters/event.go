@@ -1,7 +1,6 @@
 package parameters
 
 import (
-	"errors"
 	"fmt"
 
 	log "github.com/sirupsen/logrus"
@@ -26,8 +25,8 @@ func NewInclusionReportSentEventHandler(thing adapter.ThingRegistry) *event.Hand
 			return
 		}
 
-		parameterSrv, err := getParametersService(thing)
-		if err != nil {
+		parameterSrv, ok := getParametersService(thing)
+		if !ok {
 			return
 		}
 
@@ -52,12 +51,12 @@ func WaitForInclusionReportSent() event.Filter {
 	)
 }
 
-func getParametersService(thing adapter.Thing) (Service, error) {
+func getParametersService(thing adapter.Thing) (Service, bool) {
 	for _, service := range thing.Services(Parameters) {
 		if service, ok := service.(Service); ok {
-			return service, nil
+			return service, true
 		}
 	}
 
-	return nil, errors.New("there are no parameters services")
+	return nil, false
 }
