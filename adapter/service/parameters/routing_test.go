@@ -35,22 +35,22 @@ func TestRouteService(t *testing.T) { //nolint:paralleltest
 				),
 				Nodes: []*suite.Node{
 					{
-						Name:    "get parameter specifications",
-						Command: suite.NullMessage("pt:j1/mt:cmd/rt:dev/rn:test_adapter/ad:1/sv:parameters/ad:2", "cmd.sup_params.get_report", "parameters"),
+						Name:     "get parameter specifications",
+						Commands: []*fimpgo.Message{suite.NullMessage("pt:j1/mt:cmd/rt:dev/rn:test_adapter/ad:1/sv:parameters/ad:2", "cmd.sup_params.get_report", "parameters")},
 						Expectations: []*suite.Expectation{
 							suite.ExpectObject("pt:j1/mt:evt/rt:dev/rn:test_adapter/ad:1/sv:parameters/ad:2", "evt.sup_params.report", "parameters", testSpecifications(t)),
 						},
 					},
 					{
-						Name:    "get parameter",
-						Command: suite.StringMessage("pt:j1/mt:cmd/rt:dev/rn:test_adapter/ad:1/sv:parameters/ad:2", "cmd.param.get_report", "parameters", "1"),
+						Name:     "get parameter",
+						Commands: []*fimpgo.Message{suite.StringMessage("pt:j1/mt:cmd/rt:dev/rn:test_adapter/ad:1/sv:parameters/ad:2", "cmd.param.get_report", "parameters", "1")},
 						Expectations: []*suite.Expectation{
 							suite.ExpectObject("pt:j1/mt:evt/rt:dev/rn:test_adapter/ad:1/sv:parameters/ad:2", "evt.param.report", "parameters", testParameter(t)),
 						},
 					},
 					{
-						Name:    "set parameter",
-						Command: suite.ObjectMessage("pt:j1/mt:cmd/rt:dev/rn:test_adapter/ad:1/sv:parameters/ad:2", "cmd.param.set", "parameters", testParameter(t)),
+						Name:     "set parameter",
+						Commands: []*fimpgo.Message{suite.ObjectMessage("pt:j1/mt:cmd/rt:dev/rn:test_adapter/ad:1/sv:parameters/ad:2", "cmd.param.set", "parameters", testParameter(t))},
 						Expectations: []*suite.Expectation{
 							suite.ExpectObject("pt:j1/mt:evt/rt:dev/rn:test_adapter/ad:1/sv:parameters/ad:2", "evt.param.report", "parameters", testParameter(t)),
 						},
@@ -67,22 +67,22 @@ func TestRouteService(t *testing.T) { //nolint:paralleltest
 				),
 				Nodes: []*suite.Node{
 					{
-						Name:    "get parameter specifications",
-						Command: suite.NullMessage("pt:j1/mt:cmd/rt:dev/rn:test_adapter/ad:1/sv:parameters/ad:2", "cmd.sup_params.get_report", "parameters"),
+						Name:     "get parameter specifications",
+						Commands: []*fimpgo.Message{suite.NullMessage("pt:j1/mt:cmd/rt:dev/rn:test_adapter/ad:1/sv:parameters/ad:2", "cmd.sup_params.get_report", "parameters")},
 						Expectations: []*suite.Expectation{
 							suite.ExpectError("pt:j1/mt:evt/rt:dev/rn:test_adapter/ad:1/sv:parameters/ad:2", "parameters"),
 						},
 					},
 					{
-						Name:    "get parameter",
-						Command: suite.StringMessage("pt:j1/mt:cmd/rt:dev/rn:test_adapter/ad:1/sv:parameters/ad:2", "cmd.param.get_report", "parameters", "1"),
+						Name:     "get parameter",
+						Commands: []*fimpgo.Message{suite.StringMessage("pt:j1/mt:cmd/rt:dev/rn:test_adapter/ad:1/sv:parameters/ad:2", "cmd.param.get_report", "parameters", "1")},
 						Expectations: []*suite.Expectation{
 							suite.ExpectError("pt:j1/mt:evt/rt:dev/rn:test_adapter/ad:1/sv:parameters/ad:2", "parameters"),
 						},
 					},
 					{
-						Name:    "set parameter - error when getting param specifications",
-						Command: suite.ObjectMessage("pt:j1/mt:cmd/rt:dev/rn:test_adapter/ad:1/sv:parameters/ad:2", "cmd.param.set", "parameters", testParameter(t)),
+						Name:     "set parameter - error when getting param specifications",
+						Commands: []*fimpgo.Message{suite.ObjectMessage("pt:j1/mt:cmd/rt:dev/rn:test_adapter/ad:1/sv:parameters/ad:2", "cmd.param.set", "parameters", testParameter(t))},
 						Expectations: []*suite.Expectation{
 							suite.ExpectError("pt:j1/mt:evt/rt:dev/rn:test_adapter/ad:1/sv:parameters/ad:2", "parameters"),
 						},
@@ -99,8 +99,8 @@ func TestRouteService(t *testing.T) { //nolint:paralleltest
 				),
 				Nodes: []*suite.Node{
 					{
-						Name:    "set parameter",
-						Command: suite.ObjectMessage("pt:j1/mt:cmd/rt:dev/rn:test_adapter/ad:1/sv:parameters/ad:2", "cmd.param.set", "parameters", testParameter(t)),
+						Name:     "set parameter",
+						Commands: []*fimpgo.Message{suite.ObjectMessage("pt:j1/mt:cmd/rt:dev/rn:test_adapter/ad:1/sv:parameters/ad:2", "cmd.param.set", "parameters", testParameter(t))},
 						Expectations: []*suite.Expectation{
 							suite.ExpectError("pt:j1/mt:evt/rt:dev/rn:test_adapter/ad:1/sv:parameters/ad:2", "parameters"),
 						},
@@ -116,8 +116,8 @@ func TestRouteService(t *testing.T) { //nolint:paralleltest
 				),
 				Nodes: []*suite.Node{
 					{
-						Name:    "set parameter",
-						Command: suite.ObjectMessage("pt:j1/mt:cmd/rt:dev/rn:test_adapter/ad:1/sv:parameters/ad:2", "cmd.param.set", "parameters", testReadOnlyParameter(t)),
+						Name:     "set parameter",
+						Commands: []*fimpgo.Message{suite.ObjectMessage("pt:j1/mt:cmd/rt:dev/rn:test_adapter/ad:1/sv:parameters/ad:2", "cmd.param.set", "parameters", testReadOnlyParameter(t))},
 						Expectations: []*suite.Expectation{
 							suite.ExpectError("pt:j1/mt:evt/rt:dev/rn:test_adapter/ad:1/sv:parameters/ad:2", "parameters"),
 						},
@@ -162,7 +162,7 @@ func routeService(
 
 		seed := &adapter.ThingSeed{ID: "B", CustomAddress: "2"}
 
-		factory := adapterhelper.FactoryHelper(func(a adapter.Adapter, publisher adapter.Publisher, thingState adapter.ThingState) (adapter.Thing, error) {
+		factory := adapterhelper.FactoryHelper(func(_ adapter.Adapter, publisher adapter.Publisher, thingState adapter.ThingState) (adapter.Thing, error) {
 			return adapter.NewThing(publisher, thingState, thingCfg, parameters.NewService(publisher, serviceCfg)), nil
 		})
 
