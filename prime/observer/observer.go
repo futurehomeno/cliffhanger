@@ -9,6 +9,7 @@ import (
 	"github.com/futurehomeno/cliffhanger/prime"
 )
 
+// Observer represents an observer of the prime components.
 type Observer interface {
 	Refresh(force bool) error
 	Update(notification *prime.Notify) error
@@ -18,6 +19,7 @@ type Observer interface {
 	GetAreas() (prime.Areas, error)
 }
 
+// New creates a new observer of the prime components.
 func New(
 	client prime.Client,
 	eventManager event.Manager,
@@ -45,6 +47,8 @@ func New(
 			o.strategies[component] = o.updateRoom
 		case prime.ComponentArea:
 			o.strategies[component] = o.updateArea
+		case prime.ComponentShortcut:
+			o.strategies[component] = o.updateShortcut
 		default:
 			return nil, fmt.Errorf("prime observer: unsupported component %s", component)
 		}
@@ -66,6 +70,7 @@ type observer struct {
 	set             *set
 }
 
+// Update updates the observed components based on the vinculum notification.
 func (o *observer) Update(notification *prime.Notify) error {
 	if !o.isComponentObserved(notification.Component) {
 		return nil
@@ -82,6 +87,89 @@ func (o *observer) Update(notification *prime.Notify) error {
 	}
 
 	return nil
+}
+
+// GetDevices returns the devices.
+func (o *observer) GetDevices() (prime.Devices, error) {
+	o.lock.Lock()
+	defer o.lock.Unlock()
+
+	if err := o.doRefresh(false); err != nil {
+		return nil, err
+	}
+
+	return o.set.getDevices(), nil
+}
+
+// GetThings returns the things.
+func (o *observer) GetThings() (prime.Things, error) {
+	o.lock.Lock()
+	defer o.lock.Unlock()
+
+	if err := o.doRefresh(false); err != nil {
+		return nil, err
+	}
+
+	return o.set.getThings(), nil
+}
+
+// GetRooms returns the rooms.
+func (o *observer) GetRooms() (prime.Rooms, error) {
+	o.lock.Lock()
+	defer o.lock.Unlock()
+
+	if err := o.doRefresh(false); err != nil {
+		return nil, err
+	}
+
+	return o.set.getRooms(), nil
+}
+
+// GetAreas returns the areas.
+func (o *observer) GetAreas() (prime.Areas, error) {
+	o.lock.Lock()
+	defer o.lock.Unlock()
+
+	if err := o.doRefresh(false); err != nil {
+		return nil, err
+	}
+
+	return o.set.getAreas(), nil
+}
+
+// Refresh refreshes the observed components.
+func (o *observer) Refresh(force bool) error {
+	o.lock.Lock()
+	defer o.lock.Unlock()
+
+	return o.doRefresh(force)
+}
+
+func (o *observer) doRefresh(force bool) error {
+	if !force && !o.isRefreshRequired() {
+		return nil
+	}
+
+	componentSet, err := o.client.GetComponents(o.components...)
+	if err != nil {
+		return fmt.Errorf("observer: error while refreshing components: %w", err)
+	}
+
+	o.set = newSet(componentSet)
+	o.refreshed = true
+	o.lastRefresh = time.Now()
+
+	o.eventManager.Publish(newRefreshEvent(o.components))
+
+	return nil
+}
+
+func (o *observer) isRefreshRequired() bool {
+	if !o.refreshed || o.lastRefresh.IsZero() {
+		return true
+	}
+
+	return time.Since(o.lastRefresh) > o.refreshInterval
 }
 
 func (o *observer) isComponentObserved(component string) bool {
@@ -226,80 +314,36 @@ func (o *observer) updateArea(notification *prime.Notify) error {
 	return nil
 }
 
-func (o *observer) Refresh(force bool) error {
-	o.lock.Lock()
-	defer o.lock.Unlock()
+//nolint:dupl
+func (o *observer) updateShortcut(notification *prime.Notify) error {
+	switch notification.Cmd {
+	case prime.CmdAdd:
+		shortcut, err := notification.GetShortcut()
+		if err != nil {
+			return fmt.Errorf("prime observer: failed to add shortcut: %w", err)
+		}
 
-	return o.doRefresh(force)
-}
+		o.set.addShortcut(shortcut)
+		o.eventManager.Publish(newComponentEvent(notification.Component, notification.Cmd, shortcut.ID))
 
-func (o *observer) doRefresh(force bool) error {
-	if !force && !o.isRefreshRequired() {
-		return nil
+	case prime.CmdEdit:
+		shortcut, err := notification.GetShortcut()
+		if err != nil {
+			return fmt.Errorf("prime observer: failed to update shortcut: %w", err)
+		}
+
+		o.set.updateShortcut(shortcut)
+		o.eventManager.Publish(newComponentEvent(notification.Component, notification.Cmd, shortcut.ID))
+
+	case prime.CmdDelete:
+		id, err := notification.ParseIntegerID()
+		if err != nil {
+			return fmt.Errorf("prime observer: failed to parse ID of a shortcut: %w", err)
+		}
+
+		o.set.deleteShortcut(id)
+		o.eventManager.Publish(newComponentEvent(notification.Component, notification.Cmd, id))
 	}
-
-	componentSet, err := o.client.GetComponents(o.components...)
-	if err != nil {
-		return fmt.Errorf("observer: error while refreshing components: %w", err)
-	}
-
-	o.set = newSet(componentSet)
-	o.refreshed = true
-	o.lastRefresh = time.Now()
-
-	o.eventManager.Publish(newRefreshEvent(o.components))
 
 	return nil
-}
-
-func (o *observer) isRefreshRequired() bool {
-	if !o.refreshed || o.lastRefresh.IsZero() {
-		return true
-	}
-
-	return time.Since(o.lastRefresh) > o.refreshInterval
-}
-
-func (o *observer) GetDevices() (prime.Devices, error) {
-	o.lock.Lock()
-	defer o.lock.Unlock()
-
-	if err := o.doRefresh(false); err != nil {
-		return nil, err
-	}
-
-	return o.set.getDevices(), nil
-}
-
-func (o *observer) GetThings() (prime.Things, error) {
-	o.lock.Lock()
-	defer o.lock.Unlock()
-
-	if err := o.doRefresh(false); err != nil {
-		return nil, err
-	}
-
-	return o.set.getThings(), nil
-}
-
-func (o *observer) GetRooms() (prime.Rooms, error) {
-	o.lock.Lock()
-	defer o.lock.Unlock()
-
-	if err := o.doRefresh(false); err != nil {
-		return nil, err
-	}
-
-	return o.set.getRooms(), nil
-}
-
-func (o *observer) GetAreas() (prime.Areas, error) {
-	o.lock.Lock()
-	defer o.lock.Unlock()
-
-	if err := o.doRefresh(false); err != nil {
-		return nil, err
-	}
-
-	return o.set.getAreas(), nil
 }

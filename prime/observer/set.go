@@ -183,3 +183,45 @@ func (s *set) findArea(id int) int {
 
 	return -1
 }
+
+func (s *set) getShortcuts() prime.Shortcuts {
+	shortcuts := make(prime.Shortcuts, len(s.Shortcuts))
+	copy(shortcuts, s.Shortcuts)
+
+	return shortcuts
+}
+
+func (s *set) addShortcut(shortcut *prime.Shortcut) {
+	if s.findShortcut(shortcut.ID) != -1 {
+		return
+	}
+
+	s.Shortcuts = append(s.Shortcuts, shortcut)
+}
+
+func (s *set) updateShortcut(shortcut *prime.Shortcut) {
+	if i := s.findShortcut(shortcut.ID); i != -1 {
+		s.Shortcuts[i] = shortcut
+
+		return
+	}
+
+	s.Shortcuts = append(s.Shortcuts, shortcut)
+}
+
+func (s *set) deleteShortcut(id int) {
+	if i := s.findShortcut(id); i != -1 {
+		s.Shortcuts[i] = s.Shortcuts[len(s.Shortcuts)-1]
+		s.Shortcuts = s.Shortcuts[:len(s.Shortcuts)-1]
+	}
+}
+
+func (s *set) findShortcut(id int) int {
+	for k, v := range s.Shortcuts {
+		if id == v.ID {
+			return k
+		}
+	}
+
+	return -1
+}
