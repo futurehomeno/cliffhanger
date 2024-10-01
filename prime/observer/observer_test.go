@@ -9,6 +9,7 @@ import (
 	"github.com/sirupsen/logrus"
 	"github.com/sirupsen/logrus/hooks/test"
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 
 	"github.com/futurehomeno/cliffhanger/event"
 	"github.com/futurehomeno/cliffhanger/prime"
@@ -306,7 +307,15 @@ func TestObserver(t *testing.T) { //nolint:paralleltest
 						Command: suite.ObjectMessage(prime.NotifyTopic, prime.EvtPD7Notify, prime.ServiceName, &prime.Notify{
 							Cmd:       prime.CmdEdit,
 							Component: prime.ComponentRoom,
-							ParamRaw:  json.RawMessage(`{"id":3}`),
+							ParamRaw: json.RawMessage(`{
+								"id":3,
+								"alias": "basement test",
+								"client": {
+									"name": "basement client name test"
+								},
+								"outside": false,
+								"type": "basement"
+							}`),
 						}),
 						Callbacks: []suite.Callback{
 							func(t *testing.T) {
@@ -328,7 +337,16 @@ func TestObserver(t *testing.T) { //nolint:paralleltest
 						}),
 						Callbacks: []suite.Callback{
 							func(t *testing.T) {
-								assert.NotNil(t, <-testEventManager.WaitFor(time.Second, observer.WaitForRoomChange()))
+								eventDeletedRoom := <-testEventManager.WaitFor(time.Second, observer.WaitForRoomDeletion())
+								deleteEvent, ok := eventDeletedRoom.(*observer.DeleteComponentEvent)
+								require.True(t, ok)
+
+								room, ok := deleteEvent.Component.(*prime.Room)
+								require.True(t, ok)
+								assert.Equal(t, 3, room.ID)
+								assert.Equal(t, "basement test", room.Alias)
+								assert.Equal(t, "basement", *(*room).Type)
+								assert.Equal(t, "basement client name test", *(*room).Client.Name)
 
 								rooms, err := testObserver.GetRooms()
 

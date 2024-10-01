@@ -273,6 +273,8 @@ func (o *observer) updateRoom(notification *prime.Notify) error {
 			return fmt.Errorf("prime observer: failed to parse ID of a room: %w", err)
 		}
 
+		o.eventManager.Publish(newDeleteComponentEvent(prime.ComponentRoom, o.set.getRooms().FindByID(id), id))
+
 		o.set.deleteRoom(id)
 		o.eventManager.Publish(newComponentEvent(notification.Component, notification.Cmd, id))
 	}

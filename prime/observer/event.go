@@ -19,6 +19,14 @@ type (
 		ID        int
 	}
 
+	DeleteComponentEvent struct {
+		event.Event
+
+		ComponentName string
+		Component     any
+		ID            int
+	}
+
 	RefreshEvent struct {
 		event.Event
 
@@ -32,6 +40,15 @@ func newComponentEvent(component string, command string, id int) event.Event {
 		Component: component,
 		Command:   command,
 		ID:        id,
+	}
+}
+
+func newDeleteComponentEvent(componentName string, component any, id int) event.Event {
+	return &DeleteComponentEvent{
+		Event:         event.New(Domain, Class),
+		ComponentName: componentName,
+		Component:     component,
+		ID:            id,
 	}
 }
 
@@ -121,5 +138,16 @@ func WaitForRefresh(component string) event.Filter {
 		}
 
 		return false
+	})
+}
+
+func WaitForRoomDeletion() event.Filter {
+	return event.FilterFn(func(event event.Event) bool {
+		e, ok := event.(*DeleteComponentEvent)
+		if !ok {
+			return false
+		}
+
+		return e.ComponentName == prime.ComponentRoom
 	})
 }
