@@ -191,8 +191,7 @@ func (s *storage[T]) Save() error {
 		return fmt.Errorf("storage: cannot marshal a configuration file at path %s: %w", s.dataPath, err)
 	}
 
-	//nolint:gosec
-	err = os.WriteFile(s.dataPath, body, 0664) //nolint:gofumpt
+	err = s.writeFile(s.dataPath, body)
 	if err != nil {
 		return fmt.Errorf("storage: cannot save a configuration file at path %s: %w", s.dataPath, err)
 	}
@@ -216,8 +215,7 @@ func (s *storage[T]) makeBackup() error {
 		return err
 	}
 
-	//nolint:gosec
-	err = os.WriteFile(s.backupPath, body, 0664) //nolint:gofumpt
+	err = s.writeFile(s.backupPath, body)
 	if err != nil {
 		return err
 	}
@@ -297,4 +295,31 @@ func (s *storage[T]) loadFile(path string) error {
 	}
 
 	return nil
+}
+
+// writeFile provides a secure way of writing data to a file.
+func (s *storage[T]) writeFile(path string, data []byte) (err error) {
+	file, err := os.OpenFile(path, os.O_WRONLY|os.O_CREATE|os.O_TRUNC, 0664) //nolint:gofumpt
+	if err != nil {
+		return err
+	}
+
+	defer func() {
+		closeErr := file.Close()
+
+		// if any of the operations below defer fails, we should return that error
+		if err != nil {
+			return
+		}
+
+		err = closeErr
+	}()
+
+	if _, err = file.Write(data); err != nil {
+		return
+	}
+
+	err = file.Sync()
+
+	return
 }
