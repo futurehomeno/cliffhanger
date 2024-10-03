@@ -73,7 +73,7 @@ func TestObserver(t *testing.T) { //nolint:paralleltest
 						Command: suite.ObjectMessage(prime.NotifyTopic, prime.EvtPD7Notify, prime.ServiceName, &prime.Notify{
 							Cmd:       prime.CmdAdd,
 							Component: prime.ComponentDevice,
-							ParamRaw:  json.RawMessage(`{"id":2}`),
+							ParamRaw:  json.RawMessage(`{"id":2, "client": {"name": "test device name"}}`),
 						}),
 						Callbacks: []suite.Callback{
 							func(t *testing.T) {
@@ -109,11 +109,21 @@ func TestObserver(t *testing.T) { //nolint:paralleltest
 						Command: suite.ObjectMessage(prime.NotifyTopic, prime.EvtPD7Notify, prime.ServiceName, &prime.Notify{
 							Cmd:       prime.CmdEdit,
 							Component: prime.ComponentDevice,
-							ParamRaw:  json.RawMessage(`{"id":2}`),
+							ParamRaw:  json.RawMessage(`{"id":2, "client": {"name": "test device new name"}}`),
 						}),
 						Callbacks: []suite.Callback{
 							func(t *testing.T) {
-								assert.NotNil(t, <-testEventManager.WaitFor(time.Second, observer.WaitForDeviceChange()))
+								go func() {
+									assert.NotNil(t, <-testEventManager.WaitFor(time.Second, observer.WaitForDeviceChange()))
+								}()
+
+								eventDeviceEdited := <-testEventManager.WaitFor(time.Second, observer.WaitForComponentEdit(prime.ComponentDevice))
+								editEvent, ok := eventDeviceEdited.(*observer.EditComponentEvent)
+								require.True(t, ok)
+								assert.Equal(t, 2, editEvent.ID)
+								assert.Equal(t, "test device new name", editEvent.Change.New)
+								assert.Equal(t, "test device name", editEvent.Change.Old)
+								assert.Equal(t, prime.ComponentDevice, editEvent.ComponentName)
 
 								devices, err := testObserver.GetDevices()
 
@@ -127,7 +137,7 @@ func TestObserver(t *testing.T) { //nolint:paralleltest
 						Command: suite.ObjectMessage(prime.NotifyTopic, prime.EvtPD7Notify, prime.ServiceName, &prime.Notify{
 							Cmd:       prime.CmdEdit,
 							Component: prime.ComponentDevice,
-							ParamRaw:  json.RawMessage(`{"id":3}`),
+							ParamRaw:  json.RawMessage(`{"id":3, "client": {"name": "device nr 3"}}`),
 						}),
 						Callbacks: []suite.Callback{
 							func(t *testing.T) {
@@ -149,7 +159,18 @@ func TestObserver(t *testing.T) { //nolint:paralleltest
 						}),
 						Callbacks: []suite.Callback{
 							func(t *testing.T) {
-								assert.NotNil(t, <-testEventManager.WaitFor(time.Second, observer.WaitForDeviceChange()))
+								go func() {
+									assert.NotNil(t, <-testEventManager.WaitFor(time.Second, observer.WaitForDeviceChange()))
+								}()
+
+								eventDeletedDevice := <-testEventManager.WaitFor(time.Second, observer.WaitForComponentDeletion(prime.ComponentDevice))
+								deleteEvent, ok := eventDeletedDevice.(*observer.DeleteComponentEvent)
+								require.True(t, ok)
+
+								device, ok := deleteEvent.Component.(*prime.Device)
+								require.True(t, ok)
+								assert.Equal(t, 3, device.ID)
+								assert.Equal(t, "device nr 3", *(*device).Client.Name)
 
 								devices, err := testObserver.GetDevices()
 
@@ -337,7 +358,11 @@ func TestObserver(t *testing.T) { //nolint:paralleltest
 						}),
 						Callbacks: []suite.Callback{
 							func(t *testing.T) {
-								eventDeletedRoom := <-testEventManager.WaitFor(time.Second, observer.WaitForRoomDeletion())
+								go func() {
+									assert.NotNil(t, <-testEventManager.WaitFor(time.Second, observer.WaitForRoomChange()))
+								}()
+
+								eventDeletedRoom := <-testEventManager.WaitFor(time.Second, observer.WaitForComponentDeletion(prime.ComponentRoom))
 								deleteEvent, ok := eventDeletedRoom.(*observer.DeleteComponentEvent)
 								require.True(t, ok)
 

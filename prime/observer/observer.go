@@ -196,6 +196,15 @@ func (o *observer) updateDevice(notification *prime.Notify) error {
 			return fmt.Errorf("prime observer: failed to update device: %w", err)
 		}
 
+		var oldName string
+
+		existingDevice := o.set.getDevices().FindByID(device.ID)
+		if existingDevice != nil {
+			oldName = existingDevice.GetName()
+		}
+
+		o.eventManager.Publish(newEditComponentEvent(notification.Component, device.ID, oldName, device.GetName()))
+
 		o.set.updateDevice(device)
 		o.eventManager.Publish(newComponentEvent(notification.Component, notification.Cmd, device.ID))
 
@@ -204,6 +213,8 @@ func (o *observer) updateDevice(notification *prime.Notify) error {
 		if err != nil {
 			return fmt.Errorf("prime observer: failed to parse ID of a device: %w", err)
 		}
+
+		o.eventManager.Publish(newDeleteComponentEvent(prime.ComponentDevice, o.set.getDevices().FindByID(id), id))
 
 		o.set.deleteDevice(id)
 		o.eventManager.Publish(newComponentEvent(notification.Component, notification.Cmd, id))

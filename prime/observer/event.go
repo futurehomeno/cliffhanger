@@ -10,6 +10,11 @@ const (
 	Class  = "observer"
 )
 
+type Change struct {
+	Old string
+	New string
+}
+
 type (
 	ComponentEvent struct {
 		event.Event
@@ -24,6 +29,14 @@ type (
 
 		ComponentName string
 		Component     any
+		ID            int
+	}
+
+	EditComponentEvent struct {
+		event.Event
+
+		ComponentName string
+		Change        Change
 		ID            int
 	}
 
@@ -48,6 +61,15 @@ func newDeleteComponentEvent(componentName string, component any, id int) event.
 		Event:         event.New(Domain, Class),
 		ComponentName: componentName,
 		Component:     component,
+		ID:            id,
+	}
+}
+
+func newEditComponentEvent(component string, id int, old string, new string) event.Event {
+	return &EditComponentEvent{
+		Event:         event.New(Domain, Class),
+		ComponentName: component,
+		Change:        Change{Old: old, New: new},
 		ID:            id,
 	}
 }
@@ -141,13 +163,24 @@ func WaitForRefresh(component string) event.Filter {
 	})
 }
 
-func WaitForRoomDeletion() event.Filter {
+func WaitForComponentDeletion(component string) event.Filter {
 	return event.FilterFn(func(event event.Event) bool {
 		e, ok := event.(*DeleteComponentEvent)
 		if !ok {
 			return false
 		}
 
-		return e.ComponentName == prime.ComponentRoom
+		return e.ComponentName == component
+	})
+}
+
+func WaitForComponentEdit(component string) event.Filter {
+	return event.FilterFn(func(event event.Event) bool {
+		e, ok := event.(*EditComponentEvent)
+		if !ok {
+			return false
+		}
+
+		return e.ComponentName == component
 	})
 }
