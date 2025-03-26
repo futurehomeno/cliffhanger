@@ -105,3 +105,15 @@ func ForServiceAndType(service, messageType string) MessageVoter {
 		return serviceVoter.Vote(message) && typeVoter.Vote(message)
 	})
 }
+
+// ForProperty is a message voter allowing a routing to handle message only if it is relevant.
+func ForProperty(propertyName, propertyValue string) MessageVoter {
+	return MessageVoterFn(func(message *fimpgo.Message) bool {
+		value, ok := message.Payload.Properties[propertyName]
+		if !ok {
+			return false
+		}
+
+		return value == propertyValue
+	})
+}
