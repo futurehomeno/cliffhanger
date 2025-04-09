@@ -26,6 +26,7 @@ func TestBuilder_Build(t *testing.T) {
 		{
 			name: "Build core without errors",
 			builder: root.NewCoreAppBuilder().
+				WithVersion("test").
 				WithMQTT(mqtt).
 				WithServiceDiscovery(&discovery.Resource{}).
 				WithTopicSubscription("test").
@@ -35,7 +36,7 @@ func TestBuilder_Build(t *testing.T) {
 			wantErr: false,
 		},
 		{
-			name: "Missing mqtt discovery",
+			name: "Missing mqtt client",
 			builder: root.NewCoreAppBuilder().
 				WithServiceDiscovery(&discovery.Resource{}),
 			wantErr: true,
@@ -44,6 +45,13 @@ func TestBuilder_Build(t *testing.T) {
 			name: "Missing service discovery",
 			builder: root.NewCoreAppBuilder().
 				WithMQTT(mqtt),
+			wantErr: true,
+		},
+		{
+			name: "Missing app version",
+			builder: root.NewCoreAppBuilder().
+				WithMQTT(mqtt).
+				WithServiceDiscovery(&discovery.Resource{}),
 			wantErr: true,
 		},
 		{

@@ -83,6 +83,7 @@ func TestApp_Run(t *testing.T) { //nolint:paralleltest
 			defer mqtt.Stop()
 
 			app, err := root.NewEdgeAppBuilder().
+				WithVersion("test").
 				WithMQTT(mqtt).
 				WithLifecycle(lifecycle.New()).
 				WithServiceDiscovery(&discovery.Resource{}).
@@ -130,6 +131,7 @@ func TestApp_Reset(t *testing.T) { //nolint:paralleltest
 					resetter := mockedroot.NewResetter(t).MockReset(nil)
 
 					app, err := root.NewCoreAppBuilder().
+						WithVersion("test").
 						WithMQTT(mqtt).
 						WithServiceDiscovery(&discovery.Resource{}).
 						WithResetter(resetter).

@@ -2,6 +2,7 @@ package root
 
 import (
 	"errors"
+	"strings"
 	"sync"
 
 	"github.com/futurehomeno/fimpgo"
@@ -32,6 +33,7 @@ func newBuilder(edge bool) *Builder {
 // Builder is a root app builder that helps to set up and run root application on a hub.
 type Builder struct {
 	edge               bool
+	version            string
 	mqtt               *fimpgo.MqttTransport
 	resource           *discovery.Resource
 	lifecycle          *lifecycle.Lifecycle
@@ -105,6 +107,13 @@ func (b *Builder) WithResetter(resetter ...Resetter) *Builder {
 	return b
 }
 
+// WithVersion sets the application version.
+func (b *Builder) WithVersion(version string) *Builder {
+	b.version = strings.TrimSpace(version)
+
+	return b
+}
+
 // Build builds the root application.
 func (b *Builder) Build() (App, error) {
 	if err := b.check(); err != nil {
@@ -119,6 +128,8 @@ func (b *Builder) doBuild() App {
 	rootApp := &app{
 		lock:  &sync.Mutex{},
 		errCh: make(chan error),
+
+		version: b.version,
 
 		mqtt:        b.mqtt,
 		lifecycle:   b.lifecycle,
@@ -155,6 +166,10 @@ func (b *Builder) check() error {
 
 	if b.resource == nil {
 		return errors.New("builder: it is required to provide service discovery resource instance")
+	}
+
+	if b.version == "" {
+		return errors.New("builder: application version cannot be empty")
 	}
 
 	if b.edge && b.lifecycle == nil {
