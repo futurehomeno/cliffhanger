@@ -10,6 +10,7 @@ import (
 	"github.com/futurehomeno/cliffhanger/adapter"
 	"github.com/futurehomeno/cliffhanger/adapter/service/chargepoint"
 	"github.com/futurehomeno/cliffhanger/adapter/service/numericmeter"
+	"github.com/futurehomeno/cliffhanger/adapter/service/parameters"
 	"github.com/futurehomeno/cliffhanger/adapter/thing"
 	"github.com/futurehomeno/cliffhanger/router"
 	"github.com/futurehomeno/cliffhanger/task"
@@ -17,6 +18,7 @@ import (
 	mockedadapter "github.com/futurehomeno/cliffhanger/test/mocks/adapter"
 	mockedchargepoint "github.com/futurehomeno/cliffhanger/test/mocks/adapter/service/chargepoint"
 	mockednumericmeter "github.com/futurehomeno/cliffhanger/test/mocks/adapter/service/numericmeter"
+	mockedparameters "github.com/futurehomeno/cliffhanger/test/mocks/adapter/service/parameters"
 	"github.com/futurehomeno/cliffhanger/test/suite"
 )
 
@@ -41,6 +43,21 @@ func TestRouteCarCharger(t *testing.T) { //nolint:paralleltest
 					mockednumericmeter.NewReporter(t).
 						MockMeterReport("W", 2, nil, false).
 						MockMeterReport("kWh", 123.45, nil, false),
+					mockedparameters.NewController(t).
+						MockGetParameterSpecifications([]*parameters.ParameterSpecification{
+							{
+								ID:          "cable_always_locked",
+								Name:        "Cable always locked",
+								Description: "Tells if the cable is always locked",
+								ValueType:   "bool",
+								Options: parameters.SelectOptions{
+									{Label: "Yes", Value: true},
+									{Label: "No", Value: false},
+								},
+								DefaultValue: false,
+								ReadOnly:     true,
+							},
+						}, nil, true),
 				),
 				Nodes: []*suite.Node{
 					{
@@ -85,6 +102,26 @@ func TestRouteCarCharger(t *testing.T) { //nolint:paralleltest
 						Expectations: []*suite.Expectation{
 							suite.ExpectFloat("pt:j1/mt:evt/rt:dev/rn:test_adapter/ad:1/sv:meter_elec/ad:2", "evt.meter.report", "meter_elec", 123.45).
 								ExpectProperty("unit", "kWh"),
+						},
+					},
+					{
+						Name:    "parameters report",
+						Command: suite.NullMessage("pt:j1/mt:cmd/rt:dev/rn:test_adapter/ad:1/sv:parameters/ad:2", "cmd.sup_params.get_report", "parameters"),
+						Expectations: []*suite.Expectation{
+							suite.ExpectObject("pt:j1/mt:evt/rt:dev/rn:test_adapter/ad:1/sv:parameters/ad:2", "evt.sup_params.report", "parameters", []parameters.ParameterSpecification{
+								{
+									ID:          "cable_always_locked",
+									Name:        "Cable always locked",
+									Description: "Tells if the cable is always locked",
+									ValueType:   "bool",
+									Options: parameters.SelectOptions{
+										{Label: "Yes", Value: true},
+										{Label: "No", Value: false},
+									},
+									DefaultValue: false,
+									ReadOnly:     true,
+								},
+							}),
 						},
 					},
 				},
@@ -136,14 +173,11 @@ func TestTaskCarCharger(t *testing.T) { //nolint:paralleltest
 	s.Run(t)
 }
 
-func routeCarCharger(
-	chargepointController chargepoint.Controller,
-	meterElecReporter *mockednumericmeter.Reporter,
-) suite.BaseSetup {
+func routeCarCharger(chargepointController chargepoint.Controller, meterElecReporter *mockednumericmeter.Reporter, specificationReporter *mockedparameters.Controller) suite.BaseSetup {
 	return func(t *testing.T, mqtt *fimpgo.MqttTransport) ([]*router.Routing, []*task.Task, []suite.Mock) {
 		t.Helper()
 
-		routing, _, mocks := setupCarCharger(t, mqtt, chargepointController, meterElecReporter, 0)
+		routing, _, mocks := setupCarCharger(t, mqtt, chargepointController, meterElecReporter, specificationReporter, 0)
 
 		return routing, nil, mocks
 	}
@@ -157,7 +191,7 @@ func taskCarCharger(
 	return func(t *testing.T, mqtt *fimpgo.MqttTransport) ([]*router.Routing, []*task.Task, []suite.Mock) {
 		t.Helper()
 
-		_, tasks, mocks := setupCarCharger(t, mqtt, chargepointController, meterElecReporter, interval)
+		_, tasks, mocks := setupCarCharger(t, mqtt, chargepointController, meterElecReporter, nil, interval)
 
 		return nil, tasks, mocks
 	}
@@ -168,6 +202,7 @@ func setupCarCharger(
 	mqtt *fimpgo.MqttTransport,
 	chargepointController chargepoint.Controller,
 	meterElecReporter *mockednumericmeter.Reporter,
+	specificationController *mockedparameters.Controller,
 	duration time.Duration,
 ) ([]*router.Routing, []*task.Task, []suite.Mock) {
 	t.Helper()
@@ -212,6 +247,20 @@ func setupCarCharger(
 		}
 
 		mocks = append(mocks, meterElecReporter)
+	}
+
+	if specificationController != nil {
+		cfg.ParameterServiceConfig = &parameters.Config{
+			Specification: parameters.Specification(
+				"test_adapter",
+				"1",
+				"2",
+				nil,
+			),
+			Controller: specificationController,
+		}
+
+		mocks = append(mocks, specificationController)
 	}
 
 	seed := &adapter.ThingSeed{ID: "B", CustomAddress: "2"}
