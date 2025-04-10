@@ -114,6 +114,8 @@ type Service interface {
 	SupportsAdjustingOfferedCurrent() bool
 	// SupportsAdjustingCableLock returns true if the chargepoint supports adjusting cable lock.
 	SupportsAdjustingCableLock() bool
+	//IsCableLockAware returns true if the chargepoint is aware of cable lock.
+	IsCableLockAware() bool
 }
 
 // Config represents a service configuration.
@@ -168,6 +170,8 @@ func NewService(
 
 	if s.SupportsAdjustingCableLock() {
 		cfg.Specification.EnsureInterfaces(adjustableCableLockInterfaces()...)
+	} else if s.IsCableLockAware() {
+		cfg.Specification.EnsureInterfaces(cableLockAwareInterfaces()...)
 	}
 
 	return s
@@ -520,6 +524,13 @@ func (s *service) IsPhaseModeAware() bool {
 // SupportsAdjustingCableLock returns true if the chargepoint supports adjusting phase modes.
 func (s *service) SupportsAdjustingCableLock() bool {
 	_, err := s.adjustableCableLockController()
+
+	return err == nil
+}
+
+// IsCableLockAware returns true if the chargepoint is aware of cable lock.
+func (s *service) IsCableLockAware() bool {
+	_, err := s.cableLockAwareController()
 
 	return err == nil
 }

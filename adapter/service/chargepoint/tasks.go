@@ -61,7 +61,7 @@ func sendChargepointReports(s Service) {
 		}
 	}
 
-	if s.SupportsAdjustingCableLock() {
+	if s.IsCableLockAware() {
 		_, err := s.SendCableLockReport(false)
 		if err != nil {
 			log.WithError(err).Errorf("adapter: failed to send cable lock report")

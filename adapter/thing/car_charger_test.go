@@ -173,7 +173,11 @@ func TestTaskCarCharger(t *testing.T) { //nolint:paralleltest
 	s.Run(t)
 }
 
-func routeCarCharger(chargepointController chargepoint.Controller, meterElecReporter *mockednumericmeter.Reporter, specificationReporter *mockedparameters.Controller) suite.BaseSetup {
+func routeCarCharger(
+	chargepointController chargepoint.Controller,
+	meterElecReporter *mockednumericmeter.Reporter,
+	specificationReporter *mockedparameters.Controller,
+) suite.BaseSetup {
 	return func(t *testing.T, mqtt *fimpgo.MqttTransport) ([]*router.Routing, []*task.Task, []suite.Mock) {
 		t.Helper()
 
