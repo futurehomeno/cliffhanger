@@ -6,15 +6,17 @@ import (
 	"github.com/futurehomeno/cliffhanger/adapter"
 	"github.com/futurehomeno/cliffhanger/adapter/service/chargepoint"
 	"github.com/futurehomeno/cliffhanger/adapter/service/numericmeter"
+	"github.com/futurehomeno/cliffhanger/adapter/service/parameters"
 	"github.com/futurehomeno/cliffhanger/router"
 	"github.com/futurehomeno/cliffhanger/task"
 )
 
 // CarChargerConfig represents a thing configuration.
 type CarChargerConfig struct {
-	ThingConfig       *adapter.ThingConfig
-	ChargepointConfig *chargepoint.Config
-	MeterElecConfig   *numericmeter.Config // Optional
+	ThingConfig            *adapter.ThingConfig
+	ChargepointConfig      *chargepoint.Config
+	MeterElecConfig        *numericmeter.Config // Optional
+	ParameterServiceConfig *parameters.Config
 }
 
 // NewCarCharger creates a thing that satisfies expectations for a car charger.
@@ -32,6 +34,10 @@ func NewCarCharger(
 		services = append(services, numericmeter.NewService(publisher, cfg.MeterElecConfig))
 	}
 
+	if cfg.ParameterServiceConfig != nil {
+		services = append(services, parameters.NewService(publisher, cfg.ParameterServiceConfig))
+	}
+
 	return adapter.NewThing(publisher, ts, cfg.ThingConfig, services...)
 }
 
@@ -40,6 +46,7 @@ func RouteCarCharger(adapter adapter.Adapter) []*router.Routing {
 	return router.Combine(
 		chargepoint.RouteService(adapter),
 		numericmeter.RouteService(adapter),
+		parameters.RouteService(adapter),
 	)
 }
 

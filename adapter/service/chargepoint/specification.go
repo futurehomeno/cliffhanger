@@ -144,6 +144,24 @@ func adjustableCableLockInterfaces() []fimptype.Interface {
 	}
 }
 
+// cableLockAwareInterfaces returns interfaces for cable lock aware controller.
+func cableLockAwareInterfaces() []fimptype.Interface {
+	return []fimptype.Interface{
+		{
+			Type:      fimptype.TypeIn,
+			MsgType:   CmdCableLockGetReport,
+			ValueType: fimpgo.VTypeNull,
+			Version:   "1",
+		},
+		{
+			Type:      fimptype.TypeOut,
+			MsgType:   EvtCableLockReport,
+			ValueType: fimpgo.VTypeBool,
+			Version:   "1",
+		},
+	}
+}
+
 // adjustableMaxCurrentInterfaces returns interfaces for adjustable max current controller.
 func adjustableMaxCurrentInterfaces() []fimptype.Interface {
 	return []fimptype.Interface{
