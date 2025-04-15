@@ -50,6 +50,8 @@ type app struct {
 	lock    *sync.Mutex
 	errCh   chan error
 
+	version string
+
 	mqtt               *fimpgo.MqttTransport
 	lifecycle          *lifecycle.Lifecycle
 	topicSubscriptions []string
@@ -130,7 +132,7 @@ func (a *app) doStart() error {
 		return nil
 	}
 
-	log.Info("application: starting the application")
+	log.WithField("version", a.version).Info("application: starting the application")
 
 	if a.lifecycle != nil {
 		a.lifecycle.SetAppState(lifecycle.AppStateStarting, nil)
@@ -178,7 +180,7 @@ func (a *app) doStop() error {
 		return nil
 	}
 
-	log.Info("application: stopping the application")
+	log.WithField("version", a.version).Info("application: stopping the application")
 
 	if a.lifecycle != nil {
 		a.lifecycle.SetAppState(lifecycle.AppStateTerminate, nil)
