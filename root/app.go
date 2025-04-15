@@ -201,8 +201,8 @@ func (a *app) doStop() error {
 		return fmt.Errorf("application: failed to stop the message router: %w", err)
 	}
 
-	for _, service := range a.services {
-		err = service.Stop()
+	for i := len(a.services) - 1; i >= 0; i-- {
+		err = a.services[i].Stop()
 		if err != nil {
 			return fmt.Errorf("application: failed to stop a service: %w", err)
 		}
