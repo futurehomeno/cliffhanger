@@ -35,15 +35,17 @@ func TestRouteService(t *testing.T) { //nolint:paralleltest
 				Nodes: []*suite.Node{
 					{
 						Name: "Cmd meter add",
-						Command: suite.NewMessageBuilder().
-							FloatMapMessage(
-								"pt:j1/mt:cmd/rt:dev/rn:test_adapter/ad:1/sv:virtual_meter_elec/ad:2",
-								"cmd.meter.add",
-								"virtual_meter_elec",
-								map[string]float64{"on": 100, "off": 1},
-							).
-							AddProperty(virtualmeter.PropertyNameUnit, "W").
-							Build(),
+						Commands: []*fimpgo.Message{
+							suite.NewMessageBuilder().
+								FloatMapMessage(
+									"pt:j1/mt:cmd/rt:dev/rn:test_adapter/ad:1/sv:virtual_meter_elec/ad:2",
+									"cmd.meter.add",
+									"virtual_meter_elec",
+									map[string]float64{"on": 100, "off": 1},
+								).
+								AddProperty(virtualmeter.PropertyNameUnit, "W").
+								Build(),
+						},
 						Expectations: []*suite.Expectation{
 							suite.ExpectFloatMap(
 								"pt:j1/mt:evt/rt:dev/rn:test_adapter/ad:1/sv:virtual_meter_elec/ad:2",
@@ -55,11 +57,11 @@ func TestRouteService(t *testing.T) { //nolint:paralleltest
 					},
 					{
 						Name: "Cmd get report after set",
-						Command: suite.NullMessage(
+						Commands: []*fimpgo.Message{suite.NullMessage(
 							"pt:j1/mt:cmd/rt:dev/rn:test_adapter/ad:1/sv:virtual_meter_elec/ad:2",
 							"cmd.meter.get_report",
 							"virtual_meter_elec",
-						),
+						)},
 						Expectations: []*suite.Expectation{
 							suite.ExpectFloatMap(
 								"pt:j1/mt:evt/rt:dev/rn:test_adapter/ad:1/sv:virtual_meter_elec/ad:2",
@@ -71,7 +73,7 @@ func TestRouteService(t *testing.T) { //nolint:paralleltest
 					},
 					{
 						Name: "Cmd meter add idempotent",
-						Command: suite.NewMessageBuilder().
+						Commands: []*fimpgo.Message{suite.NewMessageBuilder().
 							FloatMapMessage(
 								"pt:j1/mt:cmd/rt:dev/rn:test_adapter/ad:1/sv:virtual_meter_elec/ad:2",
 								"cmd.meter.add",
@@ -79,7 +81,7 @@ func TestRouteService(t *testing.T) { //nolint:paralleltest
 								map[string]float64{"on": 123, "off": 321},
 							).
 							AddProperty(virtualmeter.PropertyNameUnit, "W").
-							Build(),
+							Build()},
 						Expectations: []*suite.Expectation{
 							suite.ExpectFloatMap(
 								"pt:j1/mt:evt/rt:dev/rn:test_adapter/ad:1/sv:virtual_meter_elec/ad:2",
@@ -91,11 +93,11 @@ func TestRouteService(t *testing.T) { //nolint:paralleltest
 					},
 					{
 						Name: "Cmd meter remove",
-						Command: suite.NullMessage(
+						Commands: []*fimpgo.Message{suite.NullMessage(
 							"pt:j1/mt:cmd/rt:dev/rn:test_adapter/ad:1/sv:virtual_meter_elec/ad:2",
 							"cmd.meter.remove",
 							"virtual_meter_elec",
-						),
+						)},
 						Expectations: []*suite.Expectation{
 							suite.ExpectFloatMap(
 								"pt:j1/mt:evt/rt:dev/rn:test_adapter/ad:1/sv:virtual_meter_elec/ad:2",
@@ -107,11 +109,11 @@ func TestRouteService(t *testing.T) { //nolint:paralleltest
 					},
 					{
 						Name: "Cmd meter remove idempotent",
-						Command: suite.NullMessage(
+						Commands: []*fimpgo.Message{suite.NullMessage(
 							"pt:j1/mt:cmd/rt:dev/rn:test_adapter/ad:1/sv:virtual_meter_elec/ad:2",
 							"cmd.meter.remove",
 							"virtual_meter_elec",
-						),
+						)},
 						Expectations: []*suite.Expectation{
 							suite.ExpectFloatMap(
 								"pt:j1/mt:evt/rt:dev/rn:test_adapter/ad:1/sv:virtual_meter_elec/ad:2",
@@ -123,11 +125,11 @@ func TestRouteService(t *testing.T) { //nolint:paralleltest
 					},
 					{
 						Name: "Cmd get report after remove",
-						Command: suite.NullMessage(
+						Commands: []*fimpgo.Message{suite.NullMessage(
 							"pt:j1/mt:cmd/rt:dev/rn:test_adapter/ad:1/sv:virtual_meter_elec/ad:2",
 							"cmd.meter.get_report",
 							"virtual_meter_elec",
-						),
+						)},
 						Expectations: []*suite.Expectation{
 							suite.ExpectFloatMap(
 								"pt:j1/mt:evt/rt:dev/rn:test_adapter/ad:1/sv:virtual_meter_elec/ad:2",
@@ -146,7 +148,7 @@ func TestRouteService(t *testing.T) { //nolint:paralleltest
 				Nodes: []*suite.Node{
 					{
 						Name: "Error when unsupported unit property provided",
-						Command: suite.NewMessageBuilder().
+						Commands: []*fimpgo.Message{suite.NewMessageBuilder().
 							FloatMapMessage(
 								"pt:j1/mt:cmd/rt:dev/rn:test_adapter/ad:1/sv:virtual_meter_elec/ad:2",
 								"cmd.meter.add",
@@ -154,28 +156,28 @@ func TestRouteService(t *testing.T) { //nolint:paralleltest
 								map[string]float64{"on": 100},
 							).
 							AddProperty(virtualmeter.PropertyNameUnit, "invalid").
-							Build(),
+							Build()},
 						Expectations: []*suite.Expectation{
 							suite.ExpectError("pt:j1/mt:evt/rt:dev/rn:test_adapter/ad:1/sv:virtual_meter_elec/ad:2", "virtual_meter_elec"),
 						},
 					},
 					{
 						Name: "Error when no unit property provided",
-						Command: suite.NewMessageBuilder().
+						Commands: []*fimpgo.Message{suite.NewMessageBuilder().
 							FloatMapMessage(
 								"pt:j1/mt:cmd/rt:dev/rn:test_adapter/ad:1/sv:virtual_meter_elec/ad:2",
 								"cmd.meter.add",
 								"virtual_meter_elec",
 								map[string]float64{"on": 100},
 							).
-							Build(),
+							Build()},
 						Expectations: []*suite.Expectation{
 							suite.ExpectError("pt:j1/mt:evt/rt:dev/rn:test_adapter/ad:1/sv:virtual_meter_elec/ad:2", "virtual_meter_elec"),
 						},
 					},
 					{
 						Name: "Error when value type isn't float map",
-						Command: suite.NewMessageBuilder().
+						Commands: []*fimpgo.Message{suite.NewMessageBuilder().
 							StringMessage(
 								"pt:j1/mt:cmd/rt:dev/rn:test_adapter/ad:1/sv:virtual_meter_elec/ad:2",
 								"cmd.meter.add",
@@ -183,7 +185,7 @@ func TestRouteService(t *testing.T) { //nolint:paralleltest
 								"invalid",
 							).
 							AddProperty(virtualmeter.PropertyNameUnit, "W").
-							Build(),
+							Build()},
 						Expectations: []*suite.Expectation{
 							suite.ExpectError("pt:j1/mt:evt/rt:dev/rn:test_adapter/ad:1/sv:virtual_meter_elec/ad:2", "virtual_meter_elec"),
 						},
@@ -227,7 +229,7 @@ func setupService(
 	managerWrapper := virtualmeter.NewManager(db, recalculatingPeriod, time.Hour)
 	seed := &adapter.ThingSeed{ID: "B", CustomAddress: "2"}
 
-	factory := adapterhelper.FactoryHelper(func(a adapter.Adapter, publisher adapter.Publisher, thingState adapter.ThingState) (adapter.Thing, error) {
+	factory := adapterhelper.FactoryHelper(func(_ adapter.Adapter, publisher adapter.Publisher, thingState adapter.ThingState) (adapter.Thing, error) {
 		outLvlSwitchSpec := outlvlswitch.Specification(
 			"test_adapter",
 			"1",

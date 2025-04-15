@@ -35,50 +35,50 @@ func TestRouteService(t *testing.T) { //nolint:paralleltest
 				),
 				Nodes: []*suite.Node{
 					{
-						Name:    "Switch binary on",
-						Command: suite.BoolMessage("pt:j1/mt:cmd/rt:dev/rn:test_adapter/ad:1/sv:out_bin_switch/ad:2", "cmd.binary.set", "out_bin_switch", true),
+						Name:     "Switch binary on",
+						Commands: []*fimpgo.Message{suite.BoolMessage("pt:j1/mt:cmd/rt:dev/rn:test_adapter/ad:1/sv:out_bin_switch/ad:2", "cmd.binary.set", "out_bin_switch", true)},
 						Expectations: []*suite.Expectation{
 							suite.ExpectBool("pt:j1/mt:evt/rt:dev/rn:test_adapter/ad:1/sv:out_bin_switch/ad:2", "evt.binary.report", "out_bin_switch", true),
 						},
 					},
 					{
-						Name:    "Get binary report",
-						Command: suite.NullMessage("pt:j1/mt:cmd/rt:dev/rn:test_adapter/ad:1/sv:out_bin_switch/ad:2", "cmd.binary.get_report", "out_bin_switch"),
+						Name:     "Get binary report",
+						Commands: []*fimpgo.Message{suite.NullMessage("pt:j1/mt:cmd/rt:dev/rn:test_adapter/ad:1/sv:out_bin_switch/ad:2", "cmd.binary.get_report", "out_bin_switch")},
 						Expectations: []*suite.Expectation{
 							suite.ExpectBool("pt:j1/mt:evt/rt:dev/rn:test_adapter/ad:1/sv:out_bin_switch/ad:2", "evt.binary.report", "out_bin_switch", false),
 						},
 					},
 					{
-						Name:    "Wrong topic",
-						Command: suite.NullMessage("pt:j1/mt:cmd/rt:dev/rn:test_adapter/ad:1/sv:out_bin_switch/ad:666", "cmd.binary.get_report", "out_bin_switch"),
+						Name:     "Wrong topic",
+						Commands: []*fimpgo.Message{suite.NullMessage("pt:j1/mt:cmd/rt:dev/rn:test_adapter/ad:1/sv:out_bin_switch/ad:666", "cmd.binary.get_report", "out_bin_switch")},
 						Expectations: []*suite.Expectation{
 							suite.ExpectError("pt:j1/mt:evt/rt:dev/rn:test_adapter/ad:1/sv:out_bin_switch/ad:666", "out_bin_switch"),
 						},
 					},
 					{
-						Name:    "Get errored binary report",
-						Command: suite.NullMessage("pt:j1/mt:cmd/rt:dev/rn:test_adapter/ad:1/sv:out_bin_switch/ad:2", "cmd.binary.get_report", "out_bin_switch"),
+						Name:     "Get errored binary report",
+						Commands: []*fimpgo.Message{suite.NullMessage("pt:j1/mt:cmd/rt:dev/rn:test_adapter/ad:1/sv:out_bin_switch/ad:2", "cmd.binary.get_report", "out_bin_switch")},
 						Expectations: []*suite.Expectation{
 							suite.ExpectError("pt:j1/mt:evt/rt:dev/rn:test_adapter/ad:1/sv:out_bin_switch/ad:2", "out_bin_switch"),
 						},
 					},
 					{
-						Name:    "Switch binary on - wrong topic",
-						Command: suite.BoolMessage("pt:j1/mt:cmd/rt:dev/rn:test_adapter/ad:1/sv:out_bin_switch/ad:666", "cmd.binary.set", "out_bin_switch", true),
+						Name:     "Switch binary on - wrong topic",
+						Commands: []*fimpgo.Message{suite.BoolMessage("pt:j1/mt:cmd/rt:dev/rn:test_adapter/ad:1/sv:out_bin_switch/ad:666", "cmd.binary.set", "out_bin_switch", true)},
 						Expectations: []*suite.Expectation{
 							suite.ExpectError("pt:j1/mt:evt/rt:dev/rn:test_adapter/ad:1/sv:out_bin_switch/ad:666", "out_bin_switch"),
 						},
 					},
 					{
-						Name:    "Switch binary on - wrong type",
-						Command: suite.BoolMessage("pt:j1/mt:cmd/rt:dev/rn:test_adapter/ad:1/sv:out_bin_switch/ad:2", "cmd.binary.set", "out_bin_switch", true),
+						Name:     "Switch binary on - wrong type",
+						Commands: []*fimpgo.Message{suite.BoolMessage("pt:j1/mt:cmd/rt:dev/rn:test_adapter/ad:1/sv:out_bin_switch/ad:2", "cmd.binary.set", "out_bin_switch", true)},
 						Expectations: []*suite.Expectation{
 							suite.ExpectError("pt:j1/mt:evt/rt:dev/rn:test_adapter/ad:1/sv:out_bin_switch/ad:2", "out_bin_switch"),
 						},
 					},
 					{
-						Name:    "Switch binary on - report error",
-						Command: suite.BoolMessage("pt:j1/mt:cmd/rt:dev/rn:test_adapter/ad:1/sv:out_bin_switch/ad:2", "cmd.binary.set", "out_bin_switch", true),
+						Name:     "Switch binary on - report error",
+						Commands: []*fimpgo.Message{suite.BoolMessage("pt:j1/mt:cmd/rt:dev/rn:test_adapter/ad:1/sv:out_bin_switch/ad:2", "cmd.binary.set", "out_bin_switch", true)},
 						Expectations: []*suite.Expectation{
 							suite.ExpectError("pt:j1/mt:evt/rt:dev/rn:test_adapter/ad:1/sv:out_bin_switch/ad:2", "out_bin_switch"),
 						},
@@ -130,7 +130,7 @@ func setupService(t *testing.T, mqtt *fimpgo.MqttTransport, controller outbinswi
 
 	seed := &adapter.ThingSeed{ID: "B", CustomAddress: "2"}
 
-	factory := adapterhelper.FactoryHelper(func(a adapter.Adapter, publisher adapter.Publisher, thingState adapter.ThingState) (adapter.Thing, error) {
+	factory := adapterhelper.FactoryHelper(func(_ adapter.Adapter, publisher adapter.Publisher, thingState adapter.ThingState) (adapter.Thing, error) {
 		return adapter.NewThing(publisher, thingState, thingCfg, outbinswitch.NewService(publisher, switchCfg)), nil
 	})
 
