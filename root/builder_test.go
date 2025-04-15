@@ -36,6 +36,17 @@ func TestBuilder_Build(t *testing.T) {
 			wantErr: false,
 		},
 		{
+			name: "If the app version is missing, we don't raise an error",
+			builder: root.NewCoreAppBuilder().
+				WithMQTT(mqtt).
+				WithServiceDiscovery(&discovery.Resource{}).
+				WithTopicSubscription("test").
+				WithRouting(&router.Routing{}).
+				WithRouterOptions(router.WithAsyncProcessing(3)).
+				WithTask(&task.Task{}),
+			wantErr: false,
+		},
+		{
 			name: "Missing mqtt client",
 			builder: root.NewCoreAppBuilder().
 				WithServiceDiscovery(&discovery.Resource{}),
@@ -45,13 +56,6 @@ func TestBuilder_Build(t *testing.T) {
 			name: "Missing service discovery",
 			builder: root.NewCoreAppBuilder().
 				WithMQTT(mqtt),
-			wantErr: true,
-		},
-		{
-			name: "Missing app version",
-			builder: root.NewCoreAppBuilder().
-				WithMQTT(mqtt).
-				WithServiceDiscovery(&discovery.Resource{}),
 			wantErr: true,
 		},
 		{

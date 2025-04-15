@@ -131,7 +131,6 @@ func TestApp_Reset(t *testing.T) { //nolint:paralleltest
 					resetter := mockedroot.NewResetter(t).MockReset(nil)
 
 					app, err := root.NewCoreAppBuilder().
-						WithVersion("test").
 						WithMQTT(mqtt).
 						WithServiceDiscovery(&discovery.Resource{}).
 						WithResetter(resetter).

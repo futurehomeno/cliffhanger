@@ -110,7 +110,6 @@ func prepareAdapter(
 
 func build(mqtt *fimpgo.MqttTransport, listener event.Listener, ad adapter.Adapter) (root.App, error) {
 	return root.NewEdgeAppBuilder().
-		WithVersion("test").
 		WithMQTT(mqtt).
 		WithServiceDiscovery(&discovery.Resource{}).
 		WithLifecycle(lifecycle.New()).

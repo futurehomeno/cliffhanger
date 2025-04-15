@@ -168,10 +168,6 @@ func (b *Builder) check() error {
 		return errors.New("builder: it is required to provide service discovery resource instance")
 	}
 
-	if b.version == "" {
-		return errors.New("builder: application version cannot be empty")
-	}
-
 	if b.edge && b.lifecycle == nil {
 		return errors.New("builder: it is required for an edge app to provide a lifecycle service instance")
 	}
