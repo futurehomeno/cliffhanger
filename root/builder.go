@@ -13,6 +13,10 @@ import (
 	"github.com/futurehomeno/cliffhanger/task"
 )
 
+// Version represents the application version.
+// If the app version is set through Builder.WithVersion, it will take precedence over this value.
+var Version string
+
 // NewEdgeAppBuilder creates new instance of an edge app builder.
 func NewEdgeAppBuilder() *Builder {
 	return newBuilder(true)
@@ -26,7 +30,8 @@ func NewCoreAppBuilder() *Builder {
 // newBuilder creates new root app builder instance.
 func newBuilder(edge bool) *Builder {
 	return &Builder{
-		edge: edge,
+		edge:    edge,
+		version: Version,
 	}
 }
 
@@ -108,6 +113,7 @@ func (b *Builder) WithResetter(resetter ...Resetter) *Builder {
 }
 
 // WithVersion sets the application version.
+// It takes precedence over the global Version variable.
 func (b *Builder) WithVersion(version string) *Builder {
 	b.version = strings.TrimSpace(version)
 
