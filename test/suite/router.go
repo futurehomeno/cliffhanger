@@ -11,6 +11,7 @@ import (
 
 	"github.com/futurehomeno/fimpgo"
 	"github.com/google/uuid"
+	log "github.com/sirupsen/logrus"
 
 	"github.com/futurehomeno/cliffhanger/router"
 )
@@ -217,6 +218,12 @@ func (r *Router) processMessage(message *fimpgo.Message) (*fimpgo.FimpMessage, e
 	r.mu.RLock()
 	expectations := r.expectations
 	r.mu.RUnlock()
+
+	log.
+		WithField("topic", message.Topic).
+		WithField("type", message.Payload.Type).
+		WithField("service", message.Payload.Service).
+		Debug("test node router received a message")
 
 	for _, e := range expectations {
 		voted, votes := e.vote(message)
