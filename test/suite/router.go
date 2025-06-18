@@ -223,7 +223,7 @@ func (r *Router) processMessage(message *fimpgo.Message) (*fimpgo.FimpMessage, e
 		WithField("topic", message.Topic).
 		WithField("type", message.Payload.Type).
 		WithField("service", message.Payload.Service).
-		Debug("Received message")
+		Debug("test node router received a message")
 
 	for _, e := range expectations {
 		voted, votes := e.vote(message)
