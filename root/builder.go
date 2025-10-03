@@ -2,6 +2,7 @@ package root
 
 import (
 	"errors"
+	"strings"
 	"sync"
 
 	"github.com/futurehomeno/fimpgo"
@@ -11,6 +12,10 @@ import (
 	"github.com/futurehomeno/cliffhanger/router"
 	"github.com/futurehomeno/cliffhanger/task"
 )
+
+// Version represents the application version.
+// If the app version is set through Builder.WithVersion, it will take precedence over this value.
+var Version string
 
 // NewEdgeAppBuilder creates new instance of an edge app builder.
 func NewEdgeAppBuilder() *Builder {
@@ -25,13 +30,15 @@ func NewCoreAppBuilder() *Builder {
 // newBuilder creates new root app builder instance.
 func newBuilder(edge bool) *Builder {
 	return &Builder{
-		edge: edge,
+		edge:    edge,
+		version: Version,
 	}
 }
 
 // Builder is a root app builder that helps to set up and run root application on a hub.
 type Builder struct {
 	edge               bool
+	version            string
 	mqtt               *fimpgo.MqttTransport
 	resource           *discovery.Resource
 	lifecycle          *lifecycle.Lifecycle
@@ -105,6 +112,14 @@ func (b *Builder) WithResetter(resetter ...Resetter) *Builder {
 	return b
 }
 
+// WithVersion sets the application version.
+// It takes precedence over the global Version variable.
+func (b *Builder) WithVersion(version string) *Builder {
+	b.version = strings.TrimSpace(version)
+
+	return b
+}
+
 // Build builds the root application.
 func (b *Builder) Build() (App, error) {
 	if err := b.check(); err != nil {
@@ -119,6 +134,8 @@ func (b *Builder) doBuild() App {
 	rootApp := &app{
 		lock:  &sync.Mutex{},
 		errCh: make(chan error),
+
+		version: b.version,
 
 		mqtt:        b.mqtt,
 		lifecycle:   b.lifecycle,
