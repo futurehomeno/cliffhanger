@@ -2,10 +2,13 @@ package bootstrap
 
 import (
 	"flag"
+	"fmt"
 	"os"
 	"os/signal"
+	"path/filepath"
 	"syscall"
 
+	"github.com/futurehomeno/cliffhanger/formatters"
 	log "github.com/sirupsen/logrus"
 	"gopkg.in/natefinch/lumberjack.v2"
 )
@@ -38,10 +41,18 @@ func GetWorkingDirectory() string {
 }
 
 // InitializeLogger initializes logger with an optional log rotation.
-func InitializeLogger(logFile string, level string, logFormat string) {
-	if logFormat == "json" {
+func InitializeLogger(logFile string, level string, logFormat string) error {
+	if logFile == "" {
+		return fmt.Errorf("Logfile not set")
+	}
+
+	switch logFormat {
+	case "json":
 		log.SetFormatter(&log.JSONFormatter{TimestampFormat: "2006-01-02 15:04:05.999"})
-	} else {
+	case "budzik":
+		lvlDesc := []string{"PANIC", "FATAL", "E", "W", "I", "D", "T", "?"}
+		log.SetFormatter(&formatters.BudzikFormatter{TimestampFormat: "01-02 15:04:05", LevelDesc: lvlDesc})
+	default:
 		log.SetFormatter(&log.TextFormatter{FullTimestamp: true, ForceColors: true, TimestampFormat: "2006-01-02T15:04:05.999"})
 	}
 
@@ -52,15 +63,30 @@ func InitializeLogger(logFile string, level string, logFormat string) {
 		log.SetLevel(log.DebugLevel)
 	}
 
-	if logFile != "" {
-		l := &lumberjack.Logger{
-			Filename:   logFile,
-			MaxSize:    5, // MiB
-			MaxBackups: 2,
+	l := &lumberjack.Logger{
+		Filename:   logFile,
+		MaxSize:    5, // MiB
+		MaxBackups: 4,
+		Compress:   false,
+		LocalTime:  true,
+	}
+
+	f, err := os.OpenFile(l.Filename, os.O_RDONLY|os.O_CREATE, 0644)
+
+	if err != nil {
+		if err := os.MkdirAll(filepath.Dir(l.Filename), 0770); err != nil {
+			return fmt.Errorf("create log dir=%s err: %s", filepath.Dir(l.Filename), err.Error())
 		}
 
-		log.SetOutput(l)
+		if f, err = os.OpenFile(l.Filename, os.O_RDONLY|os.O_CREATE, 0644); err != nil {
+			return fmt.Errorf("open log file=%s err: %s", l.Filename, err.Error())
+		}
 	}
+
+	f.Close()
+	log.SetOutput(l)
+
+	return nil
 }
 
 // WaitForShutdown blocks code execution until a shutdown signal occurs.
