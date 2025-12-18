@@ -43,15 +43,14 @@ func GetWorkingDirectory() string {
 // InitializeLogger initializes logger with an optional log rotation.
 func InitializeLogger(logFile string, level string, logFormat string) error {
 	if logFile == "" {
-		return fmt.Errorf("Logfile not set")
+		return fmt.Errorf("logfile not set")
 	}
 
 	switch logFormat {
 	case "json":
 		log.SetFormatter(&log.JSONFormatter{TimestampFormat: "2006-01-02 15:04:05.999"})
 	case "budzik":
-		lvlDesc := []string{"PANIC", "FATAL", "E", "W", "I", "D", "T", "?"}
-		log.SetFormatter(&formatters.BudzikFormatter{TimestampFormat: "01-02 15:04:05", LevelDesc: lvlDesc})
+		log.SetFormatter(formatters.NewBudzikFormatter())
 	default:
 		log.SetFormatter(&log.TextFormatter{FullTimestamp: true, ForceColors: true, TimestampFormat: "2006-01-02T15:04:05.999"})
 	}
@@ -67,8 +66,6 @@ func InitializeLogger(logFile string, level string, logFormat string) error {
 		Filename:   logFile,
 		MaxSize:    5, // MiB
 		MaxBackups: 4,
-		Compress:   false,
-		LocalTime:  true,
 	}
 
 	f, err := os.OpenFile(l.Filename, os.O_RDONLY|os.O_CREATE, 0644)
