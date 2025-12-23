@@ -10,7 +10,6 @@ import (
 
 	"github.com/futurehomeno/fimpgo"
 	"github.com/futurehomeno/fimpgo/fimptype"
-	log "github.com/sirupsen/logrus"
 
 	"github.com/futurehomeno/cliffhanger/adapter/cache"
 )
@@ -286,8 +285,6 @@ func (t *thing) SendConnectivityReport(force bool) (bool, error) {
 	}
 
 	t.reportingCache.Reported(EvtNetworkNodeReport, "", report)
-
-	log.Infof("thing: connectivity state of thing %s is %s", t.Address(), report.ConnectionStatus)
 
 	return true, nil
 }
