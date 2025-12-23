@@ -67,7 +67,7 @@ func (m *manager) RegisterThing(thing adapter.Thing, publisher adapter.Publisher
 			continue
 		}
 
-		log.Debugf("manager: registering services %s and %s for group %s", vmsSpec.Name, numericSpec.Name, group)
+		log.Debugf("[cliff] Register services %s and %s for group %s", vmsSpec.Name, numericSpec.Name, group)
 
 		if err := m.registerVirtualServices(thing, publisher, vmsSpec, numericSpec); err != nil {
 			return err
@@ -194,7 +194,7 @@ func (m *manager) update(topic, newMode string, newLevel float64) error {
 		return fmt.Errorf("manager: failed to update energy by topic %s: %w", topic, err)
 	}
 
-	log.Debugf("Updating with the following values: mode %s, level %v", newMode, newLevel)
+	log.Debugf("[cliff] Update VM with mode=%s level=%v", newMode, newLevel)
 
 	device.Level = newLevel
 	device.CurrentMode = newMode
@@ -332,8 +332,8 @@ func (m *manager) recalculateEnergy(force bool, d *Device) (bool, error) {
 		timeSinceUpdated := time.Since(d.LastTimeUpdated)
 
 		if 2*m.energyRecalculationPeriod < timeSinceUpdated {
-			log.Warnf("Recalculating enegry after a long interuption. Accounting for 2 recalculation periods only." +
-				fmt.Sprintf(" \nRecalculation period: %v, Time elapsed: %v", m.energyRecalculationPeriod, timeSinceUpdated))
+			log.Warnf("[cliff] Recalculate energy after a long interruption. Accounting for 2 recalculation periods only." +
+				fmt.Sprintf(" \nRecalculation period=%v,Time elapsed=%v", m.energyRecalculationPeriod, timeSinceUpdated))
 		}
 
 		timeSinceUpdatedHours := math.Min(timeSinceUpdated.Hours(), 2*m.energyRecalculationPeriod.Hours())
@@ -341,11 +341,13 @@ func (m *manager) recalculateEnergy(force bool, d *Device) (bool, error) {
 		increase := timeSinceUpdatedHours * d.Modes[d.CurrentMode] * d.Level
 		increase /= 1000
 
-		log.Debugf("Updating accumulated energy. Current values: %v, increase (Wh): %v, modes: %v, mode: %s",
-			d.AccumulatedEnergy, increase*1000, d.Modes, d.CurrentMode)
+		prevEnergy := d.AccumulatedEnergy
 
 		d.AccumulatedEnergy += increase
 		d.LastTimeUpdated = time.Now()
+
+		log.Debugf("[cliff] Update VM energy %v + %v = %v modes=%v active=%t",
+			prevEnergy, increase, d.AccumulatedEnergy, d.Modes, d.Active)
 
 		return true, nil
 	}
@@ -462,8 +464,6 @@ func (m *manager) registerVirtualServices(
 ) error {
 	// avoid adding virtual service that already exists.
 	for _, s := range thing.Services(VirtualMeterElec) {
-		log.Infof("Comparing %s with %s", s.Topic(), vmsSpec.Address)
-
 		if s.Topic() == vmsSpec.Address {
 			return nil
 		}
@@ -485,8 +485,6 @@ func (m *manager) registerVirtualServices(
 		Reporter:          newController(topic, m),
 		ReportingStrategy: nil,
 	})
-
-	log.Debugf("manager: registering a service template, topic: %s", topic)
 
 	device, err := m.storage.Device(topic)
 
