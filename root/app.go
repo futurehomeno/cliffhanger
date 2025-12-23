@@ -50,8 +50,6 @@ type app struct {
 	lock    *sync.Mutex
 	errCh   chan error
 
-	version string
-
 	mqtt               *fimpgo.MqttTransport
 	lifecycle          *lifecycle.Lifecycle
 	topicSubscriptions []string
@@ -132,7 +130,7 @@ func (a *app) doStart() error {
 		return nil
 	}
 
-	log.WithField("version", a.version).Info("application: starting the application")
+	log.Info("[cliff]] Starting app")
 
 	if a.lifecycle != nil {
 		a.lifecycle.SetAppState(lifecycle.AppStateStarting, nil)
@@ -167,7 +165,7 @@ func (a *app) doStart() error {
 		return fmt.Errorf("application: failed to start the task manager: %w", err)
 	}
 
-	log.Info("application: the application is started")
+	log.Info("[cliff]] App started")
 
 	a.running = true
 
@@ -179,8 +177,6 @@ func (a *app) doStop() error {
 	if !a.running {
 		return nil
 	}
-
-	log.WithField("version", a.version).Info("application: stopping the application")
 
 	if a.lifecycle != nil {
 		a.lifecycle.SetAppState(lifecycle.AppStateTerminate, nil)
@@ -212,8 +208,6 @@ func (a *app) doStop() error {
 
 	a.mqtt.Stop()
 
-	log.Info("application: the application is stopped")
-
 	a.running = false
 
 	return nil
@@ -221,7 +215,7 @@ func (a *app) doStop() error {
 
 // doReset performs the application factory reset.
 func (a *app) doReset() error {
-	log.Info("application: performing factory reset of the application data")
+	log.Info("[cliff] Performing factory reset of the application data")
 
 	for _, resetter := range a.resetters {
 		err := resetter.Reset()
@@ -230,7 +224,7 @@ func (a *app) doReset() error {
 		}
 	}
 
-	log.Info("application: factory reset of the application data is completed")
+	log.Info("cliff] Factory reset of the application data completed")
 
 	return nil
 }
