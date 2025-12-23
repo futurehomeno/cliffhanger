@@ -26,7 +26,6 @@ func TestBuilder_Build(t *testing.T) {
 		{
 			name: "Build core without errors",
 			builder: root.NewCoreAppBuilder().
-				WithVersion("test").
 				WithMQTT(mqtt).
 				WithServiceDiscovery(&discovery.Resource{}).
 				WithTopicSubscription("test").
