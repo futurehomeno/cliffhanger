@@ -7,7 +7,6 @@ import (
 
 	"github.com/futurehomeno/fimpgo"
 	"github.com/futurehomeno/fimpgo/fimptype"
-	log "github.com/sirupsen/logrus"
 
 	"github.com/futurehomeno/cliffhanger/adapter"
 	"github.com/futurehomeno/cliffhanger/adapter/cache"
@@ -85,8 +84,6 @@ func (s *service) SendModesReport(force bool) (bool, error) {
 	if !force && !s.reportingCache.ReportRequired(s.reportingStrategy, EvtMeterReport, "", value) {
 		return false, nil
 	}
-
-	log.Infof("Sending modes report: %v, name: %s, ", value, s.Name())
 
 	sendValue := value
 	if sendValue == nil {
