@@ -130,7 +130,7 @@ func (a *app) doStart() error {
 		return nil
 	}
 
-	log.Info("[cliff]] Starting app")
+	log.Info("[cliff] Starting app")
 
 	if a.lifecycle != nil {
 		a.lifecycle.SetAppState(lifecycle.AppStateStarting, nil)
@@ -165,7 +165,7 @@ func (a *app) doStart() error {
 		return fmt.Errorf("application: failed to start the task manager: %w", err)
 	}
 
-	log.Info("[cliff]] App started")
+	log.Info("[cliff] App started")
 
 	a.running = true
 
