@@ -32,9 +32,11 @@ func TestRouteBattery(t *testing.T) { //nolint:paralleltest
 				Nodes: []*suite.Node{
 					{
 						Name: "successful get level report",
-						Command: suite.NewMessageBuilder().
-							NullMessage("pt:j1/mt:cmd/rt:dev/rn:test_adapter/ad:1/sv:battery/ad:2", "cmd.lvl.get_report", "battery").
-							Build(),
+						Commands: []*fimpgo.Message{
+							suite.NewMessageBuilder().
+								NullMessage("pt:j1/mt:cmd/rt:dev/rn:test_adapter/ad:1/sv:battery/ad:2", "cmd.lvl.get_report", "battery").
+								Build(),
+						},
 						Expectations: []*suite.Expectation{
 							suite.ExpectInt("pt:j1/mt:evt/rt:dev/rn:test_adapter/ad:1/sv:battery/ad:2", "evt.lvl.report", "battery", 80),
 						},
@@ -52,36 +54,36 @@ func TestRouteBattery(t *testing.T) { //nolint:paralleltest
 				Nodes: []*suite.Node{
 					{
 						Name: "get level report",
-						Command: suite.NewMessageBuilder().
+						Commands: []*fimpgo.Message{suite.NewMessageBuilder().
 							NullMessage("pt:j1/mt:cmd/rt:dev/rn:test_adapter/ad:1/sv:battery/ad:2", "cmd.lvl.get_report", "battery").
-							Build(),
+							Build()},
 						Expectations: []*suite.Expectation{
 							suite.ExpectError("pt:j1/mt:evt/rt:dev/rn:test_adapter/ad:1/sv:battery/ad:2", "battery"),
 						},
 					},
 					{
 						Name: "wrong address get level report",
-						Command: suite.NewMessageBuilder().
+						Commands: []*fimpgo.Message{suite.NewMessageBuilder().
 							NullMessage("pt:j1/mt:cmd/rt:dev/rn:test_adapter/ad:1/sv:battery/ad:3", "cmd.lvl.get_report", "battery").
-							Build(),
+							Build()},
 						Expectations: []*suite.Expectation{
 							suite.ExpectError("pt:j1/mt:evt/rt:dev/rn:test_adapter/ad:1/sv:battery/ad:3", "battery"),
 						},
 					},
 					{
 						Name: "wrong address get level report",
-						Command: suite.NewMessageBuilder().
+						Commands: []*fimpgo.Message{suite.NewMessageBuilder().
 							NullMessage("pt:j1/mt:cmd/rt:dev/rn:test_adapter/ad:1/sv:battery/ad:3", "cmd.lvl.get_report", "battery").
-							Build(),
+							Build()},
 						Expectations: []*suite.Expectation{
 							suite.ExpectError("pt:j1/mt:evt/rt:dev/rn:test_adapter/ad:1/sv:battery/ad:3", "battery"),
 						},
 					},
 					{
 						Name: "wrong service under provided address level report",
-						Command: suite.NewMessageBuilder().
+						Commands: []*fimpgo.Message{suite.NewMessageBuilder().
 							NullMessage("pt:j1/mt:cmd/rt:dev/rn:test_adapter/ad:1/sv:batteraay/ad:2", "cmd.lvl.get_report", "battery").
-							Build(),
+							Build()},
 						Expectations: []*suite.Expectation{
 							suite.ExpectError("pt:j1/mt:evt/rt:dev/rn:test_adapter/ad:1/sv:batteraay/ad:2", "battery"),
 						},
@@ -194,7 +196,7 @@ func setupBattery(
 
 	seed := &adapter.ThingSeed{ID: "B", CustomAddress: "2"}
 
-	factory := adapterhelper.FactoryHelper(func(adapter adapter.Adapter, publisher adapter.Publisher, thingState adapter.ThingState) (adapter.Thing, error) {
+	factory := adapterhelper.FactoryHelper(func(_ adapter.Adapter, publisher adapter.Publisher, thingState adapter.ThingState) (adapter.Thing, error) {
 		return thing.NewBattery(publisher, thingState, cfg), nil
 	})
 

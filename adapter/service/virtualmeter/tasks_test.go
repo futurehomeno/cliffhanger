@@ -4,6 +4,8 @@ import (
 	"testing"
 	"time"
 
+	"github.com/futurehomeno/fimpgo"
+
 	"github.com/futurehomeno/cliffhanger/adapter/service/virtualmeter"
 	adapterhelper "github.com/futurehomeno/cliffhanger/test/helper/adapter"
 	"github.com/futurehomeno/cliffhanger/test/suite"
@@ -32,7 +34,7 @@ func TestTaskReporting(t *testing.T) {
 					},
 					{
 						Name: "Cmd meter add",
-						Command: suite.NewMessageBuilder().
+						Commands: []*fimpgo.Message{suite.NewMessageBuilder().
 							FloatMapMessage(
 								"pt:j1/mt:cmd/rt:dev/rn:test_adapter/ad:1/sv:virtual_meter_elec/ad:2",
 								"cmd.meter.add",
@@ -40,7 +42,7 @@ func TestTaskReporting(t *testing.T) {
 								map[string]float64{"on": 100, "off": 1},
 							).
 							AddProperty(virtualmeter.PropertyNameUnit, "W").
-							Build(),
+							Build()},
 						Expectations: []*suite.Expectation{
 							suite.ExpectFloatMap(
 								"pt:j1/mt:evt/rt:dev/rn:test_adapter/ad:1/sv:virtual_meter_elec/ad:2",
@@ -52,13 +54,13 @@ func TestTaskReporting(t *testing.T) {
 					},
 					{
 						Name: "should report latest set modes",
-						Command: suite.NewMessageBuilder().
+						Commands: []*fimpgo.Message{suite.NewMessageBuilder().
 							NullMessage(
 								"pt:j1/mt:cmd/rt:dev/rn:test_adapter/ad:1/sv:virtual_meter_elec/ad:2",
 								"cmd.meter.get_report",
 								"virtual_meter_elec",
 							).
-							Build(),
+							Build()},
 						Expectations: []*suite.Expectation{
 							suite.ExpectFloatMap(
 								"pt:j1/mt:evt/rt:dev/rn:test_adapter/ad:1/sv:virtual_meter_elec/ad:2",
@@ -70,11 +72,11 @@ func TestTaskReporting(t *testing.T) {
 					},
 					{
 						Name: "Cmd meter remove",
-						Command: suite.NullMessage(
+						Commands: []*fimpgo.Message{suite.NullMessage(
 							"pt:j1/mt:cmd/rt:dev/rn:test_adapter/ad:1/sv:virtual_meter_elec/ad:2",
 							"cmd.meter.remove",
 							"virtual_meter_elec",
-						),
+						)},
 						Expectations: []*suite.Expectation{
 							suite.ExpectFloatMap(
 								"pt:j1/mt:evt/rt:dev/rn:test_adapter/ad:1/sv:virtual_meter_elec/ad:2",
@@ -86,13 +88,13 @@ func TestTaskReporting(t *testing.T) {
 					},
 					{
 						Name: "should report empty when modes removed",
-						Command: suite.NewMessageBuilder().
+						Commands: []*fimpgo.Message{suite.NewMessageBuilder().
 							NullMessage(
 								"pt:j1/mt:cmd/rt:dev/rn:test_adapter/ad:1/sv:virtual_meter_elec/ad:2",
 								"cmd.meter.get_report",
 								"virtual_meter_elec",
 							).
-							Build(),
+							Build()},
 						Expectations: []*suite.Expectation{
 							suite.ExpectFloatMap(
 								"pt:j1/mt:evt/rt:dev/rn:test_adapter/ad:1/sv:virtual_meter_elec/ad:2",
