@@ -19,4 +19,4 @@ lint:
 test:
 	go test -p 1 -v -covermode=atomic ./...
 
-.phony: generate-mocks test lint
+.PHONY: generate-mocks test lint
