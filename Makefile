@@ -17,7 +17,5 @@ generate-mocks:
 lint:
 	golangci-lint run
 
-tests:
-	docker container rm -f mqtt
-	docker-compose up -d mqtt
+test:
 	go test -p 1 -v -covermode=atomic ./...

@@ -44,7 +44,7 @@ func handlePeriodicReporting(meter Service) {
 	if meter.SupportsExtendedReport() {
 		_, err := meter.SendMeterExtendedReport(meter.SupportedExtendedValues(), false)
 		if err != nil {
-			log.WithError(err).Errorf("adapter: failed to send meter extended report")
+			log.WithError(err).Errorf("failed to send meter extended report")
 		}
 
 		return
@@ -53,7 +53,7 @@ func handlePeriodicReporting(meter Service) {
 	for _, unit := range meter.SupportedUnits() {
 		_, err := meter.SendMeterReport(unit, false)
 		if err != nil {
-			log.WithError(err).Errorf("adapter: failed to send meter report for unit: %s", unit)
+			log.WithError(err).Errorf("failed to send meter report for unit: %s", unit)
 		}
 	}
 
@@ -64,7 +64,7 @@ func handlePeriodicReporting(meter Service) {
 	for _, unit := range meter.SupportedExportUnits() {
 		_, err := meter.SendMeterExportReport(unit, false)
 		if err != nil {
-			log.WithError(err).Errorf("adapter: failed to send meter export report for unit: %s", unit)
+			log.WithError(err).Errorf("failed to send meter export report for unit: %s", unit)
 		}
 	}
 }

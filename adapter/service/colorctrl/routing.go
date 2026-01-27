@@ -41,27 +41,27 @@ func HandleCmdColorSet(serviceRegistry adapter.ServiceRegistry) router.MessageHa
 		router.MessageProcessorFn(func(message *fimpgo.Message) (*fimpgo.FimpMessage, error) {
 			s := serviceRegistry.ServiceByTopic(message.Topic)
 			if s == nil {
-				return nil, fmt.Errorf("adapter: service not found under the provided address: %s", message.Addr.ServiceAddress)
+				return nil, fmt.Errorf("service not found under the provided address: %s", message.Addr.ServiceAddress)
 			}
 
 			colorctrl, ok := s.(Service)
 			if !ok {
-				return nil, fmt.Errorf("adapter: incorrect service found under the provided address: %s", message.Addr.ServiceAddress)
+				return nil, fmt.Errorf("incorrect service found under the provided address: %s", message.Addr.ServiceAddress)
 			}
 
 			color, err := message.Payload.GetIntMapValue()
 			if err != nil {
-				return nil, fmt.Errorf("adapter: failed to parse color: %w", err)
+				return nil, fmt.Errorf("failed to parse color: %w", err)
 			}
 
 			err = colorctrl.SetColor(color)
 			if err != nil {
-				return nil, fmt.Errorf("adapter: failed to set color: %w", err)
+				return nil, fmt.Errorf("failed to set color: %w", err)
 			}
 
 			_, err = colorctrl.SendColorReport(true)
 			if err != nil {
-				return nil, fmt.Errorf("adapter: failed to send color report: %w", err)
+				return nil, fmt.Errorf("failed to send color report: %w", err)
 			}
 
 			return nil, nil
@@ -84,17 +84,17 @@ func HandleCmdColorGetReport(serviceRegistry adapter.ServiceRegistry) router.Mes
 		router.MessageProcessorFn(func(message *fimpgo.Message) (*fimpgo.FimpMessage, error) {
 			s := serviceRegistry.ServiceByTopic(message.Topic)
 			if s == nil {
-				return nil, fmt.Errorf("adapter: service not found under the provided address: %s", message.Addr.ServiceAddress)
+				return nil, fmt.Errorf("service not found under the provided address: %s", message.Addr.ServiceAddress)
 			}
 
 			colorctrl, ok := s.(Service)
 			if !ok {
-				return nil, fmt.Errorf("adapter: incorrect service found under the provided address: %s", message.Addr.ServiceAddress)
+				return nil, fmt.Errorf("incorrect service found under the provided address: %s", message.Addr.ServiceAddress)
 			}
 
 			_, err := colorctrl.SendColorReport(true)
 			if err != nil {
-				return nil, fmt.Errorf("adapter: failed to send color report: %w", err)
+				return nil, fmt.Errorf("failed to send color report: %w", err)
 			}
 
 			return nil, nil

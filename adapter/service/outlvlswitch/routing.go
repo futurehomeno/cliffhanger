@@ -68,12 +68,12 @@ func HandleCmdLvlStart(serviceRegistry adapter.ServiceRegistry) router.MessageHa
 		router.MessageProcessorFn(func(message *fimpgo.Message) (*fimpgo.FimpMessage, error) {
 			s := serviceRegistry.ServiceByTopic(message.Topic)
 			if s == nil {
-				return nil, fmt.Errorf("adapter: service not found under the provided address: %s", message.Addr.ServiceAddress)
+				return nil, fmt.Errorf("service not found under the provided address: %s", message.Addr.ServiceAddress)
 			}
 
 			service, ok := s.(Service)
 			if !ok {
-				return nil, fmt.Errorf("adapter: incorrect service found under the provided address: %s", message.Addr.ServiceAddress)
+				return nil, fmt.Errorf("incorrect service found under the provided address: %s", message.Addr.ServiceAddress)
 			}
 
 			direction, err := message.Payload.GetStringValue()
@@ -111,12 +111,12 @@ func HandleCmdLvlStop(serviceRegistry adapter.ServiceRegistry) router.MessageHan
 		router.MessageProcessorFn(func(message *fimpgo.Message) (*fimpgo.FimpMessage, error) {
 			s := serviceRegistry.ServiceByTopic(message.Topic)
 			if s == nil {
-				return nil, fmt.Errorf("adapter: service not found under the provided address: %s", message.Addr.ServiceAddress)
+				return nil, fmt.Errorf("service not found under the provided address: %s", message.Addr.ServiceAddress)
 			}
 
 			service, ok := s.(Service)
 			if !ok {
-				return nil, fmt.Errorf("adapter: incorrect service found under the provided address: %s", message.Addr.ServiceAddress)
+				return nil, fmt.Errorf("incorrect service found under the provided address: %s", message.Addr.ServiceAddress)
 			}
 
 			if err := service.StopLevelTransition(); err != nil {
@@ -139,32 +139,32 @@ func HandleCmdLvlSet(serviceRegistry adapter.ServiceRegistry) router.MessageHand
 		router.MessageProcessorFn(func(message *fimpgo.Message) (*fimpgo.FimpMessage, error) {
 			s := serviceRegistry.ServiceByTopic(message.Topic)
 			if s == nil {
-				return nil, fmt.Errorf("adapter: service not found under the provided address: %s", message.Addr.ServiceAddress)
+				return nil, fmt.Errorf("service not found under the provided address: %s", message.Addr.ServiceAddress)
 			}
 
 			outLvlSwitch, ok := s.(Service)
 			if !ok {
-				return nil, fmt.Errorf("adapter: incorrect service found under the provided address: %s", message.Addr.ServiceAddress)
+				return nil, fmt.Errorf("incorrect service found under the provided address: %s", message.Addr.ServiceAddress)
 			}
 
 			lvl, err := message.Payload.GetIntValue()
 			if err != nil {
-				return nil, fmt.Errorf("adapter: error while getting level value from message: %w", err)
+				return nil, fmt.Errorf("error while getting level value from message: %w", err)
 			}
 
 			duration, err := getDurationInSeconds(message)
 			if err != nil {
-				return nil, fmt.Errorf("adapter: error while getting duration value from message: %w", err)
+				return nil, fmt.Errorf("error while getting duration value from message: %w", err)
 			}
 
 			err = outLvlSwitch.SetLevel(lvl, duration)
 			if err != nil {
-				return nil, fmt.Errorf("adapter: error while setting level: %w", err)
+				return nil, fmt.Errorf("error while setting level: %w", err)
 			}
 
 			_, err = outLvlSwitch.SendLevelReport(true)
 			if err != nil {
-				return nil, fmt.Errorf("adapter: error while sending level report: %w", err)
+				return nil, fmt.Errorf("error while sending level report: %w", err)
 			}
 
 			return nil, nil
@@ -187,27 +187,27 @@ func HandleCmdBinarySet(serviceRegistry adapter.ServiceRegistry) router.MessageH
 		router.MessageProcessorFn(func(message *fimpgo.Message) (*fimpgo.FimpMessage, error) {
 			s := serviceRegistry.ServiceByTopic(message.Topic)
 			if s == nil {
-				return nil, fmt.Errorf("adapter: service not found under the provided address: %s", message.Addr.ServiceAddress)
+				return nil, fmt.Errorf("service not found under the provided address: %s", message.Addr.ServiceAddress)
 			}
 
 			outLvlSwitch, ok := s.(Service)
 			if !ok {
-				return nil, fmt.Errorf("adapter: incorrect service found under the provided address: %s", message.Addr.ServiceAddress)
+				return nil, fmt.Errorf("incorrect service found under the provided address: %s", message.Addr.ServiceAddress)
 			}
 
 			binary, err := message.Payload.GetBoolValue()
 			if err != nil {
-				return nil, fmt.Errorf("adapter: error while getting binary value from message: %w", err)
+				return nil, fmt.Errorf("error while getting binary value from message: %w", err)
 			}
 
 			err = outLvlSwitch.SetBinaryState(binary)
 			if err != nil {
-				return nil, fmt.Errorf("adapter: error while setting binary: %w", err)
+				return nil, fmt.Errorf("error while setting binary: %w", err)
 			}
 
 			_, err = outLvlSwitch.SendLevelReport(true)
 			if err != nil {
-				return nil, fmt.Errorf("adapter: error while sending level report: %w", err)
+				return nil, fmt.Errorf("error while sending level report: %w", err)
 			}
 
 			return nil, nil
@@ -230,17 +230,17 @@ func HandleCmdLvlGetReport(serviceRegistry adapter.ServiceRegistry) router.Messa
 		router.MessageProcessorFn(func(message *fimpgo.Message) (*fimpgo.FimpMessage, error) {
 			s := serviceRegistry.ServiceByTopic(message.Topic)
 			if s == nil {
-				return nil, fmt.Errorf("adapter: service not found under the provided address: %s", message.Addr.ServiceAddress)
+				return nil, fmt.Errorf("service not found under the provided address: %s", message.Addr.ServiceAddress)
 			}
 
 			outLvlSwitch, ok := s.(Service)
 			if !ok {
-				return nil, fmt.Errorf("adapter: incorrect service found under the provided address: %s", message.Addr.ServiceAddress)
+				return nil, fmt.Errorf("incorrect service found under the provided address: %s", message.Addr.ServiceAddress)
 			}
 
 			_, err := outLvlSwitch.SendLevelReport(true)
 			if err != nil {
-				return nil, fmt.Errorf("adapter: error while sending level report: %w", err)
+				return nil, fmt.Errorf("error while sending level report: %w", err)
 			}
 
 			return nil, nil

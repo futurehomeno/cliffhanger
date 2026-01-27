@@ -31,7 +31,7 @@ func handleReporting(serviceRegistry adapter.ServiceRegistry) func() {
 
 			_, err := scene.SendSceneReport(false)
 			if err != nil {
-				log.WithError(err).Errorf("adapter: failed to send presence report")
+				log.WithError(err).Errorf("failed to send presence report")
 			}
 		}
 	}

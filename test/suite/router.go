@@ -91,7 +91,8 @@ func (r *Router) AssertExpectations(timeout time.Duration) {
 		select {
 		case <-t.C:
 			if !r.expectationsMet() {
-				r.t.Errorf(r.failedExpectationsMessage())
+				errStr := r.failedExpectationsMessage()
+				r.t.Error(errStr)
 			}
 
 			return

@@ -264,7 +264,7 @@ func (l *Lifecycle) emitStateChangeEvent(stateType StateType, currentState State
 		select {
 		case ch <- SystemEvent{Type: stateType, State: currentState, Params: params}:
 		default:
-			log.Warnf("[cliff] State event listener for ID=%s busy, event state change %s->%s dropped", i, currentState, stateType)
+			log.Warnf("[cliff] State event channel=%s busy drop event %s/%s", i, stateType, currentState)
 		}
 	}
 }

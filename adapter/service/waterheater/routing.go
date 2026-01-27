@@ -49,33 +49,33 @@ func HandleCmdModeSet(adapter adapter.ServiceRegistry) router.MessageHandler {
 		router.MessageProcessorFn(func(message *fimpgo.Message) (*fimpgo.FimpMessage, error) {
 			s := adapter.ServiceByTopic(message.Topic)
 			if s == nil {
-				return nil, fmt.Errorf("adapter: service not found under the provided address: %s", message.Addr.ServiceAddress)
+				return nil, fmt.Errorf("service not found under the provided address: %s", message.Addr.ServiceAddress)
 			}
 
 			waterHeater, ok := s.(Service)
 			if !ok {
-				return nil, fmt.Errorf("adapter: incorrect service found under the provided address: %s", message.Addr.ServiceAddress)
+				return nil, fmt.Errorf("incorrect service found under the provided address: %s", message.Addr.ServiceAddress)
 			}
 
 			mode, err := message.Payload.GetStringValue()
 			if err != nil {
-				return nil, fmt.Errorf("adapter: provided mode has an incorrect format: %w", err)
+				return nil, fmt.Errorf("provided mode has an incorrect format: %w", err)
 			}
 
 			err = waterHeater.SetMode(mode)
 			if err != nil {
-				return nil, fmt.Errorf("adapter: failed to set water heater mode: %w", err)
+				return nil, fmt.Errorf("failed to set water heater mode: %w", err)
 			}
 
 			_, err = waterHeater.SendModeReport(true)
 			if err != nil {
-				return nil, fmt.Errorf("adapter: failed to send water heater mode report: %w", err)
+				return nil, fmt.Errorf("failed to send water heater mode report: %w", err)
 			}
 
 			if waterHeater.SupportsSetpoint(mode) {
 				_, err = waterHeater.SendSetpointReport(mode, true)
 				if err != nil {
-					return nil, fmt.Errorf("adapter: failed to send water heater setpoint report: %w", err)
+					return nil, fmt.Errorf("failed to send water heater setpoint report: %w", err)
 				}
 			}
 
@@ -99,29 +99,29 @@ func HandleCmdSetpointSet(adapter adapter.ServiceRegistry) router.MessageHandler
 		router.MessageProcessorFn(func(message *fimpgo.Message) (*fimpgo.FimpMessage, error) {
 			s := adapter.ServiceByTopic(message.Topic)
 			if s == nil {
-				return nil, fmt.Errorf("adapter: service not found under the provided address: %s", message.Addr.ServiceAddress)
+				return nil, fmt.Errorf("service not found under the provided address: %s", message.Addr.ServiceAddress)
 			}
 
 			waterHeater, ok := s.(Service)
 			if !ok {
-				return nil, fmt.Errorf("adapter: incorrect service found under the provided address: %s", message.Addr.ServiceAddress)
+				return nil, fmt.Errorf("incorrect service found under the provided address: %s", message.Addr.ServiceAddress)
 			}
 
 			setpoint := &Setpoint{}
 
 			err := message.Payload.GetObjectValue(setpoint)
 			if err != nil {
-				return nil, fmt.Errorf("adapter: provided setpoint object has an incorrect format: %w", err)
+				return nil, fmt.Errorf("provided setpoint object has an incorrect format: %w", err)
 			}
 
 			err = waterHeater.SetSetpoint(setpoint.Type, setpoint.Temperature, setpoint.Unit)
 			if err != nil {
-				return nil, fmt.Errorf("adapter: failed to set water heater setpoint: %w", err)
+				return nil, fmt.Errorf("failed to set water heater setpoint: %w", err)
 			}
 
 			_, err = waterHeater.SendSetpointReport(setpoint.Type, true)
 			if err != nil {
-				return nil, fmt.Errorf("adapter: failed to send water heater setpoint report: %w", err)
+				return nil, fmt.Errorf("failed to send water heater setpoint report: %w", err)
 			}
 
 			return nil, nil
@@ -144,17 +144,17 @@ func HandleCmdModeGetReport(adapter adapter.ServiceRegistry) router.MessageHandl
 		router.MessageProcessorFn(func(message *fimpgo.Message) (*fimpgo.FimpMessage, error) {
 			s := adapter.ServiceByTopic(message.Topic)
 			if s == nil {
-				return nil, fmt.Errorf("adapter: service not found under the provided address: %s", message.Addr.ServiceAddress)
+				return nil, fmt.Errorf("service not found under the provided address: %s", message.Addr.ServiceAddress)
 			}
 
 			waterHeater, ok := s.(Service)
 			if !ok {
-				return nil, fmt.Errorf("adapter: incorrect service found under the provided address: %s", message.Addr.ServiceAddress)
+				return nil, fmt.Errorf("incorrect service found under the provided address: %s", message.Addr.ServiceAddress)
 			}
 
 			_, err := waterHeater.SendModeReport(true)
 			if err != nil {
-				return nil, fmt.Errorf("adapter: failed to send water heater mode report: %w", err)
+				return nil, fmt.Errorf("failed to send water heater mode report: %w", err)
 			}
 
 			return nil, nil
@@ -177,22 +177,22 @@ func HandleCmdSetpointGetReport(adapter adapter.ServiceRegistry) router.MessageH
 		router.MessageProcessorFn(func(message *fimpgo.Message) (*fimpgo.FimpMessage, error) {
 			s := adapter.ServiceByTopic(message.Topic)
 			if s == nil {
-				return nil, fmt.Errorf("adapter: service not found under the provided address: %s", message.Addr.ServiceAddress)
+				return nil, fmt.Errorf("service not found under the provided address: %s", message.Addr.ServiceAddress)
 			}
 
 			waterHeater, ok := s.(Service)
 			if !ok {
-				return nil, fmt.Errorf("adapter: incorrect service found under the provided address: %s", message.Addr.ServiceAddress)
+				return nil, fmt.Errorf("incorrect service found under the provided address: %s", message.Addr.ServiceAddress)
 			}
 
 			mode, err := message.Payload.GetStringValue()
 			if err != nil {
-				return nil, fmt.Errorf("adapter: provided mode has an incorrect format: %w", err)
+				return nil, fmt.Errorf("provided mode has an incorrect format: %w", err)
 			}
 
 			_, err = waterHeater.SendSetpointReport(mode, true)
 			if err != nil {
-				return nil, fmt.Errorf("adapter: failed to send water heater setpoint report: %w", err)
+				return nil, fmt.Errorf("failed to send water heater setpoint report: %w", err)
 			}
 
 			return nil, nil
@@ -215,17 +215,17 @@ func HandleCmdStateGetReport(adapter adapter.ServiceRegistry) router.MessageHand
 		router.MessageProcessorFn(func(message *fimpgo.Message) (*fimpgo.FimpMessage, error) {
 			s := adapter.ServiceByTopic(message.Topic)
 			if s == nil {
-				return nil, fmt.Errorf("adapter: service not found under the provided address: %s", message.Addr.ServiceAddress)
+				return nil, fmt.Errorf("service not found under the provided address: %s", message.Addr.ServiceAddress)
 			}
 
 			waterHeater, ok := s.(Service)
 			if !ok {
-				return nil, fmt.Errorf("adapter: incorrect service found under the provided address: %s", message.Addr.ServiceAddress)
+				return nil, fmt.Errorf("incorrect service found under the provided address: %s", message.Addr.ServiceAddress)
 			}
 
 			_, err := waterHeater.SendStateReport(true)
 			if err != nil {
-				return nil, fmt.Errorf("adapter: failed to send water heater state report: %w", err)
+				return nil, fmt.Errorf("failed to send water heater state report: %w", err)
 			}
 
 			return nil, nil

@@ -31,7 +31,7 @@ func handleReporting(serviceRegistry adapter.ServiceRegistry) func() {
 
 			_, err := colorCtrl.SendColorReport(false)
 			if err != nil {
-				log.WithError(err).Errorf("adapter: failed to send color report")
+				log.WithError(err).Errorf("failed to send color report")
 			}
 		}
 	}

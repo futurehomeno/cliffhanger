@@ -30,23 +30,23 @@ func handleReporting(serviceRegistry adapter.ServiceRegistry) func() {
 			}
 
 			if _, err := mediaPlayer.SendPlaybackReport(false); err != nil {
-				log.WithError(err).Errorf("adapter: failed to send playback report")
+				log.WithError(err).Errorf("failed to send playback report")
 			}
 
 			if _, err := mediaPlayer.SendPlaybackModeReport(false); err != nil {
-				log.WithError(err).Errorf("adapter: failed to send playback mode report")
+				log.WithError(err).Errorf("failed to send playback mode report")
 			}
 
 			if _, err := mediaPlayer.SendVolumeReport(false); err != nil {
-				log.WithError(err).Errorf("adapter: failed to send volume report")
+				log.WithError(err).Errorf("failed to send volume report")
 			}
 
 			if _, err := mediaPlayer.SendMuteReport(false); err != nil {
-				log.WithError(err).Errorf("adapter: failed to send mute report")
+				log.WithError(err).Errorf("failed to send mute report")
 			}
 
 			if _, err := mediaPlayer.SendMetadataReport(false); err != nil {
-				log.WithError(err).Errorf("adapter: failed to send metadata report")
+				log.WithError(err).Errorf("failed to send metadata report")
 			}
 		}
 	}

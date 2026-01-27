@@ -31,7 +31,7 @@ func handleReporting(serviceRegistry adapter.ServiceRegistry) func() {
 
 			_, err := outLvlSwitch.SendLevelReport(false)
 			if err != nil {
-				log.WithError(err).Errorf("adapter: failed to send lvl report")
+				log.WithError(err).Errorf("failed to send lvl report")
 			}
 		}
 	}

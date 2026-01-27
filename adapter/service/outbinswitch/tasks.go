@@ -31,7 +31,7 @@ func handleReporting(serviceRegistry adapter.ServiceRegistry) func() {
 
 			_, err := outBinSwitch.SendBinaryReport(false)
 			if err != nil {
-				log.WithError(err).Errorf("adapter: failed to send binary report")
+				log.WithError(err).Errorf("failed to send binary report")
 			}
 		}
 	}

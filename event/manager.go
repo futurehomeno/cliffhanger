@@ -43,7 +43,7 @@ func (m *manager) Publish(event Event) {
 		case s.channel <- event:
 			continue
 		default:
-			log.Warnf("[cliff] Event subscriber ID=%s busy, event domai=%s class=%s dropped", s.id, event.Domain(), event.Class())
+			log.Warnf("[cliff] Event subscriber ID=%s busy, event domain=%s class=%s dropped", s.id, event.Domain(), event.Class())
 		}
 	}
 }

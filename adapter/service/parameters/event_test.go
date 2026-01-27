@@ -82,7 +82,7 @@ func testSetup(wantParametersService bool) suite.ServiceSetup {
 
 		app, err := build(mqtt, listener, ad)
 		if err != nil {
-			t.Fatal("failed to build edge application:", err)
+			t.Fatal("Build edge app err:", err)
 		}
 
 		return app, nil

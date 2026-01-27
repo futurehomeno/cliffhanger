@@ -37,7 +37,7 @@ func handleReporting(serviceRegistry adapter.ServiceRegistry) func() {
 			for _, unit := range sensor.SupportedUnits() {
 				_, err := sensor.SendSensorReport(unit, false)
 				if err != nil {
-					log.WithError(err).Errorf("adapter: failed to send sensor report for unit: %s", unit)
+					log.WithError(err).Errorf("failed to send sensor report for unit: %s", unit)
 				}
 			}
 		}

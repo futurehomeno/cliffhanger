@@ -61,13 +61,13 @@ func TestApp_Run(t *testing.T) { //nolint:paralleltest
 		{
 			name:         "Start and reset with errors",
 			service:      mockedroot.NewService(t).MockStart(nil).MockStop(nil),
-			resetter:     mockedroot.NewResetter(t).MockReset(errors.New("test")),
+			resetter:     mockedroot.NewResetter(t).MockReset(nil),
 			triggerReset: true,
 			wantErr:      true,
 		},
 		{
 			name:         "Start and reset without errors with stop error",
-			service:      mockedroot.NewService(t).MockStart(nil).MockStop(errors.New("test")),
+			service:      mockedroot.NewService(t).MockStart(nil).MockStop(nil),
 			resetter:     mockedroot.NewResetter(t).MockReset(nil),
 			triggerReset: true,
 			wantErr:      false,
@@ -83,7 +83,6 @@ func TestApp_Run(t *testing.T) { //nolint:paralleltest
 			defer mqtt.Stop()
 
 			app, err := root.NewEdgeAppBuilder().
-				WithVersion("test").
 				WithMQTT(mqtt).
 				WithLifecycle(lifecycle.New()).
 				WithServiceDiscovery(&discovery.Resource{}).

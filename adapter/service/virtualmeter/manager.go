@@ -332,8 +332,8 @@ func (m *manager) recalculateEnergy(force bool, d *Device) (bool, error) {
 		timeSinceUpdated := time.Since(d.LastTimeUpdated)
 
 		if 2*m.energyRecalculationPeriod < timeSinceUpdated {
-			log.Warnf("[cliff] Recalculate energy after a long interruption. Accounting for 2 recalculation periods only." +
-				fmt.Sprintf(" \nRecalculation period=%v,Time elapsed=%v", m.energyRecalculationPeriod, timeSinceUpdated))
+			log.Warnf("[cliff] Recalculate energy after a long interruption. Accounting for 2 periods only\nRecalculation period=%v elapsed=%v",
+				m.energyRecalculationPeriod, timeSinceUpdated)
 		}
 
 		timeSinceUpdatedHours := math.Min(timeSinceUpdated.Hours(), 2*m.energyRecalculationPeriod.Hours())

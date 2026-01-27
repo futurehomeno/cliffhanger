@@ -41,27 +41,27 @@ func HandleCmdSceneSet(serviceRegistry adapter.ServiceRegistry) router.MessageHa
 		router.MessageProcessorFn(func(message *fimpgo.Message) (*fimpgo.FimpMessage, error) {
 			s := serviceRegistry.ServiceByTopic(message.Topic)
 			if s == nil {
-				return nil, fmt.Errorf("adapter: service not found under the provided address: %s", message.Addr.ServiceAddress)
+				return nil, fmt.Errorf("service not found under the provided address: %s", message.Addr.ServiceAddress)
 			}
 
 			scene, ok := s.(Service)
 			if !ok {
-				return nil, fmt.Errorf("adapter: incorrect service found under the provided address: %s", message.Addr.ServiceAddress)
+				return nil, fmt.Errorf("incorrect service found under the provided address: %s", message.Addr.ServiceAddress)
 			}
 
 			sceneID, err := message.Payload.GetStringValue()
 			if err != nil {
-				return nil, fmt.Errorf("adapter: failed to parse scene id: %w", err)
+				return nil, fmt.Errorf("failed to parse scene id: %w", err)
 			}
 
 			err = scene.SetScene(sceneID)
 			if err != nil {
-				return nil, fmt.Errorf("adapter: failed to set scene: %w", err)
+				return nil, fmt.Errorf("failed to set scene: %w", err)
 			}
 
 			_, err = scene.SendSceneReport(true)
 			if err != nil {
-				return nil, fmt.Errorf("adapter: failed to send scene report: %w", err)
+				return nil, fmt.Errorf("failed to send scene report: %w", err)
 			}
 
 			return nil, nil
@@ -84,17 +84,17 @@ func HandleCmdSceneGetReport(serviceRegistry adapter.ServiceRegistry) router.Mes
 		router.MessageProcessorFn(func(message *fimpgo.Message) (*fimpgo.FimpMessage, error) {
 			s := serviceRegistry.ServiceByTopic(message.Topic)
 			if s == nil {
-				return nil, fmt.Errorf("adapter: service not found under the provided address: %s", message.Addr.ServiceAddress)
+				return nil, fmt.Errorf("service not found under the provided address: %s", message.Addr.ServiceAddress)
 			}
 
 			scene, ok := s.(Service)
 			if !ok {
-				return nil, fmt.Errorf("adapter: incorrect service found under the provided address: %s", message.Addr.ServiceAddress)
+				return nil, fmt.Errorf("incorrect service found under the provided address: %s", message.Addr.ServiceAddress)
 			}
 
 			_, err := scene.SendSceneReport(true)
 			if err != nil {
-				return nil, fmt.Errorf("adapter: failed to send presence report: %w", err)
+				return nil, fmt.Errorf("failed to send presence report: %w", err)
 			}
 
 			return nil, nil

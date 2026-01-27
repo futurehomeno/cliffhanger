@@ -22,6 +22,7 @@ func handleReporting(serviceRegistry adapter.ServiceRegistry) func() {
 		for _, s := range serviceRegistry.Services(FanCtrl) {
 			colorCtrl, ok := s.(Service)
 			if !ok {
+				log.Warnf("handleReporting cast to Service err exp=%T", s)
 				continue
 			}
 
@@ -31,7 +32,7 @@ func handleReporting(serviceRegistry adapter.ServiceRegistry) func() {
 
 			_, err := colorCtrl.SendModeReport(false)
 			if err != nil {
-				log.WithError(err).Errorf("adapter: failed to send color report")
+				log.WithError(err).Errorf("failed to send color report")
 			}
 		}
 	}
