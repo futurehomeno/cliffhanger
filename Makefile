@@ -2,7 +2,6 @@ define generate_mocks
     mockery --packageprefix mocked --keeptree --name=$(2) --recursive --case underscore --dir ./$(1) --output ./test/mocks/$(1)
 endef
 
-.phony: generate-mocks
 generate-mocks:
 	find ./test/mocks -type f -not -name "*_helper.go" | xargs rm -rf
 	$(call generate_mocks,"adapter/service","Reporter|Controller|Service|Manager")
@@ -19,3 +18,5 @@ lint:
 
 test:
 	go test -p 1 -v -covermode=atomic ./...
+
+.phony: generate-mocks test lint

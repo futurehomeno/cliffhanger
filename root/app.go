@@ -117,7 +117,6 @@ func (a *app) Run() error {
 
 	go func() {
 		<-signals
-
 		_ = a.Stop()
 	}()
 
@@ -209,7 +208,6 @@ func (a *app) doStop() error {
 	a.mqtt.Stop()
 
 	a.running = false
-
 	return nil
 }
 

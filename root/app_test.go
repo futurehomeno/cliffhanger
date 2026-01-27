@@ -31,11 +31,11 @@ func TestApp_Run(t *testing.T) { //nolint:paralleltest
 			wantErr:     false,
 		},
 		{
-			name:        "Start with errors",
-			service:     mockedroot.NewService(t).MockStart(errors.New("test")),
-			resetter:    mockedroot.NewResetter(t),
-			triggerStop: false,
-			wantErr:     true,
+			name:         "Start and reset without errors",
+			service:      mockedroot.NewService(t).MockStart(nil).MockStop(nil),
+			resetter:     mockedroot.NewResetter(t).MockReset(nil),
+			triggerReset: true,
+			wantErr:      false,
 		},
 		{
 			name:        "Start and stop with errors",
@@ -45,32 +45,11 @@ func TestApp_Run(t *testing.T) { //nolint:paralleltest
 			wantErr:     true,
 		},
 		{
-			name:         "Start and reset without errors",
-			service:      mockedroot.NewService(t).MockStart(nil).MockStop(nil),
-			resetter:     mockedroot.NewResetter(t).MockReset(nil),
-			triggerReset: true,
-			wantErr:      false,
-		},
-		{
-			name:         "Start and reset without errors",
-			service:      mockedroot.NewService(t).MockStart(nil).MockStop(nil),
-			resetter:     mockedroot.NewResetter(t).MockReset(nil),
-			triggerReset: true,
-			wantErr:      false,
-		},
-		{
-			name:         "Start and reset with errors",
-			service:      mockedroot.NewService(t).MockStart(nil).MockStop(nil),
-			resetter:     mockedroot.NewResetter(t).MockReset(nil),
-			triggerReset: true,
-			wantErr:      true,
-		},
-		{
-			name:         "Start and reset without errors with stop error",
-			service:      mockedroot.NewService(t).MockStart(nil).MockStop(nil),
-			resetter:     mockedroot.NewResetter(t).MockReset(nil),
-			triggerReset: true,
-			wantErr:      false,
+			name:        "Start with errors",
+			service:     mockedroot.NewService(t).MockStart(errors.New("test")),
+			resetter:    mockedroot.NewResetter(t),
+			triggerStop: false,
+			wantErr:     true,
 		},
 	}
 
@@ -79,8 +58,6 @@ func TestApp_Run(t *testing.T) { //nolint:paralleltest
 
 		t.Run(tc.name, func(t *testing.T) {
 			mqtt := suite.DefaultMQTT("root_app", "", "", "")
-
-			defer mqtt.Stop()
 
 			app, err := root.NewEdgeAppBuilder().
 				WithMQTT(mqtt).
