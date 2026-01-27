@@ -46,6 +46,32 @@ jobs:
         export GH_TOKEN="${{ secrets.GH_OAUTH_TOKEN }}"
         git config --global url."https://$GH_TOKEN@github.com/".insteadOf "https://github.com/"
 
+    - name: Create Mosquitto config
+      run: |
+        mkdir -p .ci
+        cat > .ci/mosquitto.conf <<EOF
+        listener 1883
+        allow_anonymous true
+        persistence false
+        EOF
+
+    - name: Start Mosquitto
+      run: |
+        docker run -d --name mosquitto \
+          -p 1883:1883 \
+          -v "$PWD/.ci/mosquitto.conf:/mosquitto/config/mosquitto.conf" \
+          eclipse-mosquitto:2
+
+    - name: Wait for Mosquitto
+      run: |
+        for i in {1..5}; do
+          nc -z 127.0.0.1 1883 && exit 0
+          sleep 2
+        done
+        echo "Mosquitto not ready"
+        docker logs mosquitto
+        exit 1
+
     - name: Install mockery (v2, Go 1.25 compatible)
       run: |
         go install github.com/vektra/mockery/v2@latest
