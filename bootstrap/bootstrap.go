@@ -72,11 +72,11 @@ func InitializeLogger(logFile string, level string, logFormat string) error {
 
 	if err != nil {
 		if err := os.MkdirAll(filepath.Dir(l.Filename), 0770); err != nil {
-			return fmt.Errorf("create log dir=%s err: %s", filepath.Dir(l.Filename), err.Error())
+			return fmt.Errorf("create log dir=%s err: %w", filepath.Dir(l.Filename), err)
 		}
 
 		if f, err = os.OpenFile(l.Filename, os.O_RDONLY|os.O_CREATE, 0644); err != nil {
-			return fmt.Errorf("open log file=%s err: %s", l.Filename, err.Error())
+			return fmt.Errorf("open log file=%s err: %w", l.Filename, err)
 		}
 	}
 
