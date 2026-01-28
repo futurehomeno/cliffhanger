@@ -48,7 +48,7 @@ type publisher struct {
 func (p *publisher) PublishServiceMessage(service Service, message *fimpgo.FimpMessage) error {
 	address, err := fimpgo.NewAddressFromString(service.Topic())
 	if err != nil {
-		return fmt.Errorf("adapter: failed to parse a service topic %s: %w", service.Topic(), err)
+		return fmt.Errorf("failed to parse a service topic %s: %w", service.Topic(), err)
 	}
 
 	address.MsgType = fimpgo.MsgTypeEvt
@@ -56,7 +56,7 @@ func (p *publisher) PublishServiceMessage(service Service, message *fimpgo.FimpM
 
 	err = p.mqtt.Publish(address, message)
 	if err != nil {
-		return fmt.Errorf("adapter: failed to publish a service report: %w", err)
+		return fmt.Errorf("failed to publish a service report: %w", err)
 	}
 
 	return nil
@@ -74,7 +74,7 @@ func (p *publisher) PublishThingMessage(thing Thing, message *fimpgo.FimpMessage
 
 	err := p.mqtt.Publish(address, message)
 	if err != nil {
-		return fmt.Errorf("adapter: failed to publish a thing with address %s report: %w", thing.Address(), err)
+		return fmt.Errorf("failed to publish a thing with address %s report: %w", thing.Address(), err)
 	}
 
 	return nil
@@ -106,7 +106,7 @@ func (p *publisher) PublishAdapterMessage(message *fimpgo.FimpMessage) error {
 
 	err := p.mqtt.Publish(address, message)
 	if err != nil {
-		return fmt.Errorf("adapter: failed to publish an adapter report: %w", err)
+		return fmt.Errorf("failed to publish an adapter report: %w", err)
 	}
 
 	return nil

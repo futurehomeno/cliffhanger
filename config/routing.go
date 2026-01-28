@@ -78,7 +78,7 @@ func HandleCmdLogSetLevel(serviceName string, logSetter func(string) error, _ ..
 			}
 
 			log.SetLevel(logLevel)
-			log.Infof("Log level updated to %s", logLevel)
+			log.Infof("[cliff] Log level updated to %s", logLevel)
 
 			return fimpgo.NewStringMessage(
 				EvtLogLevelReport,

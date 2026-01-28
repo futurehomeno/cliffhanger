@@ -72,17 +72,17 @@ func handleCmdChargeStart(serviceRegistry adapter.ServiceRegistry) router.Messag
 
 			err = chargepoint.StartCharging(chargingSettings)
 			if err != nil {
-				return nil, fmt.Errorf("adapter: failed to start charging: %w", err)
+				return nil, fmt.Errorf("failed to start charging: %w", err)
 			}
 
 			_, err = chargepoint.SendStateReport(true)
 			if err != nil {
-				return nil, fmt.Errorf("adapter: failed to send chargepoint state report: %w", err)
+				return nil, fmt.Errorf("failed to send chargepoint state report: %w", err)
 			}
 
 			_, err = chargepoint.SendCurrentSessionReport(true)
 			if err != nil {
-				return nil, fmt.Errorf("adapter: failed to send chargepoint current session report: %w", err)
+				return nil, fmt.Errorf("failed to send chargepoint current session report: %w", err)
 			}
 
 			return nil, nil
@@ -110,17 +110,17 @@ func handleCmdChargeStop(serviceRegistry adapter.ServiceRegistry) router.Message
 
 			err = chargepoint.StopCharging()
 			if err != nil {
-				return nil, fmt.Errorf("adapter: failed to stop charging: %w", err)
+				return nil, fmt.Errorf("failed to stop charging: %w", err)
 			}
 
 			_, err = chargepoint.SendStateReport(true)
 			if err != nil {
-				return nil, fmt.Errorf("adapter: failed to send chargepoint state report: %w", err)
+				return nil, fmt.Errorf("failed to send chargepoint state report: %w", err)
 			}
 
 			_, err = chargepoint.SendCurrentSessionReport(true)
 			if err != nil {
-				return nil, fmt.Errorf("adapter: failed to send chargepoint current session report: %w", err)
+				return nil, fmt.Errorf("failed to send chargepoint current session report: %w", err)
 			}
 
 			return nil, nil
@@ -148,17 +148,17 @@ func handleCmdCableLockSet(serviceRegistry adapter.ServiceRegistry) router.Messa
 
 			value, err := message.Payload.GetBoolValue()
 			if err != nil {
-				return nil, fmt.Errorf("adapter: provided cable lock value has an incorrect format: %w", err)
+				return nil, fmt.Errorf("provided cable lock value has an incorrect format: %w", err)
 			}
 
 			err = chargepoint.SetCableLock(value)
 			if err != nil {
-				return nil, fmt.Errorf("adapter: failed to set chargepoint cable lock: %w", err)
+				return nil, fmt.Errorf("failed to set chargepoint cable lock: %w", err)
 			}
 
 			_, err = chargepoint.SendCableLockReport(true)
 			if err != nil {
-				return nil, fmt.Errorf("adapter: failed to send chargepoint cable lock report: %w", err)
+				return nil, fmt.Errorf("failed to send chargepoint cable lock report: %w", err)
 			}
 
 			return nil, nil
@@ -186,7 +186,7 @@ func handleCmdStateGetReport(serviceRegistry adapter.ServiceRegistry) router.Mes
 
 			_, err = chargepoint.SendStateReport(true)
 			if err != nil {
-				return nil, fmt.Errorf("adapter: failed to send chargepoint state report: %w", err)
+				return nil, fmt.Errorf("failed to send chargepoint state report: %w", err)
 			}
 
 			return nil, nil
@@ -214,7 +214,7 @@ func handleCmdCableLockGetReport(serviceRegistry adapter.ServiceRegistry) router
 
 			_, err = chargepoint.SendCableLockReport(true)
 			if err != nil {
-				return nil, fmt.Errorf("adapter: failed to send chargepoint cable lock report: %w", err)
+				return nil, fmt.Errorf("failed to send chargepoint cable lock report: %w", err)
 			}
 
 			return nil, nil
@@ -242,17 +242,17 @@ func handleCmdCurrentSessionSetCurrent(serviceRegistry adapter.ServiceRegistry) 
 
 			current, err := message.Payload.GetIntValue()
 			if err != nil {
-				return nil, fmt.Errorf("adapter: provided current value has an incorrect format: %w", err)
+				return nil, fmt.Errorf("provided current value has an incorrect format: %w", err)
 			}
 
 			err = chargepoint.SetOfferedCurrent(current)
 			if err != nil {
-				return nil, fmt.Errorf("adapter: failed to set chargepoint offered current: %w", err)
+				return nil, fmt.Errorf("failed to set chargepoint offered current: %w", err)
 			}
 
 			_, err = chargepoint.SendCurrentSessionReport(true)
 			if err != nil {
-				return nil, fmt.Errorf("adapter: failed to send chargepoint current session report: %w", err)
+				return nil, fmt.Errorf("failed to send chargepoint current session report: %w", err)
 			}
 
 			return nil, nil
@@ -280,7 +280,7 @@ func handleCmdCurrentSessionGetReport(serviceRegistry adapter.ServiceRegistry) r
 
 			_, err = chargepoint.SendCurrentSessionReport(true)
 			if err != nil {
-				return nil, fmt.Errorf("adapter: failed to send chargepoint current session report: %w", err)
+				return nil, fmt.Errorf("failed to send chargepoint current session report: %w", err)
 			}
 
 			return nil, nil
@@ -308,17 +308,17 @@ func handleCmdMaxCurrentSet(serviceRegistry adapter.ServiceRegistry) router.Mess
 
 			current, err := message.Payload.GetIntValue()
 			if err != nil {
-				return nil, fmt.Errorf("adapter: provided current value has an incorrect format: %w", err)
+				return nil, fmt.Errorf("provided current value has an incorrect format: %w", err)
 			}
 
 			err = chargepoint.SetMaxCurrent(current)
 			if err != nil {
-				return nil, fmt.Errorf("adapter: failed to set chargepoint max current: %w", err)
+				return nil, fmt.Errorf("failed to set chargepoint max current: %w", err)
 			}
 
 			_, err = chargepoint.SendMaxCurrentReport(true)
 			if err != nil {
-				return nil, fmt.Errorf("adapter: failed to send chargepoint max current report: %w", err)
+				return nil, fmt.Errorf("failed to send chargepoint max current report: %w", err)
 			}
 
 			return nil, nil
@@ -346,7 +346,7 @@ func handleCmdMaxCurrentGetReport(serviceRegistry adapter.ServiceRegistry) route
 
 			_, err = chargepoint.SendMaxCurrentReport(true)
 			if err != nil {
-				return nil, fmt.Errorf("adapter: failed to send chargepoint max current report: %w", err)
+				return nil, fmt.Errorf("failed to send chargepoint max current report: %w", err)
 			}
 
 			return nil, nil
@@ -374,17 +374,17 @@ func handleCmdPhaseModeSet(serviceRegistry adapter.ServiceRegistry) router.Messa
 
 			phaseMode, err := message.Payload.GetStringValue()
 			if err != nil {
-				return nil, fmt.Errorf("adapter: provided phase mode has an incorrect format: %w", err)
+				return nil, fmt.Errorf("provided phase mode has an incorrect format: %w", err)
 			}
 
 			err = chargepoint.SetPhaseMode(PhaseMode(phaseMode))
 			if err != nil {
-				return nil, fmt.Errorf("adapter: failed to set chargepoint phase mode: %w", err)
+				return nil, fmt.Errorf("failed to set chargepoint phase mode: %w", err)
 			}
 
 			_, err = chargepoint.SendPhaseModeReport(true)
 			if err != nil {
-				return nil, fmt.Errorf("adapter: failed to send chargepoint phase mode report: %w", err)
+				return nil, fmt.Errorf("failed to send chargepoint phase mode report: %w", err)
 			}
 
 			return nil, nil
@@ -412,7 +412,7 @@ func handleCmdPhaseModeGetReport(serviceRegistry adapter.ServiceRegistry) router
 
 			_, err = chargepoint.SendPhaseModeReport(true)
 			if err != nil {
-				return nil, fmt.Errorf("adapter: failed to send chargepoint phase mode report: %w", err)
+				return nil, fmt.Errorf("failed to send chargepoint phase mode report: %w", err)
 			}
 
 			return nil, nil
@@ -424,12 +424,12 @@ func handleCmdPhaseModeGetReport(serviceRegistry adapter.ServiceRegistry) router
 func getService(serviceRegistry adapter.ServiceRegistry, message *fimpgo.Message) (Service, error) {
 	s := serviceRegistry.ServiceByTopic(message.Topic)
 	if s == nil {
-		return nil, fmt.Errorf("adapter: service not found under the provided address: %s", message.Addr.ServiceAddress)
+		return nil, fmt.Errorf("service not found under the provided address: %s", message.Addr.ServiceAddress)
 	}
 
 	chargepoint, ok := s.(Service)
 	if !ok {
-		return nil, fmt.Errorf("adapter: incorrect service found under the provided address: %s", message.Addr.ServiceAddress)
+		return nil, fmt.Errorf("incorrect service found under the provided address: %s", message.Addr.ServiceAddress)
 	}
 
 	return chargepoint, nil

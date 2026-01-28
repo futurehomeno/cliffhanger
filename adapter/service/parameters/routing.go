@@ -49,7 +49,7 @@ func handleCmdSupParamsGetReport(serviceRegistry adapter.ServiceRegistry) router
 
 			_, err = parameters.SendSupportedParamsReport(true)
 			if err != nil {
-				return nil, fmt.Errorf("adapter: failed to send supported parameters report: %w", err)
+				return nil, fmt.Errorf("failed to send supported parameters report: %w", err)
 			}
 
 			return nil, nil
@@ -78,15 +78,15 @@ func handleCmdParamSet(serviceRegistry adapter.ServiceRegistry) router.MessageHa
 			var param Parameter
 
 			if err := message.Payload.GetObjectValue(&param); err != nil {
-				return nil, fmt.Errorf("adapter: provided parameter has an incorrect format: %w", err)
+				return nil, fmt.Errorf("provided parameter has an incorrect format: %w", err)
 			}
 
 			if err := parameters.SetParameter(&param); err != nil {
-				return nil, fmt.Errorf("adapter: failed to set a parameter: %w", err)
+				return nil, fmt.Errorf("failed to set a parameter: %w", err)
 			}
 
 			if _, err := parameters.SendParameterReport(param.ID, true); err != nil {
-				return nil, fmt.Errorf("adapter: failed to send parameter report: %w", err)
+				return nil, fmt.Errorf("failed to send parameter report: %w", err)
 			}
 
 			return nil, nil
@@ -114,11 +114,11 @@ func handleCmdParamGetReport(serviceRegistry adapter.ServiceRegistry) router.Mes
 
 			value, err := message.Payload.GetStringValue()
 			if err != nil {
-				return nil, fmt.Errorf("adapter: provided parameter id has an incorrect format: %w", err)
+				return nil, fmt.Errorf("provided parameter id has an incorrect format: %w", err)
 			}
 
 			if _, err = parameters.SendParameterReport(value, true); err != nil {
-				return nil, fmt.Errorf("adapter: failed to send parameter report: %w", err)
+				return nil, fmt.Errorf("failed to send parameter report: %w", err)
 			}
 
 			return nil, nil
@@ -130,12 +130,12 @@ func handleCmdParamGetReport(serviceRegistry adapter.ServiceRegistry) router.Mes
 func getService(serviceRegistry adapter.ServiceRegistry, message *fimpgo.Message) (Service, error) {
 	s := serviceRegistry.ServiceByTopic(message.Topic)
 	if s == nil {
-		return nil, fmt.Errorf("adapter: service not found under the provided address: %s", message.Addr.ServiceAddress)
+		return nil, fmt.Errorf("service not found under the provided address: %s", message.Addr.ServiceAddress)
 	}
 
 	parameters, ok := s.(Service)
 	if !ok {
-		return nil, fmt.Errorf("adapter: incorrect service found under the provided address: %s", message.Addr.ServiceAddress)
+		return nil, fmt.Errorf("incorrect service found under the provided address: %s", message.Addr.ServiceAddress)
 	}
 
 	return parameters, nil

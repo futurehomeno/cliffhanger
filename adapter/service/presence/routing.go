@@ -38,17 +38,17 @@ func HandleCmdPresenceGetReport(serviceRegistry adapter.ServiceRegistry) router.
 		router.MessageProcessorFn(func(message *fimpgo.Message) (*fimpgo.FimpMessage, error) {
 			s := serviceRegistry.ServiceByTopic(message.Topic)
 			if s == nil {
-				return nil, fmt.Errorf("adapter: service not found under the provided address: %s", message.Addr.ServiceAddress)
+				return nil, fmt.Errorf("service not found under the provided address: %s", message.Addr.ServiceAddress)
 			}
 
 			presence, ok := s.(Service)
 			if !ok {
-				return nil, fmt.Errorf("adapter: incorrect service found under the provided address: %s", message.Addr.ServiceAddress)
+				return nil, fmt.Errorf("incorrect service found under the provided address: %s", message.Addr.ServiceAddress)
 			}
 
 			_, err := presence.SendPresenceReport(true)
 			if err != nil {
-				return nil, fmt.Errorf("adapter: failed to send presence report: %w", err)
+				return nil, fmt.Errorf("failed to send presence report: %w", err)
 			}
 
 			return nil, nil

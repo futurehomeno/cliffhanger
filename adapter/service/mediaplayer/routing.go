@@ -132,31 +132,31 @@ func handleCmdPlaybackSet(registry adapter.ServiceRegistry) router.MessageHandle
 		router.MessageProcessorFn(func(message *fimpgo.Message) (*fimpgo.FimpMessage, error) {
 			s := registry.ServiceByTopic(message.Topic)
 			if s == nil {
-				return nil, fmt.Errorf("adapter: service not found under the provided address: %s", message.Addr.ServiceAddress)
+				return nil, fmt.Errorf("service not found under the provided address: %s", message.Addr.ServiceAddress)
 			}
 
 			mediaPlayer, ok := s.(Service)
 			if !ok {
-				return nil, fmt.Errorf("adapter: incorrect service found under the provided address: %s", message.Addr.ServiceAddress)
+				return nil, fmt.Errorf("incorrect service found under the provided address: %s", message.Addr.ServiceAddress)
 			}
 
 			value, err := message.Payload.GetStringValue()
 			if err != nil {
-				return nil, fmt.Errorf("adapter: failed to get value from the message: %w", err)
+				return nil, fmt.Errorf("failed to get value from the message: %w", err)
 			}
 
 			if err := mediaPlayer.SetPlayback(value); err != nil {
-				return nil, fmt.Errorf("adapter: failed to set playback: %w", err)
+				return nil, fmt.Errorf("failed to set playback: %w", err)
 			}
 
 			_, err = mediaPlayer.SendPlaybackReport(true)
 			if err != nil {
-				return nil, fmt.Errorf("adapter: failed to get playback report: %w", err)
+				return nil, fmt.Errorf("failed to get playback report: %w", err)
 			}
 
 			_, err = mediaPlayer.SendMetadataReport(false)
 			if err != nil {
-				return nil, fmt.Errorf("adapter: failed to get metadata report: %w", err)
+				return nil, fmt.Errorf("failed to get metadata report: %w", err)
 			}
 
 			return nil, nil
@@ -169,17 +169,17 @@ func handleCmdPlaybackGetReport(registry adapter.ServiceRegistry) router.Message
 		router.MessageProcessorFn(func(message *fimpgo.Message) (*fimpgo.FimpMessage, error) {
 			s := registry.ServiceByTopic(message.Topic)
 			if s == nil {
-				return nil, fmt.Errorf("adapter: service not found under the provided address: %s", message.Addr.ServiceAddress)
+				return nil, fmt.Errorf("service not found under the provided address: %s", message.Addr.ServiceAddress)
 			}
 
 			mediaPlayer, ok := s.(Service)
 			if !ok {
-				return nil, fmt.Errorf("adapter: incorrect service found under the provided address: %s", message.Addr.ServiceAddress)
+				return nil, fmt.Errorf("incorrect service found under the provided address: %s", message.Addr.ServiceAddress)
 			}
 
 			_, err := mediaPlayer.SendPlaybackReport(true)
 			if err != nil {
-				return nil, fmt.Errorf("adapter: failed to send playback report: %w", err)
+				return nil, fmt.Errorf("failed to send playback report: %w", err)
 			}
 
 			return nil, nil
@@ -192,26 +192,26 @@ func handleCmdPlaybackModeSet(registry adapter.ServiceRegistry) router.MessageHa
 		router.MessageProcessorFn(func(message *fimpgo.Message) (*fimpgo.FimpMessage, error) {
 			s := registry.ServiceByTopic(message.Topic)
 			if s == nil {
-				return nil, fmt.Errorf("adapter: service not found under the provided address: %s", message.Addr.ServiceAddress)
+				return nil, fmt.Errorf("service not found under the provided address: %s", message.Addr.ServiceAddress)
 			}
 
 			mediaPlayer, ok := s.(Service)
 			if !ok {
-				return nil, fmt.Errorf("adapter: incorrect service found under the provided address: %s", message.Addr.ServiceAddress)
+				return nil, fmt.Errorf("incorrect service found under the provided address: %s", message.Addr.ServiceAddress)
 			}
 
 			value, err := message.Payload.GetBoolMapValue()
 			if err != nil {
-				return nil, fmt.Errorf("adapter: failed to get value from the message: %w", err)
+				return nil, fmt.Errorf("failed to get value from the message: %w", err)
 			}
 
 			if err := mediaPlayer.SetPlaybackMode(value); err != nil {
-				return nil, fmt.Errorf("adapter: failed to set playback mode: %w", err)
+				return nil, fmt.Errorf("failed to set playback mode: %w", err)
 			}
 
 			_, err = mediaPlayer.SendPlaybackModeReport(true)
 			if err != nil {
-				return nil, fmt.Errorf("adapter: failed to get playback mode report: %w", err)
+				return nil, fmt.Errorf("failed to get playback mode report: %w", err)
 			}
 
 			return nil, nil
@@ -224,17 +224,17 @@ func handleCmdPlaybackModeGetReport(registry adapter.ServiceRegistry) router.Mes
 		router.MessageProcessorFn(func(message *fimpgo.Message) (*fimpgo.FimpMessage, error) {
 			s := registry.ServiceByTopic(message.Topic)
 			if s == nil {
-				return nil, fmt.Errorf("adapter: service not found under the provided address: %s", message.Addr.ServiceAddress)
+				return nil, fmt.Errorf("service not found under the provided address: %s", message.Addr.ServiceAddress)
 			}
 
 			mediaPlayer, ok := s.(Service)
 			if !ok {
-				return nil, fmt.Errorf("adapter: incorrect service found under the provided address: %s", message.Addr.ServiceAddress)
+				return nil, fmt.Errorf("incorrect service found under the provided address: %s", message.Addr.ServiceAddress)
 			}
 
 			_, err := mediaPlayer.SendPlaybackModeReport(true)
 			if err != nil {
-				return nil, fmt.Errorf("adapter: failed to send playback mode report: %w", err)
+				return nil, fmt.Errorf("failed to send playback mode report: %w", err)
 			}
 
 			return nil, nil
@@ -247,26 +247,26 @@ func handleCmdVolumeSet(registry adapter.ServiceRegistry) router.MessageHandler 
 		router.MessageProcessorFn(func(message *fimpgo.Message) (*fimpgo.FimpMessage, error) {
 			s := registry.ServiceByTopic(message.Topic)
 			if s == nil {
-				return nil, fmt.Errorf("adapter: service not found under the provided address: %s", message.Addr.ServiceAddress)
+				return nil, fmt.Errorf("service not found under the provided address: %s", message.Addr.ServiceAddress)
 			}
 
 			mediaPlayer, ok := s.(Service)
 			if !ok {
-				return nil, fmt.Errorf("adapter: incorrect service found under the provided address: %s", message.Addr.ServiceAddress)
+				return nil, fmt.Errorf("incorrect service found under the provided address: %s", message.Addr.ServiceAddress)
 			}
 
 			value, err := message.Payload.GetIntValue()
 			if err != nil {
-				return nil, fmt.Errorf("adapter: failed to get value from the message: %w", err)
+				return nil, fmt.Errorf("failed to get value from the message: %w", err)
 			}
 
 			if err := mediaPlayer.SetVolume(value); err != nil {
-				return nil, fmt.Errorf("adapter: failed to set volume: %w", err)
+				return nil, fmt.Errorf("failed to set volume: %w", err)
 			}
 
 			_, err = mediaPlayer.SendVolumeReport(true)
 			if err != nil {
-				return nil, fmt.Errorf("adapter: failed to get volume report: %w", err)
+				return nil, fmt.Errorf("failed to get volume report: %w", err)
 			}
 
 			return nil, nil
@@ -279,17 +279,17 @@ func handleCmdVolumeGetReport(registry adapter.ServiceRegistry) router.MessageHa
 		router.MessageProcessorFn(func(message *fimpgo.Message) (*fimpgo.FimpMessage, error) {
 			s := registry.ServiceByTopic(message.Topic)
 			if s == nil {
-				return nil, fmt.Errorf("adapter: service not found under the provided address: %s", message.Addr.ServiceAddress)
+				return nil, fmt.Errorf("service not found under the provided address: %s", message.Addr.ServiceAddress)
 			}
 
 			mediaPlayer, ok := s.(Service)
 			if !ok {
-				return nil, fmt.Errorf("adapter: incorrect service found under the provided address: %s", message.Addr.ServiceAddress)
+				return nil, fmt.Errorf("incorrect service found under the provided address: %s", message.Addr.ServiceAddress)
 			}
 
 			_, err := mediaPlayer.SendVolumeReport(true)
 			if err != nil {
-				return nil, fmt.Errorf("adapter: failed to send volume report: %w", err)
+				return nil, fmt.Errorf("failed to send volume report: %w", err)
 			}
 
 			return nil, nil
@@ -302,26 +302,26 @@ func handleCmdMuteSet(registry adapter.ServiceRegistry) router.MessageHandler {
 		router.MessageProcessorFn(func(message *fimpgo.Message) (*fimpgo.FimpMessage, error) {
 			s := registry.ServiceByTopic(message.Topic)
 			if s == nil {
-				return nil, fmt.Errorf("adapter: service not found under the provided address: %s", message.Addr.ServiceAddress)
+				return nil, fmt.Errorf("service not found under the provided address: %s", message.Addr.ServiceAddress)
 			}
 
 			mediaPlayer, ok := s.(Service)
 			if !ok {
-				return nil, fmt.Errorf("adapter: incorrect service found under the provided address: %s", message.Addr.ServiceAddress)
+				return nil, fmt.Errorf("incorrect service found under the provided address: %s", message.Addr.ServiceAddress)
 			}
 
 			value, err := message.Payload.GetBoolValue()
 			if err != nil {
-				return nil, fmt.Errorf("adapter: failed to get value from the message: %w", err)
+				return nil, fmt.Errorf("failed to get value from the message: %w", err)
 			}
 
 			if err := mediaPlayer.SetMute(value); err != nil {
-				return nil, fmt.Errorf("adapter: failed to set mute: %w", err)
+				return nil, fmt.Errorf("failed to set mute: %w", err)
 			}
 
 			_, err = mediaPlayer.SendMuteReport(true)
 			if err != nil {
-				return nil, fmt.Errorf("adapter: failed to get mute report: %w", err)
+				return nil, fmt.Errorf("failed to get mute report: %w", err)
 			}
 
 			return nil, nil
@@ -334,17 +334,17 @@ func handleCmdMuteGetReport(registry adapter.ServiceRegistry) router.MessageHand
 		router.MessageProcessorFn(func(message *fimpgo.Message) (*fimpgo.FimpMessage, error) {
 			s := registry.ServiceByTopic(message.Topic)
 			if s == nil {
-				return nil, fmt.Errorf("adapter: service not found under the provided address: %s", message.Addr.ServiceAddress)
+				return nil, fmt.Errorf("service not found under the provided address: %s", message.Addr.ServiceAddress)
 			}
 
 			mediaPlayer, ok := s.(Service)
 			if !ok {
-				return nil, fmt.Errorf("adapter: incorrect service found under the provided address: %s", message.Addr.ServiceAddress)
+				return nil, fmt.Errorf("incorrect service found under the provided address: %s", message.Addr.ServiceAddress)
 			}
 
 			_, err := mediaPlayer.SendMuteReport(true)
 			if err != nil {
-				return nil, fmt.Errorf("adapter: failed to send mute report: %w", err)
+				return nil, fmt.Errorf("failed to send mute report: %w", err)
 			}
 
 			return nil, nil
@@ -357,17 +357,17 @@ func handleCmdMetadataGetReport(registry adapter.ServiceRegistry) router.Message
 		router.MessageProcessorFn(func(message *fimpgo.Message) (*fimpgo.FimpMessage, error) {
 			s := registry.ServiceByTopic(message.Topic)
 			if s == nil {
-				return nil, fmt.Errorf("adapter: service not found under the provided address: %s", message.Addr.ServiceAddress)
+				return nil, fmt.Errorf("service not found under the provided address: %s", message.Addr.ServiceAddress)
 			}
 
 			mediaPlayer, ok := s.(Service)
 			if !ok {
-				return nil, fmt.Errorf("adapter: incorrect service found under the provided address: %s", message.Addr.ServiceAddress)
+				return nil, fmt.Errorf("incorrect service found under the provided address: %s", message.Addr.ServiceAddress)
 			}
 
 			_, err := mediaPlayer.SendMetadataReport(true)
 			if err != nil {
-				return nil, fmt.Errorf("adapter: failed to send metadata report: %w", err)
+				return nil, fmt.Errorf("failed to send metadata report: %w", err)
 			}
 
 			return nil, nil

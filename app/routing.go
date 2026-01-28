@@ -353,7 +353,7 @@ func makeConfigurationReply(
 			Error("failed to configure the application")
 
 		configReport.OpStatus = OperationStatusError
-		configReport.OpError = fmt.Sprintf("failed to configure the application: %s", err)
+		configReport.OpError = fmt.Sprintf("configure the app err: %s", err)
 	}
 
 	configReport.AppState = *appLifecycle.GetAllStates()
@@ -402,7 +402,7 @@ func HandleCmdAuthLogin(
 			report := &AuthenticationReport{}
 
 			if err = app.Login(credentials); err != nil {
-				log.WithError(err).Errorf("application: failed to login")
+				log.Errorf("Login err: %v", err)
 
 				report.ErrorText = "failed to login"
 			}
@@ -462,7 +462,7 @@ func HandleCmdAuthSetTokens(
 			report := &AuthenticationReport{}
 
 			if err = app.Authorize(credentials); err != nil {
-				log.WithError(err).Errorf("application: failed to authorize")
+				log.Errorf("Authorize err: %v", err)
 
 				report.ErrorText = "failed to authorize"
 			}
@@ -510,7 +510,7 @@ func HandleCmdAuthLogout(
 			report := &AuthenticationReport{}
 
 			if err := app.Logout(); err != nil {
-				log.WithError(err).Errorf("application: failed to logout")
+				log.Errorf("Logout err: %v", err)
 
 				report.ErrorText = "failed to logout"
 			}

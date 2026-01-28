@@ -2,7 +2,6 @@ define generate_mocks
     mockery --packageprefix mocked --keeptree --name=$(2) --recursive --case underscore --dir ./$(1) --output ./test/mocks/$(1)
 endef
 
-.phony: generate-mocks
 generate-mocks:
 	find ./test/mocks -type f -not -name "*_helper.go" | xargs rm -rf
 	$(call generate_mocks,"adapter/service","Reporter|Controller|Service|Manager")
@@ -17,7 +16,7 @@ generate-mocks:
 lint:
 	golangci-lint run
 
-tests:
-	docker container rm -f mqtt
-	docker-compose up -d mqtt
+test:
 	go test -p 1 -v -covermode=atomic ./...
+
+.PHONY: generate-mocks test lint

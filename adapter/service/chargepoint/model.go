@@ -47,6 +47,7 @@ const (
 	PhaseModeL1L2    PhaseMode = "L1L2"
 	PhaseModeL2L3    PhaseMode = "L2L3"
 	PhaseModeL3L1    PhaseMode = "L3L1"
+	PhaseModeUnknown PhaseMode = ""
 )
 
 // State represents a chargepoint state.

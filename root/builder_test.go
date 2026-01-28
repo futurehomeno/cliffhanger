@@ -9,7 +9,6 @@ import (
 	"github.com/futurehomeno/cliffhanger/lifecycle"
 	"github.com/futurehomeno/cliffhanger/root"
 	"github.com/futurehomeno/cliffhanger/router"
-	"github.com/futurehomeno/cliffhanger/task"
 	"github.com/futurehomeno/cliffhanger/test/suite"
 )
 
@@ -26,13 +25,11 @@ func TestBuilder_Build(t *testing.T) {
 		{
 			name: "Build core without errors",
 			builder: root.NewCoreAppBuilder().
-				WithVersion("test").
 				WithMQTT(mqtt).
 				WithServiceDiscovery(&discovery.Resource{}).
 				WithTopicSubscription("test").
 				WithRouting(&router.Routing{}).
-				WithRouterOptions(router.WithAsyncProcessing(3)).
-				WithTask(&task.Task{}),
+				WithRouterOptions(router.WithAsyncProcessing(3)),
 			wantErr: false,
 		},
 		{
@@ -42,8 +39,7 @@ func TestBuilder_Build(t *testing.T) {
 				WithServiceDiscovery(&discovery.Resource{}).
 				WithTopicSubscription("test").
 				WithRouting(&router.Routing{}).
-				WithRouterOptions(router.WithAsyncProcessing(3)).
-				WithTask(&task.Task{}),
+				WithRouterOptions(router.WithAsyncProcessing(3)),
 			wantErr: false,
 		},
 		{

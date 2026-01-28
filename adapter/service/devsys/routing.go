@@ -46,7 +46,7 @@ func handleCmdThingReboot(serviceRegistry adapter.ServiceRegistry) router.Messag
 
 			err = devSys.Reboot(hard)
 			if err != nil {
-				return nil, fmt.Errorf("adapter: failed to reboot: %w", err)
+				return nil, fmt.Errorf("failed to reboot: %w", err)
 			}
 
 			return nil, nil
@@ -59,12 +59,12 @@ func handleCmdThingReboot(serviceRegistry adapter.ServiceRegistry) router.Messag
 func getService(serviceRegistry adapter.ServiceRegistry, message *fimpgo.Message) (Service, error) {
 	s := serviceRegistry.ServiceByTopic(message.Topic)
 	if s == nil {
-		return nil, fmt.Errorf("adapter: service not found under the provided address: %s", message.Addr.ServiceAddress)
+		return nil, fmt.Errorf("service not found under the provided address: %s", message.Addr.ServiceAddress)
 	}
 
 	chargepoint, ok := s.(Service)
 	if !ok {
-		return nil, fmt.Errorf("adapter: incorrect service found under the provided address: %s", message.Addr.ServiceAddress)
+		return nil, fmt.Errorf("incorrect service found under the provided address: %s", message.Addr.ServiceAddress)
 	}
 
 	return chargepoint, nil

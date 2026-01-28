@@ -58,7 +58,7 @@ func handleCmdMeterGetReport(serviceRegistry adapter.ServiceRegistry) router.Mes
 
 			if message.Payload.ValueType != fimpgo.VTypeString && message.Payload.ValueType != fimpgo.VTypeNull {
 				return nil, fmt.Errorf(
-					"adapter: provided message value has an invalid type, received %s instead of %s or %s",
+					"provided message value has an invalid type, received %s instead of %s or %s",
 					message.Payload.ValueType, fimpgo.VTypeString, fimpgo.VTypeNull,
 				)
 			}
@@ -71,7 +71,7 @@ func handleCmdMeterGetReport(serviceRegistry adapter.ServiceRegistry) router.Mes
 			for _, unit := range units {
 				_, err = meter.SendMeterReport(unit, true)
 				if err != nil {
-					return nil, fmt.Errorf("adapter: failed to send meter report: %w", err)
+					return nil, fmt.Errorf("failed to send meter report: %w", err)
 				}
 			}
 
@@ -100,7 +100,7 @@ func handleCmdMeterExportGetReport(serviceRegistry adapter.ServiceRegistry) rout
 
 			if message.Payload.ValueType != fimpgo.VTypeString && message.Payload.ValueType != fimpgo.VTypeNull {
 				return nil, fmt.Errorf(
-					"adapter: provided message value has an invalid type, received %s instead of %s or %s",
+					"provided message value has an invalid type, received %s instead of %s or %s",
 					message.Payload.ValueType, fimpgo.VTypeString, fimpgo.VTypeNull,
 				)
 			}
@@ -113,7 +113,7 @@ func handleCmdMeterExportGetReport(serviceRegistry adapter.ServiceRegistry) rout
 			for _, unit := range units {
 				_, err = meter.SendMeterExportReport(unit, true)
 				if err != nil {
-					return nil, fmt.Errorf("adapter: failed to send meter report: %w", err)
+					return nil, fmt.Errorf("failed to send meter report: %w", err)
 				}
 			}
 
@@ -142,7 +142,7 @@ func handleCmdMeterExtGetReport(serviceRegistry adapter.ServiceRegistry) router.
 
 			if message.Payload.ValueType != fimpgo.VTypeStrArray && message.Payload.ValueType != fimpgo.VTypeNull {
 				return nil, fmt.Errorf(
-					"adapter: provided message value has an invalid type, received %s instead of %s or %s",
+					"provided message value has an invalid type, received %s instead of %s or %s",
 					message.Payload.ValueType, fimpgo.VTypeStrArray, fimpgo.VTypeNull,
 				)
 			}
@@ -154,7 +154,7 @@ func handleCmdMeterExtGetReport(serviceRegistry adapter.ServiceRegistry) router.
 
 			_, err = meter.SendMeterExtendedReport(values, true)
 			if err != nil {
-				return nil, fmt.Errorf("adapter: failed to send meter extended report: %w", err)
+				return nil, fmt.Errorf("failed to send meter extended report: %w", err)
 			}
 
 			return nil, nil
@@ -182,7 +182,7 @@ func handleCmdMeterReset(serviceRegistry adapter.ServiceRegistry) router.Message
 
 			err = meter.ResetMeter()
 			if err != nil {
-				return nil, fmt.Errorf("adapter: failed to reset meter: %w", err)
+				return nil, fmt.Errorf("failed to reset meter: %w", err)
 			}
 
 			return nil, nil
@@ -198,7 +198,7 @@ func unitsToReport(message *fimpgo.Message, supportedUnits Units) (Units, error)
 
 	unit, err := message.Payload.GetStringValue()
 	if err != nil {
-		return nil, fmt.Errorf("adapter: provided unit has an incorrect format: %w", err)
+		return nil, fmt.Errorf("provided unit has an incorrect format: %w", err)
 	}
 
 	if unit == "" {
@@ -216,7 +216,7 @@ func valuesToReport(message *fimpgo.Message, supportedValues Values) (Values, er
 
 	values, err := message.Payload.GetStrArrayValue()
 	if err != nil {
-		return nil, fmt.Errorf("adapter: provided value has an incorrect format: %w", err)
+		return nil, fmt.Errorf("provided value has an incorrect format: %w", err)
 	}
 
 	if len(values) == 0 {
@@ -230,12 +230,12 @@ func valuesToReport(message *fimpgo.Message, supportedValues Values) (Values, er
 func getService(serviceRegistry adapter.ServiceRegistry, message *fimpgo.Message) (Service, error) {
 	s := serviceRegistry.ServiceByTopic(message.Topic)
 	if s == nil {
-		return nil, fmt.Errorf("adapter: service not found under the provided address: %s", message.Addr.ServiceAddress)
+		return nil, fmt.Errorf("service not found under the provided address: %s", message.Addr.ServiceAddress)
 	}
 
 	numericMeter, ok := s.(Service)
 	if !ok {
-		return nil, fmt.Errorf("adapter: incorrect service found under the provided address: %s", message.Addr.ServiceAddress)
+		return nil, fmt.Errorf("incorrect service found under the provided address: %s", message.Addr.ServiceAddress)
 	}
 
 	return numericMeter, nil

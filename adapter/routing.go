@@ -55,7 +55,7 @@ func handleCmdThingGetInclusionReport(adapter Adapter) router.MessageHandler {
 
 			_, err = t.SendInclusionReport(true)
 			if err != nil {
-				return nil, fmt.Errorf("adapter: failed to send the inclusion report: %w", err)
+				return nil, fmt.Errorf("failed to send the inclusion report: %w", err)
 			}
 
 			return nil, nil
@@ -78,14 +78,14 @@ func handleCmdThingDelete(adapter Adapter) router.MessageHandler {
 		router.MessageProcessorFn(func(message *fimpgo.Message) (reply *fimpgo.FimpMessage, err error) {
 			value, err := message.Payload.GetStrMapValue()
 			if err != nil {
-				return nil, fmt.Errorf("adapter: provided address has an incorrect format: %w", err)
+				return nil, fmt.Errorf("provided address has an incorrect format: %w", err)
 			}
 
 			address := value["address"]
 
 			err = adapter.DestroyThingByAddress(address)
 			if err != nil {
-				return nil, fmt.Errorf("adapter: failed to delete thing with address %s: %w", address, err)
+				return nil, fmt.Errorf("failed to delete thing with address %s: %w", address, err)
 			}
 
 			return nil, nil
@@ -108,7 +108,7 @@ func handleCmdNetworkReset(adapter Adapter) router.MessageHandler {
 		router.MessageProcessorFn(func(message *fimpgo.Message) (reply *fimpgo.FimpMessage, err error) {
 			err = adapter.DestroyAllThings()
 			if err != nil {
-				return nil, fmt.Errorf("adapter: failed to reset all things: %w", err)
+				return nil, fmt.Errorf("failed to reset all things: %w", err)
 			}
 
 			return fimpgo.NewNullMessage(
@@ -142,7 +142,7 @@ func handleCmdNetworkGetNode(adapter Adapter) router.MessageHandler {
 
 			_, err = t.SendConnectivityReport(true)
 			if err != nil {
-				return nil, fmt.Errorf("adapter: failed to send the node report: %w", err)
+				return nil, fmt.Errorf("failed to send the node report: %w", err)
 			}
 
 			return nil, nil
@@ -165,7 +165,7 @@ func handleCmdNetworkGetAllNodes(adapter Adapter) router.MessageHandler {
 		router.MessageProcessorFn(func(_ *fimpgo.Message) (reply *fimpgo.FimpMessage, err error) {
 			err = adapter.SendConnectivityReport()
 			if err != nil {
-				return nil, fmt.Errorf("adapter: failed to send connectivity report: %w", err)
+				return nil, fmt.Errorf("failed to send connectivity report: %w", err)
 			}
 
 			return nil, nil
@@ -193,7 +193,7 @@ func handleCmdPingSend(adapter Adapter) router.MessageHandler {
 
 			err = t.SendPingReport()
 			if err != nil {
-				return nil, fmt.Errorf("adapter: failed to send the ping report: %w", err)
+				return nil, fmt.Errorf("failed to send the ping report: %w", err)
 			}
 
 			return nil, nil
@@ -204,12 +204,12 @@ func handleCmdPingSend(adapter Adapter) router.MessageHandler {
 func getThingByMessage(adapter Adapter, message *fimpgo.Message) (Thing, error) {
 	address, err := message.Payload.GetStringValue()
 	if err != nil {
-		return nil, fmt.Errorf("adapter: provided address has an incorrect format: %w", err)
+		return nil, fmt.Errorf("provided address has an incorrect format: %w", err)
 	}
 
 	t := adapter.ThingByAddress(address)
 	if t == nil {
-		return nil, fmt.Errorf("adapter: thing not found under the provided address: %s", address)
+		return nil, fmt.Errorf("thing not found under the provided address: %s", address)
 	}
 
 	return t, nil

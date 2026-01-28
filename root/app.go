@@ -50,8 +50,6 @@ type app struct {
 	lock    *sync.Mutex
 	errCh   chan error
 
-	version string
-
 	mqtt               *fimpgo.MqttTransport
 	lifecycle          *lifecycle.Lifecycle
 	topicSubscriptions []string
@@ -84,7 +82,7 @@ func (a *app) Reset() error {
 
 	err := a.doStop()
 	if err != nil {
-		log.WithError(err).Error("application: failed to stop the application resetting, trying to reset the application regardless")
+		log.Error("Reset app err: %w", err)
 	}
 
 	return a.passErr(a.doReset())
@@ -119,7 +117,6 @@ func (a *app) Run() error {
 
 	go func() {
 		<-signals
-
 		_ = a.Stop()
 	}()
 
@@ -132,7 +129,7 @@ func (a *app) doStart() error {
 		return nil
 	}
 
-	log.WithField("version", a.version).Info("application: starting the application")
+	log.Info("[cliff] Starting app")
 
 	if a.lifecycle != nil {
 		a.lifecycle.SetAppState(lifecycle.AppStateStarting, nil)
@@ -140,34 +137,34 @@ func (a *app) doStart() error {
 
 	err := a.mqtt.Start()
 	if err != nil {
-		return fmt.Errorf("application: failed to start the MQTT broker: %w", err)
+		return fmt.Errorf("start the MQTT broker err: %w", err)
 	}
 
 	for _, service := range a.services {
 		err = service.Start()
 		if err != nil {
-			return fmt.Errorf("application: failed to start a service: %w", err)
+			return fmt.Errorf("start service err: %w", err)
 		}
 	}
 
 	err = a.messageRouter.Start()
 	if err != nil {
-		return fmt.Errorf("application: failed to start the message router: %w", err)
+		return fmt.Errorf("start message router err: %w", err)
 	}
 
 	for _, topic := range config.Deduplicate(a.topicSubscriptions) {
 		err = a.mqtt.Subscribe(topic)
 		if err != nil {
-			return fmt.Errorf("application: failed to subscribe to a topic %s: %w", topic, err)
+			return fmt.Errorf("subscribe topic=%s err: %w", topic, err)
 		}
 	}
 
 	err = a.taskManager.Start()
 	if err != nil {
-		return fmt.Errorf("application: failed to start the task manager: %w", err)
+		return fmt.Errorf("start task manager err: %w", err)
 	}
 
-	log.Info("application: the application is started")
+	log.Debug("[cliff] App started")
 
 	a.running = true
 
@@ -180,57 +177,52 @@ func (a *app) doStop() error {
 		return nil
 	}
 
-	log.WithField("version", a.version).Info("application: stopping the application")
-
 	if a.lifecycle != nil {
 		a.lifecycle.SetAppState(lifecycle.AppStateTerminate, nil)
 	}
 
 	err := a.taskManager.Stop()
 	if err != nil {
-		return fmt.Errorf("application: failed to stop the task manager: %w", err)
+		return fmt.Errorf("stop task manager err: %w", err)
 	}
 
 	for _, topic := range config.Deduplicate(a.topicSubscriptions) {
 		err := a.mqtt.Unsubscribe(topic)
 		if err != nil {
-			return fmt.Errorf("application: failed to unsubscribe to a topic %s: %w", topic, err)
+			return fmt.Errorf("unsubscribe topic=%s err: %w", topic, err)
 		}
 	}
 
 	err = a.messageRouter.Stop()
 	if err != nil {
-		return fmt.Errorf("application: failed to stop the message router: %w", err)
+		return fmt.Errorf("stop message router err: %w", err)
 	}
 
 	for i := len(a.services) - 1; i >= 0; i-- {
 		err = a.services[i].Stop()
 		if err != nil {
-			return fmt.Errorf("application: failed to stop a service: %w", err)
+			return fmt.Errorf("stop service err: %w", err)
 		}
 	}
 
 	a.mqtt.Stop()
 
-	log.Info("application: the application is stopped")
-
 	a.running = false
-
 	return nil
 }
 
 // doReset performs the application factory reset.
 func (a *app) doReset() error {
-	log.Info("application: performing factory reset of the application data")
+	log.Info("[cliff] Factory reset of the app data")
 
 	for _, resetter := range a.resetters {
 		err := resetter.Reset()
 		if err != nil {
-			return fmt.Errorf("application: failed to factory reset application data: %w", err)
+			return fmt.Errorf("factory reset app data err: %w", err)
 		}
 	}
 
-	log.Info("application: factory reset of the application data is completed")
+	log.Info("[cliff] Factory reset of the app data completed")
 
 	return nil
 }

@@ -32,7 +32,7 @@ func handleInitialization(adapter Adapter) func() {
 	return func() {
 		err := adapter.InitializeThings()
 		if err != nil {
-			log.WithError(err).Errorf("adapter: failed to initialize things")
+			log.WithError(err).Errorf("failed to initialize things")
 		}
 	}
 }
@@ -48,7 +48,7 @@ func handleConnectivityReporting(adapter Adapter) func() {
 		for _, t := range adapter.Things() {
 			_, err := t.SendConnectivityReport(false)
 			if err != nil {
-				log.WithError(err).WithField("address", t.Address()).Errorf("adapter: failed to send connectivity report")
+				log.WithError(err).WithField("address", t.Address()).Errorf("failed to send connectivity report")
 			}
 		}
 	}

@@ -41,21 +41,21 @@ func handleCmdOTAUpdateStart(serviceRegistry adapter.ServiceRegistry) router.Mes
 		router.MessageProcessorFn(func(message *fimpgo.Message) (*fimpgo.FimpMessage, error) {
 			s := serviceRegistry.ServiceByTopic(message.Topic)
 			if s == nil {
-				return nil, fmt.Errorf("adapter: service not found under the provided address: %s", message.Addr.ServiceAddress)
+				return nil, fmt.Errorf("service not found under the provided address: %s", message.Addr.ServiceAddress)
 			}
 
 			ota, ok := s.(Service)
 			if !ok {
-				return nil, fmt.Errorf("adapter: incorrect service found under the provided address: %s", message.Addr.ServiceAddress)
+				return nil, fmt.Errorf("incorrect service found under the provided address: %s", message.Addr.ServiceAddress)
 			}
 
 			firmwarePath, err := message.Payload.GetStringValue()
 			if err != nil {
-				return nil, fmt.Errorf("adapter: failed to get firmware path from payload: %w", err)
+				return nil, fmt.Errorf("failed to get firmware path from payload: %w", err)
 			}
 
 			if err = ota.StartUpdate(firmwarePath); err != nil {
-				return nil, fmt.Errorf("adapter: failed to start OTA update: %w", err)
+				return nil, fmt.Errorf("failed to start OTA update: %w", err)
 			}
 
 			return nil, nil

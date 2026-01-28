@@ -79,16 +79,16 @@ func HandleCmdSensorGetReport(serviceRegistry adapter.ServiceRegistry) router.Me
 		router.MessageProcessorFn(func(message *fimpgo.Message) (reply *fimpgo.FimpMessage, err error) {
 			s := serviceRegistry.ServiceByTopic(message.Topic)
 			if s == nil {
-				return nil, fmt.Errorf("adapter: service not found under the provided address: %s", message.Addr.ServiceAddress)
+				return nil, fmt.Errorf("service not found under the provided address: %s", message.Addr.ServiceAddress)
 			}
 
 			numericSensor, ok := s.(Service)
 			if !ok {
-				return nil, fmt.Errorf("adapter: incorrect service found under the provided address: %s", message.Addr.ServiceAddress)
+				return nil, fmt.Errorf("incorrect service found under the provided address: %s", message.Addr.ServiceAddress)
 			}
 
 			if numericSensor.Name() != message.Payload.Service {
-				return nil, fmt.Errorf("adapter: incorrect service found under the provided address: %s", message.Addr.ServiceAddress)
+				return nil, fmt.Errorf("incorrect service found under the provided address: %s", message.Addr.ServiceAddress)
 			}
 
 			units, err := unitsToReport(numericSensor, message)
@@ -99,7 +99,7 @@ func HandleCmdSensorGetReport(serviceRegistry adapter.ServiceRegistry) router.Me
 			for _, unit := range units {
 				_, err = numericSensor.SendSensorReport(unit, true)
 				if err != nil {
-					return nil, fmt.Errorf("adapter: failed to send sensor report: %w", err)
+					return nil, fmt.Errorf("failed to send sensor report: %w", err)
 				}
 			}
 
@@ -116,7 +116,7 @@ func unitsToReport(service Service, message *fimpgo.Message) ([]string, error) {
 
 	unit, err := message.Payload.GetStringValue()
 	if err != nil {
-		return nil, fmt.Errorf("adapter: provided unit has an incorrect format: %w", err)
+		return nil, fmt.Errorf("provided unit has an incorrect format: %w", err)
 	}
 
 	if unit == "" {

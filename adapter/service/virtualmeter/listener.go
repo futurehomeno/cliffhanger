@@ -47,8 +47,7 @@ func NewHandlers(mr Manager, handlersBufferSize int) []*event.Handler {
 func (p *levelEventProcessor) Process(e event.Event) {
 	levelEvent, ok := e.(*outlvlswitch.LevelEvent)
 	if !ok {
-		log.Warnf("listener: received an event of type %T, expected *outlvlswitch.LevelEvent", e)
-
+		log.Warnf("[cliff] Received event type=%T exp=*outlvlswitch.LevelEvent", e)
 		return
 	}
 
@@ -81,8 +80,7 @@ func (p *levelEventProcessor) Process(e event.Event) {
 func (p *connectivityEventProcessor) Process(e event.Event) {
 	connectivityEvent, ok := e.(*adapter.ConnectivityEvent)
 	if !ok {
-		log.Warnf("listener: received an event of type %T, expected *adapter.ConnectivityEvent", e)
-
+		log.Warnf("[cliff] Received event type=%T exp=*adapter.ConnectivityEvent", e)
 		return
 	}
 

@@ -112,5 +112,10 @@ func (r *manager) run(task *Task) {
 		}
 	}()
 
+	if task == nil {
+		log.Error("[cliff] Task is nil")
+		return
+	}
+
 	task.run()
 }

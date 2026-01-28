@@ -49,33 +49,33 @@ func HandleCmdModeSet(serviceRegistry adapter.ServiceRegistry) router.MessageHan
 		router.MessageProcessorFn(func(message *fimpgo.Message) (*fimpgo.FimpMessage, error) {
 			s := serviceRegistry.ServiceByTopic(message.Topic)
 			if s == nil {
-				return nil, fmt.Errorf("adapter: service not found under the provided address: %s", message.Addr.ServiceAddress)
+				return nil, fmt.Errorf("service not found under the provided address: %s", message.Addr.ServiceAddress)
 			}
 
 			thermostat, ok := s.(Service)
 			if !ok {
-				return nil, fmt.Errorf("adapter: incorrect service found under the provided address: %s", message.Addr.ServiceAddress)
+				return nil, fmt.Errorf("incorrect service found under the provided address: %s", message.Addr.ServiceAddress)
 			}
 
 			mode, err := message.Payload.GetStringValue()
 			if err != nil {
-				return nil, fmt.Errorf("adapter: provided mode has an incorrect format: %w", err)
+				return nil, fmt.Errorf("provided mode has an incorrect format: %w", err)
 			}
 
 			err = thermostat.SetMode(mode)
 			if err != nil {
-				return nil, fmt.Errorf("adapter: failed to set thermostat mode: %w", err)
+				return nil, fmt.Errorf("failed to set thermostat mode: %w", err)
 			}
 
 			_, err = thermostat.SendModeReport(true)
 			if err != nil {
-				return nil, fmt.Errorf("adapter: failed to send thermostat mode report: %w", err)
+				return nil, fmt.Errorf("failed to send thermostat mode report: %w", err)
 			}
 
 			if thermostat.SupportsSetpoint(mode) {
 				_, err = thermostat.SendSetpointReport(mode, true)
 				if err != nil {
-					return nil, fmt.Errorf("adapter: failed to send thermostat setpoint report: %w", err)
+					return nil, fmt.Errorf("failed to send thermostat setpoint report: %w", err)
 				}
 			}
 
@@ -99,32 +99,32 @@ func HandleCmdSetpointSet(serviceRegistry adapter.ServiceRegistry) router.Messag
 		router.MessageProcessorFn(func(message *fimpgo.Message) (*fimpgo.FimpMessage, error) {
 			s := serviceRegistry.ServiceByTopic(message.Topic)
 			if s == nil {
-				return nil, fmt.Errorf("adapter: service not found under the provided address: %s", message.Addr.ServiceAddress)
+				return nil, fmt.Errorf("service not found under the provided address: %s", message.Addr.ServiceAddress)
 			}
 
 			thermostat, ok := s.(Service)
 			if !ok {
-				return nil, fmt.Errorf("adapter: incorrect service found under the provided address: %s", message.Addr.ServiceAddress)
+				return nil, fmt.Errorf("incorrect service found under the provided address: %s", message.Addr.ServiceAddress)
 			}
 
 			value, err := message.Payload.GetStrMapValue()
 			if err != nil {
-				return nil, fmt.Errorf("adapter: provided setpoint string map has an incorrect format: %w", err)
+				return nil, fmt.Errorf("provided setpoint string map has an incorrect format: %w", err)
 			}
 
 			setpoint, err := SetpointFromStringMap(value)
 			if err != nil {
-				return nil, fmt.Errorf("adapter: provided setpoint string map has an incorrect format: %w", err)
+				return nil, fmt.Errorf("provided setpoint string map has an incorrect format: %w", err)
 			}
 
 			err = thermostat.SetSetpoint(setpoint.Type, setpoint.Temperature, setpoint.Unit)
 			if err != nil {
-				return nil, fmt.Errorf("adapter: failed to set thermostat setpoint: %w", err)
+				return nil, fmt.Errorf("failed to set thermostat setpoint: %w", err)
 			}
 
 			_, err = thermostat.SendSetpointReport(setpoint.Type, true)
 			if err != nil {
-				return nil, fmt.Errorf("adapter: failed to send thermostat setpoint report: %w", err)
+				return nil, fmt.Errorf("failed to send thermostat setpoint report: %w", err)
 			}
 
 			return nil, nil
@@ -147,17 +147,17 @@ func HandleCmdModeGetReport(serviceRegistry adapter.ServiceRegistry) router.Mess
 		router.MessageProcessorFn(func(message *fimpgo.Message) (*fimpgo.FimpMessage, error) {
 			s := serviceRegistry.ServiceByTopic(message.Topic)
 			if s == nil {
-				return nil, fmt.Errorf("adapter: service not found under the provided address: %s", message.Addr.ServiceAddress)
+				return nil, fmt.Errorf("service not found under the provided address: %s", message.Addr.ServiceAddress)
 			}
 
 			thermostat, ok := s.(Service)
 			if !ok {
-				return nil, fmt.Errorf("adapter: incorrect service found under the provided address: %s", message.Addr.ServiceAddress)
+				return nil, fmt.Errorf("incorrect service found under the provided address: %s", message.Addr.ServiceAddress)
 			}
 
 			_, err := thermostat.SendModeReport(true)
 			if err != nil {
-				return nil, fmt.Errorf("adapter: failed to send thermostat mode report: %w", err)
+				return nil, fmt.Errorf("failed to send thermostat mode report: %w", err)
 			}
 
 			return nil, nil
@@ -180,22 +180,22 @@ func HandleCmdSetpointGetReport(serviceRegistry adapter.ServiceRegistry) router.
 		router.MessageProcessorFn(func(message *fimpgo.Message) (*fimpgo.FimpMessage, error) {
 			s := serviceRegistry.ServiceByTopic(message.Topic)
 			if s == nil {
-				return nil, fmt.Errorf("adapter: service not found under the provided address: %s", message.Addr.ServiceAddress)
+				return nil, fmt.Errorf("service not found under the provided address: %s", message.Addr.ServiceAddress)
 			}
 
 			thermostat, ok := s.(Service)
 			if !ok {
-				return nil, fmt.Errorf("adapter: incorrect service found under the provided address: %s", message.Addr.ServiceAddress)
+				return nil, fmt.Errorf("incorrect service found under the provided address: %s", message.Addr.ServiceAddress)
 			}
 
 			mode, err := message.Payload.GetStringValue()
 			if err != nil {
-				return nil, fmt.Errorf("adapter: provided mode has an incorrect format: %w", err)
+				return nil, fmt.Errorf("provided mode has an incorrect format: %w", err)
 			}
 
 			_, err = thermostat.SendSetpointReport(mode, true)
 			if err != nil {
-				return nil, fmt.Errorf("adapter: failed to send thermostat setpoint report: %w", err)
+				return nil, fmt.Errorf("failed to send thermostat setpoint report: %w", err)
 			}
 
 			return nil, nil
@@ -218,17 +218,17 @@ func HandleCmdStateGetReport(serviceRegistry adapter.ServiceRegistry) router.Mes
 		router.MessageProcessorFn(func(message *fimpgo.Message) (*fimpgo.FimpMessage, error) {
 			s := serviceRegistry.ServiceByTopic(message.Topic)
 			if s == nil {
-				return nil, fmt.Errorf("adapter: service not found under the provided address: %s", message.Addr.ServiceAddress)
+				return nil, fmt.Errorf("service not found under the provided address: %s", message.Addr.ServiceAddress)
 			}
 
 			thermostat, ok := s.(Service)
 			if !ok {
-				return nil, fmt.Errorf("adapter: incorrect service found under the provided address: %s", message.Addr.ServiceAddress)
+				return nil, fmt.Errorf("incorrect service found under the provided address: %s", message.Addr.ServiceAddress)
 			}
 
 			_, err := thermostat.SendStateReport(true)
 			if err != nil {
-				return nil, fmt.Errorf("adapter: failed to send thermostat state report: %w", err)
+				return nil, fmt.Errorf("failed to send thermostat state report: %w", err)
 			}
 
 			return nil, nil

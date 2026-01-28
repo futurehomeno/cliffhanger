@@ -41,27 +41,27 @@ func HandleCmdModeSet(serviceRegistry adapter.ServiceRegistry) router.MessageHan
 		router.MessageProcessorFn(func(message *fimpgo.Message) (*fimpgo.FimpMessage, error) {
 			s := serviceRegistry.ServiceByTopic(message.Topic)
 			if s == nil {
-				return nil, fmt.Errorf("adapter: service not found under the provided address: %s", message.Addr.ServiceAddress)
+				return nil, fmt.Errorf("service not found under the provided address: %s", message.Addr.ServiceAddress)
 			}
 
 			fanctrl, ok := s.(Service)
 			if !ok {
-				return nil, fmt.Errorf("adapter: incorrect service found under the provided address: %s", message.Addr.ServiceAddress)
+				return nil, fmt.Errorf("incorrect service found under the provided address: %s", message.Addr.ServiceAddress)
 			}
 
 			mode, err := message.Payload.GetStringValue()
 			if err != nil {
-				return nil, fmt.Errorf("adapter: failed to parse mode: %w", err)
+				return nil, fmt.Errorf("failed to parse mode: %w", err)
 			}
 
 			err = fanctrl.SetMode(mode)
 			if err != nil {
-				return nil, fmt.Errorf("adapter: failed to set mode: %w", err)
+				return nil, fmt.Errorf("failed to set mode: %w", err)
 			}
 
 			_, err = fanctrl.SendModeReport(true)
 			if err != nil {
-				return nil, fmt.Errorf("adapter: failed to send mode report: %w", err)
+				return nil, fmt.Errorf("failed to send mode report: %w", err)
 			}
 
 			return nil, nil
@@ -84,17 +84,17 @@ func HandleCmdModeGetReport(serviceRegistry adapter.ServiceRegistry) router.Mess
 		router.MessageProcessorFn(func(message *fimpgo.Message) (*fimpgo.FimpMessage, error) {
 			s := serviceRegistry.ServiceByTopic(message.Topic)
 			if s == nil {
-				return nil, fmt.Errorf("adapter: service not found under the provided address: %s", message.Addr.ServiceAddress)
+				return nil, fmt.Errorf("service not found under the provided address: %s", message.Addr.ServiceAddress)
 			}
 
 			modectrl, ok := s.(Service)
 			if !ok {
-				return nil, fmt.Errorf("adapter: incorrect service found under the provided address: %s", message.Addr.ServiceAddress)
+				return nil, fmt.Errorf("incorrect service found under the provided address: %s", message.Addr.ServiceAddress)
 			}
 
 			_, err := modectrl.SendModeReport(true)
 			if err != nil {
-				return nil, fmt.Errorf("adapter: failed to send mode report: %w", err)
+				return nil, fmt.Errorf("failed to send mode report: %w", err)
 			}
 
 			return nil, nil

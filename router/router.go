@@ -2,6 +2,7 @@ package router
 
 import (
 	"errors"
+	"reflect"
 	"runtime/debug"
 	"sync"
 	"time"
@@ -113,25 +114,32 @@ func (r *router) routeMessages(messageCh fimpgo.MessageCh) {
 }
 
 // processMessage allows a routing to process the incoming message.
-func (r *router) processMessage(routing *Routing, message *fimpgo.Message) {
+func (r *router) processMessage(routing *Routing, msg *fimpgo.Message) {
 	defer func() {
 		if rc := recover(); rc != nil {
-			r.handleProcessingPanic(message, rc)
+			r.handleProcessingPanic(msg, rc)
 		}
 	}()
 
-	if !routing.vote(message) {
+	if !routing.vote(msg) {
 		return
 	}
 
 	startTime := time.Now()
-	response := routing.handler.Handle(message)
+
+	if routing.handler == nil ||
+		reflect.ValueOf(routing.handler).IsNil() {
+		log.Errorf("[cliff] No handler for msg topic=%v", msg.Topic)
+		return
+	}
+
+	response := routing.handler.Handle(msg)
 	elapsed := time.Since(startTime)
 
 	defer func() {
 		if r.cfg.statsCallback != nil {
 			r.cfg.statsCallback(Stats{
-				InputMessage:       message,
+				InputMessage:       msg,
 				OutputMessage:      response,
 				ProcessingDuration: elapsed,
 			})
@@ -142,13 +150,13 @@ func (r *router) processMessage(routing *Routing, message *fimpgo.Message) {
 		return
 	}
 
-	responseAddress := r.getResponseAddress(message, response)
+	responseAddress := r.getResponseAddress(msg, response)
 	if responseAddress == nil {
 		return
 	}
 
 	if response.Payload.CorrelationID == "" {
-		response.Payload.CorrelationID = message.Payload.UID
+		response.Payload.CorrelationID = msg.Payload.UID
 	}
 
 	err := r.mqtt.Publish(responseAddress, response.Payload)

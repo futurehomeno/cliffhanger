@@ -37,34 +37,34 @@ func handleReporting(serviceRegistry adapter.ServiceRegistry) func() {
 func sendChargepointReports(s Service) {
 	_, err := s.SendCurrentSessionReport(false)
 	if err != nil {
-		log.WithError(err).Errorf("adapter: failed to current session report")
+		log.WithError(err).Errorf("failed to current session report")
 	}
 
 	if len(s.SupportedStates()) > 0 {
 		_, err = s.SendStateReport(false)
 		if err != nil {
-			log.WithError(err).Errorf("adapter: failed to send chargepoint state report")
+			log.WithError(err).Errorf("failed to send chargepoint state report")
 		}
 	}
 
 	if s.SupportsAdjustingMaxCurrent() {
 		_, err = s.SendMaxCurrentReport(false)
 		if err != nil {
-			log.WithError(err).Errorf("adapter: failed to send chargepoint max current report")
+			log.WithError(err).Errorf("failed to send chargepoint max current report")
 		}
 	}
 
 	if s.SupportsAdjustingPhaseModes() {
 		_, err = s.SendPhaseModeReport(false)
 		if err != nil {
-			log.WithError(err).Errorf("adapter: failed to send chargepoint phase mode report")
+			log.WithError(err).Errorf("failed to send chargepoint phase mode report")
 		}
 	}
 
 	if s.IsCableLockAware() {
 		_, err := s.SendCableLockReport(false)
 		if err != nil {
-			log.WithError(err).Errorf("adapter: failed to send cable lock report")
+			log.WithError(err).Errorf("failed to send cable lock report")
 		}
 	}
 }
