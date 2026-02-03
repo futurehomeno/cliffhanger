@@ -39,25 +39,25 @@ func TestHandleCmdLogGetLevel(t *testing.T) { //nolint:paralleltest
 	}{
 		{
 			name:       "happy path",
-			logSetter:  func(s string) error { return nil },
+			logSetter:  func(_ string) error { return nil },
 			msg:        makeCommand("string", "error"),
 			wantLogLvl: log.ErrorLevel,
 		},
 		{
 			name:      "error when checking payload value",
-			logSetter: func(s string) error { return nil },
+			logSetter: func(_ string) error { return nil },
 			msg:       makeCommand("bool", true),
 			wantErr:   true,
 		},
 		{
 			name:      "error when parsing log level",
-			logSetter: func(s string) error { return nil },
+			logSetter: func(_ string) error { return nil },
 			msg:       makeCommand("string", "dummy"),
 			wantErr:   true,
 		},
 		{
 			name:      "error when saving log level",
-			logSetter: func(s string) error { return errors.New("test error") },
+			logSetter: func(_ string) error { return errors.New("test error") },
 			msg:       makeCommand("string", "error"),
 			wantErr:   true,
 		},
@@ -92,7 +92,7 @@ func TestRouteConfig(t *testing.T) { //nolint:paralleltest
 		Cases: []*suite.Case{
 			{
 				Name: "Successful getter and setter",
-				Setup: suite.BaseSetup(func(t *testing.T, mqtt *fimpgo.MqttTransport) (routing []*router.Routing, tasks []*task.Task, mocks []suite.Mock) {
+				Setup: suite.BaseSetup(func(t *testing.T, _ *fimpgo.MqttTransport) (routing []*router.Routing, tasks []*task.Task, mocks []suite.Mock) {
 					t.Helper()
 
 					mDuration := newConfigMock[time.Duration]().mockGetter(time.Second).mockSetter(time.Minute, nil)
@@ -157,188 +157,188 @@ func TestRouteConfig(t *testing.T) { //nolint:paralleltest
 				}),
 				Nodes: []*suite.Node{
 					{
-						Command: suite.NullMessage("pt:j1/mt:cmd/rt:app/rn:test/ad:1", "cmd.config.get_test_setting_duration", "test_service"),
+						Commands: []*fimpgo.Message{suite.NullMessage("pt:j1/mt:cmd/rt:app/rn:test/ad:1", "cmd.config.get_test_setting_duration", "test_service")},
 						Expectations: []*suite.Expectation{
 							suite.ExpectString("pt:j1/mt:evt/rt:app/rn:test/ad:1", "evt.config.test_setting_duration_report", "test_service", "1s"),
 						},
 					},
 					{
-						Command: suite.StringMessage("pt:j1/mt:cmd/rt:app/rn:test/ad:1", "cmd.config.set_test_setting_duration", "test_service", "1m"),
+						Commands: []*fimpgo.Message{suite.StringMessage("pt:j1/mt:cmd/rt:app/rn:test/ad:1", "cmd.config.set_test_setting_duration", "test_service", "1m")},
 						Expectations: []*suite.Expectation{
 							suite.ExpectString("pt:j1/mt:evt/rt:app/rn:test/ad:1", "evt.config.test_setting_duration_report", "test_service", "1m"),
 						},
 					},
 					{
-						Command: suite.NullMessage("pt:j1/mt:cmd/rt:app/rn:test/ad:1", "cmd.config.get_test_setting_string", "test_service"),
+						Commands: []*fimpgo.Message{suite.NullMessage("pt:j1/mt:cmd/rt:app/rn:test/ad:1", "cmd.config.get_test_setting_string", "test_service")},
 						Expectations: []*suite.Expectation{
 							suite.ExpectString("pt:j1/mt:evt/rt:app/rn:test/ad:1", "evt.config.test_setting_string_report", "test_service", "abc"),
 						},
 					},
 					{
-						Command: suite.StringMessage("pt:j1/mt:cmd/rt:app/rn:test/ad:1", "cmd.config.set_test_setting_string", "test_service", "def"),
+						Commands: []*fimpgo.Message{suite.StringMessage("pt:j1/mt:cmd/rt:app/rn:test/ad:1", "cmd.config.set_test_setting_string", "test_service", "def")},
 						Expectations: []*suite.Expectation{
 							suite.ExpectString("pt:j1/mt:evt/rt:app/rn:test/ad:1", "evt.config.test_setting_string_report", "test_service", "def"),
 						},
 					},
 					{
-						Command: suite.NullMessage("pt:j1/mt:cmd/rt:app/rn:test/ad:1", "cmd.config.get_test_setting_bool", "test_service"),
+						Commands: []*fimpgo.Message{suite.NullMessage("pt:j1/mt:cmd/rt:app/rn:test/ad:1", "cmd.config.get_test_setting_bool", "test_service")},
 						Expectations: []*suite.Expectation{
 							suite.ExpectBool("pt:j1/mt:evt/rt:app/rn:test/ad:1", "evt.config.test_setting_bool_report", "test_service", true),
 						},
 					},
 					{
-						Command: suite.BoolMessage("pt:j1/mt:cmd/rt:app/rn:test/ad:1", "cmd.config.set_test_setting_bool", "test_service", false),
+						Commands: []*fimpgo.Message{suite.BoolMessage("pt:j1/mt:cmd/rt:app/rn:test/ad:1", "cmd.config.set_test_setting_bool", "test_service", false)},
 						Expectations: []*suite.Expectation{
 							suite.ExpectBool("pt:j1/mt:evt/rt:app/rn:test/ad:1", "evt.config.test_setting_bool_report", "test_service", false),
 						},
 					},
 					{
-						Command: suite.NullMessage("pt:j1/mt:cmd/rt:app/rn:test/ad:1", "cmd.config.get_test_setting_int", "test_service"),
+						Commands: []*fimpgo.Message{suite.NullMessage("pt:j1/mt:cmd/rt:app/rn:test/ad:1", "cmd.config.get_test_setting_int", "test_service")},
 						Expectations: []*suite.Expectation{
 							suite.ExpectInt("pt:j1/mt:evt/rt:app/rn:test/ad:1", "evt.config.test_setting_int_report", "test_service", 1),
 						},
 					},
 					{
-						Command: suite.IntMessage("pt:j1/mt:cmd/rt:app/rn:test/ad:1", "cmd.config.set_test_setting_int", "test_service", 2),
+						Commands: []*fimpgo.Message{suite.IntMessage("pt:j1/mt:cmd/rt:app/rn:test/ad:1", "cmd.config.set_test_setting_int", "test_service", 2)},
 						Expectations: []*suite.Expectation{
 							suite.ExpectInt("pt:j1/mt:evt/rt:app/rn:test/ad:1", "evt.config.test_setting_int_report", "test_service", 2),
 						},
 					},
 					{
-						Command: suite.NullMessage("pt:j1/mt:cmd/rt:app/rn:test/ad:1", "cmd.config.get_test_setting_float", "test_service"),
+						Commands: []*fimpgo.Message{suite.NullMessage("pt:j1/mt:cmd/rt:app/rn:test/ad:1", "cmd.config.get_test_setting_float", "test_service")},
 						Expectations: []*suite.Expectation{
 							suite.ExpectFloat("pt:j1/mt:evt/rt:app/rn:test/ad:1", "evt.config.test_setting_float_report", "test_service", 1),
 						},
 					},
 					{
-						Command: suite.FloatMessage("pt:j1/mt:cmd/rt:app/rn:test/ad:1", "cmd.config.set_test_setting_float", "test_service", 2),
+						Commands: []*fimpgo.Message{suite.FloatMessage("pt:j1/mt:cmd/rt:app/rn:test/ad:1", "cmd.config.set_test_setting_float", "test_service", 2)},
 						Expectations: []*suite.Expectation{
 							suite.ExpectFloat("pt:j1/mt:evt/rt:app/rn:test/ad:1", "evt.config.test_setting_float_report", "test_service", 2),
 						},
 					},
 					{
-						Command: suite.NullMessage("pt:j1/mt:cmd/rt:app/rn:test/ad:1", "cmd.config.get_test_setting_string_map", "test_service"),
+						Commands: []*fimpgo.Message{suite.NullMessage("pt:j1/mt:cmd/rt:app/rn:test/ad:1", "cmd.config.get_test_setting_string_map", "test_service")},
 						Expectations: []*suite.Expectation{
 							suite.ExpectStringMap("pt:j1/mt:evt/rt:app/rn:test/ad:1", "evt.config.test_setting_string_map_report", "test_service", map[string]string{"a": "b"}),
 						},
 					},
 					{
-						Command: suite.StringMapMessage("pt:j1/mt:cmd/rt:app/rn:test/ad:1", "cmd.config.set_test_setting_string_map", "test_service", map[string]string{"c": "d"}),
+						Commands: []*fimpgo.Message{suite.StringMapMessage("pt:j1/mt:cmd/rt:app/rn:test/ad:1", "cmd.config.set_test_setting_string_map", "test_service", map[string]string{"c": "d"})},
 						Expectations: []*suite.Expectation{
 							suite.ExpectStringMap("pt:j1/mt:evt/rt:app/rn:test/ad:1", "evt.config.test_setting_string_map_report", "test_service", map[string]string{"c": "d"}),
 						},
 					},
 					{
-						Command: suite.NullMessage("pt:j1/mt:cmd/rt:app/rn:test/ad:1", "cmd.config.get_test_setting_bool_map", "test_service"),
+						Commands: []*fimpgo.Message{suite.NullMessage("pt:j1/mt:cmd/rt:app/rn:test/ad:1", "cmd.config.get_test_setting_bool_map", "test_service")},
 						Expectations: []*suite.Expectation{
 							suite.ExpectBoolMap("pt:j1/mt:evt/rt:app/rn:test/ad:1", "evt.config.test_setting_bool_map_report", "test_service", map[string]bool{"a": true}),
 						},
 					},
 					{
-						Command: suite.BoolMapMessage("pt:j1/mt:cmd/rt:app/rn:test/ad:1", "cmd.config.set_test_setting_bool_map", "test_service", map[string]bool{"c": false}),
+						Commands: []*fimpgo.Message{suite.BoolMapMessage("pt:j1/mt:cmd/rt:app/rn:test/ad:1", "cmd.config.set_test_setting_bool_map", "test_service", map[string]bool{"c": false})},
 						Expectations: []*suite.Expectation{
 							suite.ExpectBoolMap("pt:j1/mt:evt/rt:app/rn:test/ad:1", "evt.config.test_setting_bool_map_report", "test_service", map[string]bool{"c": false}),
 						},
 					},
 					{
-						Command: suite.NullMessage("pt:j1/mt:cmd/rt:app/rn:test/ad:1", "cmd.config.get_test_setting_int_map", "test_service"),
+						Commands: []*fimpgo.Message{suite.NullMessage("pt:j1/mt:cmd/rt:app/rn:test/ad:1", "cmd.config.get_test_setting_int_map", "test_service")},
 						Expectations: []*suite.Expectation{
 							suite.ExpectIntMap("pt:j1/mt:evt/rt:app/rn:test/ad:1", "evt.config.test_setting_int_map_report", "test_service", map[string]int64{"a": 1}),
 						},
 					},
 					{
-						Command: suite.IntMapMessage("pt:j1/mt:cmd/rt:app/rn:test/ad:1", "cmd.config.set_test_setting_int_map", "test_service", map[string]int64{"c": 2}),
+						Commands: []*fimpgo.Message{suite.IntMapMessage("pt:j1/mt:cmd/rt:app/rn:test/ad:1", "cmd.config.set_test_setting_int_map", "test_service", map[string]int64{"c": 2})},
 						Expectations: []*suite.Expectation{
 							suite.ExpectIntMap("pt:j1/mt:evt/rt:app/rn:test/ad:1", "evt.config.test_setting_int_map_report", "test_service", map[string]int64{"c": 2}),
 						},
 					},
 					{
-						Command: suite.NullMessage("pt:j1/mt:cmd/rt:app/rn:test/ad:1", "cmd.config.get_test_setting_float_map", "test_service"),
+						Commands: []*fimpgo.Message{suite.NullMessage("pt:j1/mt:cmd/rt:app/rn:test/ad:1", "cmd.config.get_test_setting_float_map", "test_service")},
 						Expectations: []*suite.Expectation{
 							suite.ExpectFloatMap("pt:j1/mt:evt/rt:app/rn:test/ad:1", "evt.config.test_setting_float_map_report", "test_service", map[string]float64{"a": 1}),
 						},
 					},
 					{
-						Command: suite.FloatMapMessage("pt:j1/mt:cmd/rt:app/rn:test/ad:1", "cmd.config.set_test_setting_float_map", "test_service", map[string]float64{"c": 2}),
+						Commands: []*fimpgo.Message{suite.FloatMapMessage("pt:j1/mt:cmd/rt:app/rn:test/ad:1", "cmd.config.set_test_setting_float_map", "test_service", map[string]float64{"c": 2})},
 						Expectations: []*suite.Expectation{
 							suite.ExpectFloatMap("pt:j1/mt:evt/rt:app/rn:test/ad:1", "evt.config.test_setting_float_map_report", "test_service", map[string]float64{"c": 2}),
 						},
 					},
 					{
-						Command: suite.NullMessage("pt:j1/mt:cmd/rt:app/rn:test/ad:1", "cmd.config.get_test_setting_string_array", "test_service"),
+						Commands: []*fimpgo.Message{suite.NullMessage("pt:j1/mt:cmd/rt:app/rn:test/ad:1", "cmd.config.get_test_setting_string_array", "test_service")},
 						Expectations: []*suite.Expectation{
 							suite.ExpectStringArray("pt:j1/mt:evt/rt:app/rn:test/ad:1", "evt.config.test_setting_string_array_report", "test_service", []string{"b"}),
 						},
 					},
 					{
-						Command: suite.StringArrayMessage("pt:j1/mt:cmd/rt:app/rn:test/ad:1", "cmd.config.set_test_setting_string_array", "test_service", []string{"d"}),
+						Commands: []*fimpgo.Message{suite.StringArrayMessage("pt:j1/mt:cmd/rt:app/rn:test/ad:1", "cmd.config.set_test_setting_string_array", "test_service", []string{"d"})},
 						Expectations: []*suite.Expectation{
 							suite.ExpectStringArray("pt:j1/mt:evt/rt:app/rn:test/ad:1", "evt.config.test_setting_string_array_report", "test_service", []string{"d"}),
 						},
 					},
 					{
-						Command: suite.NullMessage("pt:j1/mt:cmd/rt:app/rn:test/ad:1", "cmd.config.get_test_setting_bool_array", "test_service"),
+						Commands: []*fimpgo.Message{suite.NullMessage("pt:j1/mt:cmd/rt:app/rn:test/ad:1", "cmd.config.get_test_setting_bool_array", "test_service")},
 						Expectations: []*suite.Expectation{
 							suite.ExpectBoolArray("pt:j1/mt:evt/rt:app/rn:test/ad:1", "evt.config.test_setting_bool_array_report", "test_service", []bool{true}),
 						},
 					},
 					{
-						Command: suite.BoolArrayMessage("pt:j1/mt:cmd/rt:app/rn:test/ad:1", "cmd.config.set_test_setting_bool_array", "test_service", []bool{false}),
+						Commands: []*fimpgo.Message{suite.BoolArrayMessage("pt:j1/mt:cmd/rt:app/rn:test/ad:1", "cmd.config.set_test_setting_bool_array", "test_service", []bool{false})},
 						Expectations: []*suite.Expectation{
 							suite.ExpectBoolArray("pt:j1/mt:evt/rt:app/rn:test/ad:1", "evt.config.test_setting_bool_array_report", "test_service", []bool{false}),
 						},
 					},
 					{
-						Command: suite.NullMessage("pt:j1/mt:cmd/rt:app/rn:test/ad:1", "cmd.config.get_test_setting_int_array", "test_service"),
+						Commands: []*fimpgo.Message{suite.NullMessage("pt:j1/mt:cmd/rt:app/rn:test/ad:1", "cmd.config.get_test_setting_int_array", "test_service")},
 						Expectations: []*suite.Expectation{
 							suite.ExpectIntArray("pt:j1/mt:evt/rt:app/rn:test/ad:1", "evt.config.test_setting_int_array_report", "test_service", []int64{1}),
 						},
 					},
 					{
-						Command: suite.IntArrayMessage("pt:j1/mt:cmd/rt:app/rn:test/ad:1", "cmd.config.set_test_setting_int_array", "test_service", []int64{2}),
+						Commands: []*fimpgo.Message{suite.IntArrayMessage("pt:j1/mt:cmd/rt:app/rn:test/ad:1", "cmd.config.set_test_setting_int_array", "test_service", []int64{2})},
 						Expectations: []*suite.Expectation{
 							suite.ExpectIntArray("pt:j1/mt:evt/rt:app/rn:test/ad:1", "evt.config.test_setting_int_array_report", "test_service", []int64{2}),
 						},
 					},
 					{
-						Command: suite.NullMessage("pt:j1/mt:cmd/rt:app/rn:test/ad:1", "cmd.config.get_test_setting_float_array", "test_service"),
+						Commands: []*fimpgo.Message{suite.NullMessage("pt:j1/mt:cmd/rt:app/rn:test/ad:1", "cmd.config.get_test_setting_float_array", "test_service")},
 						Expectations: []*suite.Expectation{
 							suite.ExpectFloatArray("pt:j1/mt:evt/rt:app/rn:test/ad:1", "evt.config.test_setting_float_array_report", "test_service", []float64{1}),
 						},
 					},
 					{
-						Command: suite.FloatArrayMessage("pt:j1/mt:cmd/rt:app/rn:test/ad:1", "cmd.config.set_test_setting_float_array", "test_service", []float64{2}),
+						Commands: []*fimpgo.Message{suite.FloatArrayMessage("pt:j1/mt:cmd/rt:app/rn:test/ad:1", "cmd.config.set_test_setting_float_array", "test_service", []float64{2})},
 						Expectations: []*suite.Expectation{
 							suite.ExpectFloatArray("pt:j1/mt:evt/rt:app/rn:test/ad:1", "evt.config.test_setting_float_array_report", "test_service", []float64{2}),
 						},
 					},
 					{
-						Command: suite.NullMessage("pt:j1/mt:cmd/rt:app/rn:test/ad:1", "cmd.config.get_test_setting_object", "test_service"),
+						Commands: []*fimpgo.Message{suite.NullMessage("pt:j1/mt:cmd/rt:app/rn:test/ad:1", "cmd.config.get_test_setting_object", "test_service")},
 						Expectations: []*suite.Expectation{
 							suite.ExpectObject("pt:j1/mt:evt/rt:app/rn:test/ad:1", "evt.config.test_setting_object_report", "test_service", &TestObject{A: "a"}),
 						},
 					},
 					{
-						Command: suite.ObjectMessage("pt:j1/mt:cmd/rt:app/rn:test/ad:1", "cmd.config.set_test_setting_object", "test_service", &TestObject{A: "b"}),
+						Commands: []*fimpgo.Message{suite.ObjectMessage("pt:j1/mt:cmd/rt:app/rn:test/ad:1", "cmd.config.set_test_setting_object", "test_service", &TestObject{A: "b"})},
 						Expectations: []*suite.Expectation{
 							suite.ExpectObject("pt:j1/mt:evt/rt:app/rn:test/ad:1", "evt.config.test_setting_object_report", "test_service", &TestObject{A: "b"}),
 						},
 					},
 					{
-						Command: suite.NullMessage("pt:j1/mt:cmd/rt:app/rn:test/ad:1", "cmd.config.get_report", "test_service"),
+						Commands: []*fimpgo.Message{suite.NullMessage("pt:j1/mt:cmd/rt:app/rn:test/ad:1", "cmd.config.get_report", "test_service")},
 						Expectations: []*suite.Expectation{
 							suite.ExpectObject("pt:j1/mt:evt/rt:app/rn:test/ad:1", "evt.config.report", "test_service", &TestObject{A: "a"}),
 						},
 					},
 
 					{
-						Command: suite.NullMessage("pt:j1/mt:cmd/rt:app/rn:test/ad:1", "cmd.log.get_level", "test_service"),
+						Commands: []*fimpgo.Message{suite.NullMessage("pt:j1/mt:cmd/rt:app/rn:test/ad:1", "cmd.log.get_level", "test_service")},
 						Expectations: []*suite.Expectation{
 							suite.ExpectString("pt:j1/mt:evt/rt:app/rn:test/ad:1", "evt.log.level_report", "test_service", "debug"),
 						},
 					},
 					{
-						Command: suite.StringMessage("pt:j1/mt:cmd/rt:app/rn:test/ad:1", "cmd.log.set_level", "test_service", "info"),
+						Commands: []*fimpgo.Message{suite.StringMessage("pt:j1/mt:cmd/rt:app/rn:test/ad:1", "cmd.log.set_level", "test_service", "info")},
 						Expectations: []*suite.Expectation{
 							suite.ExpectString("pt:j1/mt:evt/rt:app/rn:test/ad:1", "evt.log.level_report", "test_service", "info"),
 						},
@@ -347,7 +347,7 @@ func TestRouteConfig(t *testing.T) { //nolint:paralleltest
 			},
 			{
 				Name: "Errors and edge cases",
-				Setup: suite.BaseSetup(func(t *testing.T, mqtt *fimpgo.MqttTransport) (routing []*router.Routing, tasks []*task.Task, mocks []suite.Mock) {
+				Setup: suite.BaseSetup(func(t *testing.T, _ *fimpgo.MqttTransport) (routing []*router.Routing, tasks []*task.Task, mocks []suite.Mock) {
 					t.Helper()
 
 					mDuration := newConfigMock[time.Duration]().mockSetter(time.Second, errors.New("test"))
@@ -366,36 +366,36 @@ func TestRouteConfig(t *testing.T) { //nolint:paralleltest
 				}),
 				Nodes: []*suite.Node{
 					{
-						Name:    "Invalid duration format",
-						Command: suite.StringMessage("pt:j1/mt:cmd/rt:app/rn:test/ad:1", "cmd.config.set_test_setting_duration", "test_service", "invalid"),
+						Name:     "Invalid duration format",
+						Commands: []*fimpgo.Message{suite.StringMessage("pt:j1/mt:cmd/rt:app/rn:test/ad:1", "cmd.config.set_test_setting_duration", "test_service", "invalid")},
 						Expectations: []*suite.Expectation{
 							suite.ExpectError("pt:j1/mt:evt/rt:app/rn:test/ad:1", "test_service"),
 						},
 					},
 					{
-						Name:    "Invalid value type",
-						Command: suite.IntMessage("pt:j1/mt:cmd/rt:app/rn:test/ad:1", "cmd.config.set_test_setting_duration", "test_service", int64(time.Second)),
+						Name:     "Invalid value type",
+						Commands: []*fimpgo.Message{suite.IntMessage("pt:j1/mt:cmd/rt:app/rn:test/ad:1", "cmd.config.set_test_setting_duration", "test_service", int64(time.Second))},
 						Expectations: []*suite.Expectation{
 							suite.ExpectError("pt:j1/mt:evt/rt:app/rn:test/ad:1", "test_service"),
 						},
 					},
 					{
-						Name:    "Setter error",
-						Command: suite.StringMessage("pt:j1/mt:cmd/rt:app/rn:test/ad:1", "cmd.config.set_test_setting_duration", "test_service", "1s"),
+						Name:     "Setter error",
+						Commands: []*fimpgo.Message{suite.StringMessage("pt:j1/mt:cmd/rt:app/rn:test/ad:1", "cmd.config.set_test_setting_duration", "test_service", "1s")},
 						Expectations: []*suite.Expectation{
 							suite.ExpectError("pt:j1/mt:evt/rt:app/rn:test/ad:1", "test_service"),
 						},
 					},
 					{
-						Name:    "Unmarshalling error",
-						Command: suite.ObjectMessage("pt:j1/mt:cmd/rt:app/rn:test/ad:1", "cmd.config.set_test_setting_object", "test_service", json.RawMessage(`{"a": 1}`)),
+						Name:     "Unmarshalling error",
+						Commands: []*fimpgo.Message{suite.ObjectMessage("pt:j1/mt:cmd/rt:app/rn:test/ad:1", "cmd.config.set_test_setting_object", "test_service", json.RawMessage(`{"a": 1}`))},
 						Expectations: []*suite.Expectation{
 							suite.ExpectError("pt:j1/mt:evt/rt:app/rn:test/ad:1", "test_service"),
 						},
 					},
 					{
-						Name:    "Properly handle an empty slice",
-						Command: suite.IntArrayMessage("pt:j1/mt:cmd/rt:app/rn:test/ad:1", "cmd.config.set_test_setting_int_array", "test_service", []int64{}),
+						Name:     "Properly handle an empty slice",
+						Commands: []*fimpgo.Message{suite.IntArrayMessage("pt:j1/mt:cmd/rt:app/rn:test/ad:1", "cmd.config.set_test_setting_int_array", "test_service", []int64{})},
 						Expectations: []*suite.Expectation{
 							suite.ExpectIntArray("pt:j1/mt:evt/rt:app/rn:test/ad:1", "evt.config.test_setting_int_array_report", "test_service", []int64{}),
 						},

@@ -5,6 +5,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/futurehomeno/fimpgo"
 	"github.com/stretchr/testify/assert"
 
 	"github.com/futurehomeno/cliffhanger/discovery"
@@ -118,7 +119,7 @@ func TestApp_Reset(t *testing.T) { //nolint:paralleltest
 				}),
 				Nodes: []*suite.Node{
 					{
-						Command: suite.NullMessage(root.GatewayEvtTopic, root.EvtGatewayFactoryReset, "gateway"),
+						Commands: []*fimpgo.Message{suite.NullMessage(root.GatewayEvtTopic, root.EvtGatewayFactoryReset, "gateway")},
 						Callbacks: []suite.Callback{
 							func(t *testing.T) {
 								t.Helper()
