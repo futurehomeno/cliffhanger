@@ -4,3 +4,5 @@
 testdata/config/save/*
 !testdata/config/save/.gitkeep
 /test/mocks/*
+!/test/mocks/root/service_helper.go
+!/test/mocks/root/resetter_helper.go

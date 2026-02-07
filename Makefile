@@ -1,5 +1,5 @@
 define generate_mocks
-    mockery --packageprefix mocked --keeptree --name=$(2) --recursive --case underscore --dir ./$(1) --output ./test/mocks/$(1)
+    mockery --with-expecter --packageprefix mocked --keeptree --name=$(2) --recursive --case underscore --dir ./$(1) --output ./test/mocks/$(1)
 endef
 
 generate-mocks:
