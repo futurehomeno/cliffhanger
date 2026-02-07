@@ -41,14 +41,14 @@ func Within[T comparable](values []T, optional bool) func(T) error {
 }
 
 // Between is a setting validator comparing a setting value against a minimum and maximum allowed values.
-func Between[T ~int | ~int8 | ~int16 | ~int32 | ~int64 | ~uint | ~uint8 | ~uint16 | ~uint32 | ~uint64 | ~float32 | ~float64](min, max T) func(T) error {
+func Between[T ~int | ~int8 | ~int16 | ~int32 | ~int64 | ~uint | ~uint8 | ~uint16 | ~uint32 | ~uint64 | ~float32 | ~float64](minimum, maximum T) func(T) error {
 	return func(val T) error {
-		if val < min {
-			return fmt.Errorf("config: provided value %v is lesser than the minimum allowed value: %v", val, min)
+		if val < minimum {
+			return fmt.Errorf("config: provided value %v is lesser than the minimum allowed value: %v", val, minimum)
 		}
 
-		if val > max {
-			return fmt.Errorf("config: provided value %v is greater than the maximum allowed value: %v", val, max)
+		if val > maximum {
+			return fmt.Errorf("config: provided value %v is greater than the maximum allowed value: %v", val, maximum)
 		}
 
 		return nil

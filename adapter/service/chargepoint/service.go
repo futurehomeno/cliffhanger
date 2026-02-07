@@ -114,7 +114,7 @@ type Service interface {
 	SupportsAdjustingOfferedCurrent() bool
 	// SupportsAdjustingCableLock returns true if the chargepoint supports adjusting cable lock.
 	SupportsAdjustingCableLock() bool
-	//IsCableLockAware returns true if the chargepoint is aware of cable lock.
+	// IsCableLockAware returns true if the chargepoint is aware of cable lock.
 	IsCableLockAware() bool
 }
 

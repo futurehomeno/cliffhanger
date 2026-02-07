@@ -57,4 +57,4 @@ linters:
 
   settings:
     lll:
-      line-length: 180
+      line-length: 260

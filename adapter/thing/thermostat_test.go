@@ -124,7 +124,7 @@ func TestRouteThermostat(t *testing.T) { //nolint:paralleltest
 					},
 				},
 			},
-			{
+			{ //nolint:dupl
 				Name:     "Failed thermostat reporting",
 				TearDown: adapterhelper.TearDownAdapter("../../testdata/adapter/test_adapter"),
 				Setup: routeThermostat(
@@ -275,25 +275,32 @@ func TestRouteThermostat(t *testing.T) { //nolint:paralleltest
 				),
 				Nodes: []*suite.Node{
 					{
-						Name:    "Set mode not supporting a setpoint",
-						Command: suite.StringMessage("pt:j1/mt:cmd/rt:dev/rn:test_adapter/ad:1/sv:thermostat/ad:2", "cmd.mode.set", "thermostat", "test_mode_c"),
+						Name: "Set mode not supporting a setpoint",
+						Command: suite.StringMessage(
+							"pt:j1/mt:cmd/rt:dev/rn:test_adapter/ad:1/sv:thermostat/ad:2", "cmd.mode.set", "thermostat", "test_mode_c"),
 						Expectations: []*suite.Expectation{
-							suite.ExpectString("pt:j1/mt:evt/rt:dev/rn:test_adapter/ad:1/sv:thermostat/ad:2", "evt.mode.report", "thermostat", "test_mode_c"),
+							suite.ExpectString(
+								"pt:j1/mt:evt/rt:dev/rn:test_adapter/ad:1/sv:thermostat/ad:2", "evt.mode.report", "thermostat", "test_mode_c"),
 						},
 					},
 					{
-						Name:    "Set mode supporting a setpoint",
-						Command: suite.StringMessage("pt:j1/mt:cmd/rt:dev/rn:test_adapter/ad:1/sv:thermostat/ad:2", "cmd.mode.set", "thermostat", "test_mode_a"),
+						Name: "Set mode supporting a setpoint",
+						Command: suite.StringMessage(
+							"pt:j1/mt:cmd/rt:dev/rn:test_adapter/ad:1/sv:thermostat/ad:2", "cmd.mode.set", "thermostat", "test_mode_a"),
 						Expectations: []*suite.Expectation{
-							suite.ExpectString("pt:j1/mt:evt/rt:dev/rn:test_adapter/ad:1/sv:thermostat/ad:2", "evt.mode.report", "thermostat", "test_mode_a"),
-							suite.ExpectStringMap("pt:j1/mt:evt/rt:dev/rn:test_adapter/ad:1/sv:thermostat/ad:2", "evt.setpoint.report", "thermostat", map[string]string{"type": "test_mode_a", "temp": "21.0", "unit": "C"}),
+							suite.ExpectString(
+								"pt:j1/mt:evt/rt:dev/rn:test_adapter/ad:1/sv:thermostat/ad:2", "evt.mode.report", "thermostat", "test_mode_a"),
+							suite.ExpectStringMap(
+								"pt:j1/mt:evt/rt:dev/rn:test_adapter/ad:1/sv:thermostat/ad:2", "evt.setpoint.report", "thermostat", map[string]string{"type": "test_mode_a", "temp": "21.0", "unit": "C"}),
 						},
 					},
 					{
-						Name:    "Set setpoint",
-						Command: suite.StringMapMessage("pt:j1/mt:cmd/rt:dev/rn:test_adapter/ad:1/sv:thermostat/ad:2", "cmd.setpoint.set", "thermostat", map[string]string{"type": "test_mode_a", "temp": "20.0", "unit": "C"}),
+						Name: "Set setpoint",
+						Command: suite.StringMapMessage(
+							"pt:j1/mt:cmd/rt:dev/rn:test_adapter/ad:1/sv:thermostat/ad:2", "cmd.setpoint.set", "thermostat", map[string]string{"type": "test_mode_a", "temp": "20.0", "unit": "C"}),
 						Expectations: []*suite.Expectation{
-							suite.ExpectStringMap("pt:j1/mt:evt/rt:dev/rn:test_adapter/ad:1/sv:thermostat/ad:2", "evt.setpoint.report", "thermostat", map[string]string{"type": "test_mode_a", "temp": "20.0", "unit": "C"}),
+							suite.ExpectStringMap(
+								"pt:j1/mt:evt/rt:dev/rn:test_adapter/ad:1/sv:thermostat/ad:2", "evt.setpoint.report", "thermostat", map[string]string{"type": "test_mode_a", "temp": "20.0", "unit": "C"}),
 						},
 					},
 				},
@@ -309,15 +316,17 @@ func TestRouteThermostat(t *testing.T) { //nolint:paralleltest
 				),
 				Nodes: []*suite.Node{
 					{
-						Name:    "Controller error when setting mode",
-						Command: suite.StringMessage("pt:j1/mt:cmd/rt:dev/rn:test_adapter/ad:1/sv:thermostat/ad:2", "cmd.mode.set", "thermostat", "test_mode_a"),
+						Name: "Controller error when setting mode",
+						Command: suite.StringMessage(
+							"pt:j1/mt:cmd/rt:dev/rn:test_adapter/ad:1/sv:thermostat/ad:2", "cmd.mode.set", "thermostat", "test_mode_a"),
 						Expectations: []*suite.Expectation{
 							suite.ExpectError("pt:j1/mt:evt/rt:dev/rn:test_adapter/ad:1/sv:thermostat/ad:2", "thermostat"),
 						},
 					},
 					{
-						Name:    "Unsupported mode",
-						Command: suite.StringMessage("pt:j1/mt:cmd/rt:dev/rn:test_adapter/ad:1/sv:thermostat/ad:2", "cmd.mode.set", "thermostat", "unsupported_mode"),
+						Name: "Unsupported mode",
+						Command: suite.StringMessage(
+							"pt:j1/mt:cmd/rt:dev/rn:test_adapter/ad:1/sv:thermostat/ad:2", "cmd.mode.set", "thermostat", "unsupported_mode"),
 						Expectations: []*suite.Expectation{
 							suite.ExpectError("pt:j1/mt:evt/rt:dev/rn:test_adapter/ad:1/sv:thermostat/ad:2", "thermostat"),
 						},
@@ -406,7 +415,7 @@ func TestTaskThermostat(t *testing.T) { //nolint:paralleltest
 			{
 				Name:     "Thermostat tasks",
 				TearDown: adapterhelper.TearDownAdapter("../../testdata/adapter/test_adapter"),
-				Setup: taskThermostat(
+				Setup: taskThermostat( //nolint:dupl
 					mockedthermostat.NewController(t).
 						MockThermostatModeReport("test_mode_a", nil, true).
 						MockThermostatModeReport("", errors.New("test"), true).

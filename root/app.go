@@ -130,7 +130,7 @@ func (a *app) doStart() error {
 		return nil
 	}
 
-	log.Info("[cliff]] Starting app")
+	log.Info("[cliff] Starting app")
 
 	if a.lifecycle != nil {
 		a.lifecycle.SetAppState(lifecycle.AppStateStarting, nil)

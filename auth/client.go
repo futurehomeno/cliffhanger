@@ -115,7 +115,11 @@ func (c *proxyClient) requestToken(r *http.Request) (*OAuth2TokenResponse, error
 		return nil, fmt.Errorf("proxy proxyClient: failed to retrieve token from partner API due to an error: %w", err)
 	}
 
-	defer response.Body.Close()
+	defer func() {
+		if err := response.Body.Close(); err != nil {
+			log.Errorf("close err: %v", err)
+		}
+	}()
 
 	if response.StatusCode != 200 {
 		return nil, fmt.Errorf("proxy proxyClient: failed to retrieve token from partner API, received status code: %d", response.StatusCode)

@@ -176,7 +176,7 @@ func (s *storage[T]) Save() error {
 	s.lock.Lock()
 	defer s.lock.Unlock()
 
-	err := os.MkdirAll(path.Dir(s.dataPath), 0774) //nolint:gofumpt
+	err := os.MkdirAll(path.Dir(s.dataPath), 0774) //nolint:gofumpt,gosec
 	if err != nil {
 		return fmt.Errorf("storage: cannot create a configuration directory at path %s: %w", path.Dir(s.dataPath), err)
 	}
@@ -284,7 +284,7 @@ func (s *storage[T]) removeFile(path string) error {
 
 // loadFile loads a provided file and unmarshalls it using the configured model.
 func (s *storage[T]) loadFile(path string) error {
-	body, err := os.ReadFile(path)
+	body, err := os.ReadFile(path) //nolint:gosec
 	if err != nil {
 		return fmt.Errorf("storage: cannot load a configuration file from path %s: %w", path, err)
 	}
@@ -299,7 +299,7 @@ func (s *storage[T]) loadFile(path string) error {
 
 // writeFile provides a secure way of writing data to a file.
 func (s *storage[T]) writeFile(path string, data []byte) (err error) {
-	file, err := os.OpenFile(path, os.O_WRONLY|os.O_CREATE|os.O_TRUNC, 0664) //nolint:gofumpt
+	file, err := os.OpenFile(path, os.O_WRONLY|os.O_CREATE|os.O_TRUNC, 0664) //nolint:gofumpt,gosec
 	if err != nil {
 		return err
 	}

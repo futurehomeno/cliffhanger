@@ -7,6 +7,7 @@ import (
 )
 
 func NewDefaultConnector(t *testing.T) *Connector {
+	t.Helper()
 	return NewConnector(t).MockConnectivity(&adapter.ConnectivityDetails{
 		ConnectionStatus:  adapter.ConnectionStatusUp,
 		Operationability:  nil,
