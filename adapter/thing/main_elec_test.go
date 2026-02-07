@@ -130,10 +130,12 @@ func TestRouteMainElec(t *testing.T) { //nolint:paralleltest
 				),
 				Nodes: []*suite.Node{
 					{
-						Name:    "Extended report",
-						Command: suite.NullMessage("pt:j1/mt:cmd/rt:dev/rn:test_adapter/ad:1/sv:meter_elec/ad:2", "cmd.meter_ext.get_report", "meter_elec"),
+						Name: "Extended report",
+						Command: suite.NullMessage(
+							"pt:j1/mt:cmd/rt:dev/rn:test_adapter/ad:1/sv:meter_elec/ad:2", "cmd.meter_ext.get_report", "meter_elec"),
 						Expectations: []*suite.Expectation{
-							suite.ExpectFloatMap("pt:j1/mt:evt/rt:dev/rn:test_adapter/ad:1/sv:meter_elec/ad:2", "evt.meter_ext.report", "meter_elec", map[string]float64{"p_import": 1500, "e_import": 165.78}),
+							suite.ExpectFloatMap(
+								"pt:j1/mt:evt/rt:dev/rn:test_adapter/ad:1/sv:meter_elec/ad:2", "evt.meter_ext.report", "meter_elec", map[string]float64{"p_import": 1500, "e_import": 165.78}),
 						},
 					},
 				},
@@ -219,8 +221,10 @@ func TestTaskMainElec(t *testing.T) { //nolint:paralleltest
 					{
 						Name: "One change and one error during four report cycles",
 						Expectations: []*suite.Expectation{
-							suite.ExpectFloatMap("pt:j1/mt:evt/rt:dev/rn:test_adapter/ad:1/sv:meter_elec/ad:2", "evt.meter_ext.report", "meter_elec", map[string]float64{"p_import": 1500, "e_import": 165.78}),
-							suite.ExpectFloatMap("pt:j1/mt:evt/rt:dev/rn:test_adapter/ad:1/sv:meter_elec/ad:2", "evt.meter_ext.report", "meter_elec", map[string]float64{"p_import": 750, "e_import": 165.99}),
+							suite.ExpectFloatMap(
+								"pt:j1/mt:evt/rt:dev/rn:test_adapter/ad:1/sv:meter_elec/ad:2", "evt.meter_ext.report", "meter_elec", map[string]float64{"p_import": 1500, "e_import": 165.78}),
+							suite.ExpectFloatMap(
+								"pt:j1/mt:evt/rt:dev/rn:test_adapter/ad:1/sv:meter_elec/ad:2", "evt.meter_ext.report", "meter_elec", map[string]float64{"p_import": 750, "e_import": 165.99}),
 						},
 					},
 				},

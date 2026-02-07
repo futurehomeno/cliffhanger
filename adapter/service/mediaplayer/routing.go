@@ -187,6 +187,7 @@ func handleCmdPlaybackGetReport(registry adapter.ServiceRegistry) router.Message
 	)
 }
 
+//nolint:dupl
 func handleCmdPlaybackModeSet(registry adapter.ServiceRegistry) router.MessageHandler {
 	return router.NewMessageHandler(
 		router.MessageProcessorFn(func(message *fimpgo.Message) (*fimpgo.FimpMessage, error) {
@@ -242,6 +243,7 @@ func handleCmdPlaybackModeGetReport(registry adapter.ServiceRegistry) router.Mes
 	)
 }
 
+//nolint:dupl
 func handleCmdVolumeSet(registry adapter.ServiceRegistry) router.MessageHandler {
 	return router.NewMessageHandler(
 		router.MessageProcessorFn(func(message *fimpgo.Message) (*fimpgo.FimpMessage, error) {
@@ -297,6 +299,7 @@ func handleCmdVolumeGetReport(registry adapter.ServiceRegistry) router.MessageHa
 	)
 }
 
+//nolint:dupl
 func handleCmdMuteSet(registry adapter.ServiceRegistry) router.MessageHandler {
 	return router.NewMessageHandler(
 		router.MessageProcessorFn(func(message *fimpgo.Message) (*fimpgo.FimpMessage, error) {

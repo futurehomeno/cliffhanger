@@ -33,6 +33,7 @@ func (_m *ControllableConnector) MockConnectivity(details *adapter.ConnectivityD
 }
 
 func NewDefaultControllableConnector(t *testing.T) *ControllableConnector {
+	t.Helper()
 	return NewControllableConnector(t).MockConnect().MockConnectivity(&adapter.ConnectivityDetails{
 		ConnectionStatus:  adapter.ConnectionStatusUp,
 		Operationability:  nil,

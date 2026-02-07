@@ -79,7 +79,7 @@ func Test_Router_Concurrency(t *testing.T) { //nolint:paralleltest
 					routeMessage("cmd.test.test_command_1", 200*time.Millisecond),
 					routeMessage("cmd.test.test_command_2", 50*time.Millisecond),
 				},
-				Nodes: []*suite.Node{
+				Nodes: []*suite.Node{ //nolint:dupl
 					{
 						Name: "Initialize",
 						InitCallbacks: []suite.Callback{
@@ -132,7 +132,7 @@ func Test_Router_Concurrency(t *testing.T) { //nolint:paralleltest
 					routeMessage("cmd.test.test_command_1", 200*time.Millisecond),
 					routeMessage("cmd.test.test_command_2", 50*time.Millisecond),
 				},
-				Nodes: []*suite.Node{
+				Nodes: []*suite.Node{ //nolint:dupl
 					{
 						Name: "Initialize",
 						InitCallbacks: []suite.Callback{
@@ -257,7 +257,7 @@ func Test_Router_OptionalSuccessConfirmation(t *testing.T) { //nolint:parallelte
 
 	s := &suite.Suite{
 		Cases: []*suite.Case{
-			{
+			{ //nolint:dupl
 				Name: "Test optional success confirmation on routing",
 				Routing: []*router.Routing{
 					successConfirmationRouting("cmd.test.confirm1", nil, nil),
@@ -293,7 +293,7 @@ func Test_Router_OptionalSuccessConfirmation(t *testing.T) { //nolint:parallelte
 					},
 				},
 			},
-			{
+			{ //nolint:dupl
 				Name: "Test cases success confirmation on routing is not enabled",
 				Routing: []*router.Routing{
 					noConfirmationRouting("cmd.test.do_not_confirm1", nil, nil),

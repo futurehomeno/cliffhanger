@@ -124,7 +124,7 @@ func TestRouteBoiler(t *testing.T) { //nolint:paralleltest
 					},
 				},
 			},
-			{
+			{ //nolint:dupl
 				Name:     "Failed boiler reporting",
 				TearDown: adapterhelper.TearDownAdapter("../../testdata/adapter/test_adapter"),
 				Setup: routeBoiler(
@@ -392,7 +392,7 @@ func TestTaskBoiler(t *testing.T) { //nolint:paralleltest
 			{
 				Name:     "Boiler tasks",
 				TearDown: adapterhelper.TearDownAdapter("../../testdata/adapter/test_adapter"),
-				Setup: taskBoiler(
+				Setup: taskBoiler( //nolint:dupl
 					mockedwaterheater.NewController(t).
 						MockWaterHeaterModeReport("test_mode_a", nil, true).
 						MockWaterHeaterModeReport("", errors.New("test"), true).
