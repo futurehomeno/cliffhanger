@@ -25,9 +25,7 @@ jobs:
         with:
           version: v2.7.2
           working-directory: .
-        skip-dirs:
-          - test
-          - testdata
+          args: --skip-dirs=test --skip-dirs=testdata
       - name: Run staticcheck
         run: |
           go install honnef.co/go/tools/cmd/staticcheck@latest
