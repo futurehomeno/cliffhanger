@@ -17,6 +17,6 @@ lint:
 	golangci-lint run
 
 test:
-	go test -p 1 -v -covermode=atomic ./...
+	go test -p 1 -covermode=atomic ./...
 
 .PHONY: generate-mocks test lint
