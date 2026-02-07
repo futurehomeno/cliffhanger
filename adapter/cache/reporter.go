@@ -1,10 +1,9 @@
 package cache
 
 import (
+	"reflect"
 	"sync"
 	"time"
-
-	"github.com/google/go-cmp/cmp"
 )
 
 // ReportingStrategy is an interface representing a strategy to determine whether reporting is required or not.
@@ -119,10 +118,10 @@ func (c *reportingCache) Reported(key, subKey string, val interface{}) {
 // value is an object holding reporting value and time of last report.
 type value struct {
 	reported time.Time
-	value    interface{}
+	value    any
 }
 
 // hasChanged returns true if value is different than provided one.
-func (v *value) hasChanged(val interface{}) bool {
-	return !cmp.Equal(v.value, val)
+func (v *value) hasChanged(val any) bool {
+	return !reflect.DeepEqual(v.value, val)
 }
