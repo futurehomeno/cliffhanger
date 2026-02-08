@@ -126,6 +126,7 @@ func (a *app) Run() error {
 		}()
 
 		<-signals
+		log.Info(string(debug.Stack()))
 
 		_ = a.Stop()
 	}()
