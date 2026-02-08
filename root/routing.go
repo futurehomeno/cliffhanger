@@ -1,7 +1,10 @@
 package root
 
 import (
+	"runtime/debug"
+
 	"github.com/futurehomeno/fimpgo"
+	log "github.com/sirupsen/logrus"
 
 	"github.com/futurehomeno/cliffhanger/router"
 )
@@ -29,6 +32,14 @@ func handleFactoryReset(rootApp App) router.MessageHandler {
 			// Factory reset requires stopping the application first, which includes stopping the message router.
 			// In order to avoid a deadlock we need to run the reset in a separate goroutine, so the message router can be stopped.
 			go func() {
+				defer func() {
+					if r := recover(); r != nil {
+						log.Info(string(debug.Stack()))
+						log.Info(r)
+						panic(r)
+					}
+				}()
+
 				_ = rootApp.Reset()
 			}()
 

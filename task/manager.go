@@ -85,6 +85,14 @@ func (r *manager) runOnce(task *Task) {
 
 // runContinuously runs the task according to the provided interval.
 func (r *manager) runContinuously(task *Task) {
+	defer func() {
+		if r := recover(); r != nil {
+			log.Info(string(debug.Stack()))
+			log.Info(r)
+			panic(r)
+		}
+	}()
+
 	ticker := time.NewTicker(task.duration)
 	defer ticker.Stop()
 

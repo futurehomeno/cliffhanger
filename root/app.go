@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"os"
 	"os/signal"
+	"runtime/debug"
 	"sync"
 	"syscall"
 
@@ -116,6 +117,14 @@ func (a *app) Run() error {
 	defer signal.Stop(signals)
 
 	go func() {
+		defer func() {
+			if r := recover(); r != nil {
+				log.Info(string(debug.Stack()))
+				log.Info(r)
+				panic(r)
+			}
+		}()
+
 		<-signals
 
 		_ = a.Stop()

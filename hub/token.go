@@ -92,7 +92,9 @@ func (g *tokenLoader) LoadToken() (string, error) {
 func (g *tokenLoader) requestToken(client *fimpgo.SyncClient) (string, error) {
 	responseTopic := fmt.Sprintf("pt:j1/mt:rsp/rt:app/rn:%s/ad:1", g.cfg.ServiceName)
 
-	client.AddSubscription(responseTopic)
+	if err := client.AddSubscription(responseTopic); err != nil {
+		log.Errorf("Add subscription in request token err: %v", err)
+	}
 
 	reqMsg := fimpgo.NewStringMessage("cmd.clbridge.get_auth_token", "clbridge", "", nil, nil, nil)
 
