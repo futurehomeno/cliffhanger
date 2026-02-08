@@ -2,6 +2,7 @@ package monitor
 
 import (
 	"errors"
+	"runtime/debug"
 	"sync"
 	"time"
 
@@ -93,6 +94,14 @@ func (d *diskSpace) Stop() error {
 
 func (d *diskSpace) run() {
 	defer d.waitGroup.Done()
+
+	defer func() {
+		if r := recover(); r != nil {
+			log.Info(string(debug.Stack()))
+			log.Info(r)
+			panic(r)
+		}
+	}()
 
 	ticker := time.NewTicker(d.interval)
 	defer ticker.Stop()

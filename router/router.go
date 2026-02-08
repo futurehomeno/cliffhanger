@@ -101,6 +101,14 @@ func (r *router) Stop() error {
 func (r *router) routeMessages(messageCh fimpgo.MessageCh) {
 	defer r.wg.Done()
 
+	defer func() {
+		if r := recover(); r != nil {
+			log.Info(string(debug.Stack()))
+			log.Info(r)
+			panic(r)
+		}
+	}()
+
 	for {
 		select {
 		case <-r.stopCh:
