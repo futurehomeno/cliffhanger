@@ -5,6 +5,8 @@ import (
 	"os"
 	"os/signal"
 	"runtime/debug"
+	"runtime/pprof"
+	"strings"
 	"sync"
 	"syscall"
 
@@ -126,9 +128,20 @@ func (a *app) Run() error {
 		}()
 
 		<-signals
-		log.Info(string(debug.Stack()))
+		s := strings.Builder{}
+		if err := pprof.Lookup("goroutine").WriteTo(&s, 2); err == nil {
+			log.Infof("%s\n", s.String())
+		}
 
-		_ = a.Stop()
+		if err := pprof.Lookup("mutex").WriteTo(&s, 2); err == nil {
+			log.Infof("%s", s.String())
+		}
+
+		err = a.Stop()
+
+		if err != nil {
+			log.Errorf("[cliff] Stop err: %v", err)
+		}
 	}()
 
 	return a.Wait()
