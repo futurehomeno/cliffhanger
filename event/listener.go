@@ -73,7 +73,11 @@ func (l *listener) Start() error {
 
 		h.eventCh = l.manager.Subscribe(h.subID, h.buffer, h.filters...)
 
+<<<<<<< Updated upstream
 		log.Infof("[cliff] Listen for evts subsID=%s", h.subID)
+=======
+		log.Infof("event listener: started ID=%s", h.subID)
+>>>>>>> Stashed changes
 
 		go l.startHandler(h)
 	}

@@ -130,11 +130,11 @@ func (a *app) Run() error {
 		<-signals
 		s := strings.Builder{}
 		if err := pprof.Lookup("goroutine").WriteTo(&s, 2); err == nil {
-			log.Infof("%s\n", s.String())
+			log.Infof("%s\n", filterGoroutinesByKeywords(s.String()))
 		}
 
 		if err := pprof.Lookup("mutex").WriteTo(&s, 2); err == nil {
-			log.Infof("%s", s.String())
+			log.Infof("Mutexes:\n%s", s.String())
 		}
 
 		err = a.Stop()
@@ -259,4 +259,57 @@ func (a *app) passErr(err error) error {
 	}
 
 	return err
+}
+
+func filterGoroutinesByKeywords(input string) string {
+	keywords := []string{"mutex", "lock", "semaphore", "panic"}
+
+	containsKeyword := func(s string) bool {
+		s = strings.ToLower(s)
+		for _, k := range keywords {
+			if strings.Contains(s, k) {
+				return true
+			}
+		}
+		return false
+	}
+
+	lines := strings.Split(input, "\n")
+
+	var (
+		block   []string
+		matched bool
+		out     []string
+	)
+
+	flush := func() {
+		if matched && len(block) > 0 {
+			out = append(out, block...)
+			out = append(out, "") // blank line between goroutines
+		}
+		block = block[:0]
+		matched = false
+	}
+
+	for _, line := range lines {
+		// New goroutine starts → flush previous one
+		if strings.HasPrefix(line, "goroutine ") {
+			flush()
+		}
+
+		block = append(block, line)
+		if containsKeyword(line) {
+			matched = true
+		}
+	}
+
+	// Flush last goroutine
+	flush()
+
+	// Remove trailing blank line (optional polish)
+	for len(out) > 0 && out[len(out)-1] == "" {
+		out = out[:len(out)-1]
+	}
+
+	return strings.Join(out, "\n")
 }
