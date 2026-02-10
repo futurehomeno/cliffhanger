@@ -73,7 +73,7 @@ func (l *listener) Start() error {
 
 		h.eventCh = l.manager.Subscribe(h.subID, h.buffer, h.filters...)
 
-		log.Infof("event listener: started listening for events with subscriber ID %s", h.subID)
+		log.Infof("[cliff] Listen for evts subsID=%s", h.subID)
 
 		go l.startHandler(h)
 	}

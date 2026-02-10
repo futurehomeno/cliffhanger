@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"os"
 	"os/signal"
+	"regexp"
 	"runtime/debug"
 	"runtime/pprof"
 	"strings"
@@ -130,11 +131,7 @@ func (a *app) Run() error {
 		<-signals
 		s := strings.Builder{}
 		if err := pprof.Lookup("goroutine").WriteTo(&s, 2); err == nil {
-			log.Infof("%s\n", s.String())
-		}
-
-		if err := pprof.Lookup("mutex").WriteTo(&s, 2); err == nil {
-			log.Infof("%s", s.String())
+			log.Infof("%s\n", filterGoroutinesByKeywords(s.String()))
 		}
 
 		err = a.Stop()
@@ -260,4 +257,54 @@ func (a *app) passErr(err error) error {
 	}
 
 	return err
+}
+
+func filterGoroutinesByKeywords(input string) string {
+	keywordRE := regexp.MustCompile(`(?i)\b(mutex|semaphore|panic|lock)\b`)
+
+	lines := strings.Split(input, "\n")
+
+	var (
+		block    []string
+		matched  bool
+		out      []string
+		inGorout bool
+	)
+
+	flush := func() {
+		if inGorout && matched && len(block) > 0 {
+			out = append(out, block...)
+			out = append(out, "")
+		}
+		block = block[:0]
+		matched = false
+		inGorout = false
+	}
+
+	for _, line := range lines {
+		if strings.HasPrefix(line, "goroutine ") {
+			flush()
+			inGorout = true
+			block = append(block, line)
+			continue
+		}
+
+		if !inGorout {
+			continue
+		}
+
+		block = append(block, line)
+
+		if keywordRE.MatchString(line) {
+			matched = true
+		}
+	}
+
+	flush()
+
+	for len(out) > 0 && out[len(out)-1] == "" {
+		out = out[:len(out)-1]
+	}
+
+	return strings.Join(out, "\n")
 }
