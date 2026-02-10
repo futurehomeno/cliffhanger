@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"os"
 	"os/signal"
+	"regexp"
 	"runtime/debug"
 	"runtime/pprof"
 	"strings"
@@ -133,10 +134,6 @@ func (a *app) Run() error {
 			log.Infof("%s\n", filterGoroutinesByKeywords(s.String()))
 		}
 
-		if err := pprof.Lookup("mutex").WriteTo(&s, 2); err == nil {
-			log.Infof("Mutexes:\n%s", s.String())
-		}
-
 		err = a.Stop()
 
 		if err != nil {
@@ -262,51 +259,48 @@ func (a *app) passErr(err error) error {
 }
 
 func filterGoroutinesByKeywords(input string) string {
-	keywords := []string{"mutex", "lock", "semaphore", "panic"}
-
-	containsKeyword := func(s string) bool {
-		s = strings.ToLower(s)
-		for _, k := range keywords {
-			if strings.Contains(s, k) {
-				return true
-			}
-		}
-		return false
-	}
+	keywordRE := regexp.MustCompile(`(?i)\b(mutex|semaphore|panic|lock)\b`)
 
 	lines := strings.Split(input, "\n")
 
 	var (
-		block   []string
-		matched bool
-		out     []string
+		block    []string
+		matched  bool
+		out      []string
+		inGorout bool
 	)
 
 	flush := func() {
-		if matched && len(block) > 0 {
+		if inGorout && matched && len(block) > 0 {
 			out = append(out, block...)
-			out = append(out, "") // blank line between goroutines
+			out = append(out, "")
 		}
 		block = block[:0]
 		matched = false
+		inGorout = false
 	}
 
 	for _, line := range lines {
-		// New goroutine starts → flush previous one
 		if strings.HasPrefix(line, "goroutine ") {
 			flush()
+			inGorout = true
+			block = append(block, line)
+			continue
+		}
+
+		if !inGorout {
+			continue
 		}
 
 		block = append(block, line)
-		if containsKeyword(line) {
+
+		if keywordRE.MatchString(line) {
 			matched = true
 		}
 	}
 
-	// Flush last goroutine
 	flush()
 
-	// Remove trailing blank line (optional polish)
 	for len(out) > 0 && out[len(out)-1] == "" {
 		out = out[:len(out)-1]
 	}
