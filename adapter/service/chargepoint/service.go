@@ -302,7 +302,7 @@ func (s *service) SetPhaseMode(mode PhaseMode) error {
 
 	err = controller.SetChargepointPhaseMode(mode)
 	if err != nil {
-		return fmt.Errorf("%s: failed to set phase mode to %s: %w", s.Name(), mode.String(), err)
+		return fmt.Errorf("%s: failed to set phase mode to %s: %w", s.Name(), mode.Str(), err)
 	}
 
 	return nil
@@ -472,7 +472,7 @@ func (s *service) SendPhaseModeReport(force bool) (bool, error) {
 	message := fimpgo.NewStringMessage(
 		EvtPhaseModeReport,
 		s.Name(),
-		value.String(),
+		value.Str(),
 		nil,
 		nil,
 		nil,
@@ -662,10 +662,10 @@ func (s *service) validatePhaseMode(mode PhaseMode) error {
 	supportedModes := s.Specification().PropertyStrings(PropertySupportedPhaseModes)
 
 	for _, supportedMode := range supportedModes {
-		if mode.String() == supportedMode {
+		if mode.Str() == supportedMode {
 			return nil
 		}
 	}
 
-	return fmt.Errorf("%s: unsupported phase mode: %s", s.Name(), mode.String())
+	return fmt.Errorf("%s: unsupported phase mode: %s", s.Name(), mode.Str())
 }

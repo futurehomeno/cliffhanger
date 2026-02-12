@@ -4,7 +4,6 @@ import (
 	"fmt"
 	"os"
 	"os/signal"
-	"regexp"
 	"runtime/debug"
 	"runtime/pprof"
 	"strings"
@@ -18,6 +17,7 @@ import (
 	"github.com/futurehomeno/cliffhanger/lifecycle"
 	"github.com/futurehomeno/cliffhanger/router"
 	"github.com/futurehomeno/cliffhanger/task"
+	"github.com/futurehomeno/cliffhanger/utils"
 )
 
 // App is an interface representing a root application.
@@ -120,7 +120,6 @@ func (a *app) Run() error {
 	defer signal.Stop(signals)
 
 	go func() {
-<<<<<<< HEAD
 		defer func() {
 			if r := recover(); r != nil {
 				log.Info(string(debug.Stack()))
@@ -132,7 +131,7 @@ func (a *app) Run() error {
 		<-signals
 		s := strings.Builder{}
 		if err := pprof.Lookup("goroutine").WriteTo(&s, 2); err == nil {
-			log.Infof("%s\n", filterGoroutinesByKeywords(s.String()))
+			log.Infof("%s\n", utils.FilterGoroutinesByKeywords(s.String(), []string{"mutex", "semaphore", "panic", "lock"}))
 		}
 
 		err = a.Stop()
@@ -140,10 +139,6 @@ func (a *app) Run() error {
 		if err != nil {
 			log.Errorf("[cliff] Stop err: %v", err)
 		}
-=======
-		<-signals
-		_ = a.Stop()
->>>>>>> main
 	}()
 
 	return a.Wait()
@@ -155,7 +150,7 @@ func (a *app) doStart() error {
 		return nil
 	}
 
-	log.Info("[cliff] Starting app")
+	log.Info("[cliff] Start app")
 
 	if a.lifecycle != nil {
 		a.lifecycle.SetAppState(lifecycle.AppStateStarting, nil)
@@ -261,54 +256,4 @@ func (a *app) passErr(err error) error {
 	}
 
 	return err
-}
-
-func filterGoroutinesByKeywords(input string) string {
-	keywordRE := regexp.MustCompile(`(?i)\b(mutex|semaphore|panic|lock)\b`)
-
-	lines := strings.Split(input, "\n")
-
-	var (
-		block    []string
-		matched  bool
-		out      []string
-		inGorout bool
-	)
-
-	flush := func() {
-		if inGorout && matched && len(block) > 0 {
-			out = append(out, block...)
-			out = append(out, "")
-		}
-		block = block[:0]
-		matched = false
-		inGorout = false
-	}
-
-	for _, line := range lines {
-		if strings.HasPrefix(line, "goroutine ") {
-			flush()
-			inGorout = true
-			block = append(block, line)
-			continue
-		}
-
-		if !inGorout {
-			continue
-		}
-
-		block = append(block, line)
-
-		if keywordRE.MatchString(line) {
-			matched = true
-		}
-	}
-
-	flush()
-
-	for len(out) > 0 && out[len(out)-1] == "" {
-		out = out[:len(out)-1]
-	}
-
-	return strings.Join(out, "\n")
 }
