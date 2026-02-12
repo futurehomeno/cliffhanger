@@ -86,17 +86,19 @@ func (s *storage[T]) Model() T {
 	return s.model
 }
 
+// Model returns a configuration model object.
+func (s *storage[T]) Path() string {
+	return s.dataPath
+}
+
 // Load loads the configuration. First a default configuration is loaded if present and then an actual configuration is used to override the defaults.
 func (s *storage[T]) Load() error {
 	s.lock.Lock()
 	defer s.lock.Unlock()
 
-	dataExists, err := s.fileExists(s.dataPath)
-	if err != nil {
-		return err
-	}
-
 	var defaultsExists bool
+	var err error
+
 	if s.defaultsPath != "" {
 		defaultsExists, err = s.fileExists(s.defaultsPath)
 		if err != nil {
@@ -104,9 +106,13 @@ func (s *storage[T]) Load() error {
 		}
 	}
 
+	dataExists, err := s.fileExists(s.dataPath)
+	if err != nil {
+		return err
+	}
+
 	if !dataExists && !defaultsExists && s.defaultsPath != "" {
-		return fmt.Errorf(
-			"storage: no configuration files were found at paths: %s, %s",
+		return fmt.Errorf("storage: no configuration files were found at paths: %s, %s",
 			s.dataPath, s.defaultsPath,
 		)
 	}
@@ -116,10 +122,6 @@ func (s *storage[T]) Load() error {
 
 // load performs loading of the configuration files in the right order and performs fallback if allowed.
 func (s *storage[T]) load(defaultsExists, dataExists bool) error {
-	if !dataExists && !defaultsExists && s.defaultsPath == "" {
-		return nil
-	}
-
 	// Always try to load default configuration first.
 	if defaultsExists {
 		err := s.loadFile(s.defaultsPath)
@@ -165,8 +167,6 @@ func (s *storage[T]) loadData() error {
 	if err != nil {
 		return err
 	}
-
-	log.WithError(err).Errorf("storage: failed to read the configuration file at path %s, falling back to last backup", s.dataPath)
 
 	return nil
 }
