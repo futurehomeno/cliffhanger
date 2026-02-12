@@ -3,7 +3,7 @@
 package mockedchargepoint
 
 import (
-	chargepoint "github.com/futurehomeno/cliffhanger/adapter/service/chargepoint"
+	types "github.com/futurehomeno/cliffhanger/types"
 	mock "github.com/stretchr/testify/mock"
 )
 
@@ -21,22 +21,22 @@ func (_m *AdjustablePhaseModeController) EXPECT() *AdjustablePhaseModeController
 }
 
 // ChargepointPhaseModeReport provides a mock function with no fields
-func (_m *AdjustablePhaseModeController) ChargepointPhaseModeReport() (chargepoint.PhaseMode, error) {
+func (_m *AdjustablePhaseModeController) ChargepointPhaseModeReport() (types.PhaseMode, error) {
 	ret := _m.Called()
 
 	if len(ret) == 0 {
 		panic("no return value specified for ChargepointPhaseModeReport")
 	}
 
-	var r0 chargepoint.PhaseMode
+	var r0 types.PhaseMode
 	var r1 error
-	if rf, ok := ret.Get(0).(func() (chargepoint.PhaseMode, error)); ok {
+	if rf, ok := ret.Get(0).(func() (types.PhaseMode, error)); ok {
 		return rf()
 	}
-	if rf, ok := ret.Get(0).(func() chargepoint.PhaseMode); ok {
+	if rf, ok := ret.Get(0).(func() types.PhaseMode); ok {
 		r0 = rf()
 	} else {
-		r0 = ret.Get(0).(chargepoint.PhaseMode)
+		r0 = ret.Get(0).(types.PhaseMode)
 	}
 
 	if rf, ok := ret.Get(1).(func() error); ok {
@@ -65,18 +65,18 @@ func (_c *AdjustablePhaseModeController_ChargepointPhaseModeReport_Call) Run(run
 	return _c
 }
 
-func (_c *AdjustablePhaseModeController_ChargepointPhaseModeReport_Call) Return(_a0 chargepoint.PhaseMode, _a1 error) *AdjustablePhaseModeController_ChargepointPhaseModeReport_Call {
+func (_c *AdjustablePhaseModeController_ChargepointPhaseModeReport_Call) Return(_a0 types.PhaseMode, _a1 error) *AdjustablePhaseModeController_ChargepointPhaseModeReport_Call {
 	_c.Call.Return(_a0, _a1)
 	return _c
 }
 
-func (_c *AdjustablePhaseModeController_ChargepointPhaseModeReport_Call) RunAndReturn(run func() (chargepoint.PhaseMode, error)) *AdjustablePhaseModeController_ChargepointPhaseModeReport_Call {
+func (_c *AdjustablePhaseModeController_ChargepointPhaseModeReport_Call) RunAndReturn(run func() (types.PhaseMode, error)) *AdjustablePhaseModeController_ChargepointPhaseModeReport_Call {
 	_c.Call.Return(run)
 	return _c
 }
 
 // SetChargepointPhaseMode provides a mock function with given fields: _a0
-func (_m *AdjustablePhaseModeController) SetChargepointPhaseMode(_a0 chargepoint.PhaseMode) error {
+func (_m *AdjustablePhaseModeController) SetChargepointPhaseMode(_a0 types.PhaseMode) error {
 	ret := _m.Called(_a0)
 
 	if len(ret) == 0 {
@@ -84,7 +84,7 @@ func (_m *AdjustablePhaseModeController) SetChargepointPhaseMode(_a0 chargepoint
 	}
 
 	var r0 error
-	if rf, ok := ret.Get(0).(func(chargepoint.PhaseMode) error); ok {
+	if rf, ok := ret.Get(0).(func(types.PhaseMode) error); ok {
 		r0 = rf(_a0)
 	} else {
 		r0 = ret.Error(0)
@@ -99,14 +99,14 @@ type AdjustablePhaseModeController_SetChargepointPhaseMode_Call struct {
 }
 
 // SetChargepointPhaseMode is a helper method to define mock.On call
-//   - _a0 chargepoint.PhaseMode
+//   - _a0 types.PhaseMode
 func (_e *AdjustablePhaseModeController_Expecter) SetChargepointPhaseMode(_a0 interface{}) *AdjustablePhaseModeController_SetChargepointPhaseMode_Call {
 	return &AdjustablePhaseModeController_SetChargepointPhaseMode_Call{Call: _e.mock.On("SetChargepointPhaseMode", _a0)}
 }
 
-func (_c *AdjustablePhaseModeController_SetChargepointPhaseMode_Call) Run(run func(_a0 chargepoint.PhaseMode)) *AdjustablePhaseModeController_SetChargepointPhaseMode_Call {
+func (_c *AdjustablePhaseModeController_SetChargepointPhaseMode_Call) Run(run func(_a0 types.PhaseMode)) *AdjustablePhaseModeController_SetChargepointPhaseMode_Call {
 	_c.Call.Run(func(args mock.Arguments) {
-		run(args[0].(chargepoint.PhaseMode))
+		run(args[0].(types.PhaseMode))
 	})
 	return _c
 }
@@ -116,7 +116,7 @@ func (_c *AdjustablePhaseModeController_SetChargepointPhaseMode_Call) Return(_a0
 	return _c
 }
 
-func (_c *AdjustablePhaseModeController_SetChargepointPhaseMode_Call) RunAndReturn(run func(chargepoint.PhaseMode) error) *AdjustablePhaseModeController_SetChargepointPhaseMode_Call {
+func (_c *AdjustablePhaseModeController_SetChargepointPhaseMode_Call) RunAndReturn(run func(types.PhaseMode) error) *AdjustablePhaseModeController_SetChargepointPhaseMode_Call {
 	_c.Call.Return(run)
 	return _c
 }

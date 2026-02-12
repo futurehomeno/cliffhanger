@@ -3,7 +3,7 @@
 package mockedchargepoint
 
 import (
-	chargepoint "github.com/futurehomeno/cliffhanger/adapter/service/chargepoint"
+	types "github.com/futurehomeno/cliffhanger/types"
 	mock "github.com/stretchr/testify/mock"
 )
 
@@ -21,22 +21,22 @@ func (_m *PhaseModeAwareController) EXPECT() *PhaseModeAwareController_Expecter 
 }
 
 // ChargepointPhaseModeReport provides a mock function with no fields
-func (_m *PhaseModeAwareController) ChargepointPhaseModeReport() (chargepoint.PhaseMode, error) {
+func (_m *PhaseModeAwareController) ChargepointPhaseModeReport() (types.PhaseMode, error) {
 	ret := _m.Called()
 
 	if len(ret) == 0 {
 		panic("no return value specified for ChargepointPhaseModeReport")
 	}
 
-	var r0 chargepoint.PhaseMode
+	var r0 types.PhaseMode
 	var r1 error
-	if rf, ok := ret.Get(0).(func() (chargepoint.PhaseMode, error)); ok {
+	if rf, ok := ret.Get(0).(func() (types.PhaseMode, error)); ok {
 		return rf()
 	}
-	if rf, ok := ret.Get(0).(func() chargepoint.PhaseMode); ok {
+	if rf, ok := ret.Get(0).(func() types.PhaseMode); ok {
 		r0 = rf()
 	} else {
-		r0 = ret.Get(0).(chargepoint.PhaseMode)
+		r0 = ret.Get(0).(types.PhaseMode)
 	}
 
 	if rf, ok := ret.Get(1).(func() error); ok {
@@ -65,12 +65,12 @@ func (_c *PhaseModeAwareController_ChargepointPhaseModeReport_Call) Run(run func
 	return _c
 }
 
-func (_c *PhaseModeAwareController_ChargepointPhaseModeReport_Call) Return(_a0 chargepoint.PhaseMode, _a1 error) *PhaseModeAwareController_ChargepointPhaseModeReport_Call {
+func (_c *PhaseModeAwareController_ChargepointPhaseModeReport_Call) Return(_a0 types.PhaseMode, _a1 error) *PhaseModeAwareController_ChargepointPhaseModeReport_Call {
 	_c.Call.Return(_a0, _a1)
 	return _c
 }
 
-func (_c *PhaseModeAwareController_ChargepointPhaseModeReport_Call) RunAndReturn(run func() (chargepoint.PhaseMode, error)) *PhaseModeAwareController_ChargepointPhaseModeReport_Call {
+func (_c *PhaseModeAwareController_ChargepointPhaseModeReport_Call) RunAndReturn(run func() (types.PhaseMode, error)) *PhaseModeAwareController_ChargepointPhaseModeReport_Call {
 	_c.Call.Return(run)
 	return _c
 }

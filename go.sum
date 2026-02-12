@@ -7,8 +7,6 @@ github.com/eclipse/paho.mqtt.golang v1.5.1 h1:/VSOv3oDLlpqR2Epjn1Q7b2bSTplJIeV2I
 github.com/eclipse/paho.mqtt.golang v1.5.1/go.mod h1:1/yJCneuyOoCOzKSsOTUc0AJfpsItBGWvYpBLimhArU=
 github.com/futurehomeno/fimpgo v1.15.0 h1:NpR5NImhzGakTu8WHZmipUXZ12BAZrIWi5t8L7n0bBs=
 github.com/futurehomeno/fimpgo v1.15.0/go.mod h1:2PBHAvv+vysFzAWo6f32VjYqmvPrvgAVl3J3c5Ys5rQ=
-github.com/futurehomeno/galvanize/v2 v2.2.1 h1:55lUqZYrrBJhOgQzXjm2su8FUchuiInMHUjEx+zPYQg=
-github.com/futurehomeno/galvanize/v2 v2.2.1/go.mod h1:4LiomA0w0P9CLboD0hvGc44xLEJ//oo8wEOwZIx6J0U=
 github.com/go-ole/go-ole v1.2.6/go.mod h1:pprOEPIfldk/42T2oK7lQ4v4JSDwmV0As9GaiUsvbm0=
 github.com/go-ole/go-ole v1.3.0 h1:Dt6ye7+vXGIKZ7Xtk4s6/xVdGDQynvom7xCFEdWr6uE=
 github.com/go-ole/go-ole v1.3.0/go.mod h1:5LS6F96DhAwUc7C+1HLexzMXY1xGRSryjyPPKW6zv78=

@@ -13,6 +13,7 @@ import (
 	adapterhelper "github.com/futurehomeno/cliffhanger/test/helper/adapter"
 	mockedchargepoint "github.com/futurehomeno/cliffhanger/test/mocks/adapter/service/chargepoint"
 	"github.com/futurehomeno/cliffhanger/test/suite"
+	"github.com/futurehomeno/cliffhanger/types"
 )
 
 func TestTaskReporting(t *testing.T) { //nolint:paralleltest
@@ -39,10 +40,10 @@ func TestTaskReporting(t *testing.T) { //nolint:paralleltest
 							MockChargepointMaxCurrentReport(8, nil, true),
 						nil,
 						mockedchargepoint.NewAdjustablePhaseModeController(t).
-							MockChargepointPhaseModeReport(chargepoint.PhaseModeNL1L2L3, nil, true).
+							MockChargepointPhaseModeReport(types.PhaseModeNL1L2L3, nil, true).
 							MockChargepointPhaseModeReport("", errTest, true).
-							MockChargepointPhaseModeReport(chargepoint.PhaseModeNL1L2L3, nil, true).
-							MockChargepointPhaseModeReport(chargepoint.PhaseModeNL1, nil, true),
+							MockChargepointPhaseModeReport(types.PhaseModeNL1L2L3, nil, true).
+							MockChargepointPhaseModeReport(types.PhaseModeNL1, nil, true),
 						mockedchargepoint.NewAdjustableCableLockController(t).
 							MockChargepointCableLockReport(&chargepoint.CableReport{CableLock: false}, nil, true). // should be sent twice
 							MockChargepointCableLockReport(&chargepoint.CableReport{CableLock: true}, nil, true).
@@ -51,9 +52,9 @@ func TestTaskReporting(t *testing.T) { //nolint:paralleltest
 					),
 					[]adapter.SpecificationOption{
 						chargepoint.WithSupportedMaxCurrent(16),
-						chargepoint.WithGridType(chargepoint.GridTypeTN),
+						chargepoint.WithGridType(types.GridTypeTN),
 						chargepoint.WithPhases(3),
-						chargepoint.WithSupportedPhaseModes(chargepoint.PhaseModeNL1L2L3, chargepoint.PhaseModeNL1, chargepoint.PhaseModeNL2, chargepoint.PhaseModeNL3),
+						chargepoint.WithSupportedPhaseModes(types.PhaseModeNL1L2L3, types.PhaseModeNL1, types.PhaseModeNL2, types.PhaseModeNL3),
 					},
 					100*time.Millisecond,
 				),
