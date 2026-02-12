@@ -20,6 +20,9 @@ jobs:
       - name: Configure git for private modules
         run: |
           git config --global url."https://${{ secrets.GH_OAUTH_TOKEN }}@github.com/".insteadOf "https://github.com/"
+      - name: Configure Go private modules
+        run: |
+          go env -w GOPRIVATE=github.com/futurehomeno/*
       - name: Run golangci-lint
         uses: golangci/golangci-lint-action@v7
         with:
@@ -46,8 +49,10 @@ jobs:
 
     - name: Configure git for private modules
       run: |
-        export GH_TOKEN="${{ secrets.GH_OAUTH_TOKEN }}"
-        git config --global url."https://$GH_TOKEN@github.com/".insteadOf "https://github.com/"
+        git config --global url."https://${{ secrets.GH_OAUTH_TOKEN }}@github.com/".insteadOf "https://github.com/"
+    - name: Configure Go private modules
+      run: |
+        go env -w GOPRIVATE=github.com/futurehomeno/*
 
     - name: Create Mosquitto config
       run: |
