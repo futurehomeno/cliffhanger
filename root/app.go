@@ -120,6 +120,7 @@ func (a *app) Run() error {
 	defer signal.Stop(signals)
 
 	go func() {
+<<<<<<< HEAD
 		defer func() {
 			if r := recover(); r != nil {
 				log.Info(string(debug.Stack()))
@@ -139,6 +140,10 @@ func (a *app) Run() error {
 		if err != nil {
 			log.Errorf("[cliff] Stop err: %v", err)
 		}
+=======
+		<-signals
+		_ = a.Stop()
+>>>>>>> main
 	}()
 
 	return a.Wait()
