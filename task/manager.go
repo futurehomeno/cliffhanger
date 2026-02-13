@@ -87,8 +87,8 @@ func (r *manager) runOnce(task *Task) {
 func (r *manager) runContinuously(task *Task) {
 	defer func() {
 		if r := recover(); r != nil {
-			log.Info(string(debug.Stack()))
-			log.Info(r)
+			log.Error(string(debug.Stack()))
+			log.Error(r)
 			panic(r)
 		}
 	}()

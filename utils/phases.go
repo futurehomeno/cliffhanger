@@ -44,7 +44,7 @@ func PhaseMode(gridType types.GridType, phases ...types.Phase) types.PhaseMode {
 		case 2:
 			if slices.Contains(phases, types.PhaseL1) && slices.Contains(phases, types.PhaseL2) {
 				return types.PhaseModeNL1L2
-			} else if slices.Contains(phases, types.PhaseL1) && slices.Contains(phases, types.PhaseL3) {
+			} else if slices.Contains(phases, types.PhaseL2) && slices.Contains(phases, types.PhaseL3) {
 				return types.PhaseModeNL2L3
 			}
 		case 1:
@@ -67,7 +67,7 @@ func PhaseMode(gridType types.GridType, phases ...types.Phase) types.PhaseMode {
 				return types.PhaseModeL1L2L3
 			}
 		case 2:
-			if slices.Contains(phases, types.PhaseL1) && slices.Contains(phases, types.PhaseL2) {
+			if slices.Contains(phases, types.PhaseL1) && slices.Contains(phases, types.PhaseL2) { //nolint:gocritic
 				return types.PhaseModeL1L2
 			} else if slices.Contains(phases, types.PhaseL2) && slices.Contains(phases, types.PhaseL3) {
 				return types.PhaseModeL2L3

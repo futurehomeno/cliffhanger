@@ -89,8 +89,8 @@ func (m *manager) WaitFor(timeout time.Duration, filters ...Filter) <-chan Event
 	go func() {
 		defer func() {
 			if r := recover(); r != nil {
-				log.Info(string(debug.Stack()))
-				log.Info(r)
+				log.Error(string(debug.Stack()))
+				log.Error(r)
 				panic(r)
 			}
 		}()
