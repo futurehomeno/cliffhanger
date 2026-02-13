@@ -53,7 +53,6 @@ type CableReport struct {
 	CableCurrent *int64
 }
 
-// reportProperties returns a map of report properties.
 func (r *CableReport) reportProperties() map[string]string {
 	if r.CableCurrent == nil {
 		return nil
@@ -73,7 +72,6 @@ type SessionReport struct {
 	OfferedCurrent        int64
 }
 
-// reportProperties returns a map of report properties taking into consideration capabilities of the
 func (r *SessionReport) reportProperties(supportsAdjustingCurrent bool) map[string]string {
 	properties := make(map[string]string)
 

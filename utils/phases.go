@@ -6,13 +6,15 @@ import (
 	"github.com/futurehomeno/cliffhanger/types"
 )
 
-func AllPhases() []types.Phase {
+func Phases() []types.Phase {
 	return []types.Phase{types.PhaseL1, types.PhaseL2, types.PhaseL3}
 }
 
-func AlltPhaseModes() []types.PhaseMode {
+func PhaseModes() []types.PhaseMode {
 	return []types.PhaseMode{
 		types.PhaseModeNL1L2L3,
+		types.PhaseModeNL1L2,
+		types.PhaseModeNL2L3,
 		types.PhaseModeNL1,
 		types.PhaseModeNL2,
 		types.PhaseModeNL3,
@@ -23,7 +25,7 @@ func AlltPhaseModes() []types.PhaseMode {
 	}
 }
 
-func AllConnectionEarthingsTypes() []types.GridType {
+func GridTypes() []types.GridType {
 	return []types.GridType{
 		types.GridTypeTN,
 		types.GridTypeTT,
@@ -31,40 +33,47 @@ func AllConnectionEarthingsTypes() []types.GridType {
 	}
 }
 
-func PhaseMode(earthingType types.GridType, phases ...types.Phase) types.PhaseMode { //nolint:cyclop
-	if earthingType == types.GridTypeTN {
-		if len(phases) == 3 && slices.Contains(phases, types.PhaseL1) && slices.Contains(phases, types.PhaseL2) && slices.Contains(phases, types.PhaseL3) {
-			return types.PhaseModeNL1L2L3
+func PhaseMode(gridType types.GridType, phases ...types.Phase) types.PhaseMode { //nolint:cyclop
+	switch gridType {
+	case types.GridTypeTN:
+		switch len(phases) {
+		case 3:
+			if slices.Contains(phases, types.PhaseL1) && slices.Contains(phases, types.PhaseL2) && slices.Contains(phases, types.PhaseL3) {
+				return types.PhaseModeNL1L2L3
+			}
+		case 2:
+			if slices.Contains(phases, types.PhaseL1) && slices.Contains(phases, types.PhaseL2) {
+				return types.PhaseModeNL1L2
+			} else if slices.Contains(phases, types.PhaseL1) && slices.Contains(phases, types.PhaseL3) {
+				return types.PhaseModeNL2L3
+			}
+		case 1:
+			switch phases[0] {
+			case types.PhaseL1:
+				return types.PhaseModeNL1
+
+			case types.PhaseL2:
+				return types.PhaseModeNL2
+
+			case types.PhaseL3:
+				return types.PhaseModeNL3
+			}
 		}
 
-		if len(phases) == 1 && phases[0] == types.PhaseL1 {
-			return types.PhaseModeNL1
-		}
-
-		if len(phases) == 1 && phases[0] == types.PhaseL2 {
-			return types.PhaseModeNL2
-		}
-
-		if len(phases) == 1 && phases[0] == types.PhaseL3 {
-			return types.PhaseModeNL3
-		}
-	}
-
-	if earthingType == types.GridTypeIT || earthingType == types.GridTypeTT {
-		if len(phases) == 3 && slices.Contains(phases, types.PhaseL1) && slices.Contains(phases, types.PhaseL2) && slices.Contains(phases, types.PhaseL3) {
-			return types.PhaseModeL1L2L3
-		}
-
-		if len(phases) == 2 && slices.Contains(phases, types.PhaseL1) && slices.Contains(phases, types.PhaseL2) {
-			return types.PhaseModeL1L2
-		}
-
-		if len(phases) == 2 && slices.Contains(phases, types.PhaseL2) && slices.Contains(phases, types.PhaseL3) {
-			return types.PhaseModeL2L3
-		}
-
-		if len(phases) == 2 && slices.Contains(phases, types.PhaseL3) && slices.Contains(phases, types.PhaseL1) {
-			return types.PhaseModeL3L1
+	case types.GridTypeIT, types.GridTypeTT:
+		switch len(phases) {
+		case 3:
+			if slices.Contains(phases, types.PhaseL1) && slices.Contains(phases, types.PhaseL2) && slices.Contains(phases, types.PhaseL3) {
+				return types.PhaseModeL1L2L3
+			}
+		case 2:
+			if slices.Contains(phases, types.PhaseL1) && slices.Contains(phases, types.PhaseL2) {
+				return types.PhaseModeL1L2
+			} else if slices.Contains(phases, types.PhaseL2) && slices.Contains(phases, types.PhaseL3) {
+				return types.PhaseModeL2L3
+			} else if slices.Contains(phases, types.PhaseL3) && slices.Contains(phases, types.PhaseL1) {
+				return types.PhaseModeL3L1
+			}
 		}
 	}
 
@@ -72,7 +81,7 @@ func PhaseMode(earthingType types.GridType, phases ...types.Phase) types.PhaseMo
 }
 
 // some phase modes are forbidden - not tested or other problems (AMS does not report i2)
-func PhaseModes(earthingType types.GridType, supportedPhaseModes []types.PhaseMode, utilizedPhases int) []types.PhaseMode {
+func AvailablePhaseModes(earthingType types.GridType, supportedPhaseModes []types.PhaseMode, utilizedPhases int) []types.PhaseMode {
 	if len(supportedPhaseModes) == 0 {
 		return []types.PhaseMode{types.PhaseModeUnknown}
 	}

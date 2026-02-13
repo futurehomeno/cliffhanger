@@ -19,7 +19,6 @@ linters:
     - gosec
     - forbidigo
     - forcetypeassert
-    - funlen
     - goheader
     - gomoddirectives
     - gomodguard

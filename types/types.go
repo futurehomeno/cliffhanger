@@ -37,12 +37,12 @@ func (t GridType) Str() string {
 
 type PhaseMode string
 
-func (t PhaseMode) Str() string {
-	return string(t)
+func (m PhaseMode) Str() string {
+	return string(m)
 }
 
-func (phaseMode PhaseMode) PhasesList() []Phase {
-	switch phaseMode {
+func (m PhaseMode) Phases() []Phase {
+	switch m {
 	case PhaseModeNL1L2L3:
 		return []Phase{PhaseL1, PhaseL2, PhaseL3}
 	case PhaseModeNL1:
