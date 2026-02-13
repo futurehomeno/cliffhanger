@@ -45,6 +45,10 @@ func (m PhaseMode) Phases() []Phase {
 	switch m {
 	case PhaseModeNL1L2L3:
 		return []Phase{PhaseL1, PhaseL2, PhaseL3}
+	case PhaseModeNL1L2:
+		return []Phase{PhaseL1, PhaseL2}
+	case PhaseModeNL2L3:
+		return []Phase{PhaseL2, PhaseL3}
 	case PhaseModeNL1:
 		return []Phase{PhaseL1}
 	case PhaseModeNL2:
