@@ -31,13 +31,10 @@ func (f *BudzikFormatter) Format(entry *log.Entry) ([]byte, error) {
 	slices.Sort(keys)
 
 	for _, k := range keys {
-		v := entry.Data[k]
-		ret = fmt.Appendf(ret, " %s=%v", k, v)
+		ret = fmt.Appendf(ret, " %s=%v", k, entry.Data[k])
 	}
 
-	ret = fmt.Appendf(ret, "\n")
-
-	return ret, nil
+	return fmt.Appendf(ret, "\n"), nil
 }
 
 func NewBudzikFormatter() *BudzikFormatter {
