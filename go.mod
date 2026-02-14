@@ -1,6 +1,6 @@
 module github.com/futurehomeno/cliffhanger
 
-go 1.25
+go 1.26
 
 require (
 	github.com/futurehomeno/fimpgo v1.15.0
