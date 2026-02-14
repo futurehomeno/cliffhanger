@@ -84,6 +84,14 @@ func (l *listener) Start() error {
 func (l *listener) startHandler(h *Handler) {
 	defer l.waitGroup.Done()
 
+	defer func() {
+		if r := recover(); r != nil {
+			log.Error(string(debug.Stack()))
+			log.Error(r)
+			panic(r)
+		}
+	}()
+
 	for {
 		select {
 		case event := <-h.eventCh:

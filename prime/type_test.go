@@ -375,7 +375,7 @@ func TestDevice(t *testing.T) {
 	}
 }
 
-func TestThings(t *testing.T) {
+func TestThings(t *testing.T) { //nolint:dupl
 	t.Parallel()
 
 	tt := []struct {
@@ -411,7 +411,7 @@ func TestThings(t *testing.T) {
 	}
 }
 
-func TestRooms(t *testing.T) {
+func TestRooms(t *testing.T) { //nolint:dupl
 	t.Parallel()
 
 	tt := []struct {

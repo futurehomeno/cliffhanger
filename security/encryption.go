@@ -8,6 +8,8 @@ import (
 	"fmt"
 	"io"
 	"os"
+
+	log "github.com/sirupsen/logrus"
 )
 
 func GetKey(path string) (key string, err error) {
@@ -24,7 +26,7 @@ func GetKey(path string) (key string, err error) {
 
 // readKeyFromFile reads key from file it it exists.
 func readKeyFromFile(path string) (key string, err error) {
-	uint8key, err := os.ReadFile(path)
+	uint8key, err := os.ReadFile(path) //nolint:gosec
 	if err != nil {
 		return "", fmt.Errorf("security: could not read key file: %w", err)
 	}
@@ -39,12 +41,16 @@ func readKeyFromFile(path string) (key string, err error) {
 
 // writeKeyFile writes writes a randomly generated key to file.
 func writeKeyFile(path string) (newKey string, err error) {
-	f, err := os.Create(path)
+	f, err := os.Create(path) //nolint:gosec
 	if err != nil {
 		return "", fmt.Errorf("security: could not generate key file: %w", err)
 	}
 
-	defer f.Close()
+	defer func() {
+		if err := f.Close(); err != nil {
+			log.Errorf("close err: %v", err)
+		}
+	}()
 
 	err = os.Chmod(path, 0o600)
 	if err != nil {

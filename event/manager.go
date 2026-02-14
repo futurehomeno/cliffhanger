@@ -1,6 +1,7 @@
 package event
 
 import (
+	"runtime/debug"
 	"sync"
 	"time"
 
@@ -86,6 +87,14 @@ func (m *manager) WaitFor(timeout time.Duration, filters ...Filter) <-chan Event
 	resultChannel := make(chan Event, 1)
 
 	go func() {
+		defer func() {
+			if r := recover(); r != nil {
+				log.Error(string(debug.Stack()))
+				log.Error(r)
+				panic(r)
+			}
+		}()
+
 		timer := time.NewTimer(timeout)
 		defer timer.Stop()
 		defer m.Unsubscribe(subID)

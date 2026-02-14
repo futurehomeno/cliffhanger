@@ -3,7 +3,7 @@
 
 A micro-framework and set of tools for Futurehome edge applications running on the hub.
 
-go: 1.25.4
+go: 1.26
 
 mockery:
 go install github.com/vektra/mockery/v2@v2.53.5

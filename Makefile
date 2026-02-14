@@ -1,5 +1,5 @@
 define generate_mocks
-    mockery --packageprefix mocked --keeptree --name=$(2) --recursive --case underscore --dir ./$(1) --output ./test/mocks/$(1)
+    mockery --with-expecter --packageprefix mocked --keeptree --name=$(2) --recursive --case underscore --dir ./$(1) --output ./test/mocks/$(1)
 endef
 
 generate-mocks:
@@ -17,6 +17,6 @@ lint:
 	golangci-lint run
 
 test:
-	go test -p 1 -v -covermode=atomic ./...
+	go test -p 1 -covermode=atomic ./...
 
 .PHONY: generate-mocks test lint

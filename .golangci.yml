@@ -1,0 +1,59 @@
+version: "2"
+
+linters:
+  enable:
+    - errcheck
+    - govet
+    - ineffassign
+    - staticcheck
+    - unused
+    - lll
+    - bodyclose
+    - asciicheck
+    - dupl
+    - errorlint
+    - dogsled
+    - durationcheck
+    - gocritic
+    - gocyclo
+    - gosec
+    - forbidigo
+    - forcetypeassert
+    - goheader
+    - gomoddirectives
+    - gomodguard
+    - goprintffuncname
+    - importas
+    - makezero
+    - misspell
+    - nakedret
+    - nilerr
+    - noctx
+    - nolintlint
+    - predeclared
+    - promlinter
+    - rowserrcheck
+    - sqlclosecheck
+    - testpackage
+    - thelper
+    - unconvert
+    - unparam
+    - wastedassign
+    - whitespace
+
+  disable:
+    - paralleltest
+    - tparallel
+    - tagliatelle
+    - wrapcheck
+    - gochecknoglobals
+    - gochecknoinits
+    - prealloc
+    - depguard
+    - funlen
+    - nlreturn
+    - revive
+
+  settings:
+    lll:
+      line-length: 260

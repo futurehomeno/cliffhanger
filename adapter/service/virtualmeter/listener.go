@@ -84,10 +84,7 @@ func (p *connectivityEventProcessor) Process(e event.Event) {
 		return
 	}
 
-	active := true
-	if connectivityEvent.Connectivity.ConnectionStatus == adapter.ConnectionStatusDown {
-		active = false
-	}
+	active := connectivityEvent.Connectivity.ConnectionStatus != adapter.ConnectionStatusDown
 
 	if err := p.manager.updateDeviceActivity(connectivityEvent.Address(), active); err != nil {
 		log.WithError(err).Errorf("listener: failed to update virtual meter with active %v", active)

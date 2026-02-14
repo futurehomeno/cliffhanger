@@ -11,6 +11,7 @@ import (
 
 	"github.com/futurehomeno/cliffhanger/adapter"
 	"github.com/futurehomeno/cliffhanger/adapter/cache"
+	"github.com/futurehomeno/cliffhanger/types"
 )
 
 var (
@@ -51,13 +52,13 @@ type AdjustablePhaseModeController interface {
 	PhaseModeAwareController
 
 	// SetChargepointPhaseMode sets phase mode of a chargepoint.
-	SetChargepointPhaseMode(PhaseMode) error
+	SetChargepointPhaseMode(types.PhaseMode) error
 }
 
 // PhaseModeAwareController  is an interface representing capability of a charger device to aware phase mode.
 type PhaseModeAwareController interface {
 	// ChargepointPhaseModeReport returns phase mode of a chargepoint.
-	ChargepointPhaseModeReport() (PhaseMode, error)
+	ChargepointPhaseModeReport() (types.PhaseMode, error)
 }
 
 // AdjustableCableLockController is an interface representing capability of a charger device to adjust cable lock.
@@ -91,7 +92,7 @@ type Service interface {
 	// SetMaxCurrent sets max current of a chargepoint.
 	SetMaxCurrent(int64) error
 	// SetPhaseMode sets phase mode of a chargepoint.
-	SetPhaseMode(PhaseMode) error
+	SetPhaseMode(types.PhaseMode) error
 	// SendCurrentSessionReport sends a current charging session report. Returns true if a report was sent.
 	SendCurrentSessionReport(force bool) (bool, error)
 	// SendCableLockReport sends a cable lock report. Returns true if a report was sent.
@@ -114,7 +115,7 @@ type Service interface {
 	SupportsAdjustingOfferedCurrent() bool
 	// SupportsAdjustingCableLock returns true if the chargepoint supports adjusting cable lock.
 	SupportsAdjustingCableLock() bool
-	//IsCableLockAware returns true if the chargepoint is aware of cable lock.
+	// IsCableLockAware returns true if the chargepoint is aware of cable lock.
 	IsCableLockAware() bool
 }
 
@@ -286,7 +287,7 @@ func (s *service) SetMaxCurrent(current int64) error {
 }
 
 // SetPhaseMode sets phase mode of a chargepoint.
-func (s *service) SetPhaseMode(mode PhaseMode) error {
+func (s *service) SetPhaseMode(mode types.PhaseMode) error {
 	s.lock.Lock()
 	defer s.lock.Unlock()
 
@@ -302,7 +303,7 @@ func (s *service) SetPhaseMode(mode PhaseMode) error {
 
 	err = controller.SetChargepointPhaseMode(mode)
 	if err != nil {
-		return fmt.Errorf("%s: failed to set phase mode to %s: %w", s.Name(), mode.String(), err)
+		return fmt.Errorf("%s: failed to set phase mode to %s: %w", s.Name(), mode.Str(), err)
 	}
 
 	return nil
@@ -472,7 +473,7 @@ func (s *service) SendPhaseModeReport(force bool) (bool, error) {
 	message := fimpgo.NewStringMessage(
 		EvtPhaseModeReport,
 		s.Name(),
-		value.String(),
+		value.Str(),
 		nil,
 		nil,
 		nil,
@@ -658,14 +659,14 @@ func (s *service) validateCurrent(current int64) error {
 }
 
 // validatePhaseMode validates provided phase mode.
-func (s *service) validatePhaseMode(mode PhaseMode) error {
+func (s *service) validatePhaseMode(mode types.PhaseMode) error {
 	supportedModes := s.Specification().PropertyStrings(PropertySupportedPhaseModes)
 
 	for _, supportedMode := range supportedModes {
-		if mode.String() == supportedMode {
+		if mode.Str() == supportedMode {
 			return nil
 		}
 	}
 
-	return fmt.Errorf("%s: unsupported phase mode: %s", s.Name(), mode.String())
+	return fmt.Errorf("%s: unsupported phase mode: %s", s.Name(), mode.Str())
 }

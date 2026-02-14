@@ -138,6 +138,7 @@ func (c *Case) initRouting(mqtt *fimpgo.MqttTransport) {
 	r := router.NewRouter(mqtt, "cliffhanger_test_case", c.Routing...).WithOptions(c.RouterOptions...)
 
 	initCallback := func(t *testing.T) {
+		t.Helper()
 		err := r.Start()
 		if err != nil {
 			t.Fatalf("failed to start the router for the test case: %s", err)
@@ -145,6 +146,7 @@ func (c *Case) initRouting(mqtt *fimpgo.MqttTransport) {
 	}
 
 	tearDownCallback := func(t *testing.T) {
+		t.Helper()
 		err := r.Stop()
 		if err != nil {
 			t.Fatalf("failed to stop the router for the test case: %s", err)
@@ -162,6 +164,7 @@ func (c *Case) initTasks() {
 	taskManager := task.NewManager(c.Tasks...)
 
 	initCallback := func(t *testing.T) {
+		t.Helper()
 		err := taskManager.Start()
 		if err != nil {
 			t.Fatalf("failed to start the task manager for the test case: %s", err)
@@ -169,6 +172,7 @@ func (c *Case) initTasks() {
 	}
 
 	tearDownCallback := func(t *testing.T) {
+		t.Helper()
 		err := taskManager.Stop()
 		if err != nil {
 			t.Fatalf("failed to stop the task manager for the test case: %s", err)
@@ -184,6 +188,7 @@ func (c *Case) initService() {
 	}
 
 	initCallback := func(t *testing.T) {
+		t.Helper()
 		err := c.Service.Start()
 		if err != nil {
 			t.Fatalf("failed to start the service for the test case: %s", err)
@@ -191,6 +196,7 @@ func (c *Case) initService() {
 	}
 
 	tearDownCallback := func(t *testing.T) {
+		t.Helper()
 		err := c.Service.Stop()
 		if err != nil {
 			t.Fatalf("failed to stop the service for the test case: %s", err)

@@ -1,7 +1,7 @@
 package event
 
 import (
-	"github.com/google/go-cmp/cmp"
+	"reflect"
 )
 
 type (
@@ -12,7 +12,7 @@ type (
 
 	EventWithPayload interface { //nolint:revive
 		Event
-		Payload() interface{}
+		Payload() any
 	}
 
 	event struct {
@@ -22,7 +22,7 @@ type (
 
 	eventWithPayload struct {
 		event
-		payload interface{}
+		payload any
 	}
 )
 
@@ -33,7 +33,7 @@ func New(domain, class string) Event {
 	}
 }
 
-func NewWithPayload(domain, class string, payload interface{}) Event {
+func NewWithPayload(domain, class string, payload any) Event {
 	return &eventWithPayload{
 		event: event{
 			domain: domain,
@@ -51,7 +51,7 @@ func (e *event) Class() string {
 	return e.class
 }
 
-func (e *eventWithPayload) Payload() interface{} { return e.payload }
+func (e *eventWithPayload) Payload() any { return e.payload }
 
 type Filter interface {
 	Filter(event Event) bool
@@ -99,7 +99,7 @@ func WaitForClass(class string) Filter {
 	})
 }
 
-func WaitForPayload(payload interface{}) Filter {
+func WaitForPayload(payload any) Filter {
 	return FilterFn(func(ev Event) bool {
 		e, ok := ev.(EventWithPayload)
 
@@ -107,7 +107,7 @@ func WaitForPayload(payload interface{}) Filter {
 			return false
 		}
 
-		return cmp.Equal(e.Payload(), payload)
+		return reflect.DeepEqual(e.Payload(), payload)
 	})
 }
 

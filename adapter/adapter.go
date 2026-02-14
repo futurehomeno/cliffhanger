@@ -223,12 +223,12 @@ func (a *adapter) InitializeThings() error {
 	for _, ts := range a.state.all() {
 		t, err := a.factory.Create(a, a.publisher, ts)
 		if err != nil {
-			return fmt.Errorf("adapter: failed to create thing with address %s: %w", ts.Address(), err)
+			return fmt.Errorf("failed to create thing with address %s: %w", ts.Address(), err)
 		}
 
 		_, err = t.SendInclusionReport(false)
 		if err != nil {
-			return fmt.Errorf("adapter: failed to send inclusion report for thing with address %s: %w", ts.Address(), err)
+			return fmt.Errorf("failed to send inclusion report for thing with address %s: %w", ts.Address(), err)
 		}
 
 		things = append(things, t)
@@ -265,14 +265,14 @@ func (a *adapter) EnsureThings(seeds ThingSeeds) error {
 	for _, address := range addressesToRemove {
 		err := a.destroyThing(address)
 		if err != nil {
-			return fmt.Errorf("adapter: failed to destroy thing with address %s: %w", address, err)
+			return fmt.Errorf("failed to destroy thing with address %s: %w", address, err)
 		}
 	}
 
 	for _, seed := range seeds {
 		err := a.createThing(seed)
 		if err != nil {
-			return fmt.Errorf("adapter: failed to create thing with ID %s: %w", seed.ID, err)
+			return fmt.Errorf("failed to create thing with ID %s: %w", seed.ID, err)
 		}
 	}
 
@@ -285,7 +285,7 @@ func (a *adapter) CreateThing(seed *ThingSeed) error {
 	defer a.lock.Unlock()
 
 	if err := a.createThing(seed); err != nil {
-		return fmt.Errorf("adapter: failed to create thing with ID %s: %w", seed.ID, err)
+		return fmt.Errorf("failed to create thing with ID %s: %w", seed.ID, err)
 	}
 
 	return nil
@@ -320,7 +320,7 @@ func (a *adapter) DestroyAllThings() error {
 	for _, ts := range a.state.all() {
 		err := a.destroyThing(ts.Address())
 		if err != nil {
-			return fmt.Errorf("adapter: failed to destroy thing with ID %s: %w", ts.ID(), err)
+			return fmt.Errorf("failed to destroy thing with ID %s: %w", ts.ID(), err)
 		}
 	}
 
@@ -366,17 +366,17 @@ func (a *adapter) unregisterThing(t Thing) {
 func (a *adapter) createThing(seed *ThingSeed) error {
 	ts, err := a.createThingState(seed)
 	if err != nil {
-		return fmt.Errorf("adapter: failed to create state for thing with ID %s: %w", seed.ID, err)
+		return fmt.Errorf("failed to create state for thing with ID %s: %w", seed.ID, err)
 	}
 
 	t, err := a.factory.Create(a, a.publisher, ts)
 	if err != nil {
-		return fmt.Errorf("adapter: failed to create thing with ID %s: %w", seed.ID, err)
+		return fmt.Errorf("failed to create thing with ID %s: %w", seed.ID, err)
 	}
 
 	_, err = t.SendInclusionReport(true)
 	if err != nil {
-		return fmt.Errorf("adapter: failed to add thing with ID %s to the adapter: %w", seed.ID, err)
+		return fmt.Errorf("failed to add thing with ID %s to the %w", seed.ID, err)
 	}
 
 	a.registerThing(t)
@@ -392,7 +392,7 @@ func (a *adapter) createThingState(seed *ThingSeed) (ThingState, error) {
 	if address == "" {
 		address, err = a.state.acquireAddress()
 		if err != nil {
-			return nil, fmt.Errorf("adapter: failed to accquire a new address for thing with ID %s: %w", seed.ID, err)
+			return nil, fmt.Errorf("failed to accquire a new address for thing with ID %s: %w", seed.ID, err)
 		}
 	}
 
@@ -404,7 +404,7 @@ func (a *adapter) createThingState(seed *ThingSeed) (ThingState, error) {
 	if seed.Info != nil {
 		b, err := json.Marshal(seed.Info)
 		if err != nil {
-			return nil, fmt.Errorf("adapter: failed to marshal additional information associated with thing with ID %s: %w", seed.ID, err)
+			return nil, fmt.Errorf("failed to marshal additional information associated with thing with ID %s: %w", seed.ID, err)
 		}
 
 		model.Info = b
@@ -412,7 +412,7 @@ func (a *adapter) createThingState(seed *ThingSeed) (ThingState, error) {
 
 	ts, err := a.state.add(model)
 	if err != nil {
-		return nil, fmt.Errorf("adapter: failed to persist state of thing with ID %s: %w", seed.ID, err)
+		return nil, fmt.Errorf("failed to persist state of thing with ID %s: %w", seed.ID, err)
 	}
 
 	return ts, nil
@@ -425,7 +425,7 @@ func (a *adapter) destroyThing(address string) error {
 	if ts != nil {
 		err = a.state.remove(ts.ID())
 		if err != nil {
-			return fmt.Errorf("adapter: failed to remove state for thing with ID %s: %w", ts.ID(), err)
+			return fmt.Errorf("failed to remove state for thing with ID %s: %w", ts.ID(), err)
 		}
 	}
 
@@ -436,7 +436,7 @@ func (a *adapter) destroyThing(address string) error {
 
 	err = a.sendExclusionReport(address)
 	if err != nil {
-		return fmt.Errorf("adapter: failed to send exclusion report for thing with address %s: %w", address, err)
+		return fmt.Errorf("failed to send exclusion report for thing with address %s: %w", address, err)
 	}
 
 	return nil

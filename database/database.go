@@ -10,6 +10,7 @@ import (
 	"path"
 	"time"
 
+	log "github.com/sirupsen/logrus"
 	"github.com/tidwall/buntdb"
 )
 
@@ -68,7 +69,7 @@ func NewDatabase(workdir string, options ...Option) (Database, error) {
 
 // prepareDatabase prepares the database for use.
 func prepareDatabase(workdir, filename string) (*buntdb.DB, error) {
-	err := os.MkdirAll(workdir, 0o774)
+	err := os.MkdirAll(workdir, 0o774) //nolint:gosec
 	if err != nil {
 		return nil, fmt.Errorf("database: failed to create work directory: %w", err)
 	}
@@ -117,7 +118,7 @@ func recoverDatabase(workdir, filename string) (*buntdb.DB, error) {
 
 // recoverData recovers the data from a corrupted data file.
 func recoverData(workdir, filename string) error {
-	corruptedData, err := os.ReadFile(path.Join(workdir, filename+dbExtension))
+	corruptedData, err := os.ReadFile(path.Join(workdir, filename+dbExtension)) //nolint:gosec
 	if err != nil {
 		return fmt.Errorf("database: failed to read corrupted data file: %w", err)
 	}
@@ -129,12 +130,16 @@ func recoverData(workdir, filename string) error {
 
 	_ = tempDB.Load(bytes.NewReader(corruptedData))
 
-	f, err := os.OpenFile(path.Join(workdir, filename+".db.recovered"), os.O_CREATE|os.O_RDWR, 0o666)
+	f, err := os.OpenFile(path.Join(workdir, filename+".db.recovered"), os.O_CREATE|os.O_RDWR, 0o666) //nolint:gosec
 	if err != nil {
 		return fmt.Errorf("database: failed to create recovered data file: %w", err)
 	}
 
-	defer f.Close()
+	defer func() {
+		if err := f.Close(); err != nil {
+			log.Errorf("close err: %v", err)
+		}
+	}()
 
 	err = tempDB.Save(f)
 	if err != nil {

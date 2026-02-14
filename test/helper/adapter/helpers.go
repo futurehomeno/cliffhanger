@@ -25,6 +25,7 @@ func PrepareAdapter(
 	mqtt *fimpgo.MqttTransport,
 	factory FactoryHelper,
 ) adapter.Adapter {
+	t.Helper()
 	state, err := adapter.NewState(workDir)
 	if err != nil {
 		t.Fatal(fmt.Errorf("adapter helper: failed to create adapter state: %w", err))
@@ -42,6 +43,7 @@ func PrepareSeededAdapter(
 	factory FactoryHelper,
 	seeds adapter.ThingSeeds,
 ) adapter.Adapter {
+	t.Helper()
 	a := PrepareAdapter(t, workDir, mqtt, factory)
 
 	err := a.InitializeThings()
@@ -49,7 +51,7 @@ func PrepareSeededAdapter(
 		t.Fatal(fmt.Errorf("adapter helper: failed to initialize things: %w", err))
 	}
 
-	if len(seeds) >= 0 {
+	if len(seeds) > 0 {
 		err = a.EnsureThings(seeds)
 		if err != nil {
 			t.Fatal(fmt.Errorf("adapter helper: failed to ensure things: %w", err))
@@ -60,12 +62,13 @@ func PrepareSeededAdapter(
 }
 
 func SeedAdapter(t *testing.T, a adapter.Adapter, seeds adapter.ThingSeeds) adapter.Adapter {
+	t.Helper()
 	err := a.InitializeThings()
 	if err != nil {
 		t.Fatal(fmt.Errorf("adapter helper: failed to initialize things: %w", err))
 	}
 
-	if len(seeds) >= 0 {
+	if len(seeds) > 0 {
 		err = a.EnsureThings(seeds)
 		if err != nil {
 			t.Fatal(fmt.Errorf("adapter helper: failed to ensure things: %w", err))
@@ -78,6 +81,7 @@ func SeedAdapter(t *testing.T, a adapter.Adapter, seeds adapter.ThingSeeds) adap
 func TearDownAdapter(path string) []suite.Callback {
 	return []suite.Callback{
 		func(t *testing.T) {
+			t.Helper()
 			pathDB := filepath.Join(path, "data.db")
 			path = filepath.Join(path, "data")
 
