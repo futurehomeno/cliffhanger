@@ -102,7 +102,7 @@ func (r *router) routeMessages(messageCh fimpgo.MessageCh) {
 	defer r.wg.Done()
 
 	defer func() {
-		if rec := recover(); r != nil {
+		if rec := recover(); rec != nil {
 			log.Error(string(debug.Stack()))
 			log.Error(rec)
 			panic(rec)

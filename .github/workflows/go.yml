@@ -32,7 +32,7 @@ jobs:
       - name: Run golangci-lint
         uses: golangci/golangci-lint-action@v7
         with:
-          version: v2.7.2
+          version: v2.8.0
           working-directory: .
           args: --skip-dirs=test --skip-dirs=testdata
       - name: Run staticcheck
