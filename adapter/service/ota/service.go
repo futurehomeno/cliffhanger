@@ -122,16 +122,16 @@ func (s *service) newStartReport() *fimpgo.FimpMessage {
 }
 
 func (s *service) newProgressReport(data ProgressData) *fimpgo.FimpMessage {
-	value := map[string]int64{
-		"progress": int64(data.Progress),
+	value := map[string]int{
+		"progress": int(data.Progress),
 	}
 
 	if data.RemainingMinutes > 0 {
-		value["remaining_min"] = int64(data.RemainingMinutes)
+		value["remaining_min"] = int(data.RemainingMinutes)
 	}
 
 	if data.RemainingSeconds > 0 {
-		value["remaining_sec"] = int64(data.RemainingSeconds)
+		value["remaining_sec"] = int(data.RemainingSeconds)
 	}
 
 	return fimpgo.NewIntMapMessage(

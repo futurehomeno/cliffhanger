@@ -216,7 +216,7 @@ func TestRouteService(t *testing.T) { //nolint:paralleltest
 						mockedchargepoint.NewAdjustableOfferedCurrentController(t),
 						mockedchargepoint.NewAdjustablePhaseModeController(t),
 						mockedchargepoint.NewAdjustableCableLockController(t).
-							MockChargepointCableLockReport(&chargepoint.CableReport{CableLock: true, CableCurrent: int64Ptr(t, 0)}, nil, false),
+							MockChargepointCableLockReport(&chargepoint.CableReport{CableLock: true, CableCurrent: intPtr(t, 0)}, nil, false),
 					),
 					nil,
 				),
@@ -865,8 +865,7 @@ func setupService(
 	return chargepoint.RouteService(ad), task.Combine(chargepoint.TaskReporting(ad, duration)), mocks
 }
 
-func int64Ptr(t *testing.T, i int64) *int64 {
+func intPtr(t *testing.T, i int) *int {
 	t.Helper()
-
 	return &i
 }

@@ -12,7 +12,7 @@ func (_m *Reporter) MockBatteryAlarmReport(alarm *battery.AlarmReport, event str
 	return _m
 }
 
-func (_m *Reporter) MockBatteryLevelReport(level int64, err error, once bool) *Reporter {
+func (_m *Reporter) MockBatteryLevelReport(level int, err error, once bool) *Reporter {
 	c := _m.On("BatteryLevelReport").Return(level, err)
 
 	if once {

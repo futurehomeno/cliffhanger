@@ -9,7 +9,7 @@ import (
 )
 
 type SyncClient interface {
-	SendReqRespFimp(cmdTopic, responseTopic string, reqMsg *fimpgo.FimpMessage, timeout int64, autoSubscribe bool) (*fimpgo.FimpMessage, error)
+	SendReqRespFimp(cmdTopic, responseTopic string, reqMsg *fimpgo.FimpMessage, timeout int, autoSubscribe bool) (*fimpgo.FimpMessage, error)
 }
 
 type Client interface {
@@ -52,7 +52,7 @@ func NewClient(syncClient SyncClient, resourceName string, defaultTimeout time.D
 		requestAddress:  requestAddress,
 		responseAddress: responseAddress,
 		syncClient:      syncClient,
-		defaultTimeout:  int64(defaultTimeout / time.Second),
+		defaultTimeout:  int(defaultTimeout / time.Second),
 	}
 }
 
@@ -80,7 +80,7 @@ func NewCloudClient(syncClient SyncClient, cloudServiceName string, siteUUID str
 		requestAddress:  requestAddress,
 		responseAddress: responseAddress,
 		syncClient:      syncClient,
-		defaultTimeout:  int64(defaultTimeout / time.Second),
+		defaultTimeout:  int(defaultTimeout / time.Second),
 	}
 }
 
@@ -89,7 +89,7 @@ type client struct {
 	requestAddress  fimpgo.Address
 	responseAddress fimpgo.Address
 	syncClient      SyncClient
-	defaultTimeout  int64
+	defaultTimeout  int
 }
 
 func (c *client) GetDevices() (Devices, error) {

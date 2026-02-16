@@ -22,8 +22,8 @@ func TestRouterTestSuite(t *testing.T) { //nolint:paralleltest
 }
 
 func (suite *RouterTestSuite) SetupTest() {
-	suite.mqtt = fimpgo.NewMqttTransport("tcp://localhost:11883", "router-test-suite", "", "", true, 1, 1)
-	suite.Require().NoError(suite.mqtt.Start())
+	suite.mqtt = fimpgo.NewMqttTransport("tcp://localhost:11883", "router-test-suite", "", "", true, 1, 1, nil)
+	suite.Require().NoError(suite.mqtt.Start(10 * time.Second))
 	suite.Require().NoError(suite.mqtt.Subscribe("#"))
 
 	suite.router = cliffSuite.NewTestRouter(suite.T(), suite.mqtt)

@@ -16,7 +16,7 @@ func Specification(
 	address string,
 	groups,
 	supportedComponents []string,
-	supportedDurations map[string]int64,
+	supportedDurations map[string]int,
 ) *fimptype.Service {
 	s := &fimptype.Service{
 		Address: fmt.Sprintf("/rt:dev/rn:%s/ad:%s/sv:%s/ad:%s", resourceName, resourceAddress, ColorCtrl, address),

@@ -335,8 +335,8 @@ func (d *Device) GetServicePropertyStrings(serviceName, property string) []strin
 	return val
 }
 
-func (d *Device) GetServicePropertyInteger(serviceName, property string) int64 {
-	var val int64
+func (d *Device) GetServicePropertyInteger(serviceName, property string) int {
+	var val int
 
 	ok := d.GetServicePropertyObject(serviceName, property, &val)
 	if !ok {
@@ -595,8 +595,8 @@ func (d *StateDevice) GetAttributeStringValue(serviceName, attributeName string,
 	return val, d.GetAttributeObjectValue(serviceName, attributeName, properties, &val)
 }
 
-func (d *StateDevice) GetAttributeIntValue(serviceName, attributeName string, properties map[string]string) (int64, time.Time) {
-	var val int64
+func (d *StateDevice) GetAttributeIntValue(serviceName, attributeName string, properties map[string]string) (int, time.Time) {
+	var val int
 
 	return val, d.GetAttributeObjectValue(serviceName, attributeName, properties, &val)
 }
@@ -619,8 +619,8 @@ func (d *StateDevice) GetAttributeStringArrayValue(serviceName, attributeName st
 	return val, d.GetAttributeObjectValue(serviceName, attributeName, properties, &val)
 }
 
-func (d *StateDevice) GetAttributeIntArrayValue(serviceName, attributeName string, properties map[string]string) ([]int64, time.Time) {
-	var val []int64
+func (d *StateDevice) GetAttributeIntArrayValue(serviceName, attributeName string, properties map[string]string) ([]int, time.Time) {
+	var val []int
 
 	return val, d.GetAttributeObjectValue(serviceName, attributeName, properties, &val)
 }
@@ -643,8 +643,8 @@ func (d *StateDevice) GetAttributeStringMapValue(serviceName, attributeName stri
 	return val, d.GetAttributeObjectValue(serviceName, attributeName, properties, &val)
 }
 
-func (d *StateDevice) GetAttributeIntMapValue(serviceName, attributeName string, properties map[string]string) (map[string]int64, time.Time) {
-	var val map[string]int64
+func (d *StateDevice) GetAttributeIntMapValue(serviceName, attributeName string, properties map[string]string) (map[string]int, time.Time) {
+	var val map[string]int
 
 	return val, d.GetAttributeObjectValue(serviceName, attributeName, properties, &val)
 }
@@ -773,8 +773,8 @@ func (v *StateAttributeValue) GetStringValue() (string, error) {
 	return val, v.GetObjectValue(&val)
 }
 
-func (v *StateAttributeValue) GetIntValue() (int64, error) {
-	var val int64
+func (v *StateAttributeValue) GetIntValue() (int, error) {
+	var val int
 
 	return val, v.GetObjectValue(&val)
 }
@@ -797,8 +797,8 @@ func (v *StateAttributeValue) GetStringArrayValue() ([]string, error) {
 	return val, v.GetObjectValue(&val)
 }
 
-func (v *StateAttributeValue) GetIntArrayValue() ([]int64, error) {
-	var val []int64
+func (v *StateAttributeValue) GetIntArrayValue() ([]int, error) {
+	var val []int
 
 	return val, v.GetObjectValue(&val)
 }
@@ -821,8 +821,8 @@ func (v *StateAttributeValue) GetStringMapValue() (map[string]string, error) {
 	return val, v.GetObjectValue(&val)
 }
 
-func (v *StateAttributeValue) GetIntMapValue() (map[string]int64, error) {
-	var val map[string]int64
+func (v *StateAttributeValue) GetIntMapValue() (map[string]int, error) {
+	var val map[string]int
 
 	return val, v.GetObjectValue(&val)
 }
@@ -896,7 +896,7 @@ func (v *StateAttributeValue) GetPropertyString(property string) string {
 	return v.Props[property]
 }
 
-func (v *StateAttributeValue) GetPropertyInteger(property string) int64 {
+func (v *StateAttributeValue) GetPropertyInteger(property string) int {
 	if v == nil {
 		return 0
 	}
@@ -911,7 +911,7 @@ func (v *StateAttributeValue) GetPropertyInteger(property string) int64 {
 		return 0
 	}
 
-	return i
+	return int(i)
 }
 
 func (v *StateAttributeValue) GetPropertyFloat(property string) float64 {

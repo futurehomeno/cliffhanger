@@ -387,7 +387,7 @@ func (m *manager) vmsAddressFromTopic(topic string) (string, error) {
 	return "", fmt.Errorf("manager: no vms service found using topic: %s", topic)
 }
 
-func (m *manager) normalizeOutLvlSwitchLevel(level int64, serviceAddr string) (float64, error) {
+func (m *manager) normalizeOutLvlSwitchLevel(level int, serviceAddr string) (float64, error) {
 	t := m.ad.ThingByTopic(serviceAddr)
 
 	if t == nil {

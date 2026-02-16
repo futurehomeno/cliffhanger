@@ -71,9 +71,9 @@ type tokenLoader struct {
 
 // LoadToken loads the hub token from Cloud Bridge service.
 func (g *tokenLoader) LoadToken() (string, error) {
-	mqtt := fimpgo.NewMqttTransport(g.cfg.MQTTServerURI, g.cfg.MQTTClientIDPrefix, g.cfg.MQTTUsername, g.cfg.MQTTPassword, true, 1, 1)
+	mqtt := fimpgo.NewMqttTransport(g.cfg.MQTTServerURI, g.cfg.MQTTClientIDPrefix, g.cfg.MQTTUsername, g.cfg.MQTTPassword, true, 1, 1, nil)
 
-	if err := mqtt.Start(); err != nil {
+	if err := mqtt.Start(10 * time.Second); err != nil {
 		return "", fmt.Errorf("token loader: failed to start MQTT: %w", err)
 	}
 

@@ -317,6 +317,8 @@ func (n *Notify) ParseIntegerID() (int, error) {
 	switch id := n.ID.(type) {
 	case int:
 		return id, nil
+	case int64:
+		return int(id), nil
 	case float64:
 		return int(id), nil
 	case string:

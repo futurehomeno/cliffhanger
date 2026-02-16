@@ -18,7 +18,7 @@ func WithChargingModes(modes ...string) adapter.SpecificationOption {
 }
 
 // WithSupportedMaxCurrent adds supported max current to the service specification.
-func WithSupportedMaxCurrent(current int64) adapter.SpecificationOption {
+func WithSupportedMaxCurrent(current int) adapter.SpecificationOption {
 	return adapter.SpecificationOptionFn(func(f *fimptype.Service) {
 		f.Props[PropertySupportedMaxCurrent] = current
 	})

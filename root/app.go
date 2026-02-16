@@ -6,6 +6,7 @@ import (
 	"os/signal"
 	"sync"
 	"syscall"
+	"time"
 
 	"github.com/futurehomeno/fimpgo"
 	log "github.com/sirupsen/logrus"
@@ -129,15 +130,15 @@ func (a *app) doStart() error {
 		return nil
 	}
 
-	log.Info("[cliff] Starting app")
+	log.Info("[cliff] Start app")
 
 	if a.lifecycle != nil {
 		a.lifecycle.SetAppState(lifecycle.AppStateStarting, nil)
 	}
 
-	err := a.mqtt.Start()
+	err := a.mqtt.Start(10 * time.Second)
 	if err != nil {
-		return fmt.Errorf("start the MQTT broker err: %w", err)
+		return fmt.Errorf("start MQTT err: %w", err)
 	}
 
 	for _, service := range a.services {

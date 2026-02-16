@@ -56,7 +56,7 @@ func ExpectBool(topic, messageType, service string, value bool) *Expectation {
 		ExpectBool(value)
 }
 
-func ExpectInt(topic, messageType, service string, value int64) *Expectation {
+func ExpectInt(topic, messageType, service string, value int) *Expectation {
 	return NewExpectation().
 		ExpectTopic(topic).
 		ExpectType(messageType).
@@ -96,7 +96,7 @@ func ExpectStringMap(topic, messageType, service string, value map[string]string
 		ExpectStringMap(value)
 }
 
-func ExpectIntMap(topic, messageType, service string, value map[string]int64) *Expectation {
+func ExpectIntMap(topic, messageType, service string, value map[string]int) *Expectation {
 	return NewExpectation().
 		ExpectTopic(topic).
 		ExpectType(messageType).
@@ -128,7 +128,7 @@ func ExpectStringArray(topic, messageType, service string, value []string) *Expe
 		ExpectStringArray(value)
 }
 
-func ExpectIntArray(topic, messageType, service string, value []int64) *Expectation {
+func ExpectIntArray(topic, messageType, service string, value []int) *Expectation {
 	return NewExpectation().
 		ExpectTopic(topic).
 		ExpectType(messageType).
@@ -234,7 +234,7 @@ func (e *Expectation) ExpectBool(value bool) *Expectation {
 	return e
 }
 
-func (e *Expectation) ExpectInt(value int64) *Expectation {
+func (e *Expectation) ExpectInt(value int) *Expectation {
 	e.Voters = append(e.Voters, router.MessageVoterFn(func(message *fimpgo.Message) bool {
 		v, err := message.Payload.GetIntValue()
 		if err != nil {
@@ -311,7 +311,7 @@ func (e *Expectation) ExpectFloatMap(value map[string]float64) *Expectation {
 	return e
 }
 
-func (e *Expectation) ExpectIntMap(value map[string]int64) *Expectation {
+func (e *Expectation) ExpectIntMap(value map[string]int) *Expectation {
 	e.Voters = append(e.Voters, router.MessageVoterFn(func(message *fimpgo.Message) bool {
 		v, err := message.Payload.GetIntMapValue()
 		if err != nil {
@@ -363,7 +363,7 @@ func (e *Expectation) ExpectFloatArray(value []float64) *Expectation {
 	return e
 }
 
-func (e *Expectation) ExpectIntArray(value []int64) *Expectation {
+func (e *Expectation) ExpectIntArray(value []int) *Expectation {
 	e.Voters = append(e.Voters, router.MessageVoterFn(func(message *fimpgo.Message) bool {
 		v, err := message.Payload.GetIntArrayValue()
 		if err != nil {

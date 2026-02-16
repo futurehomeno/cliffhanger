@@ -2,6 +2,7 @@ package suite
 
 import (
 	"testing"
+	"time"
 
 	"github.com/futurehomeno/fimpgo"
 )
@@ -64,7 +65,7 @@ func (s *Suite) init(t *testing.T) {
 		s.Config.MQTTPassword,
 	)
 
-	err := s.mqtt.Start()
+	err := s.mqtt.Start(10 * time.Second)
 	if err != nil {
 		t.Fatalf("failed to start the MQTT client: %s", err)
 	}
@@ -94,6 +95,7 @@ func DefaultMQTT(clientID, url, user, pass string) *fimpgo.MqttTransport {
 		true,
 		1,
 		1,
+		nil,
 	)
 
 	mqtt.SetDefaultSource(clientID)

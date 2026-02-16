@@ -82,7 +82,7 @@ type ChargingSettings struct {
 // CableReport represents an extended cable status report.
 type CableReport struct {
 	CableLock    bool
-	CableCurrent *int64
+	CableCurrent *int
 }
 
 // reportProperties returns a map of report properties.
@@ -102,7 +102,7 @@ type SessionReport struct {
 	PreviousSessionEnergy float64
 	StartedAt             time.Time
 	FinishedAt            time.Time
-	OfferedCurrent        int64
+	OfferedCurrent        int
 }
 
 // reportProperties returns a map of report properties taking into consideration capabilities of the chargepoint.

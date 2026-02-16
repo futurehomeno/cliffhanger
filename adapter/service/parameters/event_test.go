@@ -69,7 +69,7 @@ func testSetup(wantParametersService bool) suite.ServiceSetup {
 	return func(t *testing.T) (service suite.Service, mocks []suite.Mock) {
 		t.Helper()
 
-		mqtt := fimpgo.NewMqttTransport("tcp://localhost:11883", "parameters_test", "", "", true, 1, 1)
+		mqtt := fimpgo.NewMqttTransport("tcp://localhost:11883", "parameters_test", "", "", true, 1, 1, nil)
 		eventManager := event.NewManager()
 		factory := thingFactory(t, wantParametersService)
 

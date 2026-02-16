@@ -318,7 +318,7 @@ func TestDevice(t *testing.T) {
 			call: func(d *prime.Device) interface{} {
 				return d.GetServicePropertyInteger("chargepoint", "phases")
 			},
-			want: int64(1),
+			want: 1,
 		},
 		{
 			name:   "get service property integer - invalid property type",
@@ -326,7 +326,7 @@ func TestDevice(t *testing.T) {
 			call: func(d *prime.Device) interface{} {
 				return d.GetServicePropertyInteger("chargepoint", "phases")
 			},
-			want: int64(0),
+			want: 0,
 		},
 		{
 			name:   "get service property integer - missing service",
@@ -334,7 +334,7 @@ func TestDevice(t *testing.T) {
 			call: func(d *prime.Device) interface{} {
 				return d.GetServicePropertyInteger("chargepoint", "phases")
 			},
-			want: int64(0),
+			want: 0,
 		},
 		{
 			name:   "get service property object",
@@ -597,11 +597,11 @@ func TestStateDevice_GetAttributeValue(t *testing.T) {
 		},
 		{
 			name:   "get attribute int value",
-			device: makeDevice("test_service", "test_attribute", int64(1), "2022-08-15 12:15:30 +0100"),
+			device: makeDevice("test_service", "test_attribute", 1, "2022-08-15 12:15:30 +0100"),
 			call: func(d *prime.StateDevice) (interface{}, time.Time) {
 				return d.GetAttributeIntValue("test_service", "test_attribute", nil)
 			},
-			wantValue: int64(1),
+			wantValue: 1,
 			wantTime:  time.Date(2022, 8, 15, 12, 15, 30, 0, time.FixedZone("", 1*60*60)),
 		},
 		{
@@ -633,11 +633,11 @@ func TestStateDevice_GetAttributeValue(t *testing.T) {
 		},
 		{
 			name:   "get attribute int array value",
-			device: makeDevice("test_service", "test_attribute", []int64{1}, "2022-08-15 12:15:30 +0100"),
+			device: makeDevice("test_service", "test_attribute", []int{1}, "2022-08-15 12:15:30 +0100"),
 			call: func(d *prime.StateDevice) (interface{}, time.Time) {
 				return d.GetAttributeIntArrayValue("test_service", "test_attribute", nil)
 			},
-			wantValue: []int64{1},
+			wantValue: []int{1},
 			wantTime:  time.Date(2022, 8, 15, 12, 15, 30, 0, time.FixedZone("", 1*60*60)),
 		},
 		{
@@ -669,11 +669,11 @@ func TestStateDevice_GetAttributeValue(t *testing.T) {
 		},
 		{
 			name:   "get attribute int map value",
-			device: makeDevice("test_service", "test_attribute", map[string]int64{"key": 1}, "2022-08-15 12:15:30 +0100"),
+			device: makeDevice("test_service", "test_attribute", map[string]int{"key": 1}, "2022-08-15 12:15:30 +0100"),
 			call: func(d *prime.StateDevice) (interface{}, time.Time) {
 				return d.GetAttributeIntMapValue("test_service", "test_attribute", nil)
 			},
-			wantValue: map[string]int64{"key": 1},
+			wantValue: map[string]int{"key": 1},
 			wantTime:  time.Date(2022, 8, 15, 12, 15, 30, 0, time.FixedZone("", 1*60*60)),
 		},
 		{
@@ -1006,15 +1006,15 @@ func TestStateAttributeValue_Get(t *testing.T) {
 		},
 		{
 			name:      "get int value",
-			attribute: &prime.StateAttributeValue{Value: int64(1)},
+			attribute: &prime.StateAttributeValue{Value: 1},
 			call:      func(a *prime.StateAttributeValue) (interface{}, error) { return a.GetIntValue() },
-			want:      int64(1),
+			want:      1,
 		},
 		{
 			name:      "get int value - error",
 			attribute: &prime.StateAttributeValue{Value: "test"},
 			call:      func(a *prime.StateAttributeValue) (interface{}, error) { return a.GetIntValue() },
-			want:      int64(0),
+			want:      0,
 			wantErr:   true,
 		},
 		{
@@ -1059,15 +1059,15 @@ func TestStateAttributeValue_Get(t *testing.T) {
 		},
 		{
 			name:      "get int array value",
-			attribute: &prime.StateAttributeValue{Value: []int64{1}},
+			attribute: &prime.StateAttributeValue{Value: []int{1}},
 			call:      func(a *prime.StateAttributeValue) (interface{}, error) { return a.GetIntArrayValue() },
-			want:      []int64{1},
+			want:      []int{1},
 		},
 		{
 			name:      "get int array value - error",
 			attribute: &prime.StateAttributeValue{Value: "test"},
 			call:      func(a *prime.StateAttributeValue) (interface{}, error) { return a.GetIntArrayValue() },
-			want:      ([]int64)(nil),
+			want:      ([]int)(nil),
 			wantErr:   true,
 		},
 		{
@@ -1111,15 +1111,15 @@ func TestStateAttributeValue_Get(t *testing.T) {
 		},
 		{
 			name:      "get int map value",
-			attribute: &prime.StateAttributeValue{Value: map[string]int64{"key": 1}},
+			attribute: &prime.StateAttributeValue{Value: map[string]int{"key": 1}},
 			call:      func(a *prime.StateAttributeValue) (interface{}, error) { return a.GetIntMapValue() },
-			want:      map[string]int64{"key": 1},
+			want:      map[string]int{"key": 1},
 		},
 		{
 			name:      "get int map value - error",
 			attribute: &prime.StateAttributeValue{Value: "test"},
 			call:      func(a *prime.StateAttributeValue) (interface{}, error) { return a.GetIntMapValue() },
-			want:      (map[string]int64)(nil),
+			want:      (map[string]int)(nil),
 			wantErr:   true,
 		},
 		{
@@ -1237,7 +1237,7 @@ func TestStateAttributeValue_Get(t *testing.T) {
 			call: func(a *prime.StateAttributeValue) (interface{}, error) {
 				return a.GetPropertyInteger("a"), nil
 			},
-			want:    int64(1),
+			want:    1,
 			wantErr: false,
 		},
 		{
@@ -1246,7 +1246,7 @@ func TestStateAttributeValue_Get(t *testing.T) {
 			call: func(a *prime.StateAttributeValue) (interface{}, error) {
 				return a.GetPropertyInteger("a"), nil
 			},
-			want:    int64(0),
+			want:    0,
 			wantErr: false,
 		},
 		{
@@ -1255,7 +1255,7 @@ func TestStateAttributeValue_Get(t *testing.T) {
 			call: func(a *prime.StateAttributeValue) (interface{}, error) {
 				return a.GetPropertyInteger("c"), nil
 			},
-			want:    int64(0),
+			want:    0,
 			wantErr: false,
 		},
 		{
@@ -1264,7 +1264,7 @@ func TestStateAttributeValue_Get(t *testing.T) {
 			call: func(a *prime.StateAttributeValue) (interface{}, error) {
 				return a.GetPropertyInteger("a"), nil
 			},
-			want:    int64(0),
+			want:    0,
 			wantErr: false,
 		},
 		{

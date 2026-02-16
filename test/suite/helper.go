@@ -47,7 +47,7 @@ func StringMessage(topic, messageType, service, value string) *fimpgo.Message {
 	}
 }
 
-func IntMessage(topic, messageType, service string, value int64) *fimpgo.Message {
+func IntMessage(topic, messageType, service string, value int) *fimpgo.Message {
 	return &fimpgo.Message{
 		Topic: topic,
 		Payload: fimpgo.NewIntMessage(
@@ -117,7 +117,7 @@ func FloatMapMessage(topic, messageType, service string, value map[string]float6
 	}
 }
 
-func IntMapMessage(topic, messageType, service string, value map[string]int64) *fimpgo.Message {
+func IntMapMessage(topic, messageType, service string, value map[string]int) *fimpgo.Message {
 	return &fimpgo.Message{
 		Topic: topic,
 		Payload: fimpgo.NewIntMapMessage(
@@ -173,7 +173,7 @@ func FloatArrayMessage(topic, messageType, service string, value []float64) *fim
 	}
 }
 
-func IntArrayMessage(topic, messageType, service string, value []int64) *fimpgo.Message {
+func IntArrayMessage(topic, messageType, service string, value []int) *fimpgo.Message {
 	return &fimpgo.Message{
 		Topic: topic,
 		Payload: fimpgo.NewIntArrayMessage(
@@ -232,7 +232,7 @@ func (b *MessageBuilder) StringMessage(topic, messageType, service, value string
 	return b
 }
 
-func (b *MessageBuilder) IntMessage(topic, messageType, service string, value int64) *MessageBuilder {
+func (b *MessageBuilder) IntMessage(topic, messageType, service string, value int) *MessageBuilder {
 	b.msg = IntMessage(topic, messageType, service, value)
 
 	return b
@@ -262,7 +262,7 @@ func (b *MessageBuilder) FloatMapMessage(topic, messageType, service string, val
 	return b
 }
 
-func (b *MessageBuilder) IntMapMessage(topic, messageType, service string, value map[string]int64) *MessageBuilder {
+func (b *MessageBuilder) IntMapMessage(topic, messageType, service string, value map[string]int) *MessageBuilder {
 	b.msg = IntMapMessage(topic, messageType, service, value)
 
 	return b
@@ -286,7 +286,7 @@ func (b *MessageBuilder) FloatArrayMessage(topic, messageType, service string, v
 	return b
 }
 
-func (b *MessageBuilder) IntArrayMessage(topic, messageType, service string, value []int64) *MessageBuilder {
+func (b *MessageBuilder) IntArrayMessage(topic, messageType, service string, value []int) *MessageBuilder {
 	b.msg = IntArrayMessage(topic, messageType, service, value)
 
 	return b

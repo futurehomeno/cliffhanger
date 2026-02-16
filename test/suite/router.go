@@ -13,7 +13,7 @@ import (
 	"github.com/google/uuid"
 	log "github.com/sirupsen/logrus"
 
-	"github.com/futurehomeno/cliffhanger/router"
+	rt "github.com/futurehomeno/cliffhanger/router"
 )
 
 // Router is an MQTT router used for testing purposes.
@@ -21,7 +21,7 @@ import (
 type Router struct {
 	t      *testing.T
 	mqtt   *fimpgo.MqttTransport
-	router router.Router
+	router rt.Router
 
 	mu           sync.RWMutex
 	expectations []*Expectation
@@ -40,7 +40,7 @@ func NewTestRouter(t *testing.T, mqtt *fimpgo.MqttTransport) *Router {
 	}
 
 	channelID := "test-router-" + uuid.New().String()
-	r.router = router.NewRouter(mqtt, channelID, r.expectationsRouting())
+	r.router = rt.NewRouter(mqtt, channelID, r.expectationsRouting())
 
 	return r
 }
@@ -203,11 +203,11 @@ func (r *Router) cleanUpExpectations() {
 	r.messageRegistry = make(map[*Expectation]*messageBucket)
 }
 
-func (r *Router) expectationsRouting() *router.Routing {
+func (r *Router) expectationsRouting() *rt.Routing {
 	r.t.Helper()
 
-	return router.NewRouting(router.NewMessageHandler(
-		router.MessageProcessorFn(func(message *fimpgo.Message) (*fimpgo.FimpMessage, error) {
+	return rt.NewRouting(rt.NewMessageHandler(
+		rt.MessageProcessorFn(func(message *fimpgo.Message) (*fimpgo.FimpMessage, error) {
 			return r.processMessage(message)
 		}),
 	))

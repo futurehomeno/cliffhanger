@@ -4,7 +4,7 @@ import (
 	time "time"
 )
 
-func (_m *Controller) MockLevelSwitchLevelReport(value int64, err error, once bool) *Controller {
+func (_m *Controller) MockLevelSwitchLevelReport(value int, err error, once bool) *Controller {
 	c := _m.On("LevelSwitchLevelReport").Return(value, err)
 
 	if once {
@@ -24,7 +24,7 @@ func (_m *Controller) MockLevelSwitchBinaryStateReport(value bool, err error, on
 	return _m
 }
 
-func (_m *Controller) MockSetLevelSwitchLevel(value int64, duration time.Duration, err error, once bool) *Controller {
+func (_m *Controller) MockSetLevelSwitchLevel(value int, duration time.Duration, err error, once bool) *Controller {
 	c := _m.On("SetLevelSwitchLevel", value, duration).Return(err)
 
 	if once {
