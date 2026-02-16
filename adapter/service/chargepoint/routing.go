@@ -7,6 +7,7 @@ import (
 
 	"github.com/futurehomeno/cliffhanger/adapter"
 	"github.com/futurehomeno/cliffhanger/router"
+	"github.com/futurehomeno/cliffhanger/types"
 )
 
 // Constants defining routing service, commands and events.
@@ -377,7 +378,7 @@ func handleCmdPhaseModeSet(serviceRegistry adapter.ServiceRegistry) router.Messa
 				return nil, fmt.Errorf("provided phase mode has an incorrect format: %w", err)
 			}
 
-			err = chargepoint.SetPhaseMode(PhaseMode(phaseMode))
+			err = chargepoint.SetPhaseMode(types.PhaseMode(phaseMode))
 			if err != nil {
 				return nil, fmt.Errorf("failed to set chargepoint phase mode: %w", err)
 			}

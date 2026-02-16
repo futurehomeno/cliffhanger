@@ -2,6 +2,7 @@ package formatters
 
 import (
 	"fmt"
+	"slices"
 
 	log "github.com/sirupsen/logrus"
 )
@@ -21,13 +22,19 @@ func (f *BudzikFormatter) Format(entry *log.Entry) ([]byte, error) {
 	}
 
 	ret := fmt.Appendf(nil, "%s %s %s", timestamp, level, entry.Message)
-	for k, v := range entry.Data {
-		ret = fmt.Appendf(ret, " %s=%v", k, v)
+
+	keys := make([]string, 0, len(entry.Data))
+	for k := range entry.Data {
+		keys = append(keys, k)
 	}
 
-	ret = fmt.Appendf(ret, "\n")
+	slices.Sort(keys)
 
-	return ret, nil
+	for _, k := range keys {
+		ret = fmt.Appendf(ret, " %s=%v", k, entry.Data[k])
+	}
+
+	return fmt.Appendf(ret, "\n"), nil
 }
 
 func NewBudzikFormatter() *BudzikFormatter {

@@ -79,32 +79,39 @@ func (r *manager) Stop() error {
 
 // runOnce runs the task once if it's running interval is set to 0.
 func (r *manager) runOnce(task *Task) {
-	r.run(task)
+	run(task)
 	r.wg.Done()
 }
 
 // runContinuously runs the task according to the provided interval.
-func (r *manager) runContinuously(task *Task) {
+func (m *manager) runContinuously(task *Task) {
+	defer func() {
+		if r := recover(); r != nil {
+			log.Error(string(debug.Stack()))
+			log.Error(r)
+			panic(r)
+		}
+	}()
+
 	ticker := time.NewTicker(task.duration)
 	defer ticker.Stop()
 
-	r.run(task)
+	run(task)
 
 	for {
 		select {
 		case <-ticker.C:
-			r.run(task)
+			run(task)
 
-		case <-r.stopCh:
-			r.wg.Done()
-
+		case <-m.stopCh:
+			m.wg.Done()
 			return
 		}
 	}
 }
 
 // run executes the task with a panic recovery.
-func (r *manager) run(task *Task) {
+func run(task *Task) {
 	defer func() {
 		if r := recover(); r != nil {
 			log.WithField("stack", string(debug.Stack())).

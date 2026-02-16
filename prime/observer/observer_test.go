@@ -33,7 +33,9 @@ func TestObserver(t *testing.T) { //nolint:paralleltest
 					{
 						Name: "Initialize observer on startup",
 						Expectations: []*suite.Expectation{
-							suite.ExpectObject("pt:j1/mt:cmd/rt:app/rn:vinculum/ad:1", prime.CmdPD7Request, prime.ServiceName, &prime.Request{Cmd: prime.CmdGet, Param: &prime.RequestParam{Components: []string{prime.ComponentDevice, prime.ComponentThing, prime.ComponentRoom, prime.ComponentArea}}}).ReplyWith(
+							suite.ExpectObject(
+								"pt:j1/mt:cmd/rt:app/rn:vinculum/ad:1", prime.CmdPD7Request, prime.ServiceName,
+								&prime.Request{Cmd: prime.CmdGet, Param: &prime.RequestParam{Components: []string{prime.ComponentDevice, prime.ComponentThing, prime.ComponentRoom, prime.ComponentArea}}}).ReplyWith(
 								fimpgo.NewObjectMessage(prime.EvtPD7Response, prime.ServiceName, &prime.Response{ParamRaw: map[string]json.RawMessage{
 									prime.ComponentDevice: json.RawMessage(`[{"id":1}]`),
 									prime.ComponentThing:  json.RawMessage(`[{"id":1}]`),
@@ -43,6 +45,7 @@ func TestObserver(t *testing.T) { //nolint:paralleltest
 						},
 						Callbacks: []suite.Callback{
 							func(t *testing.T) {
+								t.Helper()
 								assert.NotNil(t, <-testEventManager.WaitFor(5*time.Second, observer.WaitForRefresh(prime.ComponentDevice)))
 
 								devices, err := testObserver.GetDevices()
@@ -76,6 +79,7 @@ func TestObserver(t *testing.T) { //nolint:paralleltest
 						}),
 						Callbacks: []suite.Callback{
 							func(t *testing.T) {
+								t.Helper()
 								assert.NotNil(t, <-testEventManager.WaitFor(time.Second, observer.WaitForDeviceChange()))
 
 								devices, err := testObserver.GetDevices()
@@ -94,6 +98,7 @@ func TestObserver(t *testing.T) { //nolint:paralleltest
 						}),
 						Callbacks: []suite.Callback{
 							func(t *testing.T) {
+								t.Helper()
 								assert.NotNil(t, <-testEventManager.WaitFor(time.Second, observer.WaitForDeviceChange()))
 
 								devices, err := testObserver.GetDevices()
@@ -112,6 +117,7 @@ func TestObserver(t *testing.T) { //nolint:paralleltest
 						}),
 						Callbacks: []suite.Callback{
 							func(t *testing.T) {
+								t.Helper()
 								assert.NotNil(t, <-testEventManager.WaitFor(time.Second, observer.WaitForDeviceChange()))
 
 								devices, err := testObserver.GetDevices()
@@ -130,6 +136,7 @@ func TestObserver(t *testing.T) { //nolint:paralleltest
 						}),
 						Callbacks: []suite.Callback{
 							func(t *testing.T) {
+								t.Helper()
 								assert.NotNil(t, <-testEventManager.WaitFor(time.Second, observer.WaitForDeviceChange()))
 
 								devices, err := testObserver.GetDevices()
@@ -148,6 +155,7 @@ func TestObserver(t *testing.T) { //nolint:paralleltest
 						}),
 						Callbacks: []suite.Callback{
 							func(t *testing.T) {
+								t.Helper()
 								assert.NotNil(t, <-testEventManager.WaitFor(time.Second, observer.WaitForDeviceChange()))
 
 								devices, err := testObserver.GetDevices()
@@ -166,6 +174,7 @@ func TestObserver(t *testing.T) { //nolint:paralleltest
 						}),
 						Callbacks: []suite.Callback{
 							func(t *testing.T) {
+								t.Helper()
 								assert.NotNil(t, <-testEventManager.WaitFor(time.Second, observer.WaitForThingChange()))
 
 								things, err := testObserver.GetThings()
@@ -184,6 +193,7 @@ func TestObserver(t *testing.T) { //nolint:paralleltest
 						}),
 						Callbacks: []suite.Callback{
 							func(t *testing.T) {
+								t.Helper()
 								assert.NotNil(t, <-testEventManager.WaitFor(time.Second, observer.WaitForThingChange()))
 
 								things, err := testObserver.GetThings()
@@ -202,6 +212,7 @@ func TestObserver(t *testing.T) { //nolint:paralleltest
 						}),
 						Callbacks: []suite.Callback{
 							func(t *testing.T) {
+								t.Helper()
 								assert.NotNil(t, <-testEventManager.WaitFor(time.Second, observer.WaitForThingChange()))
 
 								things, err := testObserver.GetThings()
@@ -220,6 +231,7 @@ func TestObserver(t *testing.T) { //nolint:paralleltest
 						}),
 						Callbacks: []suite.Callback{
 							func(t *testing.T) {
+								t.Helper()
 								assert.NotNil(t, <-testEventManager.WaitFor(time.Second, observer.WaitForThingChange()))
 
 								things, err := testObserver.GetThings()
@@ -238,6 +250,7 @@ func TestObserver(t *testing.T) { //nolint:paralleltest
 						}),
 						Callbacks: []suite.Callback{
 							func(t *testing.T) {
+								t.Helper()
 								assert.NotNil(t, <-testEventManager.WaitFor(time.Second, observer.WaitForThingChange()))
 
 								things, err := testObserver.GetThings()
@@ -256,6 +269,7 @@ func TestObserver(t *testing.T) { //nolint:paralleltest
 						}),
 						Callbacks: []suite.Callback{
 							func(t *testing.T) {
+								t.Helper()
 								assert.NotNil(t, <-testEventManager.WaitFor(time.Second, observer.WaitForRoomChange()))
 
 								rooms, err := testObserver.GetRooms()
@@ -274,6 +288,7 @@ func TestObserver(t *testing.T) { //nolint:paralleltest
 						}),
 						Callbacks: []suite.Callback{
 							func(t *testing.T) {
+								t.Helper()
 								assert.NotNil(t, <-testEventManager.WaitFor(time.Second, observer.WaitForRoomChange()))
 
 								rooms, err := testObserver.GetRooms()
@@ -292,6 +307,7 @@ func TestObserver(t *testing.T) { //nolint:paralleltest
 						}),
 						Callbacks: []suite.Callback{
 							func(t *testing.T) {
+								t.Helper()
 								assert.NotNil(t, <-testEventManager.WaitFor(time.Second, observer.WaitForRoomChange()))
 
 								rooms, err := testObserver.GetRooms()
@@ -310,6 +326,7 @@ func TestObserver(t *testing.T) { //nolint:paralleltest
 						}),
 						Callbacks: []suite.Callback{
 							func(t *testing.T) {
+								t.Helper()
 								assert.NotNil(t, <-testEventManager.WaitFor(time.Second, observer.WaitForRoomChange()))
 
 								rooms, err := testObserver.GetRooms()
@@ -328,6 +345,7 @@ func TestObserver(t *testing.T) { //nolint:paralleltest
 						}),
 						Callbacks: []suite.Callback{
 							func(t *testing.T) {
+								t.Helper()
 								assert.NotNil(t, <-testEventManager.WaitFor(time.Second, observer.WaitForRoomChange()))
 
 								rooms, err := testObserver.GetRooms()
@@ -346,6 +364,7 @@ func TestObserver(t *testing.T) { //nolint:paralleltest
 						}),
 						Callbacks: []suite.Callback{
 							func(t *testing.T) {
+								t.Helper()
 								assert.NotNil(t, <-testEventManager.WaitFor(time.Second, observer.WaitForAreaChange()))
 
 								areas, err := testObserver.GetAreas()
@@ -364,6 +383,7 @@ func TestObserver(t *testing.T) { //nolint:paralleltest
 						}),
 						Callbacks: []suite.Callback{
 							func(t *testing.T) {
+								t.Helper()
 								assert.NotNil(t, <-testEventManager.WaitFor(time.Second, observer.WaitForAreaChange()))
 
 								areas, err := testObserver.GetAreas()
@@ -382,6 +402,7 @@ func TestObserver(t *testing.T) { //nolint:paralleltest
 						}),
 						Callbacks: []suite.Callback{
 							func(t *testing.T) {
+								t.Helper()
 								assert.NotNil(t, <-testEventManager.WaitFor(time.Second, observer.WaitForAreaChange()))
 
 								areas, err := testObserver.GetAreas()
@@ -400,6 +421,7 @@ func TestObserver(t *testing.T) { //nolint:paralleltest
 						}),
 						Callbacks: []suite.Callback{
 							func(t *testing.T) {
+								t.Helper()
 								assert.NotNil(t, <-testEventManager.WaitFor(time.Second, observer.WaitForAreaChange()))
 
 								areas, err := testObserver.GetAreas()
@@ -418,6 +440,7 @@ func TestObserver(t *testing.T) { //nolint:paralleltest
 						}),
 						Callbacks: []suite.Callback{
 							func(t *testing.T) {
+								t.Helper()
 								assert.NotNil(t, <-testEventManager.WaitFor(time.Second, observer.WaitForAreaChange()))
 
 								areas, err := testObserver.GetAreas()
@@ -539,11 +562,15 @@ func TestObserver(t *testing.T) { //nolint:paralleltest
 					{
 						Name: "Failed lazy load on getting devices",
 						Expectations: []*suite.Expectation{
-							suite.ExpectObject("pt:j1/mt:cmd/rt:app/rn:vinculum/ad:1", prime.CmdPD7Request, prime.ServiceName, &prime.Request{Cmd: prime.CmdGet, Param: &prime.RequestParam{Components: []string{prime.ComponentDevice, prime.ComponentThing, prime.ComponentRoom, prime.ComponentArea}}}).ReplyWith(
+							suite.ExpectObject(
+								"pt:j1/mt:cmd/rt:app/rn:vinculum/ad:1", prime.CmdPD7Request, prime.ServiceName,
+								&prime.Request{Cmd: prime.CmdGet,
+									Param: &prime.RequestParam{Components: []string{prime.ComponentDevice, prime.ComponentThing, prime.ComponentRoom, prime.ComponentArea}}}).ReplyWith(
 								fimpgo.NewObjectMessage(prime.EvtPD7Response, prime.ServiceName, json.RawMessage(`{"cmd":1}`), nil, nil, nil)),
 						},
 						Callbacks: []suite.Callback{
 							func(t *testing.T) {
+								t.Helper()
 								_, err := testObserver.GetDevices()
 
 								assert.Error(t, err)
@@ -553,11 +580,15 @@ func TestObserver(t *testing.T) { //nolint:paralleltest
 					{
 						Name: "Failed lazy load on getting things",
 						Expectations: []*suite.Expectation{
-							suite.ExpectObject("pt:j1/mt:cmd/rt:app/rn:vinculum/ad:1", prime.CmdPD7Request, prime.ServiceName, &prime.Request{Cmd: prime.CmdGet, Param: &prime.RequestParam{Components: []string{prime.ComponentDevice, prime.ComponentThing, prime.ComponentRoom, prime.ComponentArea}}}).ReplyWith(
+							suite.ExpectObject(
+								"pt:j1/mt:cmd/rt:app/rn:vinculum/ad:1", prime.CmdPD7Request, prime.ServiceName,
+								&prime.Request{Cmd: prime.CmdGet,
+									Param: &prime.RequestParam{Components: []string{prime.ComponentDevice, prime.ComponentThing, prime.ComponentRoom, prime.ComponentArea}}}).ReplyWith(
 								fimpgo.NewObjectMessage(prime.EvtPD7Response, prime.ServiceName, json.RawMessage(`{"cmd":1}`), nil, nil, nil)),
 						},
 						Callbacks: []suite.Callback{
 							func(t *testing.T) {
+								t.Helper()
 								_, err := testObserver.GetThings()
 
 								assert.Error(t, err)
@@ -567,11 +598,15 @@ func TestObserver(t *testing.T) { //nolint:paralleltest
 					{
 						Name: "Failed lazy load on getting rooms",
 						Expectations: []*suite.Expectation{
-							suite.ExpectObject("pt:j1/mt:cmd/rt:app/rn:vinculum/ad:1", prime.CmdPD7Request, prime.ServiceName, &prime.Request{Cmd: prime.CmdGet, Param: &prime.RequestParam{Components: []string{prime.ComponentDevice, prime.ComponentThing, prime.ComponentRoom, prime.ComponentArea}}}).ReplyWith(
+							suite.ExpectObject(
+								"pt:j1/mt:cmd/rt:app/rn:vinculum/ad:1", prime.CmdPD7Request, prime.ServiceName,
+								&prime.Request{Cmd: prime.CmdGet,
+									Param: &prime.RequestParam{Components: []string{prime.ComponentDevice, prime.ComponentThing, prime.ComponentRoom, prime.ComponentArea}}}).ReplyWith(
 								fimpgo.NewObjectMessage(prime.EvtPD7Response, prime.ServiceName, json.RawMessage(`{"cmd":1}`), nil, nil, nil)),
 						},
 						Callbacks: []suite.Callback{
 							func(t *testing.T) {
+								t.Helper()
 								_, err := testObserver.GetRooms()
 
 								assert.Error(t, err)
@@ -581,11 +616,15 @@ func TestObserver(t *testing.T) { //nolint:paralleltest
 					{
 						Name: "Failed lazy load on getting areas",
 						Expectations: []*suite.Expectation{
-							suite.ExpectObject("pt:j1/mt:cmd/rt:app/rn:vinculum/ad:1", prime.CmdPD7Request, prime.ServiceName, &prime.Request{Cmd: prime.CmdGet, Param: &prime.RequestParam{Components: []string{prime.ComponentDevice, prime.ComponentThing, prime.ComponentRoom, prime.ComponentArea}}}).ReplyWith(
+							suite.ExpectObject(
+								"pt:j1/mt:cmd/rt:app/rn:vinculum/ad:1", prime.CmdPD7Request, prime.ServiceName,
+								&prime.Request{Cmd: prime.CmdGet, Param: &prime.RequestParam{
+									Components: []string{prime.ComponentDevice, prime.ComponentThing, prime.ComponentRoom, prime.ComponentArea}}}).ReplyWith(
 								fimpgo.NewObjectMessage(prime.EvtPD7Response, prime.ServiceName, json.RawMessage(`{"cmd":1}`), nil, nil, nil)),
 						},
 						Callbacks: []suite.Callback{
 							func(t *testing.T) {
+								t.Helper()
 								_, err := testObserver.GetAreas()
 
 								assert.Error(t, err)
@@ -595,7 +634,9 @@ func TestObserver(t *testing.T) { //nolint:paralleltest
 					{
 						Name: "Successful refresh",
 						Expectations: []*suite.Expectation{
-							suite.ExpectObject("pt:j1/mt:cmd/rt:app/rn:vinculum/ad:1", prime.CmdPD7Request, prime.ServiceName, &prime.Request{Cmd: prime.CmdGet, Param: &prime.RequestParam{Components: []string{prime.ComponentDevice, prime.ComponentThing, prime.ComponentRoom, prime.ComponentArea}}}).ReplyWith(
+							suite.ExpectObject(
+								"pt:j1/mt:cmd/rt:app/rn:vinculum/ad:1", prime.CmdPD7Request, prime.ServiceName,
+								&prime.Request{Cmd: prime.CmdGet, Param: &prime.RequestParam{Components: []string{prime.ComponentDevice, prime.ComponentThing, prime.ComponentRoom, prime.ComponentArea}}}).ReplyWith(
 								fimpgo.NewObjectMessage(prime.EvtPD7Response, prime.ServiceName, &prime.Response{ParamRaw: map[string]json.RawMessage{
 									prime.ComponentDevice: json.RawMessage(`[{"id":1}]`),
 									prime.ComponentThing:  json.RawMessage(`[{"id":1}]`),
@@ -605,6 +646,7 @@ func TestObserver(t *testing.T) { //nolint:paralleltest
 						},
 						Callbacks: []suite.Callback{
 							func(t *testing.T) {
+								t.Helper()
 								err := testObserver.Refresh(false)
 
 								assert.NoError(t, err)
@@ -663,6 +705,7 @@ func TestObserver_AddOrEdit_NoComponentsAtStartup(t *testing.T) { //nolint:paral
 						}),
 						Callbacks: []suite.Callback{
 							func(t *testing.T) {
+								t.Helper()
 								time.Sleep(30 * time.Millisecond)
 								assertNoPanicLogs(t, loggerHook)
 							},
@@ -677,6 +720,7 @@ func TestObserver_AddOrEdit_NoComponentsAtStartup(t *testing.T) { //nolint:paral
 						}),
 						Callbacks: []suite.Callback{
 							func(t *testing.T) {
+								t.Helper()
 								time.Sleep(30 * time.Millisecond)
 								assertNoPanicLogs(t, loggerHook)
 							},
@@ -691,6 +735,7 @@ func TestObserver_AddOrEdit_NoComponentsAtStartup(t *testing.T) { //nolint:paral
 						}),
 						Callbacks: []suite.Callback{
 							func(t *testing.T) {
+								t.Helper()
 								time.Sleep(30 * time.Millisecond)
 								assertNoPanicLogs(t, loggerHook)
 							},
@@ -705,6 +750,7 @@ func TestObserver_AddOrEdit_NoComponentsAtStartup(t *testing.T) { //nolint:paral
 						}),
 						Callbacks: []suite.Callback{
 							func(t *testing.T) {
+								t.Helper()
 								time.Sleep(30 * time.Millisecond)
 								assertNoPanicLogs(t, loggerHook)
 							},
@@ -720,6 +766,7 @@ func TestObserver_AddOrEdit_NoComponentsAtStartup(t *testing.T) { //nolint:paral
 
 func setupObserverTest(testObserver *observer.Observer, testEventManager *event.Manager, primeClientTimeout time.Duration) suite.BaseSetup {
 	return func(t *testing.T, mqtt *fimpgo.MqttTransport) (routing []*router.Routing, tasks []*task.Task, mocks []suite.Mock) {
+		t.Helper()
 		syncClient := fimpgo.NewSyncClient(mqtt)
 		primeClient := prime.NewClient(syncClient, "testResource", primeClientTimeout)
 		*testEventManager = event.NewManager()
@@ -736,6 +783,7 @@ func setupObserverTest(testObserver *observer.Observer, testEventManager *event.
 }
 
 func assertNoPanicLogs(t *testing.T, hook *test.Hook) {
+	t.Helper()
 	defer hook.Reset()
 
 	for _, entry := range hook.AllEntries() {

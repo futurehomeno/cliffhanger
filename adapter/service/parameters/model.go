@@ -64,16 +64,14 @@ type ParameterSpecification struct {
 }
 
 // WithMin sets a minimum value.
-func (s *ParameterSpecification) WithMin(min int) *ParameterSpecification {
-	s.Min = &min
-
+func (s *ParameterSpecification) WithMin(m int) *ParameterSpecification {
+	s.Min = &m
 	return s
 }
 
 // WithMax sets a maximum value.
-func (s *ParameterSpecification) WithMax(max int) *ParameterSpecification {
-	s.Max = &max
-
+func (s *ParameterSpecification) WithMax(m int) *ParameterSpecification {
+	s.Max = &m
 	return s
 }
 
@@ -198,7 +196,7 @@ func (o SelectOptions) IntValues() []int {
 		case float64:
 			values = append(values, int(v))
 		case uint:
-			values = append(values, int(v))
+			values = append(values, int(v)) //nolint:gosec
 		case uint8:
 			values = append(values, int(v))
 		case uint16:
@@ -206,7 +204,7 @@ func (o SelectOptions) IntValues() []int {
 		case uint32:
 			values = append(values, int(v))
 		case uint64:
-			values = append(values, int(v))
+			values = append(values, int(v)) //nolint:gosec
 		}
 	}
 

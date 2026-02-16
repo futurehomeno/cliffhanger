@@ -161,7 +161,7 @@ func (m *messageHandler) handleError(requestMessage *fimpgo.Message, err error) 
 		WithField("topic", requestMessage.Topic).
 		WithField("service", requestMessage.Payload.Service).
 		WithField("type", requestMessage.Payload.Type).
-		Error("handler failed to process incoming message")
+		Error("Process incoming msg")
 
 	if m.silentErrors {
 		return nil

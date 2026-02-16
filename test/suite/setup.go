@@ -16,6 +16,7 @@ type Setup interface {
 type BaseSetup func(t *testing.T, mqtt *fimpgo.MqttTransport) (routing []*router.Routing, tasks []*task.Task, mocks []Mock)
 
 func (f BaseSetup) apply(t *testing.T, mqtt *fimpgo.MqttTransport, c *Case) {
+	t.Helper()
 	routing, tasks, mocks := f(t, mqtt)
 
 	c.Routing = append(c.Routing, routing...)
@@ -26,6 +27,7 @@ func (f BaseSetup) apply(t *testing.T, mqtt *fimpgo.MqttTransport, c *Case) {
 type ServiceSetup func(t *testing.T) (service Service, mocks []Mock)
 
 func (f ServiceSetup) apply(t *testing.T, _ *fimpgo.MqttTransport, c *Case) {
+	t.Helper()
 	service, mocks := f(t)
 
 	c.Service = service

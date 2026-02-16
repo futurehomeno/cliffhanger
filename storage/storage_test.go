@@ -171,15 +171,13 @@ func TestStorage_Reset(t *testing.T) { //nolint:paralleltest
 
 	configData := []byte(`{"SettingA": "A","SettingB": "B","SettingC": "C"}`)
 
-	err := os.MkdirAll(path.Join(p, "data"), 0755) //nolint:gofumpt
+	err := os.MkdirAll(path.Join(p, "data"), 0755) //nolint:gofumpt,gosec
 	assert.NoError(t, err)
 
-	//nolint:gosec
-	err = os.WriteFile(path.Join(p, "data", config.Name+backupExtension), configData, 0664) //nolint:gofumpt
+	err = os.WriteFile(path.Join(p, "data", config.Name+backupExtension), configData, 0664) //nolint:gofumpt,gosec
 	assert.NoError(t, err)
 
-	//nolint:gosec
-	err = os.WriteFile(path.Join(p, "data", config.Name), configData, 0664) //nolint:gofumpt
+	err = os.WriteFile(path.Join(p, "data", config.Name), configData, 0664) //nolint:gofumpt,gosec
 	assert.NoError(t, err)
 
 	store := storage.New(&testConfig{}, p, config.Name)

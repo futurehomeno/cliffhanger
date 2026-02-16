@@ -136,8 +136,7 @@ func (s *service) SendLevelReport(force bool) (bool, error) {
 	}
 
 	if !force && !s.reportingCache.ReportRequired(s.reportingStrategy, EvtLvlReport, "", value) {
-		s.Service.PublishEvent(newLevelEvent(EvtLvlReport, false, value))
-
+		s.PublishEvent(newLevelEvent(EvtLvlReport, false, value))
 		return false, nil
 	}
 
@@ -156,7 +155,7 @@ func (s *service) SendLevelReport(force bool) (bool, error) {
 	}
 
 	s.reportingCache.Reported(EvtLvlReport, "", value)
-	s.Service.PublishEvent(newLevelEvent(EvtLvlReport, true, value))
+	s.PublishEvent(newLevelEvent(EvtLvlReport, true, value))
 
 	return true, nil
 }
@@ -271,7 +270,7 @@ func (s *service) validateStartLevelOption(startLvl *int) error {
 		return fmt.Errorf("invalid service specification property: %s should be int", PropertyMinLvl)
 	}
 
-	if *startLvl < int(lvlMin) || int(lvlMax) < *startLvl {
+	if *startLvl < lvlMin || lvlMax < *startLvl {
 		return fmt.Errorf("invalid startLvl received: %d. Should be in range: %d - %d", startLvl, lvlMin, lvlMax)
 	}
 

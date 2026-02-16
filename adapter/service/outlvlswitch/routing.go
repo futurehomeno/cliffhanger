@@ -255,7 +255,7 @@ func getStartLvl(message *fimpgo.Message) (*int, error) {
 	case err != nil:
 		return nil, err
 	default:
-		return utils.Ptr(int(d)), nil
+		return utils.Ptr(d), nil
 	}
 }
 

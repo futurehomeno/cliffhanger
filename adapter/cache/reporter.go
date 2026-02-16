@@ -1,10 +1,9 @@
 package cache
 
 import (
+	"reflect"
 	"sync"
 	"time"
-
-	"github.com/google/go-cmp/cmp"
 )
 
 // ReportingStrategy is an interface representing a strategy to determine whether reporting is required or not.
@@ -49,11 +48,11 @@ func ReportAtLeastEvery(interval time.Duration) ReportingStrategy {
 // ReportingCache is a service responsible for storing reported values to allow determine if changes occurred.
 type ReportingCache interface {
 	// ReportRequired returns true if report for a provided key, sub key and value should be sent according to provided strategy.
-	ReportRequired(strategy ReportingStrategy, key, subKey string, value interface{}) bool
+	ReportRequired(strategy ReportingStrategy, key, subKey string, value any) bool
 	// HasChanged returns true if value for a provided key and sub key changed.
-	HasChanged(key, subKey string, value interface{}) bool
+	HasChanged(key, subKey string, value any) bool
 	// Reported marks value for a provided key and sub key as reported.
-	Reported(key, subKey string, value interface{})
+	Reported(key, subKey string, value any)
 }
 
 // NewReportingCache creates new instance of a reporting cache.
@@ -71,7 +70,7 @@ type reportingCache struct {
 }
 
 // ReportRequired returns true if report for a provided key, sub key and value should be sent according to provided strategy.
-func (c *reportingCache) ReportRequired(strategy ReportingStrategy, key, subKey string, val interface{}) bool {
+func (c *reportingCache) ReportRequired(strategy ReportingStrategy, key, subKey string, val any) bool {
 	c.lock.RLock()
 	defer c.lock.RUnlock()
 
@@ -84,7 +83,7 @@ func (c *reportingCache) ReportRequired(strategy ReportingStrategy, key, subKey 
 }
 
 // HasChanged returns true if value for a provided key and sub key changed.
-func (c *reportingCache) HasChanged(key, subKey string, val interface{}) bool {
+func (c *reportingCache) HasChanged(key, subKey string, val any) bool {
 	c.lock.RLock()
 	defer c.lock.RUnlock()
 
@@ -97,7 +96,7 @@ func (c *reportingCache) HasChanged(key, subKey string, val interface{}) bool {
 }
 
 // Reported marks value for a provided key and sub key as reported.
-func (c *reportingCache) Reported(key, subKey string, val interface{}) {
+func (c *reportingCache) Reported(key, subKey string, val any) {
 	c.lock.Lock()
 	defer c.lock.Unlock()
 
@@ -119,10 +118,10 @@ func (c *reportingCache) Reported(key, subKey string, val interface{}) {
 // value is an object holding reporting value and time of last report.
 type value struct {
 	reported time.Time
-	value    interface{}
+	value    any
 }
 
 // hasChanged returns true if value is different than provided one.
-func (v *value) hasChanged(val interface{}) bool {
-	return !cmp.Equal(v.value, val)
+func (v *value) hasChanged(val any) bool {
+	return !reflect.DeepEqual(v.value, val)
 }

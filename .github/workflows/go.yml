@@ -2,10 +2,16 @@ name: Go
 
 on:
   push:
+    branches: [main]
     tags:
       - 'v*'
   pull_request:
     types: [opened, synchronize, reopened]
+
+permissions:
+  contents: read
+  pull-requests: read
+  checks: write
 
 jobs:
   linter:
@@ -20,18 +26,23 @@ jobs:
       - name: Configure git for private modules
         run: |
           git config --global url."https://${{ secrets.GH_OAUTH_TOKEN }}@github.com/".insteadOf "https://github.com/"
+      - name: Configure Go private modules
+        run: |
+          go env -w GOPRIVATE=github.com/futurehomeno/*
       - name: Run golangci-lint
         uses: golangci/golangci-lint-action@v7
         with:
-          version: v2.7.2
+          version: v2.9.0
           working-directory: .
+          args: --skip-dirs=test --skip-dirs=testdata
       - name: Run staticcheck
         run: |
           go install honnef.co/go/tools/cmd/staticcheck@latest
-          staticcheck ./...
+          staticcheck $(go list ./... | grep -v /test)
+        
 
   test:
-    if: github.event_name == 'pull_request' || startsWith(github.ref, 'refs/tags/v')
+    if: github.event_name == 'pull_request' || startsWith(github.ref, 'refs/tags/v') || (github.event_name == 'push' && github.ref == 'refs/heads/main')
     runs-on: ubuntu-latest
     timeout-minutes: 3
     steps:
@@ -44,8 +55,10 @@ jobs:
 
     - name: Configure git for private modules
       run: |
-        export GH_TOKEN="${{ secrets.GH_OAUTH_TOKEN }}"
-        git config --global url."https://$GH_TOKEN@github.com/".insteadOf "https://github.com/"
+        git config --global url."https://${{ secrets.GH_OAUTH_TOKEN }}@github.com/".insteadOf "https://github.com/"
+    - name: Configure Go private modules
+      run: |
+        go env -w GOPRIVATE=github.com/futurehomeno/*
 
     - name: Create Mosquitto config
       run: |
@@ -94,6 +107,8 @@ jobs:
     needs:
       - test
       - linter
+    permissions:
+      contents: write
 
     steps:
     - uses: actions/checkout@v4

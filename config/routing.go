@@ -324,10 +324,10 @@ func handleCmdConfigSet[T any](serviceName, settingInterface, setting, valueType
 				opt.eventManager.Publish(NewConfigurationChangeEvent(serviceName, setting))
 			}
 
-			log.WithField("service", serviceName).
-				WithField("setting", setting).
-				WithField("value", value).
-				Info("configuration setting has been changed")
+			log.WithField("srv", serviceName).
+				WithField("param", setting).
+				WithField("val", value).
+				Info("Cfg changed")
 
 			return fimpgo.NewMessage(
 				settingInterface,

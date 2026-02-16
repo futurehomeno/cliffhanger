@@ -4,3 +4,4 @@
 testdata/config/save/*
 !testdata/config/save/.gitkeep
 /test/mocks/*
+/adapter/testdata

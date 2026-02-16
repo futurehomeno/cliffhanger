@@ -6,6 +6,8 @@ import (
 	"github.com/futurehomeno/fimpgo"
 	"github.com/futurehomeno/fimpgo/fimptype"
 
+	"github.com/futurehomeno/cliffhanger/types"
+
 	"github.com/futurehomeno/cliffhanger/adapter"
 	"github.com/futurehomeno/cliffhanger/router"
 )
@@ -25,14 +27,14 @@ func WithSupportedMaxCurrent(current int) adapter.SpecificationOption {
 }
 
 // WithSupportedPhaseModes adds phases to the service specification.
-func WithSupportedPhaseModes(modes ...PhaseMode) adapter.SpecificationOption {
+func WithSupportedPhaseModes(modes ...types.PhaseMode) adapter.SpecificationOption {
 	return adapter.SpecificationOptionFn(func(f *fimptype.Service) {
 		f.Props[PropertySupportedPhaseModes] = modes
 	})
 }
 
 // WithGridType adds grid type to the service specification.
-func WithGridType(gridType GridType) adapter.SpecificationOption {
+func WithGridType(gridType types.GridType) adapter.SpecificationOption {
 	return adapter.SpecificationOptionFn(func(f *fimptype.Service) {
 		f.Props[PropertyGridType] = gridType
 	})

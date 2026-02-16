@@ -32,22 +32,6 @@ const (
 	StateUnavailable     State = "unavailable"
 	StateError           State = "error"
 	StateUnknown         State = "unknown"
-
-	GridTypeIT GridType = "IT"
-	GridTypeTT GridType = "TT"
-	GridTypeTN GridType = "TN"
-
-	PhaseModeNL1L2L3 PhaseMode = "NL1L2L3"
-	PhaseModeNL1L2   PhaseMode = "NL1L2"
-	PhaseModeNL2L3   PhaseMode = "NL2L3"
-	PhaseModeNL1     PhaseMode = "NL1"
-	PhaseModeNL2     PhaseMode = "NL2"
-	PhaseModeNL3     PhaseMode = "NL3"
-	PhaseModeL1L2L3  PhaseMode = "L1L2L3"
-	PhaseModeL1L2    PhaseMode = "L1L2"
-	PhaseModeL2L3    PhaseMode = "L2L3"
-	PhaseModeL3L1    PhaseMode = "L3L1"
-	PhaseModeUnknown PhaseMode = ""
 )
 
 // State represents a chargepoint state.
@@ -56,22 +40,6 @@ type State string
 // String returns a string representation of the state.
 func (s State) String() string {
 	return string(s)
-}
-
-// GridType represents a configured grid type.
-type GridType string
-
-// String returns a string representation of the grid type.
-func (t GridType) String() string {
-	return string(t)
-}
-
-// PhaseMode represents a configured grid type.
-type PhaseMode string
-
-// String returns a string representation of the grid type.
-func (t PhaseMode) String() string {
-	return string(t)
 }
 
 // ChargingSettings represents optional charging settings.
@@ -85,14 +53,13 @@ type CableReport struct {
 	CableCurrent *int
 }
 
-// reportProperties returns a map of report properties.
 func (r *CableReport) reportProperties() map[string]string {
 	if r.CableCurrent == nil {
 		return nil
 	}
 
 	return map[string]string{
-		PropertyCableCurrent: strconv.Itoa(int(*r.CableCurrent)),
+		PropertyCableCurrent: strconv.Itoa(*r.CableCurrent),
 	}
 }
 
@@ -105,7 +72,6 @@ type SessionReport struct {
 	OfferedCurrent        int
 }
 
-// reportProperties returns a map of report properties taking into consideration capabilities of the chargepoint.
 func (r *SessionReport) reportProperties(supportsAdjustingCurrent bool) map[string]string {
 	properties := make(map[string]string)
 
@@ -122,7 +88,7 @@ func (r *SessionReport) reportProperties(supportsAdjustingCurrent bool) map[stri
 	}
 
 	if supportsAdjustingCurrent {
-		properties[PropertyOfferedCurrent] = strconv.Itoa(int(r.OfferedCurrent))
+		properties[PropertyOfferedCurrent] = strconv.Itoa(r.OfferedCurrent)
 	}
 
 	return properties

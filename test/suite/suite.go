@@ -84,7 +84,7 @@ func (s *Suite) tearDown(t *testing.T) {
 
 func DefaultMQTT(clientID, url, user, pass string) *fimpgo.MqttTransport {
 	if url == "" {
-		url = "tcp://localhost:11883"
+		url = "tcp://127.0.0.1:11883"
 	}
 
 	mqtt := fimpgo.NewMqttTransport(

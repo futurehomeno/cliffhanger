@@ -16,6 +16,7 @@ import (
 	mockedadapter "github.com/futurehomeno/cliffhanger/test/mocks/adapter"
 	mockedchargepoint "github.com/futurehomeno/cliffhanger/test/mocks/adapter/service/chargepoint"
 	"github.com/futurehomeno/cliffhanger/test/suite"
+	"github.com/futurehomeno/cliffhanger/types"
 )
 
 var (
@@ -123,15 +124,15 @@ func TestRouteService(t *testing.T) { //nolint:paralleltest
 						mockedchargepoint.NewAdjustableOfferedCurrentController(t).
 							MockSetChargepointOfferedCurrent(10, nil, true),
 						mockedchargepoint.NewAdjustablePhaseModeController(t).
-							MockSetChargepointPhaseMode(chargepoint.PhaseModeNL1L2L3, nil, true).
-							MockChargepointPhaseModeReport(chargepoint.PhaseModeNL1L2L3, nil, false),
+							MockSetChargepointPhaseMode(types.PhaseModeNL1L2L3, nil, true).
+							MockChargepointPhaseModeReport(types.PhaseModeNL1L2L3, nil, false),
 						mockedchargepoint.NewAdjustableCableLockController(t).
 							MockSetChargepointCableLock(true, nil, true).
 							MockChargepointCableLockReport(&chargepoint.CableReport{CableLock: true}, nil, false),
 					),
 					[]adapter.SpecificationOption{
 						chargepoint.WithSupportedMaxCurrent(16),
-						chargepoint.WithSupportedPhaseModes(chargepoint.PhaseModeNL1L2L3, chargepoint.PhaseModeNL1, chargepoint.PhaseModeNL2, chargepoint.PhaseModeNL3),
+						chargepoint.WithSupportedPhaseModes(types.PhaseModeNL1L2L3, types.PhaseModeNL1, types.PhaseModeNL2, types.PhaseModeNL3),
 					},
 				),
 				Nodes: []*suite.Node{
@@ -530,7 +531,7 @@ func TestRouteService(t *testing.T) { //nolint:paralleltest
 						mockedchargepoint.NewAdjustablePhaseModeController(t),
 						mockedchargepoint.NewAdjustableCableLockController(t),
 					),
-					[]adapter.SpecificationOption{chargepoint.WithSupportedPhaseModes(chargepoint.PhaseModeNL1)},
+					[]adapter.SpecificationOption{chargepoint.WithSupportedPhaseModes(types.PhaseModeNL1)},
 				),
 				Nodes: []*suite.Node{
 					{
@@ -550,10 +551,10 @@ func TestRouteService(t *testing.T) { //nolint:paralleltest
 						nil,
 						nil,
 						mockedchargepoint.NewAdjustablePhaseModeController(t).
-							MockSetChargepointPhaseMode(chargepoint.PhaseModeNL1, errTest, true),
+							MockSetChargepointPhaseMode(types.PhaseModeNL1, errTest, true),
 						nil,
 					),
-					[]adapter.SpecificationOption{chargepoint.WithSupportedPhaseModes(chargepoint.PhaseModeNL1L2L3, chargepoint.PhaseModeNL1, chargepoint.PhaseModeNL2, chargepoint.PhaseModeNL3)},
+					[]adapter.SpecificationOption{chargepoint.WithSupportedPhaseModes(types.PhaseModeNL1L2L3, types.PhaseModeNL1, types.PhaseModeNL2, types.PhaseModeNL3)},
 				),
 				Nodes: []*suite.Node{
 					{
@@ -573,10 +574,10 @@ func TestRouteService(t *testing.T) { //nolint:paralleltest
 						nil,
 						nil,
 						mockedchargepoint.NewAdjustablePhaseModeController(t).
-							MockChargepointPhaseModeReport(chargepoint.PhaseModeNL1, errTest, true),
+							MockChargepointPhaseModeReport(types.PhaseModeNL1, errTest, true),
 						nil,
 					),
-					[]adapter.SpecificationOption{chargepoint.WithSupportedPhaseModes(chargepoint.PhaseModeNL1L2L3, chargepoint.PhaseModeNL1, chargepoint.PhaseModeNL2, chargepoint.PhaseModeNL3)},
+					[]adapter.SpecificationOption{chargepoint.WithSupportedPhaseModes(types.PhaseModeNL1L2L3, types.PhaseModeNL1, types.PhaseModeNL2, types.PhaseModeNL3)},
 				),
 				Nodes: []*suite.Node{
 					{

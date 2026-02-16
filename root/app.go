@@ -4,6 +4,9 @@ import (
 	"fmt"
 	"os"
 	"os/signal"
+	"runtime/debug"
+	"runtime/pprof"
+	"strings"
 	"sync"
 	"syscall"
 	"time"
@@ -15,6 +18,7 @@ import (
 	"github.com/futurehomeno/cliffhanger/lifecycle"
 	"github.com/futurehomeno/cliffhanger/router"
 	"github.com/futurehomeno/cliffhanger/task"
+	"github.com/futurehomeno/cliffhanger/utils"
 )
 
 // App is an interface representing a root application.
@@ -117,8 +121,25 @@ func (a *app) Run() error {
 	defer signal.Stop(signals)
 
 	go func() {
+		defer func() {
+			if r := recover(); r != nil {
+				log.Error(string(debug.Stack()))
+				log.Error(r)
+				panic(r)
+			}
+		}()
+
 		<-signals
-		_ = a.Stop()
+		s := strings.Builder{}
+		if err := pprof.Lookup("goroutine").WriteTo(&s, 2); err == nil {
+			log.Warnf("%s\n", utils.FilterGoroutinesByKeywords(s.String(), []string{"mutex", "semaphore", "panic", "lock"}))
+		}
+
+		err = a.Stop()
+
+		if err != nil {
+			log.Errorf("[cliff] Stop err: %v", err)
+		}
 	}()
 
 	return a.Wait()
