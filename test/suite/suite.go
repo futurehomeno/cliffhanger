@@ -5,6 +5,7 @@ import (
 	"time"
 
 	"github.com/futurehomeno/fimpgo"
+	"github.com/futurehomeno/fimpgo/fimptype"
 )
 
 type Config struct {
@@ -98,7 +99,7 @@ func DefaultMQTT(clientID, url, user, pass string) *fimpgo.MqttTransport {
 		nil,
 	)
 
-	mqtt.SetDefaultSource(clientID)
+	mqtt.SetDefaultSource(fimptype.ResourceNameT(clientID))
 
 	return mqtt
 }

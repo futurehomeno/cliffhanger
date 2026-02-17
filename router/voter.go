@@ -4,6 +4,7 @@ import (
 	"strings"
 
 	"github.com/futurehomeno/fimpgo"
+	"github.com/futurehomeno/fimpgo/fimptype"
 )
 
 // MessageVoter is an interface representing a message voter for a particular routing.
@@ -48,28 +49,28 @@ func ForTopic(topic string) MessageVoter {
 }
 
 // ForMessageType is a message voter allowing a routing to handle message only if it is relevant.
-func ForMessageType(messageType string) MessageVoter {
+func ForMessageType(messageType fimptype.MsgTypeT) MessageVoter {
 	return MessageVoterFn(func(message *fimpgo.Message) bool {
 		return message.Addr.MsgType == messageType
 	})
 }
 
 // ForResourceType is a message voter allowing a routing to handle message only if it is relevant.
-func ForResourceType(resourceType string) MessageVoter {
+func ForResourceType(resourceType fimptype.ResourceTypeT) MessageVoter {
 	return MessageVoterFn(func(message *fimpgo.Message) bool {
 		return message.Addr.ResourceType == resourceType
 	})
 }
 
 // ForResourceName is a message voter allowing a routing to handle message only if it is relevant.
-func ForResourceName(resourceName string) MessageVoter {
+func ForResourceName(resourceName fimptype.ResourceNameT) MessageVoter {
 	return MessageVoterFn(func(message *fimpgo.Message) bool {
 		return message.Addr.ResourceName == resourceName
 	})
 }
 
 // ForService is a message voter allowing a routing to handle message only if it is relevant.
-func ForService(service string) MessageVoter {
+func ForService(service fimptype.ServiceNameT) MessageVoter {
 	return MessageVoterFn(func(message *fimpgo.Message) bool {
 		return message.Payload.Service == service
 	})
@@ -78,26 +79,26 @@ func ForService(service string) MessageVoter {
 // ForServicePrefix is a message voter allowing a routing to handle message only if it is relevant.
 func ForServicePrefix(prefix string) MessageVoter {
 	return MessageVoterFn(func(message *fimpgo.Message) bool {
-		return strings.HasPrefix(message.Payload.Service, prefix)
+		return strings.HasPrefix(message.Payload.Service.Str(), prefix)
 	})
 }
 
 // ForType is a message voter allowing a routing to handle message only if it is relevant.
 func ForType(messageType string) MessageVoter {
 	return MessageVoterFn(func(message *fimpgo.Message) bool {
-		return message.Payload.Type == messageType
+		return message.Payload.Interface == messageType
 	})
 }
 
 // ForSource is a message voter allowing a routing to handle message only if it is relevant.
-func ForSource(source string) MessageVoter {
+func ForSource(source fimptype.ResourceNameT) MessageVoter {
 	return MessageVoterFn(func(message *fimpgo.Message) bool {
 		return message.Payload.Source == source
 	})
 }
 
 // ForServiceAndType is a message voter allowing a routing to handle message only if it is relevant.
-func ForServiceAndType(service, messageType string) MessageVoter {
+func ForServiceAndType(service fimptype.ServiceNameT, messageType string) MessageVoter {
 	serviceVoter := ForService(service)
 	typeVoter := ForType(messageType)
 

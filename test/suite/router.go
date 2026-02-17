@@ -222,7 +222,7 @@ func (r *Router) processMessage(message *fimpgo.Message) (*fimpgo.FimpMessage, e
 
 	log.
 		WithField("topic", message.Topic).
-		WithField("type", message.Payload.Type).
+		WithField("type", message.Payload.Interface).
 		WithField("service", message.Payload.Service).
 		Debug("test node router received a message")
 

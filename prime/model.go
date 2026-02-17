@@ -13,8 +13,6 @@ const (
 	EvtPD7Response = "evt.pd7.response"
 	EvtPD7Notify   = "evt.pd7.notify"
 
-	ServiceName = "vinculum"
-
 	NotifyTopic = "pt:j1/mt:evt/rt:app/rn:vinculum/ad:1"
 )
 

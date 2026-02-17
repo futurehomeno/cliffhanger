@@ -3,7 +3,6 @@ package numericmeter
 import (
 	"fmt"
 
-	"github.com/futurehomeno/fimpgo"
 	"github.com/futurehomeno/fimpgo/fimptype"
 
 	"github.com/futurehomeno/cliffhanger/adapter"
@@ -33,9 +32,9 @@ func WithIsVirtual() adapter.SpecificationOption {
 
 // Specification creates a service specification.
 func Specification(
-	serviceName,
-	resourceName,
-	resourceAddress,
+	serviceName fimptype.ServiceNameT,
+	resourceName fimptype.ResourceNameT,
+	resourceAddress string,
 	address string,
 	groups []string,
 	units []Unit,
@@ -66,19 +65,19 @@ func requiredInterfaces() []fimptype.Interface {
 		{
 			Type:      fimptype.TypeIn,
 			MsgType:   CmdMeterGetReport,
-			ValueType: fimpgo.VTypeString,
+			ValueType: fimptype.VTypeString,
 			Version:   "1",
 		},
 		{
 			Type:      fimptype.TypeOut,
 			MsgType:   EvtMeterReport,
-			ValueType: fimpgo.VTypeFloat,
+			ValueType: fimptype.VTypeFloat,
 			Version:   "1",
 		},
 		{
 			Type:      fimptype.TypeOut,
 			MsgType:   router.EvtErrorReport,
-			ValueType: fimpgo.VTypeString,
+			ValueType: fimptype.VTypeString,
 			Version:   "1",
 		},
 	}
@@ -89,7 +88,7 @@ func resetInterfaces() []fimptype.Interface {
 		{
 			Type:      fimptype.TypeIn,
 			MsgType:   CmdMeterExportGetReport,
-			ValueType: fimpgo.VTypeString,
+			ValueType: fimptype.VTypeString,
 			Version:   "1",
 		},
 	}
@@ -101,13 +100,13 @@ func exportInterfaces() []fimptype.Interface {
 		{
 			Type:      fimptype.TypeIn,
 			MsgType:   CmdMeterExportGetReport,
-			ValueType: fimpgo.VTypeString,
+			ValueType: fimptype.VTypeString,
 			Version:   "1",
 		},
 		{
 			Type:      fimptype.TypeOut,
 			MsgType:   EvtMeterExportReport,
-			ValueType: fimpgo.VTypeFloat,
+			ValueType: fimptype.VTypeFloat,
 			Version:   "1",
 		},
 	}
@@ -119,13 +118,13 @@ func extendedInterfaces() []fimptype.Interface {
 		{
 			Type:      fimptype.TypeIn,
 			MsgType:   CmdMeterExtGetReport,
-			ValueType: fimpgo.VTypeStrArray,
+			ValueType: fimptype.VTypeStrArray,
 			Version:   "1",
 		},
 		{
 			Type:      fimptype.TypeOut,
 			MsgType:   EvtMeterExtReport,
-			ValueType: fimpgo.VTypeFloatMap,
+			ValueType: fimptype.VTypeFloatMap,
 			Version:   "1",
 		},
 	}

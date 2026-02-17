@@ -6,6 +6,7 @@ import (
 	"time"
 
 	"github.com/futurehomeno/fimpgo"
+	"github.com/futurehomeno/fimpgo/fimptype"
 )
 
 type SyncClient interface {
@@ -30,25 +31,25 @@ type Client interface {
 	ChangeMode(mode string) (*Response, error)
 }
 
-func NewClient(syncClient SyncClient, resourceName string, defaultTimeout time.Duration) Client {
+func NewClient(syncClient SyncClient, resourceName fimptype.ResourceNameT, defaultTimeout time.Duration) Client {
 	responseAddress := fimpgo.Address{
 		PayloadType:     fimpgo.DefaultPayload,
-		MsgType:         fimpgo.MsgTypeRsp,
-		ResourceType:    fimpgo.ResourceTypeApp,
+		MsgType:         fimptype.MsgTypeRsp,
+		ResourceType:    fimptype.ResourceTypeApp,
 		ResourceName:    resourceName,
 		ResourceAddress: "1",
 	}
 
 	requestAddress := fimpgo.Address{
 		PayloadType:     fimpgo.DefaultPayload,
-		MsgType:         fimpgo.MsgTypeCmd,
-		ResourceType:    fimpgo.ResourceTypeApp,
-		ResourceName:    ServiceName,
+		MsgType:         fimptype.MsgTypeCmd,
+		ResourceType:    fimptype.ResourceTypeApp,
+		ResourceName:    fimptype.VinculumRn,
 		ResourceAddress: "1",
 	}
 
 	return &client{
-		clientName:      resourceName,
+		clientName:      resourceName.Str(),
 		requestAddress:  requestAddress,
 		responseAddress: responseAddress,
 		syncClient:      syncClient,
@@ -60,18 +61,18 @@ func NewCloudClient(syncClient SyncClient, cloudServiceName string, siteUUID str
 	responseAddress := fimpgo.Address{
 		GlobalPrefix:    siteUUID,
 		PayloadType:     fimpgo.DefaultPayload,
-		MsgType:         fimpgo.MsgTypeRsp,
-		ResourceType:    fimpgo.ResourceTypeCloud,
-		ResourceName:    "backend-service",
+		MsgType:         fimptype.MsgTypeRsp,
+		ResourceType:    fimptype.ResourceTypeCloud,
+		ResourceName:    fimptype.BackendServiceRn,
 		ResourceAddress: cloudServiceName,
 	}
 
 	requestAddress := fimpgo.Address{
 		GlobalPrefix:    siteUUID,
 		PayloadType:     fimpgo.DefaultPayload,
-		MsgType:         fimpgo.MsgTypeCmd,
-		ResourceType:    fimpgo.ResourceTypeApp,
-		ResourceName:    ServiceName,
+		MsgType:         fimptype.MsgTypeCmd,
+		ResourceType:    fimptype.ResourceTypeApp,
+		ResourceName:    fimptype.VinculumRn,
 		ResourceAddress: "1",
 	}
 
@@ -237,7 +238,7 @@ func (c *client) sendGetRequest(components []string) (*Response, error) {
 
 	message := fimpgo.NewObjectMessage(CmdPD7Request, "vinculum", request, nil, nil, nil)
 	message.ResponseToTopic = c.responseAddress.Serialize()
-	message.Source = c.clientName
+	message.Source = fimptype.ResourceNameT(c.clientName)
 
 	response, err := c.syncClient.SendReqRespFimp(c.requestAddress.Serialize(), c.responseAddress.Serialize(), message, c.defaultTimeout, true)
 	if err != nil {
@@ -261,7 +262,7 @@ func (c *client) sendSetRequest(component string, value interface{}) (*Response,
 
 	message := fimpgo.NewObjectMessage(CmdPD7Request, "vinculum", request, nil, nil, nil)
 	message.ResponseToTopic = c.responseAddress.Serialize()
-	message.Source = c.clientName
+	message.Source = fimptype.ResourceNameT(c.clientName)
 
 	response, err := c.syncClient.SendReqRespFimp(c.requestAddress.Serialize(), c.responseAddress.Serialize(), message, c.defaultTimeout, true)
 	if err != nil {

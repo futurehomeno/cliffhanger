@@ -7,6 +7,7 @@ import (
 	"time"
 
 	"github.com/futurehomeno/fimpgo"
+	"github.com/futurehomeno/fimpgo/fimptype"
 	log "github.com/sirupsen/logrus"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
@@ -18,10 +19,10 @@ import (
 )
 
 func TestHandleCmdLogGetLevel(t *testing.T) { //nolint:paralleltest
-	makeCommand := func(valueType string, value interface{}) *fimpgo.Message {
+	makeCommand := func(valueType fimptype.ValueTypeT, value interface{}) *fimpgo.Message {
 		return &fimpgo.Message{
 			Payload: &fimpgo.FimpMessage{
-				Type:      config.CmdLogSetLevel,
+				Interface: config.CmdLogSetLevel,
 				ValueType: valueType,
 				Value:     value,
 			},
@@ -72,10 +73,10 @@ func TestHandleCmdLogGetLevel(t *testing.T) { //nolint:paralleltest
 
 			if tt.wantErr {
 				assert.NotNil(t, got)
-				assert.Equal(t, "evt.error.report", got.Payload.Type)
+				assert.Equal(t, "evt.error.report", got.Payload.Interface)
 			} else {
 				assert.NotNil(t, got)
-				assert.Equal(t, config.EvtLogLevelReport, got.Payload.Type)
+				assert.Equal(t, config.EvtLogLevelReport, got.Payload.Interface)
 				assert.Equal(t, tt.wantLogLvl.String(), got.Payload.Value)
 				assert.Equal(t, tt.wantLogLvl, log.GetLevel())
 			}

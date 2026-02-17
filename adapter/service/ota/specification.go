@@ -3,7 +3,6 @@ package ota
 import (
 	"fmt"
 
-	"github.com/futurehomeno/fimpgo"
 	"github.com/futurehomeno/fimpgo/fimptype"
 
 	"github.com/futurehomeno/cliffhanger/router"
@@ -33,31 +32,31 @@ func requiredInterfaces() []fimptype.Interface {
 		{
 			Type:      fimptype.TypeIn,
 			MsgType:   CmdOTAUpdateStart,
-			ValueType: fimpgo.VTypeString,
+			ValueType: fimptype.VTypeString,
 			Version:   "1",
 		},
 		{
 			Type:      fimptype.TypeOut,
 			MsgType:   EvtOTAStartReport,
-			ValueType: fimpgo.VTypeNull,
+			ValueType: fimptype.VTypeNull,
 			Version:   "1",
 		},
 		{
 			Type:      fimptype.TypeOut,
 			MsgType:   EvtOTAProgressReport,
-			ValueType: fimpgo.VTypeIntMap,
+			ValueType: fimptype.VTypeIntMap,
 			Version:   "1",
 		},
 		{
 			Type:      fimptype.TypeOut,
 			MsgType:   EvtOTAEndReport,
-			ValueType: fimpgo.VTypeObject,
+			ValueType: fimptype.VTypeObject,
 			Version:   "1",
 		},
 		{
 			Type:      fimptype.TypeOut,
 			MsgType:   router.EvtErrorReport,
-			ValueType: fimpgo.VTypeString,
+			ValueType: fimptype.VTypeString,
 			Version:   "1",
 		},
 	}

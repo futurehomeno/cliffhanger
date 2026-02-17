@@ -3,7 +3,6 @@ package devsys
 import (
 	"fmt"
 
-	"github.com/futurehomeno/fimpgo"
 	"github.com/futurehomeno/fimpgo/fimptype"
 
 	"github.com/futurehomeno/cliffhanger/router"
@@ -33,13 +32,13 @@ func requiredInterfaces() []fimptype.Interface {
 		{
 			Type:      fimptype.TypeOut,
 			MsgType:   router.EvtErrorReport,
-			ValueType: fimpgo.VTypeString,
+			ValueType: fimptype.VTypeString,
 			Version:   "1",
 		},
 		{
 			Type:      fimptype.TypeOut,
 			MsgType:   router.EvtSuccessReport,
-			ValueType: fimpgo.VTypeNull,
+			ValueType: fimptype.VTypeNull,
 			Version:   "1",
 		},
 	}
@@ -51,7 +50,7 @@ func rebootInterfaces() []fimptype.Interface {
 		{
 			Type:      fimptype.TypeIn,
 			MsgType:   CmdThingReboot,
-			ValueType: fimpgo.VTypeBool,
+			ValueType: fimptype.VTypeBool,
 			Version:   "1",
 		},
 	}

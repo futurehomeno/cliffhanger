@@ -4,6 +4,7 @@ package mockedadapter
 
 import (
 	adapter "github.com/futurehomeno/cliffhanger/adapter"
+	fimptype "github.com/futurehomeno/fimpgo/fimptype"
 	mock "github.com/stretchr/testify/mock"
 )
 
@@ -497,18 +498,18 @@ func (_c *Adapter_IsInitialized_Call) RunAndReturn(run func() bool) *Adapter_IsI
 }
 
 // Name provides a mock function with no fields
-func (_m *Adapter) Name() string {
+func (_m *Adapter) Name() fimptype.ResourceNameT {
 	ret := _m.Called()
 
 	if len(ret) == 0 {
 		panic("no return value specified for Name")
 	}
 
-	var r0 string
-	if rf, ok := ret.Get(0).(func() string); ok {
+	var r0 fimptype.ResourceNameT
+	if rf, ok := ret.Get(0).(func() fimptype.ResourceNameT); ok {
 		r0 = rf()
 	} else {
-		r0 = ret.Get(0).(string)
+		r0 = ret.Get(0).(fimptype.ResourceNameT)
 	}
 
 	return r0
@@ -531,12 +532,12 @@ func (_c *Adapter_Name_Call) Run(run func()) *Adapter_Name_Call {
 	return _c
 }
 
-func (_c *Adapter_Name_Call) Return(_a0 string) *Adapter_Name_Call {
+func (_c *Adapter_Name_Call) Return(_a0 fimptype.ResourceNameT) *Adapter_Name_Call {
 	_c.Call.Return(_a0)
 	return _c
 }
 
-func (_c *Adapter_Name_Call) RunAndReturn(run func() string) *Adapter_Name_Call {
+func (_c *Adapter_Name_Call) RunAndReturn(run func() fimptype.ResourceNameT) *Adapter_Name_Call {
 	_c.Call.Return(run)
 	return _c
 }
@@ -635,7 +636,7 @@ func (_c *Adapter_ServiceByTopic_Call) RunAndReturn(run func(string) adapter.Ser
 }
 
 // Services provides a mock function with given fields: name
-func (_m *Adapter) Services(name string) []adapter.Service {
+func (_m *Adapter) Services(name fimptype.ServiceNameT) []adapter.Service {
 	ret := _m.Called(name)
 
 	if len(ret) == 0 {
@@ -643,7 +644,7 @@ func (_m *Adapter) Services(name string) []adapter.Service {
 	}
 
 	var r0 []adapter.Service
-	if rf, ok := ret.Get(0).(func(string) []adapter.Service); ok {
+	if rf, ok := ret.Get(0).(func(fimptype.ServiceNameT) []adapter.Service); ok {
 		r0 = rf(name)
 	} else {
 		if ret.Get(0) != nil {
@@ -660,14 +661,14 @@ type Adapter_Services_Call struct {
 }
 
 // Services is a helper method to define mock.On call
-//   - name string
+//   - name fimptype.ServiceNameT
 func (_e *Adapter_Expecter) Services(name interface{}) *Adapter_Services_Call {
 	return &Adapter_Services_Call{Call: _e.mock.On("Services", name)}
 }
 
-func (_c *Adapter_Services_Call) Run(run func(name string)) *Adapter_Services_Call {
+func (_c *Adapter_Services_Call) Run(run func(name fimptype.ServiceNameT)) *Adapter_Services_Call {
 	_c.Call.Run(func(args mock.Arguments) {
-		run(args[0].(string))
+		run(args[0].(fimptype.ServiceNameT))
 	})
 	return _c
 }
@@ -677,7 +678,7 @@ func (_c *Adapter_Services_Call) Return(_a0 []adapter.Service) *Adapter_Services
 	return _c
 }
 
-func (_c *Adapter_Services_Call) RunAndReturn(run func(string) []adapter.Service) *Adapter_Services_Call {
+func (_c *Adapter_Services_Call) RunAndReturn(run func(fimptype.ServiceNameT) []adapter.Service) *Adapter_Services_Call {
 	_c.Call.Return(run)
 	return _c
 }

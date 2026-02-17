@@ -178,8 +178,12 @@ func (m *manager) update(topic, newMode string, newLevel float64) error {
 	defer m.lock.Unlock()
 
 	device, err := m.storage.Device(topic)
-	if err != nil || device == nil {
-		return fmt.Errorf("manager: virtual meter update failed, device - %v: %w", device, err)
+	if err != nil {
+		return fmt.Errorf("manager: virtual meter update failed err: %w", err)
+	}
+
+	if device == nil {
+		return fmt.Errorf("manager: virtual meter update failed, device not found topic=%s", topic)
 	}
 
 	if !device.Initialised() {

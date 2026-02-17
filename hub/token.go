@@ -5,13 +5,14 @@ import (
 	"time"
 
 	"github.com/futurehomeno/fimpgo"
+	"github.com/futurehomeno/fimpgo/fimptype"
 	log "github.com/sirupsen/logrus"
 )
 
 // LoadToken loads the hub token from Cloud Bridge.
-func LoadToken(serviceName string) (string, error) {
+func LoadToken(resourceName fimptype.ResourceNameT) (string, error) {
 	loader := NewTokenLoader(&TokenLoaderConfig{
-		ServiceName: serviceName,
+		ResourceName: resourceName,
 	})
 
 	return loader.LoadToken()
@@ -19,7 +20,7 @@ func LoadToken(serviceName string) (string, error) {
 
 // TokenLoaderConfig is a configuration object for a token loader service.
 type TokenLoaderConfig struct {
-	ServiceName        string
+	ResourceName       fimptype.ResourceNameT
 	MQTTServerURI      string
 	MQTTUsername       string
 	MQTTPassword       string
@@ -43,7 +44,7 @@ func (cfg *TokenLoaderConfig) setDefaults() {
 	}
 
 	if cfg.MQTTClientIDPrefix == "" {
-		cfg.MQTTClientIDPrefix = cfg.ServiceName
+		cfg.MQTTClientIDPrefix = string(cfg.ResourceName)
 	}
 
 	cfg.MQTTClientIDPrefix += "_hub_token_loader"
@@ -77,7 +78,7 @@ func (g *tokenLoader) LoadToken() (string, error) {
 		return "", fmt.Errorf("token loader: failed to start MQTT: %w", err)
 	}
 
-	mqtt.SetDefaultSource(g.cfg.ServiceName)
+	mqtt.SetDefaultSource(g.cfg.ResourceName)
 
 	defer mqtt.Stop()
 
@@ -90,7 +91,7 @@ func (g *tokenLoader) LoadToken() (string, error) {
 
 // requestToken requests the hub token from Cloud Bridge service using FIMP protocol.
 func (g *tokenLoader) requestToken(client *fimpgo.SyncClient) (string, error) {
-	responseTopic := fmt.Sprintf("pt:j1/mt:rsp/rt:app/rn:%s/ad:1", g.cfg.ServiceName)
+	responseTopic := fmt.Sprintf("pt:j1/mt:rsp/rt:app/rn:%s/ad:1", g.cfg.ResourceName)
 
 	if err := client.AddSubscription(responseTopic); err != nil {
 		return "", fmt.Errorf("subscription err: %w", err)
@@ -120,8 +121,8 @@ func (g *tokenLoader) requestToken(client *fimpgo.SyncClient) (string, error) {
 		return "", fmt.Errorf("token loader: failed to retrieve hub token: %w", err)
 	}
 
-	if response.Type != "evt.clbridge.auth_token_report" {
-		return "", fmt.Errorf("token loader: wrong message type receiced, expected %s, got %s", "evt.clbridge.auth_token_report", response.Type)
+	if response.Interface != "evt.clbridge.auth_token_report" {
+		return "", fmt.Errorf("token loader: wrong message type receiced, expected %s, got %s", "evt.clbridge.auth_token_report", response.Interface)
 	}
 
 	token, err := response.GetStringValue()

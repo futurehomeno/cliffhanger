@@ -10,7 +10,7 @@ import (
 // Service is an interface representing a FIMP service.
 type Service interface {
 	// Name returns service name.
-	Name() string
+	Name() fimptype.ServiceNameT
 	// Topic returns topic under which service should be listening for commands.
 	Topic() string
 	// Specification returns service FIMP specification.
@@ -24,7 +24,7 @@ type Service interface {
 // ServiceRegistry is an interface representing a service registry.
 type ServiceRegistry interface {
 	// Services returns all services from all things that match the provided name. If empty all services are returned.
-	Services(name string) []Service
+	Services(name fimptype.ServiceNameT) []Service
 	// ServiceByTopic returns a service based on its topic. Returns nil if service was not found.
 	ServiceByTopic(topic string) Service
 	// IsInitialized returns true if service registry is initialized.
@@ -84,7 +84,7 @@ type service struct {
 }
 
 // Name returns service name.
-func (s *service) Name() string {
+func (s *service) Name() fimptype.ServiceNameT {
 	return s.specification.Name
 }
 

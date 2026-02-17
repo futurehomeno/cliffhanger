@@ -26,18 +26,18 @@ func (_m *Service) EXPECT() *Service_Expecter {
 }
 
 // Name provides a mock function with no fields
-func (_m *Service) Name() string {
+func (_m *Service) Name() fimptype.ServiceNameT {
 	ret := _m.Called()
 
 	if len(ret) == 0 {
 		panic("no return value specified for Name")
 	}
 
-	var r0 string
-	if rf, ok := ret.Get(0).(func() string); ok {
+	var r0 fimptype.ServiceNameT
+	if rf, ok := ret.Get(0).(func() fimptype.ServiceNameT); ok {
 		r0 = rf()
 	} else {
-		r0 = ret.Get(0).(string)
+		r0 = ret.Get(0).(fimptype.ServiceNameT)
 	}
 
 	return r0
@@ -60,12 +60,12 @@ func (_c *Service_Name_Call) Run(run func()) *Service_Name_Call {
 	return _c
 }
 
-func (_c *Service_Name_Call) Return(_a0 string) *Service_Name_Call {
+func (_c *Service_Name_Call) Return(_a0 fimptype.ServiceNameT) *Service_Name_Call {
 	_c.Call.Return(_a0)
 	return _c
 }
 
-func (_c *Service_Name_Call) RunAndReturn(run func() string) *Service_Name_Call {
+func (_c *Service_Name_Call) RunAndReturn(run func() fimptype.ServiceNameT) *Service_Name_Call {
 	_c.Call.Return(run)
 	return _c
 }

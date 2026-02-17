@@ -430,7 +430,7 @@ func (_c *Thing_ServiceByTopic_Call) RunAndReturn(run func(string) adapter.Servi
 }
 
 // Services provides a mock function with given fields: name
-func (_m *Thing) Services(name string) []adapter.Service {
+func (_m *Thing) Services(name fimptype.ServiceNameT) []adapter.Service {
 	ret := _m.Called(name)
 
 	if len(ret) == 0 {
@@ -438,7 +438,7 @@ func (_m *Thing) Services(name string) []adapter.Service {
 	}
 
 	var r0 []adapter.Service
-	if rf, ok := ret.Get(0).(func(string) []adapter.Service); ok {
+	if rf, ok := ret.Get(0).(func(fimptype.ServiceNameT) []adapter.Service); ok {
 		r0 = rf(name)
 	} else {
 		if ret.Get(0) != nil {
@@ -455,14 +455,14 @@ type Thing_Services_Call struct {
 }
 
 // Services is a helper method to define mock.On call
-//   - name string
+//   - name fimptype.ServiceNameT
 func (_e *Thing_Expecter) Services(name interface{}) *Thing_Services_Call {
 	return &Thing_Services_Call{Call: _e.mock.On("Services", name)}
 }
 
-func (_c *Thing_Services_Call) Run(run func(name string)) *Thing_Services_Call {
+func (_c *Thing_Services_Call) Run(run func(name fimptype.ServiceNameT)) *Thing_Services_Call {
 	_c.Call.Run(func(args mock.Arguments) {
-		run(args[0].(string))
+		run(args[0].(fimptype.ServiceNameT))
 	})
 	return _c
 }
@@ -472,7 +472,7 @@ func (_c *Thing_Services_Call) Return(_a0 []adapter.Service) *Thing_Services_Cal
 	return _c
 }
 
-func (_c *Thing_Services_Call) RunAndReturn(run func(string) []adapter.Service) *Thing_Services_Call {
+func (_c *Thing_Services_Call) RunAndReturn(run func(fimptype.ServiceNameT) []adapter.Service) *Thing_Services_Call {
 	_c.Call.Return(run)
 	return _c
 }

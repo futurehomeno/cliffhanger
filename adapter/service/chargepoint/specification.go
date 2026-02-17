@@ -3,7 +3,6 @@ package chargepoint
 import (
 	"fmt"
 
-	"github.com/futurehomeno/fimpgo"
 	"github.com/futurehomeno/fimpgo/fimptype"
 
 	"github.com/futurehomeno/cliffhanger/types"
@@ -80,43 +79,43 @@ func requiredInterfaces() []fimptype.Interface {
 		{
 			Type:      fimptype.TypeIn,
 			MsgType:   CmdChargeStart,
-			ValueType: fimpgo.VTypeNull,
+			ValueType: fimptype.VTypeNull,
 			Version:   "1",
 		},
 		{
 			Type:      fimptype.TypeIn,
 			MsgType:   CmdChargeStop,
-			ValueType: fimpgo.VTypeNull,
+			ValueType: fimptype.VTypeNull,
 			Version:   "1",
 		},
 		{
 			Type:      fimptype.TypeIn,
 			MsgType:   CmdStateGetReport,
-			ValueType: fimpgo.VTypeNull,
+			ValueType: fimptype.VTypeNull,
 			Version:   "1",
 		},
 		{
 			Type:      fimptype.TypeOut,
 			MsgType:   EvtStateReport,
-			ValueType: fimpgo.VTypeString,
+			ValueType: fimptype.VTypeString,
 			Version:   "1",
 		},
 		{
 			Type:      fimptype.TypeIn,
 			MsgType:   CmdCurrentSessionGetReport,
-			ValueType: fimpgo.VTypeNull,
+			ValueType: fimptype.VTypeNull,
 			Version:   "1",
 		},
 		{
 			Type:      fimptype.TypeOut,
 			MsgType:   EvtCurrentSessionReport,
-			ValueType: fimpgo.VTypeFloat,
+			ValueType: fimptype.VTypeFloat,
 			Version:   "1",
 		},
 		{
 			Type:      fimptype.TypeOut,
 			MsgType:   router.EvtErrorReport,
-			ValueType: fimpgo.VTypeString,
+			ValueType: fimptype.VTypeString,
 			Version:   "1",
 		},
 	}
@@ -128,19 +127,19 @@ func adjustableCableLockInterfaces() []fimptype.Interface {
 		{
 			Type:      fimptype.TypeIn,
 			MsgType:   CmdCableLockSet,
-			ValueType: fimpgo.VTypeBool,
+			ValueType: fimptype.VTypeBool,
 			Version:   "1",
 		},
 		{
 			Type:      fimptype.TypeIn,
 			MsgType:   CmdCableLockGetReport,
-			ValueType: fimpgo.VTypeNull,
+			ValueType: fimptype.VTypeNull,
 			Version:   "1",
 		},
 		{
 			Type:      fimptype.TypeOut,
 			MsgType:   EvtCableLockReport,
-			ValueType: fimpgo.VTypeBool,
+			ValueType: fimptype.VTypeBool,
 			Version:   "1",
 		},
 	}
@@ -152,13 +151,13 @@ func cableLockAwareInterfaces() []fimptype.Interface {
 		{
 			Type:      fimptype.TypeIn,
 			MsgType:   CmdCableLockGetReport,
-			ValueType: fimpgo.VTypeNull,
+			ValueType: fimptype.VTypeNull,
 			Version:   "1",
 		},
 		{
 			Type:      fimptype.TypeOut,
 			MsgType:   EvtCableLockReport,
-			ValueType: fimpgo.VTypeBool,
+			ValueType: fimptype.VTypeBool,
 			Version:   "1",
 		},
 	}
@@ -170,19 +169,19 @@ func adjustableMaxCurrentInterfaces() []fimptype.Interface {
 		{
 			Type:      fimptype.TypeIn,
 			MsgType:   CmdMaxCurrentSet,
-			ValueType: fimpgo.VTypeInt,
+			ValueType: fimptype.VTypeInt,
 			Version:   "1",
 		},
 		{
 			Type:      fimptype.TypeIn,
 			MsgType:   CmdMaxCurrentGetReport,
-			ValueType: fimpgo.VTypeNull,
+			ValueType: fimptype.VTypeNull,
 			Version:   "1",
 		},
 		{
 			Type:      fimptype.TypeOut,
 			MsgType:   EvtMaxCurrentReport,
-			ValueType: fimpgo.VTypeInt,
+			ValueType: fimptype.VTypeInt,
 			Version:   "1",
 		},
 	}
@@ -194,7 +193,7 @@ func adjustablePhaseModeInterfaces() []fimptype.Interface {
 		{
 			Type:      fimptype.TypeIn,
 			MsgType:   CmdPhaseModeSet,
-			ValueType: fimpgo.VTypeString,
+			ValueType: fimptype.VTypeString,
 			Version:   "1",
 		},
 	}
@@ -206,13 +205,13 @@ func phaseModeAwareInterfaces() []fimptype.Interface {
 		{
 			Type:      fimptype.TypeIn,
 			MsgType:   CmdPhaseModeGetReport,
-			ValueType: fimpgo.VTypeNull,
+			ValueType: fimptype.VTypeNull,
 			Version:   "1",
 		},
 		{
 			Type:      fimptype.TypeOut,
 			MsgType:   EvtPhaseModeReport,
-			ValueType: fimpgo.VTypeString,
+			ValueType: fimptype.VTypeString,
 			Version:   "1",
 		},
 	}
@@ -224,7 +223,7 @@ func adjustableOfferedCurrentInterfaces() []fimptype.Interface {
 		{
 			Type:      fimptype.TypeIn,
 			MsgType:   CmdCurrentSessionSetCurrent,
-			ValueType: fimpgo.VTypeInt,
+			ValueType: fimptype.VTypeInt,
 			Version:   "1",
 		},
 	}
