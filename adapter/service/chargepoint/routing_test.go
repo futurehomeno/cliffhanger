@@ -274,7 +274,7 @@ func TestRouteService(t *testing.T) { //nolint:paralleltest
 				Setup: routeService(
 					mockedchargepoint.NewController(t).
 						MockStartChargepointCharging(&chargepoint.ChargingSettings{}, nil, true).
-						MockChargepointStateReport(chargepoint.ReadyToCharge, nil, true).
+						MockChargepointStateReport(chargepoint.StateReadyToCharge, nil, true).
 						MockChargepointCurrentSessionReport(&chargepoint.SessionReport{SessionEnergy: 0}, errTest, true),
 					nil,
 				),
@@ -351,7 +351,7 @@ func TestRouteService(t *testing.T) { //nolint:paralleltest
 				Setup: routeService(
 					mockedchargepoint.NewController(t).
 						MockStopChargepointCharging(nil, true).
-						MockChargepointStateReport(chargepoint.ReadyToCharge, nil, true).
+						MockChargepointStateReport(chargepoint.StateReadyToCharge, nil, true).
 						MockChargepointCurrentSessionReport(&chargepoint.SessionReport{SessionEnergy: 0}, errTest, true),
 					nil,
 				),

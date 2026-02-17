@@ -1,8 +1,11 @@
 package mockedadapter
 
-import "github.com/futurehomeno/cliffhanger/adapter"
+import (
+	"github.com/futurehomeno/cliffhanger/adapter"
+	"github.com/futurehomeno/fimpgo/fimptype"
+)
 
-func (a *Adapter) WithName(name string, once bool) *Adapter {
+func (a *Adapter) WithName(name fimptype.ResourceNameT, once bool) *Adapter {
 	c := a.On("Name").Return(name)
 
 	if once {
