@@ -393,11 +393,11 @@ type Service struct {
 }
 
 type DeviceFIMP struct {
-	Adapter         string `json:"adapter"`
-	Address         string `json:"address"`
-	AdapterResource string `json:"adapter_resource"`
-	AdapterAddress  string `json:"adapter_address"`
-	Group           string `json:"group"`
+	Adapter         fimptype.ServiceNameT `json:"adapter"`
+	Address         string                `json:"address"`
+	AdapterResource string                `json:"adapter_resource"`
+	AdapterAddress  string                `json:"adapter_address"`
+	Group           string                `json:"group"`
 }
 
 type ClientType struct {
