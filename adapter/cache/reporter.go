@@ -1,47 +1,77 @@
 package cache
 
 import (
+	"math"
 	"reflect"
 	"sync"
 	"time"
+
+	log "github.com/sirupsen/logrus"
 )
 
 // ReportingStrategy is an interface representing a strategy to determine whether reporting is required or not.
 type ReportingStrategy interface {
 	// ReportRequired determines if report is required based on input information.
-	ReportRequired(hasChanged bool, lastReported time.Time) bool
+	ReportRequired(prevVal, newVal any, lastReported time.Time) bool
 }
 
 // ReportingStrategyFn is a function adapter that allows to use anonymous functions as reporting strategy.
-type ReportingStrategyFn func(hasChanged bool, lastReported time.Time) bool
+type ReportingStrategyFn func(prevVal, newVal any, lastReported time.Time) bool
 
 // ReportRequired determines if report is required based on input information.
-func (f ReportingStrategyFn) ReportRequired(hasChanged bool, lastReported time.Time) bool {
-	return f(hasChanged, lastReported)
+func (f ReportingStrategyFn) ReportRequired(prevVal, newVal any, lastReported time.Time) bool {
+	return f(prevVal, newVal, lastReported)
 }
 
 // ReportAlways is a reporting strategy in which report is always sent.
 func ReportAlways() ReportingStrategy {
-	return ReportingStrategyFn(func(_ bool, _ time.Time) bool {
+	return ReportingStrategyFn(func(_, _ any, _ time.Time) bool {
 		return true
 	})
 }
 
 // ReportOnChangeOnly is a reporting strategy in which report is sent only if value changed.
 func ReportOnChangeOnly() ReportingStrategy {
-	return ReportingStrategyFn(func(hasChanged bool, _ time.Time) bool {
-		return hasChanged
+	return ReportingStrategyFn(func(prevVal, newVal any, _ time.Time) bool {
+		return !reflect.DeepEqual(prevVal, newVal)
 	})
 }
 
 // ReportAtLeastEvery is a reporting strategy in which report is sent only if value changed or a specific time has passed.
 func ReportAtLeastEvery(interval time.Duration) ReportingStrategy {
-	return ReportingStrategyFn(func(hasChanged bool, lastReported time.Time) bool {
-		if hasChanged {
+	return ReportingStrategyFn(func(prevVal, newVal any, lastReported time.Time) bool {
+		if !reflect.DeepEqual(prevVal, newVal) {
 			return true
 		}
 
 		return time.Since(lastReported) > interval
+	})
+}
+
+func ReportMinimalChangeAtLeastEvery(minimalChange float64, interval, lastReported time.Duration) ReportingStrategy {
+	return ReportingStrategyFn(func(prevVal, newVal any, lastReported time.Time) bool {
+		if time.Since(lastReported) > interval {
+			return true
+		}
+
+		switch pv := prevVal.(type) {
+		case int:
+			nv, ok := newVal.(int)
+			return !ok || math.Abs(float64(pv)-float64(nv)) > minimalChange
+		case int64:
+			nv, ok := newVal.(int64)
+			return !ok || math.Abs(float64(pv)-float64(nv)) > minimalChange
+		case uint:
+			nv, ok := newVal.(uint)
+			return !ok || math.Abs(float64(pv)-float64(nv)) > minimalChange
+		case float64:
+			nv, ok := newVal.(float64)
+			return !ok || math.Abs(pv-nv) > minimalChange
+		default:
+			log.Infof("Unsupported type %T", prevVal)
+		}
+
+		return true
 	})
 }
 
@@ -74,12 +104,12 @@ func (c *reportingCache) ReportRequired(strategy ReportingStrategy, key, subKey 
 	c.lock.RLock()
 	defer c.lock.RUnlock()
 
-	v := c.values[key][subKey]
-	if v == nil {
+	prevVal := c.values[key][subKey]
+	if prevVal == nil {
 		return true
 	}
 
-	return strategy.ReportRequired(v.hasChanged(val), v.reported)
+	return strategy.ReportRequired(prevVal, val, v.reported)
 }
 
 // HasChanged returns true if value for a provided key and sub key changed.
