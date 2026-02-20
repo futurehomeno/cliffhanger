@@ -4,6 +4,7 @@ import (
 	"fmt"
 
 	"github.com/futurehomeno/fimpgo"
+	"github.com/futurehomeno/fimpgo/fimptype"
 
 	"github.com/futurehomeno/cliffhanger/event"
 )
@@ -28,11 +29,11 @@ type ServicePublisher interface {
 	PublishServiceEvent(service Service, payload ServiceEvent)
 }
 
-func NewPublisher(mqtt *fimpgo.MqttTransport, eventManager event.Manager, adapterName, adapterAddress string) Publisher {
+func NewPublisher(mqtt *fimpgo.MqttTransport, eventManager event.Manager, resourceName fimptype.ResourceNameT, adapterAddress string) Publisher {
 	return &publisher{
 		eventManager:   eventManager,
 		mqtt:           mqtt,
-		adapterName:    adapterName,
+		adapterName:    resourceName,
 		adapterAddress: adapterAddress,
 	}
 }
@@ -41,7 +42,7 @@ type publisher struct {
 	eventManager event.Manager
 	mqtt         *fimpgo.MqttTransport
 
-	adapterName    string
+	adapterName    fimptype.ResourceNameT
 	adapterAddress string
 }
 
@@ -51,7 +52,7 @@ func (p *publisher) PublishServiceMessage(service Service, message *fimpgo.FimpM
 		return fmt.Errorf("failed to parse a service topic %s: %w", service.Topic(), err)
 	}
 
-	address.MsgType = fimpgo.MsgTypeEvt
+	address.MsgType = fimptype.MsgTypeEvt
 	message.Service = service.Name()
 
 	err = p.mqtt.Publish(address, message)
@@ -64,13 +65,13 @@ func (p *publisher) PublishServiceMessage(service Service, message *fimpgo.FimpM
 
 func (p *publisher) PublishThingMessage(thing Thing, message *fimpgo.FimpMessage) error {
 	address := &fimpgo.Address{
-		MsgType:         fimpgo.MsgTypeEvt,
-		ResourceType:    fimpgo.ResourceTypeAdapter,
+		MsgType:         fimptype.MsgTypeEvt,
+		ResourceType:    fimptype.ResourceTypeAdapter,
 		ResourceName:    p.adapterName,
 		ResourceAddress: p.adapterAddress,
 	}
 
-	message.Service = p.adapterName
+	message.Service = fimptype.ServiceNameT(p.adapterName)
 
 	err := p.mqtt.Publish(address, message)
 	if err != nil {
@@ -82,7 +83,7 @@ func (p *publisher) PublishThingMessage(thing Thing, message *fimpgo.FimpMessage
 
 // PublishServiceEvent publishes an event to the local event manager.
 func (p *publisher) PublishServiceEvent(service Service, serviceEvent ServiceEvent) {
-	serviceEvent.setEvent(event.New(EventDomainAdapterService, service.Name()))
+	serviceEvent.setEvent(event.New(EventDomainAdapterService, service.Name().Str()))
 	serviceEvent.setAddress(service.Topic())
 	serviceEvent.setServiceName(service.Name())
 
@@ -96,13 +97,13 @@ func (p *publisher) PublishThingEvent(thingEvent ThingEvent) {
 
 func (p *publisher) PublishAdapterMessage(message *fimpgo.FimpMessage) error {
 	address := &fimpgo.Address{
-		MsgType:         fimpgo.MsgTypeEvt,
-		ResourceType:    fimpgo.ResourceTypeAdapter,
+		MsgType:         fimptype.MsgTypeEvt,
+		ResourceType:    fimptype.ResourceTypeAdapter,
 		ResourceName:    p.adapterName,
 		ResourceAddress: p.adapterAddress,
 	}
 
-	message.Service = p.adapterName
+	message.Service = fimptype.ServiceNameT(p.adapterName)
 
 	err := p.mqtt.Publish(address, message)
 	if err != nil {

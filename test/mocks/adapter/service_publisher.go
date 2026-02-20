@@ -5,7 +5,6 @@ package mockedadapter
 import (
 	adapter "github.com/futurehomeno/cliffhanger/adapter"
 	fimpgo "github.com/futurehomeno/fimpgo"
-
 	mock "github.com/stretchr/testify/mock"
 )
 

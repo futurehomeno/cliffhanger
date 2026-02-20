@@ -49,7 +49,7 @@ func (_m *Controller) MockedMediaPlayerPlaybackModeReport(value map[string]bool,
 }
 
 // MockedMediaPlayerVolumeSet is a helper function that sets up a mock for the SetVolume method.
-func (_m *Controller) MockedMediaPlayerVolumeSet(value int64, err error, once bool) *Controller {
+func (_m *Controller) MockedMediaPlayerVolumeSet(value int, err error, once bool) *Controller {
 	c := _m.On("SetVolume", value).Return(err)
 
 	if once {
@@ -60,7 +60,7 @@ func (_m *Controller) MockedMediaPlayerVolumeSet(value int64, err error, once bo
 }
 
 // MockedMediaPlayerVolumeReport is a helper function that sets up a mock for the Volume method.
-func (_m *Controller) MockedMediaPlayerVolumeReport(value int64, err error, once bool) *Controller {
+func (_m *Controller) MockedMediaPlayerVolumeReport(value int, err error, once bool) *Controller {
 	c := _m.On("Volume").Return(value, err)
 
 	if once {

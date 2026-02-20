@@ -5,6 +5,7 @@ import (
 	"sync"
 
 	"github.com/futurehomeno/fimpgo"
+	"github.com/futurehomeno/fimpgo/fimptype"
 	log "github.com/sirupsen/logrus"
 )
 
@@ -135,12 +136,12 @@ func (m *messageHandler) handleReply(requestMessage *fimpgo.Message, reply *fimp
 			Payload: fimpgo.NewMessage(
 				EvtSuccessReport,
 				requestMessage.Payload.Service,
-				fimpgo.VTypeNull,
+				fimptype.VTypeNull,
 				nil,
 				map[string]string{
 					PropertyCmdTopic:   requestMessage.Topic,
-					PropertyCmdService: requestMessage.Payload.Service,
-					PropertyCmdType:    requestMessage.Payload.Type,
+					PropertyCmdService: requestMessage.Payload.Service.Str(),
+					PropertyCmdType:    requestMessage.Payload.Interface,
 				},
 				nil,
 				requestMessage.Payload,
@@ -160,7 +161,7 @@ func (m *messageHandler) handleError(requestMessage *fimpgo.Message, err error) 
 		WithError(err).
 		WithField("topic", requestMessage.Topic).
 		WithField("service", requestMessage.Payload.Service).
-		WithField("type", requestMessage.Payload.Type).
+		WithField("type", requestMessage.Payload.Interface).
 		Error("Process incoming msg")
 
 	if m.silentErrors {
@@ -172,13 +173,13 @@ func (m *messageHandler) handleError(requestMessage *fimpgo.Message, err error) 
 		Payload: fimpgo.NewMessage(
 			EvtErrorReport,
 			requestMessage.Payload.Service,
-			fimpgo.VTypeString,
+			fimptype.VTypeString,
 			"failed to process incoming message",
 			map[string]string{
 				PropertyMsg:        err.Error(),
 				PropertyCmdTopic:   requestMessage.Topic,
-				PropertyCmdService: requestMessage.Payload.Service,
-				PropertyCmdType:    requestMessage.Payload.Type,
+				PropertyCmdService: requestMessage.Payload.Service.Str(),
+				PropertyCmdType:    requestMessage.Payload.Interface,
 			},
 			nil,
 			requestMessage.Payload,
@@ -186,7 +187,7 @@ func (m *messageHandler) handleError(requestMessage *fimpgo.Message, err error) 
 	}
 
 	// Do not store device errors in the storage.
-	if reply.Addr.ResourceType == fimpgo.ResourceTypeDevice && reply.Payload.Storage == nil {
+	if reply.Addr.ResourceType == fimptype.ResourceTypeDevice && reply.Payload.Storage == nil {
 		reply.Payload.WithStorageStrategy(fimpgo.StorageStrategySkip, "")
 	}
 
@@ -202,7 +203,7 @@ func (m *messageHandler) getResponseAddress(requestAddress *fimpgo.Address) *fim
 
 	return &fimpgo.Address{
 		PayloadType:     a.PayloadType,
-		MsgType:         fimpgo.MsgTypeEvt,
+		MsgType:         fimptype.MsgTypeEvt,
 		ResourceType:    a.ResourceType,
 		ResourceName:    a.ResourceName,
 		ResourceAddress: a.ResourceAddress,

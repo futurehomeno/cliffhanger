@@ -22,7 +22,7 @@ import (
 )
 
 func TestRouteLight(t *testing.T) { //nolint:paralleltest
-	validColor := map[string]int64{"red": 255, "green": 55, "blue": 100}
+	validColor := map[string]int{"red": 255, "green": 55, "blue": 100}
 	invalidColor := map[string]float64{"red": 255.0, "green": 55.0, "blue": 100.0}
 
 	s := &suite.Suite{
@@ -312,19 +312,19 @@ func TestRouteLight(t *testing.T) { //nolint:paralleltest
 }
 
 func TestTaskLight(t *testing.T) { //nolint:paralleltest
-	color1 := map[string]int64{
+	color1 := map[string]int{
 		"red":   255,
 		"green": 55,
 		"blue":  100,
 	}
 
-	color2 := map[string]int64{
+	color2 := map[string]int{
 		"red":   55,
 		"green": 155,
 		"blue":  255,
 	}
 
-	color3 := map[string]int64{
+	color3 := map[string]int{
 		"red":   100,
 		"green": 200,
 		"blue":  0,
@@ -453,7 +453,7 @@ func setupLight(
 				"2",
 				nil,
 				[]string{"red", "green", "blue"},
-				map[string]int64{"min": 180, "max": 7620, "step": 60},
+				map[string]int{"min": 180, "max": 7620, "step": 60},
 			),
 			Controller: colorCtrlController,
 		}

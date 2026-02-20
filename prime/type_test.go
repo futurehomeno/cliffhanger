@@ -8,6 +8,7 @@ import (
 	"github.com/stretchr/testify/assert"
 
 	"github.com/futurehomeno/cliffhanger/prime"
+	"github.com/futurehomeno/fimpgo/fimptype"
 )
 
 func TestDevices(t *testing.T) {
@@ -57,13 +58,13 @@ func TestDevices(t *testing.T) {
 		},
 		{
 			name:    "find by topic",
-			devices: prime.Devices{{ID: 1}, {ID: 2}, {ID: 3, Services: map[string]*prime.Service{"test_service": {Addr: "test_topic"}}}},
+			devices: prime.Devices{{ID: 1}, {ID: 2}, {ID: 3, Services: map[fimptype.ServiceNameT]*prime.Service{"test_service": {Addr: "test_topic"}}}},
 			call:    func(devices prime.Devices) interface{} { return devices.FindByTopic("test_topic") },
-			want:    &prime.Device{ID: 3, Services: map[string]*prime.Service{"test_service": {Addr: "test_topic"}}},
+			want:    &prime.Device{ID: 3, Services: map[fimptype.ServiceNameT]*prime.Service{"test_service": {Addr: "test_topic"}}},
 		},
 		{
 			name:    "find by topic - no matches",
-			devices: prime.Devices{{ID: 1}, {ID: 2}, {ID: 3, Services: map[string]*prime.Service{"test_service": {Addr: "test_topic"}}}},
+			devices: prime.Devices{{ID: 1}, {ID: 2}, {ID: 3, Services: map[fimptype.ServiceNameT]*prime.Service{"test_service": {Addr: "test_topic"}}}},
 			call:    func(devices prime.Devices) interface{} { return devices.FindByTopic("other_topic") },
 			want:    (*prime.Device)(nil),
 		},
@@ -214,7 +215,7 @@ func TestDevice(t *testing.T) {
 		},
 		{
 			name:   "has service",
-			device: &prime.Device{Services: map[string]*prime.Service{"meter_elec": {}}},
+			device: &prime.Device{Services: map[fimptype.ServiceNameT]*prime.Service{"meter_elec": {}}},
 			call:   func(d *prime.Device) interface{} { return d.HasService("meter_elec") },
 			want:   true,
 		},
@@ -226,7 +227,7 @@ func TestDevice(t *testing.T) {
 		},
 		{
 			name:   "has interfaces",
-			device: &prime.Device{Services: map[string]*prime.Service{"meter_elec": {Interfaces: []string{"cmd.meter.get_report", "evt.meter.report"}}}},
+			device: &prime.Device{Services: map[fimptype.ServiceNameT]*prime.Service{"meter_elec": {Interfaces: []string{"cmd.meter.get_report", "evt.meter.report"}}}},
 			call: func(d *prime.Device) interface{} {
 				return d.HasInterfaces("meter_elec", "cmd.meter.get_report", "evt.meter.report")
 			},
@@ -234,7 +235,7 @@ func TestDevice(t *testing.T) {
 		},
 		{
 			name:   "has interfaces - missing interface",
-			device: &prime.Device{Services: map[string]*prime.Service{"meter_elec": {Interfaces: []string{"evt.meter.report"}}}},
+			device: &prime.Device{Services: map[fimptype.ServiceNameT]*prime.Service{"meter_elec": {Interfaces: []string{"evt.meter.report"}}}},
 			call: func(d *prime.Device) interface{} {
 				return d.HasInterfaces("meter_elec", "cmd.meter.get_report", "evt.meter.report")
 			},
@@ -250,7 +251,7 @@ func TestDevice(t *testing.T) {
 		},
 		{
 			name:   "get service property strings",
-			device: &prime.Device{Services: map[string]*prime.Service{"meter_elec": {Props: map[string]interface{}{"sup_units": []interface{}{"W", "kWh"}}}}},
+			device: &prime.Device{Services: map[fimptype.ServiceNameT]*prime.Service{"meter_elec": {Props: map[string]interface{}{"sup_units": []interface{}{"W", "kWh"}}}}},
 			call: func(d *prime.Device) interface{} {
 				return d.GetServicePropertyStrings("meter_elec", "sup_units")
 			},
@@ -258,7 +259,7 @@ func TestDevice(t *testing.T) {
 		},
 		{
 			name:   "get service property strings - property is well typed",
-			device: &prime.Device{Services: map[string]*prime.Service{"meter_elec": {Props: map[string]interface{}{"sup_units": []string{"W", "kWh"}}}}},
+			device: &prime.Device{Services: map[fimptype.ServiceNameT]*prime.Service{"meter_elec": {Props: map[string]interface{}{"sup_units": []string{"W", "kWh"}}}}},
 			call: func(d *prime.Device) interface{} {
 				return d.GetServicePropertyStrings("meter_elec", "sup_units")
 			},
@@ -266,7 +267,7 @@ func TestDevice(t *testing.T) {
 		},
 		{
 			name:   "get service property strings - invalid property type",
-			device: &prime.Device{Services: map[string]*prime.Service{"meter_elec": {Props: map[string]interface{}{"sup_units": []interface{}{"W", 1}}}}},
+			device: &prime.Device{Services: map[fimptype.ServiceNameT]*prime.Service{"meter_elec": {Props: map[string]interface{}{"sup_units": []interface{}{"W", 1}}}}},
 			call: func(d *prime.Device) interface{} {
 				return d.GetServicePropertyStrings("meter_elec", "sup_units")
 			},
@@ -274,7 +275,7 @@ func TestDevice(t *testing.T) {
 		},
 		{
 			name:   "get service property strings - missing property",
-			device: &prime.Device{Services: map[string]*prime.Service{"meter_elec": {Props: map[string]interface{}{}}}},
+			device: &prime.Device{Services: map[fimptype.ServiceNameT]*prime.Service{"meter_elec": {Props: map[string]interface{}{}}}},
 			call: func(d *prime.Device) interface{} {
 				return d.GetServicePropertyStrings("meter_elec", "sup_units")
 			},
@@ -290,7 +291,7 @@ func TestDevice(t *testing.T) {
 		},
 		{
 			name:   "get service property string",
-			device: &prime.Device{Services: map[string]*prime.Service{"meter_elec": {Props: map[string]interface{}{"sup_unit": "W"}}}},
+			device: &prime.Device{Services: map[fimptype.ServiceNameT]*prime.Service{"meter_elec": {Props: map[string]interface{}{"sup_unit": "W"}}}},
 			call: func(d *prime.Device) interface{} {
 				return d.GetServicePropertyString("meter_elec", "sup_unit")
 			},
@@ -298,7 +299,7 @@ func TestDevice(t *testing.T) {
 		},
 		{
 			name:   "get service property string - invalid property type",
-			device: &prime.Device{Services: map[string]*prime.Service{"meter_elec": {Props: map[string]interface{}{"sup_unit": 1}}}},
+			device: &prime.Device{Services: map[fimptype.ServiceNameT]*prime.Service{"meter_elec": {Props: map[string]interface{}{"sup_unit": 1}}}},
 			call: func(d *prime.Device) interface{} {
 				return d.GetServicePropertyString("meter_elec", "sup_unit")
 			},
@@ -314,19 +315,19 @@ func TestDevice(t *testing.T) {
 		},
 		{
 			name:   "get service property integer",
-			device: &prime.Device{Services: map[string]*prime.Service{"chargepoint": {Props: map[string]interface{}{"phases": 1}}}},
+			device: &prime.Device{Services: map[fimptype.ServiceNameT]*prime.Service{"chargepoint": {Props: map[string]interface{}{"phases": 1}}}},
 			call: func(d *prime.Device) interface{} {
 				return d.GetServicePropertyInteger("chargepoint", "phases")
 			},
-			want: int64(1),
+			want: 1,
 		},
 		{
 			name:   "get service property integer - invalid property type",
-			device: &prime.Device{Services: map[string]*prime.Service{"chargepoint": {Props: map[string]interface{}{"phases": "1"}}}},
+			device: &prime.Device{Services: map[fimptype.ServiceNameT]*prime.Service{"chargepoint": {Props: map[string]interface{}{"phases": "1"}}}},
 			call: func(d *prime.Device) interface{} {
 				return d.GetServicePropertyInteger("chargepoint", "phases")
 			},
-			want: int64(0),
+			want: 0,
 		},
 		{
 			name:   "get service property integer - missing service",
@@ -334,11 +335,11 @@ func TestDevice(t *testing.T) {
 			call: func(d *prime.Device) interface{} {
 				return d.GetServicePropertyInteger("chargepoint", "phases")
 			},
-			want: int64(0),
+			want: 0,
 		},
 		{
 			name:   "get service property object",
-			device: &prime.Device{Services: map[string]*prime.Service{"chargepoint": {Props: map[string]interface{}{"object": json.RawMessage(`{"a":1}`)}}}},
+			device: &prime.Device{Services: map[fimptype.ServiceNameT]*prime.Service{"chargepoint": {Props: map[string]interface{}{"object": json.RawMessage(`{"a":1}`)}}}},
 			call: func(d *prime.Device) interface{} {
 				return d.GetServicePropertyObject("chargepoint", "object", &struct{ A int }{})
 			},
@@ -346,7 +347,7 @@ func TestDevice(t *testing.T) {
 		},
 		{
 			name:   "get service property object - invalid JSON",
-			device: &prime.Device{Services: map[string]*prime.Service{"chargepoint": {Props: map[string]interface{}{"object": json.RawMessage(`{a":1}`)}}}},
+			device: &prime.Device{Services: map[fimptype.ServiceNameT]*prime.Service{"chargepoint": {Props: map[string]interface{}{"object": json.RawMessage(`{a":1}`)}}}},
 			call: func(d *prime.Device) interface{} {
 				return d.GetServicePropertyObject("chargepoint", "object", &struct{ A int }{})
 			},
@@ -354,7 +355,7 @@ func TestDevice(t *testing.T) {
 		},
 		{
 			name:   "get addresses",
-			device: &prime.Device{Services: map[string]*prime.Service{"s1": {Addr: "address1"}, "s2": {Addr: "address2"}}},
+			device: &prime.Device{Services: map[fimptype.ServiceNameT]*prime.Service{"s1": {Addr: "address1"}, "s2": {Addr: "address2"}}},
 			call: func(d *prime.Device) interface{} {
 				return d.GetAddresses()
 			},
@@ -522,7 +523,7 @@ func TestStateDevices_FindDevice(t *testing.T) {
 func TestStateDevice_GetAttributeValue(t *testing.T) {
 	t.Parallel()
 
-	makeDevice := func(service, attribute string, value interface{}, timestamp string) *prime.StateDevice {
+	makeDevice := func(service fimptype.ServiceNameT, attribute string, value interface{}, timestamp string) *prime.StateDevice {
 		return &prime.StateDevice{
 			Services: []*prime.StateService{
 				{
@@ -597,11 +598,11 @@ func TestStateDevice_GetAttributeValue(t *testing.T) {
 		},
 		{
 			name:   "get attribute int value",
-			device: makeDevice("test_service", "test_attribute", int64(1), "2022-08-15 12:15:30 +0100"),
+			device: makeDevice("test_service", "test_attribute", 1, "2022-08-15 12:15:30 +0100"),
 			call: func(d *prime.StateDevice) (interface{}, time.Time) {
 				return d.GetAttributeIntValue("test_service", "test_attribute", nil)
 			},
-			wantValue: int64(1),
+			wantValue: 1,
 			wantTime:  time.Date(2022, 8, 15, 12, 15, 30, 0, time.FixedZone("", 1*60*60)),
 		},
 		{
@@ -633,11 +634,11 @@ func TestStateDevice_GetAttributeValue(t *testing.T) {
 		},
 		{
 			name:   "get attribute int array value",
-			device: makeDevice("test_service", "test_attribute", []int64{1}, "2022-08-15 12:15:30 +0100"),
+			device: makeDevice("test_service", "test_attribute", []int{1}, "2022-08-15 12:15:30 +0100"),
 			call: func(d *prime.StateDevice) (interface{}, time.Time) {
 				return d.GetAttributeIntArrayValue("test_service", "test_attribute", nil)
 			},
-			wantValue: []int64{1},
+			wantValue: []int{1},
 			wantTime:  time.Date(2022, 8, 15, 12, 15, 30, 0, time.FixedZone("", 1*60*60)),
 		},
 		{
@@ -669,11 +670,11 @@ func TestStateDevice_GetAttributeValue(t *testing.T) {
 		},
 		{
 			name:   "get attribute int map value",
-			device: makeDevice("test_service", "test_attribute", map[string]int64{"key": 1}, "2022-08-15 12:15:30 +0100"),
+			device: makeDevice("test_service", "test_attribute", map[string]int{"key": 1}, "2022-08-15 12:15:30 +0100"),
 			call: func(d *prime.StateDevice) (interface{}, time.Time) {
 				return d.GetAttributeIntMapValue("test_service", "test_attribute", nil)
 			},
-			wantValue: map[string]int64{"key": 1},
+			wantValue: map[string]int{"key": 1},
 			wantTime:  time.Date(2022, 8, 15, 12, 15, 30, 0, time.FixedZone("", 1*60*60)),
 		},
 		{
@@ -716,7 +717,7 @@ func TestStateDevice_FindAttributeValue(t *testing.T) {
 	tt := []struct {
 		name          string
 		device        *prime.StateDevice
-		serviceName   string
+		serviceName   fimptype.ServiceNameT
 		attributeName string
 		properties    map[string]string
 		want          *prime.StateAttributeValue
@@ -822,7 +823,7 @@ func TestStateDevice_FindService(t *testing.T) {
 	tt := []struct {
 		name        string
 		service     *prime.StateDevice
-		serviceName string
+		serviceName fimptype.ServiceNameT
 		want        *prime.StateService
 	}{
 		{
@@ -1006,15 +1007,15 @@ func TestStateAttributeValue_Get(t *testing.T) {
 		},
 		{
 			name:      "get int value",
-			attribute: &prime.StateAttributeValue{Value: int64(1)},
+			attribute: &prime.StateAttributeValue{Value: 1},
 			call:      func(a *prime.StateAttributeValue) (interface{}, error) { return a.GetIntValue() },
-			want:      int64(1),
+			want:      1,
 		},
 		{
 			name:      "get int value - error",
 			attribute: &prime.StateAttributeValue{Value: "test"},
 			call:      func(a *prime.StateAttributeValue) (interface{}, error) { return a.GetIntValue() },
-			want:      int64(0),
+			want:      0,
 			wantErr:   true,
 		},
 		{
@@ -1059,15 +1060,15 @@ func TestStateAttributeValue_Get(t *testing.T) {
 		},
 		{
 			name:      "get int array value",
-			attribute: &prime.StateAttributeValue{Value: []int64{1}},
+			attribute: &prime.StateAttributeValue{Value: []int{1}},
 			call:      func(a *prime.StateAttributeValue) (interface{}, error) { return a.GetIntArrayValue() },
-			want:      []int64{1},
+			want:      []int{1},
 		},
 		{
 			name:      "get int array value - error",
 			attribute: &prime.StateAttributeValue{Value: "test"},
 			call:      func(a *prime.StateAttributeValue) (interface{}, error) { return a.GetIntArrayValue() },
-			want:      ([]int64)(nil),
+			want:      ([]int)(nil),
 			wantErr:   true,
 		},
 		{
@@ -1111,15 +1112,15 @@ func TestStateAttributeValue_Get(t *testing.T) {
 		},
 		{
 			name:      "get int map value",
-			attribute: &prime.StateAttributeValue{Value: map[string]int64{"key": 1}},
+			attribute: &prime.StateAttributeValue{Value: map[string]int{"key": 1}},
 			call:      func(a *prime.StateAttributeValue) (interface{}, error) { return a.GetIntMapValue() },
-			want:      map[string]int64{"key": 1},
+			want:      map[string]int{"key": 1},
 		},
 		{
 			name:      "get int map value - error",
 			attribute: &prime.StateAttributeValue{Value: "test"},
 			call:      func(a *prime.StateAttributeValue) (interface{}, error) { return a.GetIntMapValue() },
-			want:      (map[string]int64)(nil),
+			want:      (map[string]int)(nil),
 			wantErr:   true,
 		},
 		{
@@ -1237,7 +1238,7 @@ func TestStateAttributeValue_Get(t *testing.T) {
 			call: func(a *prime.StateAttributeValue) (interface{}, error) {
 				return a.GetPropertyInteger("a"), nil
 			},
-			want:    int64(1),
+			want:    1,
 			wantErr: false,
 		},
 		{
@@ -1246,7 +1247,7 @@ func TestStateAttributeValue_Get(t *testing.T) {
 			call: func(a *prime.StateAttributeValue) (interface{}, error) {
 				return a.GetPropertyInteger("a"), nil
 			},
-			want:    int64(0),
+			want:    0,
 			wantErr: false,
 		},
 		{
@@ -1255,7 +1256,7 @@ func TestStateAttributeValue_Get(t *testing.T) {
 			call: func(a *prime.StateAttributeValue) (interface{}, error) {
 				return a.GetPropertyInteger("c"), nil
 			},
-			want:    int64(0),
+			want:    0,
 			wantErr: false,
 		},
 		{
@@ -1264,7 +1265,7 @@ func TestStateAttributeValue_Get(t *testing.T) {
 			call: func(a *prime.StateAttributeValue) (interface{}, error) {
 				return a.GetPropertyInteger("a"), nil
 			},
-			want:    int64(0),
+			want:    0,
 			wantErr: false,
 		},
 		{

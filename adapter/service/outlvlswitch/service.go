@@ -47,9 +47,9 @@ type LevelTransitionParams struct {
 // In a polling scenario implementation might require some safeguards against excessive polling.
 type Controller interface {
 	// LevelSwitchLevelReport returns a current level value.
-	LevelSwitchLevelReport() (int64, error)
+	LevelSwitchLevelReport() (int, error)
 	// SetLevelSwitchLevel sets a level value.
-	SetLevelSwitchLevel(value int64, duration time.Duration) error
+	SetLevelSwitchLevel(value int, duration time.Duration) error
 	// SetLevelSwitchBinaryState sets a binary value.
 	SetLevelSwitchBinaryState(bool) error
 }
@@ -71,7 +71,7 @@ type Service interface {
 	// To make sure report is being sent regardless of circumstances set the force argument to true.
 	SendLevelReport(force bool) (bool, error)
 	// SetLevel sets a level value.
-	SetLevel(value int64, duration *time.Duration) error
+	SetLevel(value int, duration *time.Duration) error
 	// SetBinaryState sets a binary value.
 	SetBinaryState(value bool) error
 	// StartLevelTransition starts a transition. Supported values are: "up" and "down"
@@ -161,7 +161,7 @@ func (s *service) SendLevelReport(force bool) (bool, error) {
 }
 
 // SetLevel sets a level value.
-func (s *service) SetLevel(value int64, duration *time.Duration) error {
+func (s *service) SetLevel(value int, duration *time.Duration) error {
 	s.lock.Lock()
 	defer s.lock.Unlock()
 
@@ -270,7 +270,7 @@ func (s *service) validateStartLevelOption(startLvl *int) error {
 		return fmt.Errorf("invalid service specification property: %s should be int", PropertyMinLvl)
 	}
 
-	if *startLvl < int(lvlMin) || int(lvlMax) < *startLvl {
+	if *startLvl < lvlMin || lvlMax < *startLvl {
 		return fmt.Errorf("invalid startLvl received: %d. Should be in range: %d - %d", startLvl, lvlMin, lvlMax)
 	}
 

@@ -3,7 +3,6 @@ package thermostat
 import (
 	"fmt"
 
-	"github.com/futurehomeno/fimpgo"
 	"github.com/futurehomeno/fimpgo/fimptype"
 
 	"github.com/futurehomeno/cliffhanger/router"
@@ -39,55 +38,55 @@ func requiredInterfaces() []fimptype.Interface {
 		{
 			Type:      fimptype.TypeIn,
 			MsgType:   CmdModeGetReport,
-			ValueType: fimpgo.VTypeNull,
+			ValueType: fimptype.VTypeNull,
 			Version:   "1",
 		},
 		{
 			Type:      fimptype.TypeIn,
 			MsgType:   CmdModeSet,
-			ValueType: fimpgo.VTypeString,
+			ValueType: fimptype.VTypeString,
 			Version:   "1",
 		},
 		{
 			Type:      fimptype.TypeOut,
 			MsgType:   EvtModeReport,
-			ValueType: fimpgo.VTypeString,
+			ValueType: fimptype.VTypeString,
 			Version:   "1",
 		},
 		{
 			Type:      fimptype.TypeIn,
 			MsgType:   CmdSetpointGetReport,
-			ValueType: fimpgo.VTypeString,
+			ValueType: fimptype.VTypeString,
 			Version:   "1",
 		},
 		{
 			Type:      fimptype.TypeIn,
 			MsgType:   CmdSetpointSet,
-			ValueType: fimpgo.VTypeStrMap,
+			ValueType: fimptype.VTypeStrMap,
 			Version:   "1",
 		},
 		{
 			Type:      fimptype.TypeOut,
 			MsgType:   EvtSetpointReport,
-			ValueType: fimpgo.VTypeStrMap,
+			ValueType: fimptype.VTypeStrMap,
 			Version:   "1",
 		},
 		{
 			Type:      fimptype.TypeIn,
 			MsgType:   CmdStateGetReport,
-			ValueType: fimpgo.VTypeNull,
+			ValueType: fimptype.VTypeNull,
 			Version:   "1",
 		},
 		{
 			Type:      fimptype.TypeOut,
 			MsgType:   EvtStateReport,
-			ValueType: fimpgo.VTypeString,
+			ValueType: fimptype.VTypeString,
 			Version:   "1",
 		},
 		{
 			Type:      fimptype.TypeOut,
 			MsgType:   router.EvtErrorReport,
-			ValueType: fimpgo.VTypeString,
+			ValueType: fimptype.VTypeString,
 			Version:   "1",
 		},
 	}

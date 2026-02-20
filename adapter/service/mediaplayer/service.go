@@ -74,9 +74,9 @@ type Controller interface {
 	// PlaybackMode returns the playback mode.
 	PlaybackMode() (map[string]bool, error)
 	// SetVolume sets the volume level.
-	SetVolume(level int64) error
+	SetVolume(level int) error
 	// Volume returns the volume level.
-	Volume() (int64, error)
+	Volume() (int, error)
 	// SetMute sets the mute state.
 	SetMute(mute bool) error
 	// Mute returns the mute state.
@@ -98,7 +98,7 @@ type Service interface {
 	// SendPlaybackModeReport sends a playback mode report. Returns true if a report was sent.
 	SendPlaybackModeReport(force bool) (bool, error)
 	// SetVolume sets the volume level.
-	SetVolume(level int64) error
+	SetVolume(level int) error
 	// SendVolumeReport sends a volume report. Returns true if a report was sent.
 	SendVolumeReport(force bool) (bool, error)
 	// SetMute sets the mute state.
@@ -242,7 +242,7 @@ func (s *service) SendPlaybackModeReport(force bool) (bool, error) {
 }
 
 // SetVolume sets the volume level.
-func (s *service) SetVolume(level int64) error {
+func (s *service) SetVolume(level int) error {
 	s.lock.Lock()
 	defer s.lock.Unlock()
 

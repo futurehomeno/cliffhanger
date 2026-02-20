@@ -13,8 +13,6 @@ const (
 	EvtPD7Response = "evt.pd7.response"
 	EvtPD7Notify   = "evt.pd7.notify"
 
-	ServiceName = "vinculum"
-
 	NotifyTopic = "pt:j1/mt:evt/rt:app/rn:vinculum/ad:1"
 )
 
@@ -317,6 +315,8 @@ func (n *Notify) ParseIntegerID() (int, error) {
 	switch id := n.ID.(type) {
 	case int:
 		return id, nil
+	case int64:
+		return int(id), nil
 	case float64:
 		return int(id), nil
 	case string:

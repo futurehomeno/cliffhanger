@@ -4,6 +4,7 @@ package mockedadapter
 
 import (
 	adapter "github.com/futurehomeno/cliffhanger/adapter"
+	fimptype "github.com/futurehomeno/fimpgo/fimptype"
 	mock "github.com/stretchr/testify/mock"
 )
 
@@ -114,7 +115,7 @@ func (_c *ServiceRegistry_ServiceByTopic_Call) RunAndReturn(run func(string) ada
 }
 
 // Services provides a mock function with given fields: name
-func (_m *ServiceRegistry) Services(name string) []adapter.Service {
+func (_m *ServiceRegistry) Services(name fimptype.ServiceNameT) []adapter.Service {
 	ret := _m.Called(name)
 
 	if len(ret) == 0 {
@@ -122,7 +123,7 @@ func (_m *ServiceRegistry) Services(name string) []adapter.Service {
 	}
 
 	var r0 []adapter.Service
-	if rf, ok := ret.Get(0).(func(string) []adapter.Service); ok {
+	if rf, ok := ret.Get(0).(func(fimptype.ServiceNameT) []adapter.Service); ok {
 		r0 = rf(name)
 	} else {
 		if ret.Get(0) != nil {
@@ -139,14 +140,14 @@ type ServiceRegistry_Services_Call struct {
 }
 
 // Services is a helper method to define mock.On call
-//   - name string
+//   - name fimptype.ServiceNameT
 func (_e *ServiceRegistry_Expecter) Services(name interface{}) *ServiceRegistry_Services_Call {
 	return &ServiceRegistry_Services_Call{Call: _e.mock.On("Services", name)}
 }
 
-func (_c *ServiceRegistry_Services_Call) Run(run func(name string)) *ServiceRegistry_Services_Call {
+func (_c *ServiceRegistry_Services_Call) Run(run func(name fimptype.ServiceNameT)) *ServiceRegistry_Services_Call {
 	_c.Call.Run(func(args mock.Arguments) {
-		run(args[0].(string))
+		run(args[0].(fimptype.ServiceNameT))
 	})
 	return _c
 }
@@ -156,7 +157,7 @@ func (_c *ServiceRegistry_Services_Call) Return(_a0 []adapter.Service) *ServiceR
 	return _c
 }
 
-func (_c *ServiceRegistry_Services_Call) RunAndReturn(run func(string) []adapter.Service) *ServiceRegistry_Services_Call {
+func (_c *ServiceRegistry_Services_Call) RunAndReturn(run func(fimptype.ServiceNameT) []adapter.Service) *ServiceRegistry_Services_Call {
 	_c.Call.Return(run)
 	return _c
 }

@@ -8,10 +8,10 @@ import (
 type LevelEvent struct {
 	adapter.ServiceEvent
 
-	Level int64
+	Level int
 }
 
-func newLevelEvent(eventType string, hasChanged bool, level int64) *LevelEvent {
+func newLevelEvent(eventType string, hasChanged bool, level int) *LevelEvent {
 	return &LevelEvent{
 		ServiceEvent: adapter.NewServiceEvent(eventType, hasChanged),
 		Level:        level,

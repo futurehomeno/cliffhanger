@@ -86,7 +86,7 @@ jobs:
         docker logs mosquitto
         exit 1
 
-    - name: Install mockery (v2, Go 1.26 compatible)
+    - name: Install mockery
       run: |
         go install github.com/vektra/mockery/v2@v2.53.5
         echo "$HOME/go/bin" >> $GITHUB_PATH

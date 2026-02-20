@@ -15,11 +15,11 @@ import (
 // It acts as a manager abstracting business logic for management of devices.
 type Adapter interface {
 	// Name returns name of the adapter.
-	Name() string
+	Name() fimptype.ResourceNameT
 	// Address returns an address of the adapter.
 	Address() string
 	// Services returns all services from all things that match the provided name. If empty all services are returned.
-	Services(name string) []Service
+	Services(name fimptype.ServiceNameT) []Service
 	// ServiceByTopic returns a service based on its topic. Returns nil if service was not found.
 	ServiceByTopic(topic string) Service
 	// Things returns all things.
@@ -59,7 +59,7 @@ func NewAdapter(
 	eventManager event.Manager,
 	factory ThingFactory,
 	state State,
-	resourceName, resourceAddress string,
+	resourceName fimptype.ResourceNameT, resourceAddress string,
 ) Adapter {
 	return &adapter{
 		name:      resourceName,
@@ -78,7 +78,7 @@ type adapter struct {
 	state     State
 	factory   ThingFactory
 
-	name        string
+	name        fimptype.ResourceNameT // resource name
 	address     string
 	things      map[string]Thing
 	initialized bool
@@ -86,7 +86,7 @@ type adapter struct {
 }
 
 // Name returns name of the adapter.
-func (a *adapter) Name() string {
+func (a *adapter) Name() fimptype.ResourceNameT {
 	return a.name
 }
 
@@ -96,7 +96,7 @@ func (a *adapter) Address() string {
 }
 
 // Services returns all services from all things that match the provided name. If empty all services are returned.
-func (a *adapter) Services(name string) []Service {
+func (a *adapter) Services(name fimptype.ServiceNameT) []Service {
 	a.lock.RLock()
 	defer a.lock.RUnlock()
 
@@ -338,7 +338,7 @@ func (a *adapter) SendConnectivityReport() error {
 
 	msg := fimpgo.NewObjectMessage(
 		EvtNetworkAllNodesReport,
-		a.name,
+		fimptype.ServiceNameT(a.name),
 		connectivityReports,
 		nil,
 		nil,
@@ -450,7 +450,7 @@ func (a *adapter) sendExclusionReport(address string) error {
 
 	msg := fimpgo.NewObjectMessage(
 		EvtThingExclusionReport,
-		a.name,
+		fimptype.ServiceNameT(a.name),
 		report,
 		nil,
 		nil,

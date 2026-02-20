@@ -179,7 +179,7 @@ func (r *router) processMessage(routing *Routing, msg *fimpgo.Message) {
 func (r *router) handleProcessingPanic(message *fimpgo.Message, panicErr any) {
 	log.WithField("topic", message.Addr.Serialize()).
 		WithField("service", message.Payload.Service).
-		WithField("type", message.Payload.Type).
+		WithField("type", message.Payload.Interface).
 		WithField("stack", string(debug.Stack())).
 		Errorf("message router: panic occurred while processing message: %+v", panicErr)
 

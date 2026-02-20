@@ -7,11 +7,14 @@ import (
 	"time"
 
 	"github.com/futurehomeno/fimpgo"
+	"github.com/futurehomeno/fimpgo/fimptype"
 	"github.com/stretchr/testify/assert"
 
 	"github.com/futurehomeno/cliffhanger/router"
 	"github.com/futurehomeno/cliffhanger/test/suite"
 )
+
+const testServiceName = fimptype.ServiceNameT("test_service")
 
 func Test_Router(t *testing.T) { //nolint:paralleltest
 	panicRouting := router.NewRouting(router.NewMessageHandler(
@@ -19,7 +22,7 @@ func Test_Router(t *testing.T) { //nolint:paralleltest
 			func(message *fimpgo.Message) (reply *fimpgo.FimpMessage, err error) {
 				panic("test panic")
 			})),
-		router.ForService("test_service"),
+		router.ForService(testServiceName),
 	)
 
 	s := &suite.Suite{
@@ -30,9 +33,9 @@ func Test_Router(t *testing.T) { //nolint:paralleltest
 				Nodes: []*suite.Node{
 					{
 						Name:    "Send command raising panic",
-						Command: suite.NullMessage("pt:j1/mt:cmd/rt:app/rn:test/ad:1", "cmd.test.test_command", "test_service"),
+						Command: suite.NullMessage("pt:j1/mt:cmd/rt:app/rn:test/ad:1", "cmd.test.test_command", testServiceName),
 						Expectations: []*suite.Expectation{
-							suite.ExpectString("pt:j1/mt:evt/rt:app/rn:test/ad:1", "evt.test.test_event", "test_service", "test_value").Never(),
+							suite.ExpectString("pt:j1/mt:evt/rt:app/rn:test/ad:1", "evt.test.test_event", testServiceName, "test_value").Never(),
 						},
 						Timeout: 250 * time.Millisecond,
 					},
@@ -61,9 +64,9 @@ func Test_Router_Concurrency(t *testing.T) { //nolint:paralleltest
 
 					receivedCommands = append(receivedCommands, command)
 
-					return fimpgo.NewStringMessage("evt.test.test_event", "test_service", command, nil, nil, message.Payload), nil
+					return fimpgo.NewStringMessage("evt.test.test_event", testServiceName, command, nil, nil, message.Payload), nil
 				}), options...),
-			router.ForService("test_service"),
+			router.ForService(testServiceName),
 			router.ForType(command),
 		)
 	}
@@ -95,17 +98,17 @@ func Test_Router_Concurrency(t *testing.T) { //nolint:paralleltest
 					},
 					{
 						Name:    "Send command 1",
-						Command: suite.NullMessage("pt:j1/mt:cmd/rt:app/rn:test/ad:1", "cmd.test.test_command_1", "test_service"),
+						Command: suite.NullMessage("pt:j1/mt:cmd/rt:app/rn:test/ad:1", "cmd.test.test_command_1", testServiceName),
 					},
 					{
 						Name:    "Send command 2",
-						Command: suite.NullMessage("pt:j1/mt:cmd/rt:app/rn:test/ad:1", "cmd.test.test_command_2", "test_service"),
+						Command: suite.NullMessage("pt:j1/mt:cmd/rt:app/rn:test/ad:1", "cmd.test.test_command_2", testServiceName),
 					},
 					{
 						Name: "Check commands",
 						Expectations: []*suite.Expectation{
-							suite.ExpectString("pt:j1/mt:evt/rt:app/rn:test/ad:1", "evt.test.test_event", "test_service", "cmd.test.test_command_1"),
-							suite.ExpectString("pt:j1/mt:evt/rt:app/rn:test/ad:1", "evt.test.test_event", "test_service", "cmd.test.test_command_2"),
+							suite.ExpectString("pt:j1/mt:evt/rt:app/rn:test/ad:1", "evt.test.test_event", testServiceName, "cmd.test.test_command_1"),
+							suite.ExpectString("pt:j1/mt:evt/rt:app/rn:test/ad:1", "evt.test.test_event", testServiceName, "cmd.test.test_command_2"),
 						},
 					},
 					{
@@ -148,17 +151,17 @@ func Test_Router_Concurrency(t *testing.T) { //nolint:paralleltest
 					},
 					{
 						Name:    "Send command 1",
-						Command: suite.NullMessage("pt:j1/mt:cmd/rt:app/rn:test/ad:1", "cmd.test.test_command_1", "test_service"),
+						Command: suite.NullMessage("pt:j1/mt:cmd/rt:app/rn:test/ad:1", "cmd.test.test_command_1", testServiceName),
 					},
 					{
 						Name:    "Send command 2",
-						Command: suite.NullMessage("pt:j1/mt:cmd/rt:app/rn:test/ad:1", "cmd.test.test_command_2", "test_service"),
+						Command: suite.NullMessage("pt:j1/mt:cmd/rt:app/rn:test/ad:1", "cmd.test.test_command_2", testServiceName),
 					},
 					{
 						Name: "Check commands",
 						Expectations: []*suite.Expectation{
-							suite.ExpectString("pt:j1/mt:evt/rt:app/rn:test/ad:1", "evt.test.test_event", "test_service", "cmd.test.test_command_1"),
-							suite.ExpectString("pt:j1/mt:evt/rt:app/rn:test/ad:1", "evt.test.test_event", "test_service", "cmd.test.test_command_2"),
+							suite.ExpectString("pt:j1/mt:evt/rt:app/rn:test/ad:1", "evt.test.test_event", testServiceName, "cmd.test.test_command_1"),
+							suite.ExpectString("pt:j1/mt:evt/rt:app/rn:test/ad:1", "evt.test.test_event", testServiceName, "cmd.test.test_command_2"),
 						},
 					},
 					{
@@ -200,15 +203,15 @@ func Test_Router_Concurrency(t *testing.T) { //nolint:paralleltest
 					},
 					{
 						Name:    "Send command 1",
-						Command: suite.NullMessage("pt:j1/mt:cmd/rt:app/rn:test/ad:1", "cmd.test.test_command_1", "test_service"),
+						Command: suite.NullMessage("pt:j1/mt:cmd/rt:app/rn:test/ad:1", "cmd.test.test_command_1", testServiceName),
 					},
 					suite.SleepNode(50 * time.Millisecond),
 					{
 						Name:    "Send command 2",
-						Command: suite.NullMessage("pt:j1/mt:cmd/rt:app/rn:test/ad:1", "cmd.test.test_command_2", "test_service"),
+						Command: suite.NullMessage("pt:j1/mt:cmd/rt:app/rn:test/ad:1", "cmd.test.test_command_2", testServiceName),
 						Expectations: []*suite.Expectation{
-							suite.ExpectString("pt:j1/mt:evt/rt:app/rn:test/ad:1", "evt.test.test_event", "test_service", "cmd.test.test_command_1"),
-							suite.ExpectError("pt:j1/mt:evt/rt:app/rn:test/ad:1", "test_service"),
+							suite.ExpectString("pt:j1/mt:evt/rt:app/rn:test/ad:1", "evt.test.test_event", testServiceName, "cmd.test.test_command_1"),
+							suite.ExpectError("pt:j1/mt:evt/rt:app/rn:test/ad:1", testServiceName),
 						},
 					},
 					{
@@ -238,7 +241,7 @@ func Test_Router_OptionalSuccessConfirmation(t *testing.T) { //nolint:parallelte
 			func(*fimpgo.Message) (*fimpgo.FimpMessage, error) {
 				return message, err
 			}), router.WithSuccessConfirmation()),
-			router.ForService("test_service"),
+			router.ForService(testServiceName),
 			router.ForType(messageType),
 		)
 	}
@@ -248,7 +251,7 @@ func Test_Router_OptionalSuccessConfirmation(t *testing.T) { //nolint:parallelte
 			func(*fimpgo.Message) (*fimpgo.FimpMessage, error) {
 				return message, err
 			})),
-			router.ForService("test_service"),
+			router.ForService(testServiceName),
 			router.ForType(messageType),
 		)
 	}
@@ -261,33 +264,33 @@ func Test_Router_OptionalSuccessConfirmation(t *testing.T) { //nolint:parallelte
 				Name: "Test optional success confirmation on routing",
 				Routing: []*router.Routing{
 					successConfirmationRouting("cmd.test.confirm1", nil, nil),
-					successConfirmationRouting("cmd.test.confirm2", fimpgo.NewStringMessage("evt.test.test_event", "test_service", "test", nil, nil, nil), nil),
+					successConfirmationRouting("cmd.test.confirm2", fimpgo.NewStringMessage("evt.test.test_event", testServiceName, "test", nil, nil, nil), nil),
 					successConfirmationRouting("cmd.test.confirm3", nil, errors.New("oops")),
 				},
 				Nodes: []*suite.Node{
 					{
 						Name:    "Message processor returns nil - send success confirmation",
-						Command: suite.NullMessage("pt:j1/mt:cmd/rt:app/rn:test/ad:1", "cmd.test.confirm1", "test_service"),
+						Command: suite.NullMessage("pt:j1/mt:cmd/rt:app/rn:test/ad:1", "cmd.test.confirm1", testServiceName),
 						Expectations: []*suite.Expectation{
-							suite.ExpectNull("pt:j1/mt:evt/rt:app/rn:test/ad:1", "evt.success.report", "test_service").ExactlyOnce(),
+							suite.ExpectNull("pt:j1/mt:evt/rt:app/rn:test/ad:1", "evt.success.report", testServiceName).ExactlyOnce(),
 						},
 						Timeout: timeout,
 					},
 					{
 						Name:    "Message processor returns a message - do not send success confirmation",
-						Command: suite.NullMessage("pt:j1/mt:cmd/rt:app/rn:test/ad:1", "cmd.test.confirm2", "test_service"),
+						Command: suite.NullMessage("pt:j1/mt:cmd/rt:app/rn:test/ad:1", "cmd.test.confirm2", testServiceName),
 						Expectations: []*suite.Expectation{
-							suite.ExpectNull("pt:j1/mt:evt/rt:app/rn:test/ad:1", "evt.success.report", "test_service").Never(),
-							suite.ExpectString("pt:j1/mt:evt/rt:app/rn:test/ad:1", "evt.test.test_event", "test_service", "test").ExactlyOnce(),
+							suite.ExpectNull("pt:j1/mt:evt/rt:app/rn:test/ad:1", "evt.success.report", testServiceName).Never(),
+							suite.ExpectString("pt:j1/mt:evt/rt:app/rn:test/ad:1", "evt.test.test_event", testServiceName, "test").ExactlyOnce(),
 						},
 						Timeout: timeout,
 					},
 					{
 						Name:    "Error returned by processor cannot trigger success confirmation",
-						Command: suite.NullMessage("pt:j1/mt:cmd/rt:app/rn:test/ad:1", "cmd.test.confirm3", "test_service"),
+						Command: suite.NullMessage("pt:j1/mt:cmd/rt:app/rn:test/ad:1", "cmd.test.confirm3", testServiceName),
 						Expectations: []*suite.Expectation{
-							suite.ExpectNull("pt:j1/mt:evt/rt:app/rn:test/ad:1", "evt.success.report", "test_service").Never(),
-							suite.ExpectError("pt:j1/mt:evt/rt:app/rn:test/ad:1", "test_service").ExactlyOnce(),
+							suite.ExpectNull("pt:j1/mt:evt/rt:app/rn:test/ad:1", "evt.success.report", testServiceName).Never(),
+							suite.ExpectError("pt:j1/mt:evt/rt:app/rn:test/ad:1", testServiceName).ExactlyOnce(),
 						},
 						Timeout: timeout,
 					},
@@ -297,33 +300,33 @@ func Test_Router_OptionalSuccessConfirmation(t *testing.T) { //nolint:parallelte
 				Name: "Test cases success confirmation on routing is not enabled",
 				Routing: []*router.Routing{
 					noConfirmationRouting("cmd.test.do_not_confirm1", nil, nil),
-					noConfirmationRouting("cmd.test.do_not_confirm2", fimpgo.NewStringMessage("evt.test.test_event", "test_service", "test", nil, nil, nil), nil),
+					noConfirmationRouting("cmd.test.do_not_confirm2", fimpgo.NewStringMessage("evt.test.test_event", testServiceName, "test", nil, nil, nil), nil),
 					noConfirmationRouting("cmd.test.do_not_confirm3", nil, errors.New("oops")),
 				},
 				Nodes: []*suite.Node{
 					{
 						Name:    "Message processor returns nil - do not send success confirmation",
-						Command: suite.NullMessage("pt:j1/mt:cmd/rt:app/rn:test/ad:1", "cmd.test.do_not_confirm1", "test_service"),
+						Command: suite.NullMessage("pt:j1/mt:cmd/rt:app/rn:test/ad:1", "cmd.test.do_not_confirm1", testServiceName),
 						Expectations: []*suite.Expectation{
-							suite.ExpectNull("pt:j1/mt:evt/rt:app/rn:test/ad:1", "evt.success.report", "test_service").Never(),
+							suite.ExpectNull("pt:j1/mt:evt/rt:app/rn:test/ad:1", "evt.success.report", testServiceName).Never(),
 						},
 						Timeout: timeout,
 					},
 					{
 						Name:    "Message processor returns a message - do not send success confirmation",
-						Command: suite.NullMessage("pt:j1/mt:cmd/rt:app/rn:test/ad:1", "cmd.test.do_not_confirm2", "test_service"),
+						Command: suite.NullMessage("pt:j1/mt:cmd/rt:app/rn:test/ad:1", "cmd.test.do_not_confirm2", testServiceName),
 						Expectations: []*suite.Expectation{
-							suite.ExpectNull("pt:j1/mt:evt/rt:app/rn:test/ad:1", "evt.success.report", "test_service").Never(),
-							suite.ExpectString("pt:j1/mt:evt/rt:app/rn:test/ad:1", "evt.test.test_event", "test_service", "test").ExactlyOnce(),
+							suite.ExpectNull("pt:j1/mt:evt/rt:app/rn:test/ad:1", "evt.success.report", testServiceName).Never(),
+							suite.ExpectString("pt:j1/mt:evt/rt:app/rn:test/ad:1", "evt.test.test_event", testServiceName, "test").ExactlyOnce(),
 						},
 						Timeout: timeout,
 					},
 					{
 						Name:    "Error returned by processor cannot trigger success confirmation",
-						Command: suite.NullMessage("pt:j1/mt:cmd/rt:app/rn:test/ad:1", "cmd.test.do_not_confirm3", "test_service"),
+						Command: suite.NullMessage("pt:j1/mt:cmd/rt:app/rn:test/ad:1", "cmd.test.do_not_confirm3", testServiceName),
 						Expectations: []*suite.Expectation{
-							suite.ExpectNull("pt:j1/mt:evt/rt:app/rn:test/ad:1", "evt.success.report", "test_service").Never(),
-							suite.ExpectError("pt:j1/mt:evt/rt:app/rn:test/ad:1", "test_service").ExactlyOnce(),
+							suite.ExpectNull("pt:j1/mt:evt/rt:app/rn:test/ad:1", "evt.success.report", testServiceName).Never(),
+							suite.ExpectError("pt:j1/mt:evt/rt:app/rn:test/ad:1", testServiceName).ExactlyOnce(),
 						},
 						Timeout: timeout,
 					},
@@ -342,8 +345,8 @@ func Test_Router_PanicCallback(t *testing.T) { //nolint:paralleltest
 		panicCallbackCalled = true
 
 		assert.Equal(t, "oops", err)
-		assert.Equal(t, "cmd.test.test_command", msg.Payload.Type)
-		assert.Equal(t, "test_service", msg.Payload.Service)
+		assert.Equal(t, "cmd.test.test_command", msg.Payload.Interface)
+		assert.Equal(t, testServiceName, msg.Payload.Service)
 	}
 
 	tearDownFn := func(t *testing.T) {
@@ -363,7 +366,7 @@ func Test_Router_PanicCallback(t *testing.T) { //nolint:paralleltest
 							func(message *fimpgo.Message) (reply *fimpgo.FimpMessage, err error) {
 								panic("oops")
 							})),
-						router.ForService("test_service"),
+						router.ForService(testServiceName),
 					),
 				},
 				RouterOptions: []router.Option{
@@ -372,7 +375,7 @@ func Test_Router_PanicCallback(t *testing.T) { //nolint:paralleltest
 				Nodes: []*suite.Node{
 					{
 						Name:    "send a command raising panic",
-						Command: suite.NullMessage("pt:j1/mt:cmd/rt:app/rn:test/ad:1", "cmd.test.test_command", "test_service"),
+						Command: suite.NullMessage("pt:j1/mt:cmd/rt:app/rn:test/ad:1", "cmd.test.test_command", testServiceName),
 						Timeout: -1,
 					},
 					suite.SleepNode(50 * time.Millisecond),
@@ -398,7 +401,7 @@ func Test_Router_PanicCallback(t *testing.T) { //nolint:paralleltest
 							func(message *fimpgo.Message) (reply *fimpgo.FimpMessage, err error) {
 								return nil, nil
 							})),
-						router.ForService("test_service"),
+						router.ForService(testServiceName),
 					),
 				},
 				RouterOptions: []router.Option{
@@ -407,7 +410,7 @@ func Test_Router_PanicCallback(t *testing.T) { //nolint:paralleltest
 				Nodes: []*suite.Node{
 					{
 						Name:    "send a command not raising panic",
-						Command: suite.NullMessage("pt:j1/mt:cmd/rt:app/rn:test/ad:1", "cmd.test.test_command", "test_service"),
+						Command: suite.NullMessage("pt:j1/mt:cmd/rt:app/rn:test/ad:1", "cmd.test.test_command", testServiceName),
 						Timeout: -1,
 					},
 					suite.SleepNode(50 * time.Millisecond),
@@ -444,7 +447,7 @@ func Test_Router_StatsCallback(t *testing.T) { //nolint:paralleltest
 							func(message *fimpgo.Message) (reply *fimpgo.FimpMessage, err error) {
 								return nil, nil
 							})),
-						router.ForService("test_service"),
+						router.ForService(testServiceName),
 						router.ForType("cmd.test.test_command"),
 					),
 				},
@@ -454,7 +457,7 @@ func Test_Router_StatsCallback(t *testing.T) { //nolint:paralleltest
 				Nodes: []*suite.Node{
 					{
 						Name:    "send a command that should be processed",
-						Command: suite.NullMessage("pt:j1/mt:cmd/rt:app/rn:test/ad:1", "cmd.test.test_command", "test_service"),
+						Command: suite.NullMessage("pt:j1/mt:cmd/rt:app/rn:test/ad:1", "cmd.test.test_command", testServiceName),
 						Timeout: -1,
 					},
 					suite.SleepNode(50 * time.Millisecond),
@@ -469,8 +472,8 @@ func Test_Router_StatsCallback(t *testing.T) { //nolint:paralleltest
 
 								stats := helper.getStats()
 
-								assert.Equal(t, "cmd.test.test_command", stats.InputMessage.Payload.Type)
-								assert.Equal(t, "test_service", stats.InputMessage.Payload.Service)
+								assert.Equal(t, "cmd.test.test_command", stats.InputMessage.Payload.Interface)
+								assert.Equal(t, testServiceName, stats.InputMessage.Payload.Service)
 								assert.Nil(t, stats.OutputMessage)
 								assert.Greater(t, stats.ProcessingDuration, time.Duration(0))
 							},
@@ -485,9 +488,9 @@ func Test_Router_StatsCallback(t *testing.T) { //nolint:paralleltest
 					router.NewRouting(router.NewMessageHandler(
 						router.MessageProcessorFn(
 							func(message *fimpgo.Message) (reply *fimpgo.FimpMessage, err error) {
-								return fimpgo.NewStringMessage("evt.test.test_response", "test_service", "test", nil, nil, nil), nil
+								return fimpgo.NewStringMessage("evt.test.test_response", testServiceName, "test", nil, nil, nil), nil
 							})),
-						router.ForService("test_service"),
+						router.ForService(testServiceName),
 						router.ForType("cmd.test.test_command"),
 					),
 				},
@@ -497,7 +500,7 @@ func Test_Router_StatsCallback(t *testing.T) { //nolint:paralleltest
 				Nodes: []*suite.Node{
 					{
 						Name:    "send a command that should be processed",
-						Command: suite.NullMessage("pt:j1/mt:cmd/rt:app/rn:test/ad:1", "cmd.test.test_command", "test_service"),
+						Command: suite.NullMessage("pt:j1/mt:cmd/rt:app/rn:test/ad:1", "cmd.test.test_command", testServiceName),
 						Timeout: -1,
 					},
 					suite.SleepNode(50 * time.Millisecond),
@@ -512,10 +515,10 @@ func Test_Router_StatsCallback(t *testing.T) { //nolint:paralleltest
 
 								stats := helper.getStats()
 
-								assert.Equal(t, "cmd.test.test_command", stats.InputMessage.Payload.Type)
-								assert.Equal(t, "test_service", stats.InputMessage.Payload.Service)
-								assert.Equal(t, "evt.test.test_response", stats.OutputMessage.Payload.Type)
-								assert.Equal(t, "test_service", stats.OutputMessage.Payload.Service)
+								assert.Equal(t, "cmd.test.test_command", stats.InputMessage.Payload.Interface)
+								assert.Equal(t, testServiceName, stats.InputMessage.Payload.Service)
+								assert.Equal(t, "evt.test.test_response", stats.OutputMessage.Payload.Interface)
+								assert.Equal(t, testServiceName, stats.OutputMessage.Payload.Service)
 								assert.Equal(t, "test", stats.OutputMessage.Payload.Value)
 								assert.Greater(t, stats.ProcessingDuration, time.Duration(0))
 							},
@@ -532,7 +535,7 @@ func Test_Router_StatsCallback(t *testing.T) { //nolint:paralleltest
 							func(message *fimpgo.Message) (reply *fimpgo.FimpMessage, err error) {
 								panic("oops")
 							})),
-						router.ForService("test_service"),
+						router.ForService(testServiceName),
 						router.ForType("cmd.test.test_command"),
 					),
 				},
@@ -542,7 +545,7 @@ func Test_Router_StatsCallback(t *testing.T) { //nolint:paralleltest
 				Nodes: []*suite.Node{
 					{
 						Name:    "send a command that should be processed",
-						Command: suite.NullMessage("pt:j1/mt:cmd/rt:app/rn:test/ad:1", "cmd.test.test_command", "test_service"),
+						Command: suite.NullMessage("pt:j1/mt:cmd/rt:app/rn:test/ad:1", "cmd.test.test_command", testServiceName),
 						Timeout: -1,
 					},
 					suite.SleepNode(50 * time.Millisecond),

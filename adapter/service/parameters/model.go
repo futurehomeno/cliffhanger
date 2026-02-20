@@ -122,7 +122,7 @@ func (s *ParameterSpecification) validateSelect(p *Parameter) error {
 			return err
 		}
 
-		if !contains[int](s.Options.IntValues(), v) {
+		if !contains(s.Options.IntValues(), v) {
 			return fmt.Errorf("parameter value '%d' is not allowed", v)
 		}
 	case ValueTypeString:
@@ -147,7 +147,7 @@ func (s *ParameterSpecification) validateMultiSelect(p *Parameter) error {
 			return err
 		}
 
-		if !includes[int](s.Options.IntValues(), v) {
+		if !includes(s.Options.IntValues(), v) {
 			return fmt.Errorf("parameter value '%d' is not allowed", v)
 		}
 	case ValueTypeStringArray:
@@ -156,7 +156,7 @@ func (s *ParameterSpecification) validateMultiSelect(p *Parameter) error {
 			return err
 		}
 
-		if !includes[string](s.Options.StringValues(), v) {
+		if !includes(s.Options.StringValues(), v) {
 			return fmt.Errorf("parameter value '%s' is not allowed", v)
 		}
 	}
