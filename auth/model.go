@@ -6,16 +6,16 @@ import (
 
 // OAuth2TokenResponse is an object representing credentials for the app to log into a third-party service.
 type OAuth2TokenResponse struct {
-	AccessToken  string      `json:"access_token"`
+	AccessToken  string      `json:"access_token"` //nolint:gosec
 	TokenType    string      `json:"token_type"`
 	ExpiresIn    int64       `json:"expires_in"`
-	RefreshToken string      `json:"refresh_token"`
+	RefreshToken string      `json:"refresh_token"` //nolint:gosec
 	Scope        interface{} `json:"scope"`
 }
 
 // OAuth2RefreshProxyRequest is an object representing request to partners API to exchange refresh token for access token.
 type OAuth2RefreshProxyRequest struct {
-	RefreshToken string `json:"refreshToken"`
+	RefreshToken string `json:"refreshToken"` //nolint:gosec
 	PartnerCode  string `json:"partnerCode"`
 }
 
@@ -29,7 +29,7 @@ type OAuth2AuthCodeProxyRequest struct {
 type OAuth2PasswordProxyRequest struct {
 	PartnerCode string `json:"partnerCode"`
 	Username    string `json:"username"`
-	Password    string `json:"password"`
+	Password    string `json:"password"` //nolint:gosec
 }
 
 // ProxyURL is a helper method returning proxy url for the given environment.

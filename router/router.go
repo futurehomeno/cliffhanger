@@ -120,7 +120,6 @@ func (r *router) routeMessages(messageCh fimpgo.MessageCh) {
 // processMessage allows a routing to process the incoming message.
 func (r *router) processMessage(routing *Routing, msg *fimpgo.Message) error {
 	defer func() {
-
 		if rc := recover(); rc != nil {
 			debugMsg := fmt.Sprintf("\ntopic=%s\nservice=%v\ntype=%v\nvalue=%v",
 				msg.Addr.Serialize(), msg.Payload.Service, msg.Payload.Type, msg.Payload.Value)

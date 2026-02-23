@@ -139,7 +139,7 @@ func (r *Router) shouldWaitUntilTimeout() bool {
 func (r *Router) failedExpectationsMessage() string {
 	var sb strings.Builder
 
-	sb.WriteString("Test router: some expectations have not been met:\n")
+	fmt.Fprintf(&sb, "Test router: some expectations have not been met:\n")
 
 	r.mu.RLock()
 	defer r.mu.RUnlock()
@@ -149,8 +149,8 @@ func (r *Router) failedExpectationsMessage() string {
 			continue
 		}
 
-		sb.WriteString("---------------------------------------------------------------------------\n")
-		sb.WriteString(fmt.Sprintf("Expectation #%d, occurrence: %s, called times: %d\n", i, e.Occurrence, e.called))
+		fmt.Fprintf(&sb, "---------------------------------------------------------------------------\n")
+		fmt.Fprintf(&sb, "\texpectation #%d\n\toccurrence %s\n\tcalled times: %d\n", i, e.Occurrence, e.called)
 
 		r.registryMu.RLock()
 		bucket, ok := r.messageRegistry[e]
@@ -160,31 +160,26 @@ func (r *Router) failedExpectationsMessage() string {
 			continue
 		}
 
-		sb.WriteString("\nThe closest messages I have are:\n")
+		fmt.Fprintf(&sb, "\nThe closest messages I have are:\n")
 
 		for _, m := range bucket.messages {
-			sb.WriteString(fmt.Sprintf("\nTopic: %s\n", getMessageTopic(r.t, m)))
+			fmt.Fprintf(&sb, "\nTopic: %s\n", getMessageTopic(r.t, m))
 
 			b, err := m.Payload.SerializeToJson()
 			if err != nil {
-				sb.WriteString(fmt.Sprintf("The message could not be serialized to JSON: %s\n", err))
-
+				fmt.Fprintf(&sb, "The message could not be serialized to JSON: %s\n", err)
 				continue
 			}
 
 			var buf bytes.Buffer
 			if err = json.Indent(&buf, b, "", "  "); err != nil {
-				sb.WriteString(fmt.Sprintf("The message could not be indented: %s\n", err))
-
+				fmt.Fprintf(&sb, "The message could not be indented: %v\n", err)
 				continue
 			}
 
-			sb.Write(buf.Bytes())
-			sb.WriteString("\n")
+			fmt.Fprint(&sb, buf.String()+"\n")
 		}
 	}
-
-	sb.WriteString("\n")
 
 	return sb.String()
 }

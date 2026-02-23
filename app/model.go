@@ -28,6 +28,6 @@ type AuthenticationReport struct {
 // LoginCredentials is an object representing credentials for the app to log into a third-party service.
 type LoginCredentials struct {
 	Username  string `json:"username"`
-	Password  string `json:"password"`
+	Password  string `json:"password"` //nolint:gosec
 	Encrypted bool   `json:"encrypted"`
 }

@@ -77,23 +77,12 @@ func (c *proxyClient) ExchangeRefreshToken(refreshToken string) (*OAuth2TokenRes
 
 // getToken retrieves token from Partners API.
 func (c *proxyClient) getToken(request interface{}, url string) (*OAuth2TokenResponse, error) {
-	requestData, err := json.Marshal(request)
-	if err != nil {
-		return nil, err
-	}
-
-	r, err := http.NewRequestWithContext(context.Background(), http.MethodPost, url, bytes.NewBuffer(requestData))
-	if err != nil {
-		return nil, fmt.Errorf("proxy proxyClient: failed to create request: %w", err)
-	}
-
-	r.Header.Add("Content-Type", "application/json")
-	r.Header.Add("Authorization", "Bearer "+c.cfg.Token)
+	var err error
 
 	for i := 0; i <= c.cfg.Retry; i++ {
 		var response *OAuth2TokenResponse
 
-		response, err = c.requestToken(r)
+		response, err = c.requestToken(request, url)
 		if err == nil {
 			return response, nil
 		}
@@ -109,8 +98,21 @@ func (c *proxyClient) getToken(request interface{}, url string) (*OAuth2TokenRes
 }
 
 // requestToken requests token from Partners API.
-func (c *proxyClient) requestToken(r *http.Request) (*OAuth2TokenResponse, error) {
-	response, err := c.client.Do(r)
+func (c *proxyClient) requestToken(request any, url string) (*OAuth2TokenResponse, error) {
+	requestData, err := json.Marshal(request)
+	if err != nil {
+		return nil, err
+	}
+
+	r, err := http.NewRequestWithContext(context.Background(), http.MethodPost, url, bytes.NewBuffer(requestData))
+	if err != nil {
+		return nil, fmt.Errorf("proxy proxyClient: failed to create request: %w", err)
+	}
+
+	r.Header.Add("Content-Type", "application/json")
+	r.Header.Add("Authorization", "Bearer "+c.cfg.Token)
+
+	response, err := c.client.Do(r) //nolint:gosec
 	if err != nil {
 		return nil, fmt.Errorf("proxy proxyClient: failed to retrieve token from partner API due to an error: %w", err)
 	}
