@@ -2,7 +2,6 @@ package monitor
 
 import (
 	"errors"
-	"runtime/debug"
 	"sync"
 	"time"
 
@@ -10,6 +9,7 @@ import (
 	log "github.com/sirupsen/logrus"
 
 	"github.com/futurehomeno/cliffhanger/root"
+	"github.com/futurehomeno/cliffhanger/utils"
 )
 
 // DiskSpace represents a disk space monitor.
@@ -94,14 +94,7 @@ func (d *diskSpace) Stop() error {
 
 func (d *diskSpace) run() {
 	defer d.waitGroup.Done()
-
-	defer func() {
-		if r := recover(); r != nil {
-			log.Error(string(debug.Stack()))
-			log.Error(r)
-			panic(r)
-		}
-	}()
+	defer utils.PrintStackOnRecover(false, "run")
 
 	ticker := time.NewTicker(d.interval)
 	defer ticker.Stop()

@@ -32,7 +32,7 @@ jobs:
       - name: Run golangci-lint
         uses: golangci/golangci-lint-action@v7
         with:
-          version: v2.9.0
+          version: v2.10.1
           working-directory: .
           args: --skip-dirs=test --skip-dirs=testdata
       - name: Run staticcheck
@@ -40,7 +40,6 @@ jobs:
           go install honnef.co/go/tools/cmd/staticcheck@latest
           staticcheck $(go list ./... | grep -v /test)
         
-
   test:
     if: github.event_name == 'pull_request' || startsWith(github.ref, 'refs/tags/v') || (github.event_name == 'push' && github.ref == 'refs/heads/main')
     runs-on: ubuntu-latest
@@ -86,7 +85,7 @@ jobs:
         docker logs mosquitto
         exit 1
 
-    - name: Install mockery (v2, Go 1.26 compatible)
+    - name: Install mockery
       run: |
         go install github.com/vektra/mockery/v2@v2.53.5
         echo "$HOME/go/bin" >> $GITHUB_PATH

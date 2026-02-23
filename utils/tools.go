@@ -2,7 +2,11 @@ package utils
 
 import (
 	"regexp"
+	"runtime/debug"
 	"strings"
+	"time"
+
+	log "github.com/sirupsen/logrus"
 )
 
 func FilterGoroutinesByKeywords(input string, keywords []string) string {
@@ -58,4 +62,20 @@ func FilterGoroutinesByKeywords(input string, keywords []string) string {
 	}
 
 	return strings.Join(out, "\n")
+}
+
+func PrintStackOnRecover(reboot bool, msg string) {
+	if r := recover(); r != nil {
+		if msg != "" {
+			log.Error(r)
+		}
+		log.Error(string(debug.Stack()))
+
+		if reboot {
+			time.Sleep(10 * time.Second)
+			panic(r)
+		} else {
+			log.Error(r)
+		}
+	}
 }

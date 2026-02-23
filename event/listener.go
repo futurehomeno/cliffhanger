@@ -2,9 +2,9 @@ package event
 
 import (
 	"fmt"
-	"runtime/debug"
 	"sync"
 
+	"github.com/futurehomeno/cliffhanger/utils"
 	log "github.com/sirupsen/logrus"
 )
 
@@ -84,13 +84,7 @@ func (l *listener) Start() error {
 func (l *listener) startHandler(h *Handler) {
 	defer l.waitGroup.Done()
 
-	defer func() {
-		if r := recover(); r != nil {
-			log.Error(string(debug.Stack()))
-			log.Error(r)
-			panic(r)
-		}
-	}()
+	defer utils.PrintStackOnRecover(true, "startHandler")
 
 	for {
 		select {
@@ -105,15 +99,7 @@ func (l *listener) startHandler(h *Handler) {
 
 // doProcess executes the event processor with a panic recovery.
 func (l *listener) doProcess(processor Processor, event Event) {
-	defer func() {
-		if r := recover(); r != nil {
-			log.WithField("stack", string(debug.Stack())).
-				WithField("domain", event.Domain()).
-				WithField("class", event.Class()).
-				Errorf("event listener: panic occurred while processing the event: %+v", r)
-		}
-	}()
-
+	defer utils.PrintStackOnRecover(false, fmt.Sprintf("event: %+v", event))
 	processor.Process(event)
 }
 

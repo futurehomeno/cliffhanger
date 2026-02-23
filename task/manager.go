@@ -2,19 +2,17 @@ package task
 
 import (
 	"errors"
-	"runtime/debug"
 	"sync"
 	"time"
 
+	"github.com/futurehomeno/cliffhanger/utils"
 	log "github.com/sirupsen/logrus"
 )
 
 // Manager is an interface representing a tasks manager service.
 type Manager interface {
-	// Start starts the manager and all its tasks.
-	Start() error
-	// Stop stops the manager and all its tasks.
-	Stop() error
+	Start() error // Start starts the manager and all its tasks.
+	Stop() error  // Stop stops the manager and all its tasks.
 }
 
 // manager is the implementation of the task manager interface.
@@ -40,7 +38,7 @@ func (r *manager) Start() error {
 	defer r.lock.Unlock()
 
 	if r.stopCh != nil {
-		return errors.New("task manager: cannot be started as it is already running")
+		return errors.New("task already running")
 	}
 
 	r.stopCh = make(chan struct{})
@@ -48,13 +46,12 @@ func (r *manager) Start() error {
 	r.wg.Add(len(r.tasks))
 
 	for _, task := range r.tasks {
-		if task.duration == 0 {
-			go r.runOnce(task)
-
+		if task.interval == 0 {
+			go runOnce(task, r.wg)
 			continue
 		}
 
-		go r.runContinuously(task)
+		go runPeriodically(task, r.stopCh, r.wg)
 	}
 
 	return nil
@@ -66,7 +63,7 @@ func (r *manager) Stop() error {
 	defer r.lock.Unlock()
 
 	if r.stopCh == nil {
-		return errors.New("task manager: cannot be stopped as it is already not running")
+		return errors.New("task not running")
 	}
 
 	close(r.stopCh)
@@ -78,22 +75,15 @@ func (r *manager) Stop() error {
 }
 
 // runOnce runs the task once if it's running interval is set to 0.
-func (r *manager) runOnce(task *Task) {
+func runOnce(task *Task, wg *sync.WaitGroup) {
 	run(task)
-	r.wg.Done()
+	wg.Done()
 }
 
-// runContinuously runs the task according to the provided interval.
-func (m *manager) runContinuously(task *Task) {
-	defer func() {
-		if r := recover(); r != nil {
-			log.Error(string(debug.Stack()))
-			log.Error(r)
-			panic(r)
-		}
-	}()
-
-	ticker := time.NewTicker(task.duration)
+// runPeriodically runs the task according to the provided interval.
+func runPeriodically(task *Task, stopC chan struct{}, wg *sync.WaitGroup) {
+	defer utils.PrintStackOnRecover(true, "runPeriodically")
+	ticker := time.NewTicker(task.interval)
 	defer ticker.Stop()
 
 	run(task)
@@ -103,8 +93,8 @@ func (m *manager) runContinuously(task *Task) {
 		case <-ticker.C:
 			run(task)
 
-		case <-m.stopCh:
-			m.wg.Done()
+		case <-stopC:
+			wg.Done()
 			return
 		}
 	}
@@ -112,12 +102,7 @@ func (m *manager) runContinuously(task *Task) {
 
 // run executes the task with a panic recovery.
 func run(task *Task) {
-	defer func() {
-		if r := recover(); r != nil {
-			log.WithField("stack", string(debug.Stack())).
-				Errorf("task manager: panic occurred while running a task: %+v", r)
-		}
-	}()
+	defer utils.PrintStackOnRecover(false, "task")
 
 	if task == nil {
 		log.Error("[cliff] Task is nil")

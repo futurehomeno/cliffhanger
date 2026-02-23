@@ -4,11 +4,11 @@ import (
 	"time"
 )
 
-// New creates new task. If duration is set to 0 the task will run only once on startup.
-func New(handler func(), duration time.Duration, voters ...Voter) *Task {
+// New creates new task. If interval is set to 0 the task will run only once on startup.
+func New(handler func(), interval time.Duration, voters ...Voter) *Task {
 	return &Task{
 		handler:  handler,
-		duration: duration,
+		interval: interval,
 		voters:   voters,
 	}
 }
@@ -16,7 +16,7 @@ func New(handler func(), duration time.Duration, voters ...Voter) *Task {
 // Task is an object representing a task including its running interval and condition voters for being executed.
 type Task struct {
 	handler  func()
-	duration time.Duration
+	interval time.Duration
 	voters   []Voter
 }
 

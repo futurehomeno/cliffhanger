@@ -4,7 +4,6 @@ import (
 	"fmt"
 	"os"
 	"os/signal"
-	"runtime/debug"
 	"runtime/pprof"
 	"strings"
 	"sync"
@@ -120,13 +119,7 @@ func (a *app) Run() error {
 	defer signal.Stop(signals)
 
 	go func() {
-		defer func() {
-			if r := recover(); r != nil {
-				log.Error(string(debug.Stack()))
-				log.Error(r)
-				panic(r)
-			}
-		}()
+		defer utils.PrintStackOnRecover(true, "Run")
 
 		<-signals
 		s := strings.Builder{}
