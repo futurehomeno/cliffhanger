@@ -23,7 +23,7 @@ func Specification(
 		Name:    VirtualMeterElec,
 		Groups:  groups,
 		Enabled: true,
-		Props: map[string]interface{}{
+		Props: map[string]any{
 			PropertySupportedUnits: supportedUnits,
 			PropertySupportedModes: supportedModes,
 		},

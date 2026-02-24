@@ -80,7 +80,7 @@ type Service_PublishEvent_Call struct {
 
 // PublishEvent is a helper method to define mock.On call
 //   - event adapter.ServiceEvent
-func (_e *Service_Expecter) PublishEvent(event interface{}) *Service_PublishEvent_Call {
+func (_e *Service_Expecter) PublishEvent(event any) *Service_PublishEvent_Call {
 	return &Service_PublishEvent_Call{Call: _e.mock.On("PublishEvent", event)}
 }
 
@@ -126,7 +126,7 @@ type Service_SendMessage_Call struct {
 
 // SendMessage is a helper method to define mock.On call
 //   - message *fimpgo.FimpMessage
-func (_e *Service_Expecter) SendMessage(message interface{}) *Service_SendMessage_Call {
+func (_e *Service_Expecter) SendMessage(message any) *Service_SendMessage_Call {
 	return &Service_SendMessage_Call{Call: _e.mock.On("SendMessage", message)}
 }
 
@@ -183,7 +183,7 @@ type Service_SendParameterReport_Call struct {
 // SendParameterReport is a helper method to define mock.On call
 //   - id string
 //   - force bool
-func (_e *Service_Expecter) SendParameterReport(id interface{}, force interface{}) *Service_SendParameterReport_Call {
+func (_e *Service_Expecter) SendParameterReport(id any, force any) *Service_SendParameterReport_Call {
 	return &Service_SendParameterReport_Call{Call: _e.mock.On("SendParameterReport", id, force)}
 }
 
@@ -239,7 +239,7 @@ type Service_SendSupportedParamsReport_Call struct {
 
 // SendSupportedParamsReport is a helper method to define mock.On call
 //   - force bool
-func (_e *Service_Expecter) SendSupportedParamsReport(force interface{}) *Service_SendSupportedParamsReport_Call {
+func (_e *Service_Expecter) SendSupportedParamsReport(force any) *Service_SendSupportedParamsReport_Call {
 	return &Service_SendSupportedParamsReport_Call{Call: _e.mock.On("SendSupportedParamsReport", force)}
 }
 
@@ -285,7 +285,7 @@ type Service_SetParameter_Call struct {
 
 // SetParameter is a helper method to define mock.On call
 //   - p *parameters.Parameter
-func (_e *Service_Expecter) SetParameter(p interface{}) *Service_SetParameter_Call {
+func (_e *Service_Expecter) SetParameter(p any) *Service_SetParameter_Call {
 	return &Service_SetParameter_Call{Call: _e.mock.On("SetParameter", p)}
 }
 

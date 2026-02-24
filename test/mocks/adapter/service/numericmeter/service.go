@@ -80,7 +80,7 @@ type Service_PublishEvent_Call struct {
 
 // PublishEvent is a helper method to define mock.On call
 //   - event adapter.ServiceEvent
-func (_e *Service_Expecter) PublishEvent(event interface{}) *Service_PublishEvent_Call {
+func (_e *Service_Expecter) PublishEvent(event any) *Service_PublishEvent_Call {
 	return &Service_PublishEvent_Call{Call: _e.mock.On("PublishEvent", event)}
 }
 
@@ -171,7 +171,7 @@ type Service_SendMessage_Call struct {
 
 // SendMessage is a helper method to define mock.On call
 //   - message *fimpgo.FimpMessage
-func (_e *Service_Expecter) SendMessage(message interface{}) *Service_SendMessage_Call {
+func (_e *Service_Expecter) SendMessage(message any) *Service_SendMessage_Call {
 	return &Service_SendMessage_Call{Call: _e.mock.On("SendMessage", message)}
 }
 
@@ -228,7 +228,7 @@ type Service_SendMeterExportReport_Call struct {
 // SendMeterExportReport is a helper method to define mock.On call
 //   - unit numericmeter.Unit
 //   - force bool
-func (_e *Service_Expecter) SendMeterExportReport(unit interface{}, force interface{}) *Service_SendMeterExportReport_Call {
+func (_e *Service_Expecter) SendMeterExportReport(unit any, force any) *Service_SendMeterExportReport_Call {
 	return &Service_SendMeterExportReport_Call{Call: _e.mock.On("SendMeterExportReport", unit, force)}
 }
 
@@ -285,7 +285,7 @@ type Service_SendMeterExtendedReport_Call struct {
 // SendMeterExtendedReport is a helper method to define mock.On call
 //   - values numericmeter.Values
 //   - force bool
-func (_e *Service_Expecter) SendMeterExtendedReport(values interface{}, force interface{}) *Service_SendMeterExtendedReport_Call {
+func (_e *Service_Expecter) SendMeterExtendedReport(values any, force any) *Service_SendMeterExtendedReport_Call {
 	return &Service_SendMeterExtendedReport_Call{Call: _e.mock.On("SendMeterExtendedReport", values, force)}
 }
 
@@ -342,7 +342,7 @@ type Service_SendMeterReport_Call struct {
 // SendMeterReport is a helper method to define mock.On call
 //   - unit numericmeter.Unit
 //   - force bool
-func (_e *Service_Expecter) SendMeterReport(unit interface{}, force interface{}) *Service_SendMeterReport_Call {
+func (_e *Service_Expecter) SendMeterReport(unit any, force any) *Service_SendMeterReport_Call {
 	return &Service_SendMeterReport_Call{Call: _e.mock.On("SendMeterReport", unit, force)}
 }
 

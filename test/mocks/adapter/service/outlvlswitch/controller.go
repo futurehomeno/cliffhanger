@@ -101,7 +101,7 @@ type Controller_SetLevelSwitchBinaryState_Call struct {
 
 // SetLevelSwitchBinaryState is a helper method to define mock.On call
 //   - _a0 bool
-func (_e *Controller_Expecter) SetLevelSwitchBinaryState(_a0 interface{}) *Controller_SetLevelSwitchBinaryState_Call {
+func (_e *Controller_Expecter) SetLevelSwitchBinaryState(_a0 any) *Controller_SetLevelSwitchBinaryState_Call {
 	return &Controller_SetLevelSwitchBinaryState_Call{Call: _e.mock.On("SetLevelSwitchBinaryState", _a0)}
 }
 
@@ -148,7 +148,7 @@ type Controller_SetLevelSwitchLevel_Call struct {
 // SetLevelSwitchLevel is a helper method to define mock.On call
 //   - value int
 //   - duration time.Duration
-func (_e *Controller_Expecter) SetLevelSwitchLevel(value interface{}, duration interface{}) *Controller_SetLevelSwitchLevel_Call {
+func (_e *Controller_Expecter) SetLevelSwitchLevel(value any, duration any) *Controller_SetLevelSwitchLevel_Call {
 	return &Controller_SetLevelSwitchLevel_Call{Call: _e.mock.On("SetLevelSwitchLevel", value, duration)}
 }
 

@@ -171,7 +171,7 @@ type Service_PublishEvent_Call struct {
 
 // PublishEvent is a helper method to define mock.On call
 //   - event adapter.ServiceEvent
-func (_e *Service_Expecter) PublishEvent(event interface{}) *Service_PublishEvent_Call {
+func (_e *Service_Expecter) PublishEvent(event any) *Service_PublishEvent_Call {
 	return &Service_PublishEvent_Call{Call: _e.mock.On("PublishEvent", event)}
 }
 
@@ -227,7 +227,7 @@ type Service_SendCableLockReport_Call struct {
 
 // SendCableLockReport is a helper method to define mock.On call
 //   - force bool
-func (_e *Service_Expecter) SendCableLockReport(force interface{}) *Service_SendCableLockReport_Call {
+func (_e *Service_Expecter) SendCableLockReport(force any) *Service_SendCableLockReport_Call {
 	return &Service_SendCableLockReport_Call{Call: _e.mock.On("SendCableLockReport", force)}
 }
 
@@ -283,7 +283,7 @@ type Service_SendCurrentSessionReport_Call struct {
 
 // SendCurrentSessionReport is a helper method to define mock.On call
 //   - force bool
-func (_e *Service_Expecter) SendCurrentSessionReport(force interface{}) *Service_SendCurrentSessionReport_Call {
+func (_e *Service_Expecter) SendCurrentSessionReport(force any) *Service_SendCurrentSessionReport_Call {
 	return &Service_SendCurrentSessionReport_Call{Call: _e.mock.On("SendCurrentSessionReport", force)}
 }
 
@@ -339,7 +339,7 @@ type Service_SendMaxCurrentReport_Call struct {
 
 // SendMaxCurrentReport is a helper method to define mock.On call
 //   - force bool
-func (_e *Service_Expecter) SendMaxCurrentReport(force interface{}) *Service_SendMaxCurrentReport_Call {
+func (_e *Service_Expecter) SendMaxCurrentReport(force any) *Service_SendMaxCurrentReport_Call {
 	return &Service_SendMaxCurrentReport_Call{Call: _e.mock.On("SendMaxCurrentReport", force)}
 }
 
@@ -385,7 +385,7 @@ type Service_SendMessage_Call struct {
 
 // SendMessage is a helper method to define mock.On call
 //   - message *fimpgo.FimpMessage
-func (_e *Service_Expecter) SendMessage(message interface{}) *Service_SendMessage_Call {
+func (_e *Service_Expecter) SendMessage(message any) *Service_SendMessage_Call {
 	return &Service_SendMessage_Call{Call: _e.mock.On("SendMessage", message)}
 }
 
@@ -441,7 +441,7 @@ type Service_SendPhaseModeReport_Call struct {
 
 // SendPhaseModeReport is a helper method to define mock.On call
 //   - force bool
-func (_e *Service_Expecter) SendPhaseModeReport(force interface{}) *Service_SendPhaseModeReport_Call {
+func (_e *Service_Expecter) SendPhaseModeReport(force any) *Service_SendPhaseModeReport_Call {
 	return &Service_SendPhaseModeReport_Call{Call: _e.mock.On("SendPhaseModeReport", force)}
 }
 
@@ -497,7 +497,7 @@ type Service_SendStateReport_Call struct {
 
 // SendStateReport is a helper method to define mock.On call
 //   - force bool
-func (_e *Service_Expecter) SendStateReport(force interface{}) *Service_SendStateReport_Call {
+func (_e *Service_Expecter) SendStateReport(force any) *Service_SendStateReport_Call {
 	return &Service_SendStateReport_Call{Call: _e.mock.On("SendStateReport", force)}
 }
 
@@ -543,7 +543,7 @@ type Service_SetCableLock_Call struct {
 
 // SetCableLock is a helper method to define mock.On call
 //   - _a0 bool
-func (_e *Service_Expecter) SetCableLock(_a0 interface{}) *Service_SetCableLock_Call {
+func (_e *Service_Expecter) SetCableLock(_a0 any) *Service_SetCableLock_Call {
 	return &Service_SetCableLock_Call{Call: _e.mock.On("SetCableLock", _a0)}
 }
 
@@ -589,7 +589,7 @@ type Service_SetMaxCurrent_Call struct {
 
 // SetMaxCurrent is a helper method to define mock.On call
 //   - _a0 int
-func (_e *Service_Expecter) SetMaxCurrent(_a0 interface{}) *Service_SetMaxCurrent_Call {
+func (_e *Service_Expecter) SetMaxCurrent(_a0 any) *Service_SetMaxCurrent_Call {
 	return &Service_SetMaxCurrent_Call{Call: _e.mock.On("SetMaxCurrent", _a0)}
 }
 
@@ -635,7 +635,7 @@ type Service_SetOfferedCurrent_Call struct {
 
 // SetOfferedCurrent is a helper method to define mock.On call
 //   - _a0 int
-func (_e *Service_Expecter) SetOfferedCurrent(_a0 interface{}) *Service_SetOfferedCurrent_Call {
+func (_e *Service_Expecter) SetOfferedCurrent(_a0 any) *Service_SetOfferedCurrent_Call {
 	return &Service_SetOfferedCurrent_Call{Call: _e.mock.On("SetOfferedCurrent", _a0)}
 }
 
@@ -681,7 +681,7 @@ type Service_SetPhaseMode_Call struct {
 
 // SetPhaseMode is a helper method to define mock.On call
 //   - _a0 types.PhaseMode
-func (_e *Service_Expecter) SetPhaseMode(_a0 interface{}) *Service_SetPhaseMode_Call {
+func (_e *Service_Expecter) SetPhaseMode(_a0 any) *Service_SetPhaseMode_Call {
 	return &Service_SetPhaseMode_Call{Call: _e.mock.On("SetPhaseMode", _a0)}
 }
 
@@ -774,7 +774,7 @@ type Service_StartCharging_Call struct {
 
 // StartCharging is a helper method to define mock.On call
 //   - settings *chargepoint.ChargingSettings
-func (_e *Service_Expecter) StartCharging(settings interface{}) *Service_StartCharging_Call {
+func (_e *Service_Expecter) StartCharging(settings any) *Service_StartCharging_Call {
 	return &Service_StartCharging_Call{Call: _e.mock.On("StartCharging", settings)}
 }
 

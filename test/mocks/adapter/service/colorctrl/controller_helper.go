@@ -20,7 +20,7 @@ func (_m *Controller) MockColorCtrlColorReport(color map[string]int, err error, 
 	return _m
 }
 
-func (_m *Controller) MockStartColorCtrlTransition(transitionObject map[string]interface{}, err error, once bool) *Controller {
+func (_m *Controller) MockStartColorCtrlTransition(transitionObject map[string]any, err error, once bool) *Controller {
 	c := _m.On("StartColorCtrlTransition", transitionObject).Return(err)
 
 	if once {

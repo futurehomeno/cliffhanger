@@ -17,55 +17,55 @@ func TestDevices(t *testing.T) {
 	tt := []struct {
 		name    string
 		devices prime.Devices
-		call    func(devices prime.Devices) interface{}
-		want    interface{}
+		call    func(devices prime.Devices) any
+		want    any
 	}{
 		{
 			name:    "filter by thing id",
 			devices: prime.Devices{{ID: 1, ThingID: makeInt(1)}, {ID: 2, ThingID: makeInt(1)}, {ID: 3, ThingID: makeInt(2)}},
-			call:    func(devices prime.Devices) interface{} { return devices.FilterByThingID(1) },
+			call:    func(devices prime.Devices) any { return devices.FilterByThingID(1) },
 			want:    prime.Devices{{ID: 1, ThingID: makeInt(1)}, {ID: 2, ThingID: makeInt(1)}},
 		},
 		{
 			name:    "filter by thing id - no matches",
 			devices: prime.Devices{{ID: 1, ThingID: makeInt(1)}, {ID: 2, ThingID: makeInt(1)}, {ID: 3, ThingID: makeInt(2)}},
-			call:    func(devices prime.Devices) interface{} { return devices.FilterByThingID(3) },
+			call:    func(devices prime.Devices) any { return devices.FilterByThingID(3) },
 			want:    (prime.Devices)(nil),
 		},
 		{
 			name:    "filter by thing id - requested 0",
 			devices: prime.Devices{{ID: 1, ThingID: makeInt(1)}, {ID: 2, ThingID: makeInt(1)}, {ID: 3, ThingID: makeInt(2)}},
-			call:    func(devices prime.Devices) interface{} { return devices.FilterByThingID(0) },
+			call:    func(devices prime.Devices) any { return devices.FilterByThingID(0) },
 			want:    (prime.Devices)(nil),
 		},
 		{
 			name:    "filter by ids",
 			devices: prime.Devices{{ID: 1}, {ID: 2}, {ID: 3}},
-			call:    func(devices prime.Devices) interface{} { return devices.FilterByIDs(1, 2) },
+			call:    func(devices prime.Devices) any { return devices.FilterByIDs(1, 2) },
 			want:    prime.Devices{{ID: 1}, {ID: 2}},
 		},
 		{
 			name:    "find by id",
 			devices: prime.Devices{{ID: 1}, {ID: 2}, {ID: 3}},
-			call:    func(devices prime.Devices) interface{} { return devices.FindByID(1) },
+			call:    func(devices prime.Devices) any { return devices.FindByID(1) },
 			want:    &prime.Device{ID: 1},
 		},
 		{
 			name:    "find by id - no matches",
 			devices: prime.Devices{{ID: 1}, {ID: 2}, {ID: 3}},
-			call:    func(devices prime.Devices) interface{} { return devices.FindByID(4) },
+			call:    func(devices prime.Devices) any { return devices.FindByID(4) },
 			want:    (*prime.Device)(nil),
 		},
 		{
 			name:    "find by topic",
 			devices: prime.Devices{{ID: 1}, {ID: 2}, {ID: 3, Services: map[fimptype.ServiceNameT]*prime.Service{"test_service": {Addr: "test_topic"}}}},
-			call:    func(devices prime.Devices) interface{} { return devices.FindByTopic("test_topic") },
+			call:    func(devices prime.Devices) any { return devices.FindByTopic("test_topic") },
 			want:    &prime.Device{ID: 3, Services: map[fimptype.ServiceNameT]*prime.Service{"test_service": {Addr: "test_topic"}}},
 		},
 		{
 			name:    "find by topic - no matches",
 			devices: prime.Devices{{ID: 1}, {ID: 2}, {ID: 3, Services: map[fimptype.ServiceNameT]*prime.Service{"test_service": {Addr: "test_topic"}}}},
-			call:    func(devices prime.Devices) interface{} { return devices.FindByTopic("other_topic") },
+			call:    func(devices prime.Devices) any { return devices.FindByTopic("other_topic") },
 			want:    (*prime.Device)(nil),
 		},
 	}
@@ -89,146 +89,146 @@ func TestDevice(t *testing.T) {
 	tt := []struct {
 		name   string
 		device *prime.Device
-		call   func(device *prime.Device) interface{}
-		want   interface{}
+		call   func(device *prime.Device) any
+		want   any
 	}{
 		{
 			name:   "get name",
 			device: &prime.Device{Client: prime.ClientType{Name: makeString("user name")}},
-			call:   func(d *prime.Device) interface{} { return d.GetName() },
+			call:   func(d *prime.Device) any { return d.GetName() },
 			want:   "user name",
 		},
 		{
 			name:   "get name - fallback ",
 			device: &prime.Device{ModelAlias: "model alias"},
-			call:   func(d *prime.Device) interface{} { return d.GetName() },
+			call:   func(d *prime.Device) any { return d.GetName() },
 			want:   "model alias",
 		},
 		{
 			name:   "get name - second fallback",
 			device: &prime.Device{Model: "model"},
-			call:   func(d *prime.Device) interface{} { return d.GetName() },
+			call:   func(d *prime.Device) any { return d.GetName() },
 			want:   "model",
 		},
 		{
 			name:   "get thing id",
 			device: &prime.Device{ID: 1, ThingID: makeInt(1)},
-			call:   func(d *prime.Device) interface{} { return d.GetThingID() },
+			call:   func(d *prime.Device) any { return d.GetThingID() },
 			want:   1,
 		},
 		{
 			name:   "get thing id - nil value",
 			device: &prime.Device{ID: 1},
-			call:   func(d *prime.Device) interface{} { return d.GetThingID() },
+			call:   func(d *prime.Device) any { return d.GetThingID() },
 			want:   0,
 		},
 		{
 			name:   "get room id",
 			device: &prime.Device{ID: 1, Room: makeInt(1)},
-			call:   func(d *prime.Device) interface{} { return d.GetRoomID() },
+			call:   func(d *prime.Device) any { return d.GetRoomID() },
 			want:   1,
 		},
 		{
 			name:   "get room id - nil value",
 			device: &prime.Device{ID: 1},
-			call:   func(d *prime.Device) interface{} { return d.GetRoomID() },
+			call:   func(d *prime.Device) any { return d.GetRoomID() },
 			want:   0,
 		},
 		{
 			name:   "get type",
-			device: &prime.Device{Type: map[string]interface{}{"type": "boiler"}},
-			call:   func(d *prime.Device) interface{} { return d.GetType() },
+			device: &prime.Device{Type: map[string]any{"type": "boiler"}},
+			call:   func(d *prime.Device) any { return d.GetType() },
 			want:   "boiler",
 		},
 		{
 			name:   "get type - invalid type",
-			device: &prime.Device{Type: map[string]interface{}{"type": 1}},
-			call:   func(d *prime.Device) interface{} { return d.GetType() },
+			device: &prime.Device{Type: map[string]any{"type": 1}},
+			call:   func(d *prime.Device) any { return d.GetType() },
 			want:   "",
 		},
 		{
 			name:   "get type - missing type",
-			device: &prime.Device{Type: map[string]interface{}{}},
-			call:   func(d *prime.Device) interface{} { return d.GetType() },
+			device: &prime.Device{Type: map[string]any{}},
+			call:   func(d *prime.Device) any { return d.GetType() },
 			want:   "",
 		},
 		{
 			name:   "get sub type",
-			device: &prime.Device{Type: map[string]interface{}{"subtype": "boiler"}},
-			call:   func(d *prime.Device) interface{} { return d.GetSubType() },
+			device: &prime.Device{Type: map[string]any{"subtype": "boiler"}},
+			call:   func(d *prime.Device) any { return d.GetSubType() },
 			want:   "boiler",
 		},
 		{
 			name:   "get sub type - invalid sub type",
-			device: &prime.Device{Type: map[string]interface{}{"subtype": 1}},
-			call:   func(d *prime.Device) interface{} { return d.GetSubType() },
+			device: &prime.Device{Type: map[string]any{"subtype": 1}},
+			call:   func(d *prime.Device) any { return d.GetSubType() },
 			want:   "",
 		},
 		{
 			name:   "get sub type - missing sub type",
-			device: &prime.Device{Type: map[string]interface{}{}},
-			call:   func(d *prime.Device) interface{} { return d.GetSubType() },
+			device: &prime.Device{Type: map[string]any{}},
+			call:   func(d *prime.Device) any { return d.GetSubType() },
 			want:   "",
 		},
 
 		{
 			name:   "supports sub type",
-			device: &prime.Device{Type: map[string]interface{}{"supported": map[string]interface{}{"meter": []interface{}{"main_elec"}}}},
-			call:   func(d *prime.Device) interface{} { return d.SupportsSubType("meter", "main_elec") },
+			device: &prime.Device{Type: map[string]any{"supported": map[string]any{"meter": []any{"main_elec"}}}},
+			call:   func(d *prime.Device) any { return d.SupportsSubType("meter", "main_elec") },
 			want:   true,
 		},
 		{
 			name:   "supports sub type - invalid sub type",
-			device: &prime.Device{Type: map[string]interface{}{"supported": map[string]interface{}{"meter": []interface{}{1}}}},
-			call:   func(d *prime.Device) interface{} { return d.SupportsSubType("meter", "main_elec") },
+			device: &prime.Device{Type: map[string]any{"supported": map[string]any{"meter": []any{1}}}},
+			call:   func(d *prime.Device) any { return d.SupportsSubType("meter", "main_elec") },
 			want:   false,
 		},
 		{
 			name:   "supports sub type - missing sub type",
-			device: &prime.Device{Type: map[string]interface{}{"supported": map[string]interface{}{"meter": []interface{}{}}}},
-			call:   func(d *prime.Device) interface{} { return d.SupportsSubType("meter", "main_elec") },
+			device: &prime.Device{Type: map[string]any{"supported": map[string]any{"meter": []any{}}}},
+			call:   func(d *prime.Device) any { return d.SupportsSubType("meter", "main_elec") },
 			want:   false,
 		},
 		{
 			name:   "supports sub type - invalid sub types",
-			device: &prime.Device{Type: map[string]interface{}{"supported": map[string]interface{}{"meter": []string{"main_elec"}}}},
-			call:   func(d *prime.Device) interface{} { return d.SupportsSubType("meter", "main_elec") },
+			device: &prime.Device{Type: map[string]any{"supported": map[string]any{"meter": []string{"main_elec"}}}},
+			call:   func(d *prime.Device) any { return d.SupportsSubType("meter", "main_elec") },
 			want:   false,
 		},
 		{
 			name:   "supports sub type - missing type",
-			device: &prime.Device{Type: map[string]interface{}{"supported": map[string]interface{}{}}},
-			call:   func(d *prime.Device) interface{} { return d.SupportsSubType("meter", "main_elec") },
+			device: &prime.Device{Type: map[string]any{"supported": map[string]any{}}},
+			call:   func(d *prime.Device) any { return d.SupportsSubType("meter", "main_elec") },
 			want:   false,
 		},
 		{
 			name:   "supports sub type - invalid types",
-			device: &prime.Device{Type: map[string]interface{}{"supported": map[string]string{}}},
-			call:   func(d *prime.Device) interface{} { return d.SupportsSubType("meter", "main_elec") },
+			device: &prime.Device{Type: map[string]any{"supported": map[string]string{}}},
+			call:   func(d *prime.Device) any { return d.SupportsSubType("meter", "main_elec") },
 			want:   false,
 		},
 		{
 			name:   "supports sub type - missing supported",
-			device: &prime.Device{Type: map[string]interface{}{}},
-			call:   func(d *prime.Device) interface{} { return d.SupportsSubType("meter", "main_elec") },
+			device: &prime.Device{Type: map[string]any{}},
+			call:   func(d *prime.Device) any { return d.SupportsSubType("meter", "main_elec") },
 			want:   false,
 		},
 		{
 			name:   "has service",
 			device: &prime.Device{Services: map[fimptype.ServiceNameT]*prime.Service{"meter_elec": {}}},
-			call:   func(d *prime.Device) interface{} { return d.HasService("meter_elec") },
+			call:   func(d *prime.Device) any { return d.HasService("meter_elec") },
 			want:   true,
 		},
 		{
 			name:   "has service - missing service",
 			device: &prime.Device{},
-			call:   func(d *prime.Device) interface{} { return d.HasService("meter_elec") },
+			call:   func(d *prime.Device) any { return d.HasService("meter_elec") },
 			want:   false,
 		},
 		{
 			name:   "has interfaces",
 			device: &prime.Device{Services: map[fimptype.ServiceNameT]*prime.Service{"meter_elec": {Interfaces: []string{"cmd.meter.get_report", "evt.meter.report"}}}},
-			call: func(d *prime.Device) interface{} {
+			call: func(d *prime.Device) any {
 				return d.HasInterfaces("meter_elec", "cmd.meter.get_report", "evt.meter.report")
 			},
 			want: true,
@@ -236,7 +236,7 @@ func TestDevice(t *testing.T) {
 		{
 			name:   "has interfaces - missing interface",
 			device: &prime.Device{Services: map[fimptype.ServiceNameT]*prime.Service{"meter_elec": {Interfaces: []string{"evt.meter.report"}}}},
-			call: func(d *prime.Device) interface{} {
+			call: func(d *prime.Device) any {
 				return d.HasInterfaces("meter_elec", "cmd.meter.get_report", "evt.meter.report")
 			},
 			want: false,
@@ -244,39 +244,39 @@ func TestDevice(t *testing.T) {
 		{
 			name:   "has interfaces - missing service",
 			device: &prime.Device{},
-			call: func(d *prime.Device) interface{} {
+			call: func(d *prime.Device) any {
 				return d.HasInterfaces("meter_elec", "cmd.meter.get_report", "evt.meter.report")
 			},
 			want: false,
 		},
 		{
 			name:   "get service property strings",
-			device: &prime.Device{Services: map[fimptype.ServiceNameT]*prime.Service{"meter_elec": {Props: map[string]interface{}{"sup_units": []interface{}{"W", "kWh"}}}}},
-			call: func(d *prime.Device) interface{} {
+			device: &prime.Device{Services: map[fimptype.ServiceNameT]*prime.Service{"meter_elec": {Props: map[string]any{"sup_units": []any{"W", "kWh"}}}}},
+			call: func(d *prime.Device) any {
 				return d.GetServicePropertyStrings("meter_elec", "sup_units")
 			},
 			want: []string{"W", "kWh"},
 		},
 		{
 			name:   "get service property strings - property is well typed",
-			device: &prime.Device{Services: map[fimptype.ServiceNameT]*prime.Service{"meter_elec": {Props: map[string]interface{}{"sup_units": []string{"W", "kWh"}}}}},
-			call: func(d *prime.Device) interface{} {
+			device: &prime.Device{Services: map[fimptype.ServiceNameT]*prime.Service{"meter_elec": {Props: map[string]any{"sup_units": []string{"W", "kWh"}}}}},
+			call: func(d *prime.Device) any {
 				return d.GetServicePropertyStrings("meter_elec", "sup_units")
 			},
 			want: []string{"W", "kWh"},
 		},
 		{
 			name:   "get service property strings - invalid property type",
-			device: &prime.Device{Services: map[fimptype.ServiceNameT]*prime.Service{"meter_elec": {Props: map[string]interface{}{"sup_units": []interface{}{"W", 1}}}}},
-			call: func(d *prime.Device) interface{} {
+			device: &prime.Device{Services: map[fimptype.ServiceNameT]*prime.Service{"meter_elec": {Props: map[string]any{"sup_units": []any{"W", 1}}}}},
+			call: func(d *prime.Device) any {
 				return d.GetServicePropertyStrings("meter_elec", "sup_units")
 			},
 			want: ([]string)(nil),
 		},
 		{
 			name:   "get service property strings - missing property",
-			device: &prime.Device{Services: map[fimptype.ServiceNameT]*prime.Service{"meter_elec": {Props: map[string]interface{}{}}}},
-			call: func(d *prime.Device) interface{} {
+			device: &prime.Device{Services: map[fimptype.ServiceNameT]*prime.Service{"meter_elec": {Props: map[string]any{}}}},
+			call: func(d *prime.Device) any {
 				return d.GetServicePropertyStrings("meter_elec", "sup_units")
 			},
 			want: ([]string)(nil),
@@ -284,23 +284,23 @@ func TestDevice(t *testing.T) {
 		{
 			name:   "get service property strings - missing service",
 			device: &prime.Device{},
-			call: func(d *prime.Device) interface{} {
+			call: func(d *prime.Device) any {
 				return d.GetServicePropertyStrings("meter_elec", "sup_units")
 			},
 			want: ([]string)(nil),
 		},
 		{
 			name:   "get service property string",
-			device: &prime.Device{Services: map[fimptype.ServiceNameT]*prime.Service{"meter_elec": {Props: map[string]interface{}{"sup_unit": "W"}}}},
-			call: func(d *prime.Device) interface{} {
+			device: &prime.Device{Services: map[fimptype.ServiceNameT]*prime.Service{"meter_elec": {Props: map[string]any{"sup_unit": "W"}}}},
+			call: func(d *prime.Device) any {
 				return d.GetServicePropertyString("meter_elec", "sup_unit")
 			},
 			want: "W",
 		},
 		{
 			name:   "get service property string - invalid property type",
-			device: &prime.Device{Services: map[fimptype.ServiceNameT]*prime.Service{"meter_elec": {Props: map[string]interface{}{"sup_unit": 1}}}},
-			call: func(d *prime.Device) interface{} {
+			device: &prime.Device{Services: map[fimptype.ServiceNameT]*prime.Service{"meter_elec": {Props: map[string]any{"sup_unit": 1}}}},
+			call: func(d *prime.Device) any {
 				return d.GetServicePropertyString("meter_elec", "sup_unit")
 			},
 			want: "",
@@ -308,23 +308,23 @@ func TestDevice(t *testing.T) {
 		{
 			name:   "get service property string - missing service",
 			device: &prime.Device{},
-			call: func(d *prime.Device) interface{} {
+			call: func(d *prime.Device) any {
 				return d.GetServicePropertyString("meter_elec", "sup_unit")
 			},
 			want: "",
 		},
 		{
 			name:   "get service property integer",
-			device: &prime.Device{Services: map[fimptype.ServiceNameT]*prime.Service{"chargepoint": {Props: map[string]interface{}{"phases": 1}}}},
-			call: func(d *prime.Device) interface{} {
+			device: &prime.Device{Services: map[fimptype.ServiceNameT]*prime.Service{"chargepoint": {Props: map[string]any{"phases": 1}}}},
+			call: func(d *prime.Device) any {
 				return d.GetServicePropertyInteger("chargepoint", "phases")
 			},
 			want: 1,
 		},
 		{
 			name:   "get service property integer - invalid property type",
-			device: &prime.Device{Services: map[fimptype.ServiceNameT]*prime.Service{"chargepoint": {Props: map[string]interface{}{"phases": "1"}}}},
-			call: func(d *prime.Device) interface{} {
+			device: &prime.Device{Services: map[fimptype.ServiceNameT]*prime.Service{"chargepoint": {Props: map[string]any{"phases": "1"}}}},
+			call: func(d *prime.Device) any {
 				return d.GetServicePropertyInteger("chargepoint", "phases")
 			},
 			want: 0,
@@ -332,23 +332,23 @@ func TestDevice(t *testing.T) {
 		{
 			name:   "get service property integer - missing service",
 			device: &prime.Device{},
-			call: func(d *prime.Device) interface{} {
+			call: func(d *prime.Device) any {
 				return d.GetServicePropertyInteger("chargepoint", "phases")
 			},
 			want: 0,
 		},
 		{
 			name:   "get service property object",
-			device: &prime.Device{Services: map[fimptype.ServiceNameT]*prime.Service{"chargepoint": {Props: map[string]interface{}{"object": json.RawMessage(`{"a":1}`)}}}},
-			call: func(d *prime.Device) interface{} {
+			device: &prime.Device{Services: map[fimptype.ServiceNameT]*prime.Service{"chargepoint": {Props: map[string]any{"object": json.RawMessage(`{"a":1}`)}}}},
+			call: func(d *prime.Device) any {
 				return d.GetServicePropertyObject("chargepoint", "object", &struct{ A int }{})
 			},
 			want: true,
 		},
 		{
 			name:   "get service property object - invalid JSON",
-			device: &prime.Device{Services: map[fimptype.ServiceNameT]*prime.Service{"chargepoint": {Props: map[string]interface{}{"object": json.RawMessage(`{a":1}`)}}}},
-			call: func(d *prime.Device) interface{} {
+			device: &prime.Device{Services: map[fimptype.ServiceNameT]*prime.Service{"chargepoint": {Props: map[string]any{"object": json.RawMessage(`{a":1}`)}}}},
+			call: func(d *prime.Device) any {
 				return d.GetServicePropertyObject("chargepoint", "object", &struct{ A int }{})
 			},
 			want: false,
@@ -356,7 +356,7 @@ func TestDevice(t *testing.T) {
 		{
 			name:   "get addresses",
 			device: &prime.Device{Services: map[fimptype.ServiceNameT]*prime.Service{"s1": {Addr: "address1"}, "s2": {Addr: "address2"}}},
-			call: func(d *prime.Device) interface{} {
+			call: func(d *prime.Device) any {
 				return d.GetAddresses()
 			},
 			want: []string{"address1", "address2"},
@@ -382,19 +382,19 @@ func TestThings(t *testing.T) { //nolint:dupl
 	tt := []struct {
 		name   string
 		things prime.Things
-		call   func(things prime.Things) interface{}
-		want   interface{}
+		call   func(things prime.Things) any
+		want   any
 	}{
 		{
 			name:   "find by id",
 			things: prime.Things{{ID: 1}, {ID: 2}, {ID: 3}},
-			call:   func(things prime.Things) interface{} { return things.FindByID(1) },
+			call:   func(things prime.Things) any { return things.FindByID(1) },
 			want:   &prime.Thing{ID: 1},
 		},
 		{
 			name:   "find by id - no matches",
 			things: prime.Things{{ID: 1}, {ID: 2}, {ID: 3}},
-			call:   func(things prime.Things) interface{} { return things.FindByID(4) },
+			call:   func(things prime.Things) any { return things.FindByID(4) },
 			want:   (*prime.Thing)(nil),
 		},
 	}
@@ -418,19 +418,19 @@ func TestRooms(t *testing.T) { //nolint:dupl
 	tt := []struct {
 		name  string
 		rooms prime.Rooms
-		call  func(rooms prime.Rooms) interface{}
-		want  interface{}
+		call  func(rooms prime.Rooms) any
+		want  any
 	}{
 		{
 			name:  "find by id",
 			rooms: prime.Rooms{{ID: 1}, {ID: 2}, {ID: 3}},
-			call:  func(rooms prime.Rooms) interface{} { return rooms.FindByID(1) },
+			call:  func(rooms prime.Rooms) any { return rooms.FindByID(1) },
 			want:  &prime.Room{ID: 1},
 		},
 		{
 			name:  "find by id - no matches",
 			rooms: prime.Rooms{{ID: 1}, {ID: 2}, {ID: 3}},
-			call:  func(rooms prime.Rooms) interface{} { return rooms.FindByID(4) },
+			call:  func(rooms prime.Rooms) any { return rooms.FindByID(4) },
 			want:  (*prime.Room)(nil),
 		},
 	}
@@ -454,19 +454,19 @@ func TestRoom(t *testing.T) {
 	tt := []struct {
 		name string
 		room *prime.Room
-		call func(room *prime.Room) interface{}
-		want interface{}
+		call func(room *prime.Room) any
+		want any
 	}{
 		{
 			name: "get area id",
 			room: &prime.Room{ID: 1, Area: makeInt(1)},
-			call: func(d *prime.Room) interface{} { return d.GetAreaID() },
+			call: func(d *prime.Room) any { return d.GetAreaID() },
 			want: 1,
 		},
 		{
 			name: "get area id - nil value",
 			room: &prime.Room{ID: 1},
-			call: func(d *prime.Room) interface{} { return d.GetAreaID() },
+			call: func(d *prime.Room) any { return d.GetAreaID() },
 			want: 0,
 		},
 	}
@@ -523,7 +523,7 @@ func TestStateDevices_FindDevice(t *testing.T) {
 func TestStateDevice_GetAttributeValue(t *testing.T) {
 	t.Parallel()
 
-	makeDevice := func(service fimptype.ServiceNameT, attribute string, value interface{}, timestamp string) *prime.StateDevice {
+	makeDevice := func(service fimptype.ServiceNameT, attribute string, value any, timestamp string) *prime.StateDevice {
 		return &prime.StateDevice{
 			Services: []*prime.StateService{
 				{
@@ -547,14 +547,14 @@ func TestStateDevice_GetAttributeValue(t *testing.T) {
 	tt := []struct {
 		name      string
 		device    *prime.StateDevice
-		call      func(d *prime.StateDevice) (interface{}, time.Time)
-		wantValue interface{}
+		call      func(d *prime.StateDevice) (any, time.Time)
+		wantValue any
 		wantTime  time.Time
 	}{
 		{
 			name:   "get attribute string value",
 			device: makeDevice("test_service", "test_attribute", "test_value", "2022-08-15 12:15:30 +0100"),
-			call: func(d *prime.StateDevice) (interface{}, time.Time) {
+			call: func(d *prime.StateDevice) (any, time.Time) {
 				return d.GetAttributeStringValue("test_service", "test_attribute", nil)
 			},
 			wantValue: "test_value",
@@ -563,7 +563,7 @@ func TestStateDevice_GetAttributeValue(t *testing.T) {
 		{
 			name:   "get attribute string value - missing value",
 			device: &prime.StateDevice{},
-			call: func(d *prime.StateDevice) (interface{}, time.Time) {
+			call: func(d *prime.StateDevice) (any, time.Time) {
 				return d.GetAttributeStringValue("test_service", "test_attribute", nil)
 			},
 			wantValue: "",
@@ -572,7 +572,7 @@ func TestStateDevice_GetAttributeValue(t *testing.T) {
 		{
 			name:   "get attribute string value - incorrect value type",
 			device: makeDevice("test_service", "test_attribute", 1, "2022-08-15 12:15:30 +0100"),
-			call: func(d *prime.StateDevice) (interface{}, time.Time) {
+			call: func(d *prime.StateDevice) (any, time.Time) {
 				return d.GetAttributeStringValue("test_service", "test_attribute", nil)
 			},
 			wantValue: "",
@@ -581,7 +581,7 @@ func TestStateDevice_GetAttributeValue(t *testing.T) {
 		{
 			name:   "get attribute string value - incorrect timestamp",
 			device: makeDevice("test_service", "test_attribute", "test_value", "wrong timestamp"),
-			call: func(d *prime.StateDevice) (interface{}, time.Time) {
+			call: func(d *prime.StateDevice) (any, time.Time) {
 				return d.GetAttributeStringValue("test_service", "test_attribute", nil)
 			},
 			wantValue: "test_value",
@@ -590,7 +590,7 @@ func TestStateDevice_GetAttributeValue(t *testing.T) {
 		{
 			name:   "get attribute string value - nil device",
 			device: nil,
-			call: func(d *prime.StateDevice) (interface{}, time.Time) {
+			call: func(d *prime.StateDevice) (any, time.Time) {
 				return d.GetAttributeStringValue("test_service", "test_attribute", nil)
 			},
 			wantValue: "",
@@ -599,7 +599,7 @@ func TestStateDevice_GetAttributeValue(t *testing.T) {
 		{
 			name:   "get attribute int value",
 			device: makeDevice("test_service", "test_attribute", 1, "2022-08-15 12:15:30 +0100"),
-			call: func(d *prime.StateDevice) (interface{}, time.Time) {
+			call: func(d *prime.StateDevice) (any, time.Time) {
 				return d.GetAttributeIntValue("test_service", "test_attribute", nil)
 			},
 			wantValue: 1,
@@ -608,7 +608,7 @@ func TestStateDevice_GetAttributeValue(t *testing.T) {
 		{
 			name:   "get attribute float value",
 			device: makeDevice("test_service", "test_attribute", float64(1), "2022-08-15 12:15:30 +0100"),
-			call: func(d *prime.StateDevice) (interface{}, time.Time) {
+			call: func(d *prime.StateDevice) (any, time.Time) {
 				return d.GetAttributeFloatValue("test_service", "test_attribute", nil)
 			},
 			wantValue: float64(1),
@@ -617,7 +617,7 @@ func TestStateDevice_GetAttributeValue(t *testing.T) {
 		{
 			name:   "get attribute bool value",
 			device: makeDevice("test_service", "test_attribute", true, "2022-08-15 12:15:30 +0100"),
-			call: func(d *prime.StateDevice) (interface{}, time.Time) {
+			call: func(d *prime.StateDevice) (any, time.Time) {
 				return d.GetAttributeBoolValue("test_service", "test_attribute", nil)
 			},
 			wantValue: true,
@@ -626,7 +626,7 @@ func TestStateDevice_GetAttributeValue(t *testing.T) {
 		{
 			name:   "get attribute string array value",
 			device: makeDevice("test_service", "test_attribute", []string{"test_value"}, "2022-08-15 12:15:30 +0100"),
-			call: func(d *prime.StateDevice) (interface{}, time.Time) {
+			call: func(d *prime.StateDevice) (any, time.Time) {
 				return d.GetAttributeStringArrayValue("test_service", "test_attribute", nil)
 			},
 			wantValue: []string{"test_value"},
@@ -635,7 +635,7 @@ func TestStateDevice_GetAttributeValue(t *testing.T) {
 		{
 			name:   "get attribute int array value",
 			device: makeDevice("test_service", "test_attribute", []int{1}, "2022-08-15 12:15:30 +0100"),
-			call: func(d *prime.StateDevice) (interface{}, time.Time) {
+			call: func(d *prime.StateDevice) (any, time.Time) {
 				return d.GetAttributeIntArrayValue("test_service", "test_attribute", nil)
 			},
 			wantValue: []int{1},
@@ -644,7 +644,7 @@ func TestStateDevice_GetAttributeValue(t *testing.T) {
 		{
 			name:   "get attribute float array value",
 			device: makeDevice("test_service", "test_attribute", []float64{1}, "2022-08-15 12:15:30 +0100"),
-			call: func(d *prime.StateDevice) (interface{}, time.Time) {
+			call: func(d *prime.StateDevice) (any, time.Time) {
 				return d.GetAttributeFloatArrayValue("test_service", "test_attribute", nil)
 			},
 			wantValue: []float64{1},
@@ -653,7 +653,7 @@ func TestStateDevice_GetAttributeValue(t *testing.T) {
 		{
 			name:   "get attribute bool array value",
 			device: makeDevice("test_service", "test_attribute", []bool{true}, "2022-08-15 12:15:30 +0100"),
-			call: func(d *prime.StateDevice) (interface{}, time.Time) {
+			call: func(d *prime.StateDevice) (any, time.Time) {
 				return d.GetAttributeBoolArrayValue("test_service", "test_attribute", nil)
 			},
 			wantValue: []bool{true},
@@ -662,7 +662,7 @@ func TestStateDevice_GetAttributeValue(t *testing.T) {
 		{
 			name:   "get attribute string map value",
 			device: makeDevice("test_service", "test_attribute", map[string]string{"key": "test_value"}, "2022-08-15 12:15:30 +0100"),
-			call: func(d *prime.StateDevice) (interface{}, time.Time) {
+			call: func(d *prime.StateDevice) (any, time.Time) {
 				return d.GetAttributeStringMapValue("test_service", "test_attribute", nil)
 			},
 			wantValue: map[string]string{"key": "test_value"},
@@ -671,7 +671,7 @@ func TestStateDevice_GetAttributeValue(t *testing.T) {
 		{
 			name:   "get attribute int map value",
 			device: makeDevice("test_service", "test_attribute", map[string]int{"key": 1}, "2022-08-15 12:15:30 +0100"),
-			call: func(d *prime.StateDevice) (interface{}, time.Time) {
+			call: func(d *prime.StateDevice) (any, time.Time) {
 				return d.GetAttributeIntMapValue("test_service", "test_attribute", nil)
 			},
 			wantValue: map[string]int{"key": 1},
@@ -680,7 +680,7 @@ func TestStateDevice_GetAttributeValue(t *testing.T) {
 		{
 			name:   "get attribute float map value",
 			device: makeDevice("test_service", "test_attribute", map[string]float64{"key": 1}, "2022-08-15 12:15:30 +0100"),
-			call: func(d *prime.StateDevice) (interface{}, time.Time) {
+			call: func(d *prime.StateDevice) (any, time.Time) {
 				return d.GetAttributeFloatMapValue("test_service", "test_attribute", nil)
 			},
 			wantValue: map[string]float64{"key": 1},
@@ -689,7 +689,7 @@ func TestStateDevice_GetAttributeValue(t *testing.T) {
 		{
 			name:   "get attribute bool map value",
 			device: makeDevice("test_service", "test_attribute", map[string]bool{"key": true}, "2022-08-15 12:15:30 +0100"),
-			call: func(d *prime.StateDevice) (interface{}, time.Time) {
+			call: func(d *prime.StateDevice) (any, time.Time) {
 				return d.GetAttributeBoolMapValue("test_service", "test_attribute", nil)
 			},
 			wantValue: map[string]bool{"key": true},
@@ -981,66 +981,66 @@ func TestStateAttributeValue_Get(t *testing.T) {
 	tt := []struct {
 		name      string
 		attribute *prime.StateAttributeValue
-		call      func(a *prime.StateAttributeValue) (interface{}, error)
-		want      interface{}
+		call      func(a *prime.StateAttributeValue) (any, error)
+		want      any
 		wantErr   bool
 	}{
 		{
 			name:      "get string value",
 			attribute: &prime.StateAttributeValue{Value: "test"},
-			call:      func(a *prime.StateAttributeValue) (interface{}, error) { return a.GetStringValue() },
+			call:      func(a *prime.StateAttributeValue) (any, error) { return a.GetStringValue() },
 			want:      "test",
 		},
 		{
 			name:      "get string value - error",
 			attribute: &prime.StateAttributeValue{Value: 1},
-			call:      func(a *prime.StateAttributeValue) (interface{}, error) { return a.GetStringValue() },
+			call:      func(a *prime.StateAttributeValue) (any, error) { return a.GetStringValue() },
 			want:      "",
 			wantErr:   true,
 		},
 		{
 			name:      "get string value - nil value",
 			attribute: nil,
-			call:      func(a *prime.StateAttributeValue) (interface{}, error) { return a.GetStringValue() },
+			call:      func(a *prime.StateAttributeValue) (any, error) { return a.GetStringValue() },
 			want:      "",
 			wantErr:   false,
 		},
 		{
 			name:      "get int value",
 			attribute: &prime.StateAttributeValue{Value: 1},
-			call:      func(a *prime.StateAttributeValue) (interface{}, error) { return a.GetIntValue() },
+			call:      func(a *prime.StateAttributeValue) (any, error) { return a.GetIntValue() },
 			want:      1,
 		},
 		{
 			name:      "get int value - error",
 			attribute: &prime.StateAttributeValue{Value: "test"},
-			call:      func(a *prime.StateAttributeValue) (interface{}, error) { return a.GetIntValue() },
+			call:      func(a *prime.StateAttributeValue) (any, error) { return a.GetIntValue() },
 			want:      0,
 			wantErr:   true,
 		},
 		{
 			name:      "get int value",
 			attribute: &prime.StateAttributeValue{Value: float64(1)},
-			call:      func(a *prime.StateAttributeValue) (interface{}, error) { return a.GetFloatValue() },
+			call:      func(a *prime.StateAttributeValue) (any, error) { return a.GetFloatValue() },
 			want:      float64(1),
 		},
 		{
 			name:      "get int value - error",
 			attribute: &prime.StateAttributeValue{Value: "test"},
-			call:      func(a *prime.StateAttributeValue) (interface{}, error) { return a.GetFloatValue() },
+			call:      func(a *prime.StateAttributeValue) (any, error) { return a.GetFloatValue() },
 			want:      float64(0),
 			wantErr:   true,
 		},
 		{
 			name:      "get bool value",
 			attribute: &prime.StateAttributeValue{Value: true},
-			call:      func(a *prime.StateAttributeValue) (interface{}, error) { return a.GetBoolValue() },
+			call:      func(a *prime.StateAttributeValue) (any, error) { return a.GetBoolValue() },
 			want:      true,
 		},
 		{
 			name:      "get bool value - error",
 			attribute: &prime.StateAttributeValue{Value: "test"},
-			call:      func(a *prime.StateAttributeValue) (interface{}, error) { return a.GetBoolValue() },
+			call:      func(a *prime.StateAttributeValue) (any, error) { return a.GetBoolValue() },
 			want:      false,
 			wantErr:   true,
 		},
@@ -1048,132 +1048,132 @@ func TestStateAttributeValue_Get(t *testing.T) {
 		{
 			name:      "get string array value",
 			attribute: &prime.StateAttributeValue{Value: []string{"test"}},
-			call:      func(a *prime.StateAttributeValue) (interface{}, error) { return a.GetStringArrayValue() },
+			call:      func(a *prime.StateAttributeValue) (any, error) { return a.GetStringArrayValue() },
 			want:      []string{"test"},
 		},
 		{
 			name:      "get string array value - error",
 			attribute: &prime.StateAttributeValue{Value: "test"},
-			call:      func(a *prime.StateAttributeValue) (interface{}, error) { return a.GetStringArrayValue() },
+			call:      func(a *prime.StateAttributeValue) (any, error) { return a.GetStringArrayValue() },
 			want:      ([]string)(nil),
 			wantErr:   true,
 		},
 		{
 			name:      "get int array value",
 			attribute: &prime.StateAttributeValue{Value: []int{1}},
-			call:      func(a *prime.StateAttributeValue) (interface{}, error) { return a.GetIntArrayValue() },
+			call:      func(a *prime.StateAttributeValue) (any, error) { return a.GetIntArrayValue() },
 			want:      []int{1},
 		},
 		{
 			name:      "get int array value - error",
 			attribute: &prime.StateAttributeValue{Value: "test"},
-			call:      func(a *prime.StateAttributeValue) (interface{}, error) { return a.GetIntArrayValue() },
+			call:      func(a *prime.StateAttributeValue) (any, error) { return a.GetIntArrayValue() },
 			want:      ([]int)(nil),
 			wantErr:   true,
 		},
 		{
 			name:      "get float array value",
 			attribute: &prime.StateAttributeValue{Value: []float64{1}},
-			call:      func(a *prime.StateAttributeValue) (interface{}, error) { return a.GetFloatArrayValue() },
+			call:      func(a *prime.StateAttributeValue) (any, error) { return a.GetFloatArrayValue() },
 			want:      []float64{1},
 		},
 		{
 			name:      "get float array value - error",
 			attribute: &prime.StateAttributeValue{Value: "test"},
-			call:      func(a *prime.StateAttributeValue) (interface{}, error) { return a.GetFloatArrayValue() },
+			call:      func(a *prime.StateAttributeValue) (any, error) { return a.GetFloatArrayValue() },
 			want:      ([]float64)(nil),
 			wantErr:   true,
 		},
 		{
 			name:      "get bool array value",
 			attribute: &prime.StateAttributeValue{Value: []bool{true}},
-			call:      func(a *prime.StateAttributeValue) (interface{}, error) { return a.GetBoolArrayValue() },
+			call:      func(a *prime.StateAttributeValue) (any, error) { return a.GetBoolArrayValue() },
 			want:      []bool{true},
 		},
 		{
 			name:      "get bool array value - error",
 			attribute: &prime.StateAttributeValue{Value: "test"},
-			call:      func(a *prime.StateAttributeValue) (interface{}, error) { return a.GetBoolArrayValue() },
+			call:      func(a *prime.StateAttributeValue) (any, error) { return a.GetBoolArrayValue() },
 			want:      ([]bool)(nil),
 			wantErr:   true,
 		},
 		{
 			name:      "get string map value",
 			attribute: &prime.StateAttributeValue{Value: map[string]string{"key": "test"}},
-			call:      func(a *prime.StateAttributeValue) (interface{}, error) { return a.GetStringMapValue() },
+			call:      func(a *prime.StateAttributeValue) (any, error) { return a.GetStringMapValue() },
 			want:      map[string]string{"key": "test"},
 		},
 		{
 			name:      "get string map value - error",
 			attribute: &prime.StateAttributeValue{Value: "test"},
-			call:      func(a *prime.StateAttributeValue) (interface{}, error) { return a.GetStringMapValue() },
+			call:      func(a *prime.StateAttributeValue) (any, error) { return a.GetStringMapValue() },
 			want:      (map[string]string)(nil),
 			wantErr:   true,
 		},
 		{
 			name:      "get int map value",
 			attribute: &prime.StateAttributeValue{Value: map[string]int{"key": 1}},
-			call:      func(a *prime.StateAttributeValue) (interface{}, error) { return a.GetIntMapValue() },
+			call:      func(a *prime.StateAttributeValue) (any, error) { return a.GetIntMapValue() },
 			want:      map[string]int{"key": 1},
 		},
 		{
 			name:      "get int map value - error",
 			attribute: &prime.StateAttributeValue{Value: "test"},
-			call:      func(a *prime.StateAttributeValue) (interface{}, error) { return a.GetIntMapValue() },
+			call:      func(a *prime.StateAttributeValue) (any, error) { return a.GetIntMapValue() },
 			want:      (map[string]int)(nil),
 			wantErr:   true,
 		},
 		{
 			name:      "get float map value",
 			attribute: &prime.StateAttributeValue{Value: map[string]float64{"key": 1}},
-			call:      func(a *prime.StateAttributeValue) (interface{}, error) { return a.GetFloatMapValue() },
+			call:      func(a *prime.StateAttributeValue) (any, error) { return a.GetFloatMapValue() },
 			want:      map[string]float64{"key": 1},
 		},
 		{
 			name:      "get float map value - error",
 			attribute: &prime.StateAttributeValue{Value: "test"},
-			call:      func(a *prime.StateAttributeValue) (interface{}, error) { return a.GetFloatMapValue() },
+			call:      func(a *prime.StateAttributeValue) (any, error) { return a.GetFloatMapValue() },
 			want:      (map[string]float64)(nil),
 			wantErr:   true,
 		},
 		{
 			name:      "get bool map value",
 			attribute: &prime.StateAttributeValue{Value: map[string]bool{"key": true}},
-			call:      func(a *prime.StateAttributeValue) (interface{}, error) { return a.GetBoolMapValue() },
+			call:      func(a *prime.StateAttributeValue) (any, error) { return a.GetBoolMapValue() },
 			want:      map[string]bool{"key": true},
 		},
 		{
 			name:      "get bool map value - error",
 			attribute: &prime.StateAttributeValue{Value: "test"},
-			call:      func(a *prime.StateAttributeValue) (interface{}, error) { return a.GetBoolMapValue() },
+			call:      func(a *prime.StateAttributeValue) (any, error) { return a.GetBoolMapValue() },
 			want:      (map[string]bool)(nil),
 			wantErr:   true,
 		},
 		{
 			name:      "get bool map value - corrupted",
 			attribute: &prime.StateAttributeValue{Value: json.RawMessage(`"`)},
-			call:      func(a *prime.StateAttributeValue) (interface{}, error) { return a.GetBoolMapValue() },
+			call:      func(a *prime.StateAttributeValue) (any, error) { return a.GetBoolMapValue() },
 			want:      (map[string]bool)(nil),
 			wantErr:   true,
 		},
 		{
 			name:      "get time",
 			attribute: &prime.StateAttributeValue{Timestamp: "2022-08-15 12:30:10 +0100"},
-			call:      func(a *prime.StateAttributeValue) (interface{}, error) { return a.GetTime() },
+			call:      func(a *prime.StateAttributeValue) (any, error) { return a.GetTime() },
 			want:      time.Date(2022, 8, 15, 12, 30, 10, 0, time.FixedZone("", 1*60*60)),
 			wantErr:   false,
 		},
 		{
 			name:      "get time - error",
 			attribute: &prime.StateAttributeValue{Timestamp: "unparsable string"},
-			call:      func(a *prime.StateAttributeValue) (interface{}, error) { return a.GetTime() },
+			call:      func(a *prime.StateAttributeValue) (any, error) { return a.GetTime() },
 			want:      time.Time{},
 			wantErr:   true,
 		},
 		{
 			name:      "get time - nil value",
 			attribute: nil,
-			call:      func(a *prime.StateAttributeValue) (interface{}, error) { return a.GetTime() },
+			call:      func(a *prime.StateAttributeValue) (any, error) { return a.GetTime() },
 			want:      time.Time{},
 			wantErr:   false,
 		},
@@ -1181,7 +1181,7 @@ func TestStateAttributeValue_Get(t *testing.T) {
 		{
 			name:      "has property - true",
 			attribute: &prime.StateAttributeValue{Props: map[string]string{"a": "1", "b": "2"}},
-			call: func(a *prime.StateAttributeValue) (interface{}, error) {
+			call: func(a *prime.StateAttributeValue) (any, error) {
 				return a.HasProperties(map[string]string{"a": "1", "b": "2"}), nil
 			},
 			want:    true,
@@ -1190,7 +1190,7 @@ func TestStateAttributeValue_Get(t *testing.T) {
 		{
 			name:      "has property - false",
 			attribute: &prime.StateAttributeValue{Props: map[string]string{"a": "1", "b": "2"}},
-			call: func(a *prime.StateAttributeValue) (interface{}, error) {
+			call: func(a *prime.StateAttributeValue) (any, error) {
 				return a.HasProperties(map[string]string{"a": "3", "b": "4"}), nil
 			},
 			want:    false,
@@ -1199,7 +1199,7 @@ func TestStateAttributeValue_Get(t *testing.T) {
 		{
 			name:      "has property - nil value",
 			attribute: nil,
-			call: func(a *prime.StateAttributeValue) (interface{}, error) {
+			call: func(a *prime.StateAttributeValue) (any, error) {
 				return a.HasProperties(map[string]string{"a": "3", "b": "4"}), nil
 			},
 			want:    false,
@@ -1208,7 +1208,7 @@ func TestStateAttributeValue_Get(t *testing.T) {
 		{
 			name:      "get property string",
 			attribute: &prime.StateAttributeValue{Props: map[string]string{"a": "1"}},
-			call: func(a *prime.StateAttributeValue) (interface{}, error) {
+			call: func(a *prime.StateAttributeValue) (any, error) {
 				return a.GetPropertyString("a"), nil
 			},
 			want:    "1",
@@ -1217,7 +1217,7 @@ func TestStateAttributeValue_Get(t *testing.T) {
 		{
 			name:      "get property string - missing",
 			attribute: &prime.StateAttributeValue{Props: map[string]string{"a": "1"}},
-			call: func(a *prime.StateAttributeValue) (interface{}, error) {
+			call: func(a *prime.StateAttributeValue) (any, error) {
 				return a.GetPropertyString("c"), nil
 			},
 			want:    "",
@@ -1226,7 +1226,7 @@ func TestStateAttributeValue_Get(t *testing.T) {
 		{
 			name:      "get property string - nil value",
 			attribute: nil,
-			call: func(a *prime.StateAttributeValue) (interface{}, error) {
+			call: func(a *prime.StateAttributeValue) (any, error) {
 				return a.GetPropertyString("a"), nil
 			},
 			want:    "",
@@ -1235,7 +1235,7 @@ func TestStateAttributeValue_Get(t *testing.T) {
 		{
 			name:      "get property integer",
 			attribute: &prime.StateAttributeValue{Props: map[string]string{"a": "1"}},
-			call: func(a *prime.StateAttributeValue) (interface{}, error) {
+			call: func(a *prime.StateAttributeValue) (any, error) {
 				return a.GetPropertyInteger("a"), nil
 			},
 			want:    1,
@@ -1244,7 +1244,7 @@ func TestStateAttributeValue_Get(t *testing.T) {
 		{
 			name:      "get property integer - wrong type",
 			attribute: &prime.StateAttributeValue{Props: map[string]string{"a": "x"}},
-			call: func(a *prime.StateAttributeValue) (interface{}, error) {
+			call: func(a *prime.StateAttributeValue) (any, error) {
 				return a.GetPropertyInteger("a"), nil
 			},
 			want:    0,
@@ -1253,7 +1253,7 @@ func TestStateAttributeValue_Get(t *testing.T) {
 		{
 			name:      "get property integer - missing",
 			attribute: &prime.StateAttributeValue{Props: map[string]string{"a": "1"}},
-			call: func(a *prime.StateAttributeValue) (interface{}, error) {
+			call: func(a *prime.StateAttributeValue) (any, error) {
 				return a.GetPropertyInteger("c"), nil
 			},
 			want:    0,
@@ -1262,7 +1262,7 @@ func TestStateAttributeValue_Get(t *testing.T) {
 		{
 			name:      "get property integer - nil value",
 			attribute: nil,
-			call: func(a *prime.StateAttributeValue) (interface{}, error) {
+			call: func(a *prime.StateAttributeValue) (any, error) {
 				return a.GetPropertyInteger("a"), nil
 			},
 			want:    0,
@@ -1271,7 +1271,7 @@ func TestStateAttributeValue_Get(t *testing.T) {
 		{
 			name:      "get property float",
 			attribute: &prime.StateAttributeValue{Props: map[string]string{"a": "1"}},
-			call: func(a *prime.StateAttributeValue) (interface{}, error) {
+			call: func(a *prime.StateAttributeValue) (any, error) {
 				return a.GetPropertyFloat("a"), nil
 			},
 			want:    float64(1),
@@ -1280,7 +1280,7 @@ func TestStateAttributeValue_Get(t *testing.T) {
 		{
 			name:      "get property float - wrong type",
 			attribute: &prime.StateAttributeValue{Props: map[string]string{"a": "x"}},
-			call: func(a *prime.StateAttributeValue) (interface{}, error) {
+			call: func(a *prime.StateAttributeValue) (any, error) {
 				return a.GetPropertyFloat("a"), nil
 			},
 			want:    float64(0),
@@ -1289,7 +1289,7 @@ func TestStateAttributeValue_Get(t *testing.T) {
 		{
 			name:      "get property float - missing",
 			attribute: &prime.StateAttributeValue{Props: map[string]string{"a": "1"}},
-			call: func(a *prime.StateAttributeValue) (interface{}, error) {
+			call: func(a *prime.StateAttributeValue) (any, error) {
 				return a.GetPropertyFloat("c"), nil
 			},
 			want:    float64(0),
@@ -1298,7 +1298,7 @@ func TestStateAttributeValue_Get(t *testing.T) {
 		{
 			name:      "get property float - nil value",
 			attribute: nil,
-			call: func(a *prime.StateAttributeValue) (interface{}, error) {
+			call: func(a *prime.StateAttributeValue) (any, error) {
 				return a.GetPropertyFloat("a"), nil
 			},
 			want:    float64(0),
@@ -1307,7 +1307,7 @@ func TestStateAttributeValue_Get(t *testing.T) {
 		{
 			name:      "get property timestamp",
 			attribute: &prime.StateAttributeValue{Props: map[string]string{"a": "2022-08-15 12:30:10 +0100"}},
-			call: func(a *prime.StateAttributeValue) (interface{}, error) {
+			call: func(a *prime.StateAttributeValue) (any, error) {
 				return a.GetPropertyTimestamp("a"), nil
 			},
 			want:    time.Date(2022, 8, 15, 12, 30, 10, 0, time.FixedZone("", 1*60*60)),
@@ -1316,7 +1316,7 @@ func TestStateAttributeValue_Get(t *testing.T) {
 		{
 			name:      "get property timestamp - wrong type",
 			attribute: &prime.StateAttributeValue{Props: map[string]string{"a": "x"}},
-			call: func(a *prime.StateAttributeValue) (interface{}, error) {
+			call: func(a *prime.StateAttributeValue) (any, error) {
 				return a.GetPropertyTimestamp("a"), nil
 			},
 			want:    time.Time{},
@@ -1325,7 +1325,7 @@ func TestStateAttributeValue_Get(t *testing.T) {
 		{
 			name:      "get property timestamp - missing",
 			attribute: &prime.StateAttributeValue{Props: map[string]string{"a": "2022-08-15 12:30:10 +0100"}},
-			call: func(a *prime.StateAttributeValue) (interface{}, error) {
+			call: func(a *prime.StateAttributeValue) (any, error) {
 				return a.GetPropertyTimestamp("c"), nil
 			},
 			want:    time.Time{},
@@ -1334,7 +1334,7 @@ func TestStateAttributeValue_Get(t *testing.T) {
 		{
 			name:      "get property timestamp - nil value",
 			attribute: nil,
-			call: func(a *prime.StateAttributeValue) (interface{}, error) {
+			call: func(a *prime.StateAttributeValue) (any, error) {
 				return a.GetPropertyTimestamp("a"), nil
 			},
 			want:    time.Time{},

@@ -57,7 +57,7 @@ type Reporter_BatteryAlarmReport_Call struct {
 
 // BatteryAlarmReport is a helper method to define mock.On call
 //   - event string
-func (_e *Reporter_Expecter) BatteryAlarmReport(event interface{}) *Reporter_BatteryAlarmReport_Call {
+func (_e *Reporter_Expecter) BatteryAlarmReport(event any) *Reporter_BatteryAlarmReport_Call {
 	return &Reporter_BatteryAlarmReport_Call{Call: _e.mock.On("BatteryAlarmReport", event)}
 }
 

@@ -341,7 +341,7 @@ func Test_Router_OptionalSuccessConfirmation(t *testing.T) { //nolint:parallelte
 func Test_Router_PanicCallback(t *testing.T) { //nolint:paralleltest
 	var panicCallbackCalled bool
 
-	panicCallback := func(msg *fimpgo.Message, err interface{}) {
+	panicCallback := func(msg *fimpgo.Message, err any) {
 		panicCallbackCalled = true
 
 		assert.Equal(t, "oops", err)

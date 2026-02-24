@@ -73,7 +73,7 @@ func ExpectFloat(topic, messageType string, service fimptype.ServiceNameT, value
 		ExpectFloat(value)
 }
 
-func ExpectObject(topic, messageType string, service fimptype.ServiceNameT, object interface{}) *Expectation {
+func ExpectObject(topic, messageType string, service fimptype.ServiceNameT, object any) *Expectation {
 	return NewExpectation().
 		ExpectTopic(topic).
 		ExpectType(messageType).
@@ -261,7 +261,7 @@ func (e *Expectation) ExpectFloat(value float64) *Expectation {
 	return e
 }
 
-func (e *Expectation) ExpectObject(object interface{}) *Expectation {
+func (e *Expectation) ExpectObject(object any) *Expectation {
 	e.Voters = append(e.Voters, router.MessageVoterFn(func(message *fimpgo.Message) bool {
 		raw, err := json.Marshal(object)
 		if err != nil {
@@ -390,7 +390,7 @@ func (e *Expectation) ExpectBoolArray(value []bool) *Expectation {
 	return e
 }
 
-func (e *Expectation) ExpectProperty(propertyName string, propertyValue interface{}) *Expectation {
+func (e *Expectation) ExpectProperty(propertyName string, propertyValue any) *Expectation {
 	e.Voters = append(e.Voters, router.MessageVoterFn(func(message *fimpgo.Message) bool {
 		property, ok := message.Payload.Properties[propertyName]
 		if !ok {

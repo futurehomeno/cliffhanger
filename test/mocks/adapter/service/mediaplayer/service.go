@@ -80,7 +80,7 @@ type Service_PublishEvent_Call struct {
 
 // PublishEvent is a helper method to define mock.On call
 //   - event adapter.ServiceEvent
-func (_e *Service_Expecter) PublishEvent(event interface{}) *Service_PublishEvent_Call {
+func (_e *Service_Expecter) PublishEvent(event any) *Service_PublishEvent_Call {
 	return &Service_PublishEvent_Call{Call: _e.mock.On("PublishEvent", event)}
 }
 
@@ -126,7 +126,7 @@ type Service_SendMessage_Call struct {
 
 // SendMessage is a helper method to define mock.On call
 //   - message *fimpgo.FimpMessage
-func (_e *Service_Expecter) SendMessage(message interface{}) *Service_SendMessage_Call {
+func (_e *Service_Expecter) SendMessage(message any) *Service_SendMessage_Call {
 	return &Service_SendMessage_Call{Call: _e.mock.On("SendMessage", message)}
 }
 
@@ -182,7 +182,7 @@ type Service_SendMetadataReport_Call struct {
 
 // SendMetadataReport is a helper method to define mock.On call
 //   - force bool
-func (_e *Service_Expecter) SendMetadataReport(force interface{}) *Service_SendMetadataReport_Call {
+func (_e *Service_Expecter) SendMetadataReport(force any) *Service_SendMetadataReport_Call {
 	return &Service_SendMetadataReport_Call{Call: _e.mock.On("SendMetadataReport", force)}
 }
 
@@ -238,7 +238,7 @@ type Service_SendMuteReport_Call struct {
 
 // SendMuteReport is a helper method to define mock.On call
 //   - force bool
-func (_e *Service_Expecter) SendMuteReport(force interface{}) *Service_SendMuteReport_Call {
+func (_e *Service_Expecter) SendMuteReport(force any) *Service_SendMuteReport_Call {
 	return &Service_SendMuteReport_Call{Call: _e.mock.On("SendMuteReport", force)}
 }
 
@@ -294,7 +294,7 @@ type Service_SendPlaybackModeReport_Call struct {
 
 // SendPlaybackModeReport is a helper method to define mock.On call
 //   - force bool
-func (_e *Service_Expecter) SendPlaybackModeReport(force interface{}) *Service_SendPlaybackModeReport_Call {
+func (_e *Service_Expecter) SendPlaybackModeReport(force any) *Service_SendPlaybackModeReport_Call {
 	return &Service_SendPlaybackModeReport_Call{Call: _e.mock.On("SendPlaybackModeReport", force)}
 }
 
@@ -350,7 +350,7 @@ type Service_SendPlaybackReport_Call struct {
 
 // SendPlaybackReport is a helper method to define mock.On call
 //   - force bool
-func (_e *Service_Expecter) SendPlaybackReport(force interface{}) *Service_SendPlaybackReport_Call {
+func (_e *Service_Expecter) SendPlaybackReport(force any) *Service_SendPlaybackReport_Call {
 	return &Service_SendPlaybackReport_Call{Call: _e.mock.On("SendPlaybackReport", force)}
 }
 
@@ -406,7 +406,7 @@ type Service_SendVolumeReport_Call struct {
 
 // SendVolumeReport is a helper method to define mock.On call
 //   - force bool
-func (_e *Service_Expecter) SendVolumeReport(force interface{}) *Service_SendVolumeReport_Call {
+func (_e *Service_Expecter) SendVolumeReport(force any) *Service_SendVolumeReport_Call {
 	return &Service_SendVolumeReport_Call{Call: _e.mock.On("SendVolumeReport", force)}
 }
 
@@ -452,7 +452,7 @@ type Service_SetMute_Call struct {
 
 // SetMute is a helper method to define mock.On call
 //   - mute bool
-func (_e *Service_Expecter) SetMute(mute interface{}) *Service_SetMute_Call {
+func (_e *Service_Expecter) SetMute(mute any) *Service_SetMute_Call {
 	return &Service_SetMute_Call{Call: _e.mock.On("SetMute", mute)}
 }
 
@@ -498,7 +498,7 @@ type Service_SetPlayback_Call struct {
 
 // SetPlayback is a helper method to define mock.On call
 //   - action string
-func (_e *Service_Expecter) SetPlayback(action interface{}) *Service_SetPlayback_Call {
+func (_e *Service_Expecter) SetPlayback(action any) *Service_SetPlayback_Call {
 	return &Service_SetPlayback_Call{Call: _e.mock.On("SetPlayback", action)}
 }
 
@@ -544,7 +544,7 @@ type Service_SetPlaybackMode_Call struct {
 
 // SetPlaybackMode is a helper method to define mock.On call
 //   - mode map[string]bool
-func (_e *Service_Expecter) SetPlaybackMode(mode interface{}) *Service_SetPlaybackMode_Call {
+func (_e *Service_Expecter) SetPlaybackMode(mode any) *Service_SetPlaybackMode_Call {
 	return &Service_SetPlaybackMode_Call{Call: _e.mock.On("SetPlaybackMode", mode)}
 }
 
@@ -590,7 +590,7 @@ type Service_SetVolume_Call struct {
 
 // SetVolume is a helper method to define mock.On call
 //   - level int
-func (_e *Service_Expecter) SetVolume(level interface{}) *Service_SetVolume_Call {
+func (_e *Service_Expecter) SetVolume(level any) *Service_SetVolume_Call {
 	return &Service_SetVolume_Call{Call: _e.mock.On("SetVolume", level)}
 }
 

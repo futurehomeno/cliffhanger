@@ -25,7 +25,7 @@ func Specification(
 		Name:    MediaPlayer,
 		Groups:  groups,
 		Enabled: true,
-		Props: map[string]interface{}{
+		Props: map[string]any{
 			PropertySupportedPlayback: supportedPlayback,
 			PropertySupportedModes:    supportedModes,
 			PropertySupportedMetadata: supportedMetadata,

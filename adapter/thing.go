@@ -62,7 +62,7 @@ func (s ThingSeeds) Without(id string) ThingSeeds {
 // ThingSeed represents a thing seed to be used for creating thing.
 type ThingSeed struct {
 	ID            string
-	Info          interface{}
+	Info          any
 	CustomAddress string
 }
 

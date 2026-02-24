@@ -269,7 +269,7 @@ type Controller_SetMute_Call struct {
 
 // SetMute is a helper method to define mock.On call
 //   - mute bool
-func (_e *Controller_Expecter) SetMute(mute interface{}) *Controller_SetMute_Call {
+func (_e *Controller_Expecter) SetMute(mute any) *Controller_SetMute_Call {
 	return &Controller_SetMute_Call{Call: _e.mock.On("SetMute", mute)}
 }
 
@@ -315,7 +315,7 @@ type Controller_SetPlayback_Call struct {
 
 // SetPlayback is a helper method to define mock.On call
 //   - action mediaplayer.PlaybackAction
-func (_e *Controller_Expecter) SetPlayback(action interface{}) *Controller_SetPlayback_Call {
+func (_e *Controller_Expecter) SetPlayback(action any) *Controller_SetPlayback_Call {
 	return &Controller_SetPlayback_Call{Call: _e.mock.On("SetPlayback", action)}
 }
 
@@ -361,7 +361,7 @@ type Controller_SetPlaybackMode_Call struct {
 
 // SetPlaybackMode is a helper method to define mock.On call
 //   - mode map[string]bool
-func (_e *Controller_Expecter) SetPlaybackMode(mode interface{}) *Controller_SetPlaybackMode_Call {
+func (_e *Controller_Expecter) SetPlaybackMode(mode any) *Controller_SetPlaybackMode_Call {
 	return &Controller_SetPlaybackMode_Call{Call: _e.mock.On("SetPlaybackMode", mode)}
 }
 
@@ -407,7 +407,7 @@ type Controller_SetVolume_Call struct {
 
 // SetVolume is a helper method to define mock.On call
 //   - level int
-func (_e *Controller_Expecter) SetVolume(level interface{}) *Controller_SetVolume_Call {
+func (_e *Controller_Expecter) SetVolume(level any) *Controller_SetVolume_Call {
 	return &Controller_SetVolume_Call{Call: _e.mock.On("SetVolume", level)}
 }
 

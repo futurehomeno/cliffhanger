@@ -80,7 +80,7 @@ type Service_PublishEvent_Call struct {
 
 // PublishEvent is a helper method to define mock.On call
 //   - event adapter.ServiceEvent
-func (_e *Service_Expecter) PublishEvent(event interface{}) *Service_PublishEvent_Call {
+func (_e *Service_Expecter) PublishEvent(event any) *Service_PublishEvent_Call {
 	return &Service_PublishEvent_Call{Call: _e.mock.On("PublishEvent", event)}
 }
 
@@ -137,7 +137,7 @@ type Service_SendBatteryAlarmReport_Call struct {
 // SendBatteryAlarmReport is a helper method to define mock.On call
 //   - event string
 //   - force bool
-func (_e *Service_Expecter) SendBatteryAlarmReport(event interface{}, force interface{}) *Service_SendBatteryAlarmReport_Call {
+func (_e *Service_Expecter) SendBatteryAlarmReport(event any, force any) *Service_SendBatteryAlarmReport_Call {
 	return &Service_SendBatteryAlarmReport_Call{Call: _e.mock.On("SendBatteryAlarmReport", event, force)}
 }
 
@@ -193,7 +193,7 @@ type Service_SendBatteryLevelReport_Call struct {
 
 // SendBatteryLevelReport is a helper method to define mock.On call
 //   - force bool
-func (_e *Service_Expecter) SendBatteryLevelReport(force interface{}) *Service_SendBatteryLevelReport_Call {
+func (_e *Service_Expecter) SendBatteryLevelReport(force any) *Service_SendBatteryLevelReport_Call {
 	return &Service_SendBatteryLevelReport_Call{Call: _e.mock.On("SendBatteryLevelReport", force)}
 }
 
@@ -239,7 +239,7 @@ type Service_SendMessage_Call struct {
 
 // SendMessage is a helper method to define mock.On call
 //   - message *fimpgo.FimpMessage
-func (_e *Service_Expecter) SendMessage(message interface{}) *Service_SendMessage_Call {
+func (_e *Service_Expecter) SendMessage(message any) *Service_SendMessage_Call {
 	return &Service_SendMessage_Call{Call: _e.mock.On("SendMessage", message)}
 }
 

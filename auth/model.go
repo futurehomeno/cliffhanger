@@ -6,11 +6,11 @@ import (
 
 // OAuth2TokenResponse is an object representing credentials for the app to log into a third-party service.
 type OAuth2TokenResponse struct {
-	AccessToken  string      `json:"access_token"`
-	TokenType    string      `json:"token_type"`
-	ExpiresIn    int         `json:"expires_in"`
-	RefreshToken string      `json:"refresh_token"`
-	Scope        interface{} `json:"scope"`
+	AccessToken  string `json:"access_token"`
+	TokenType    string `json:"token_type"`
+	ExpiresIn    int    `json:"expires_in"`
+	RefreshToken string `json:"refresh_token"`
+	Scope        any    `json:"scope"`
 }
 
 // OAuth2RefreshProxyRequest is an object representing request to partners API to exchange refresh token for access token.

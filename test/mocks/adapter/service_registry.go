@@ -93,7 +93,7 @@ type ServiceRegistry_ServiceByTopic_Call struct {
 
 // ServiceByTopic is a helper method to define mock.On call
 //   - topic string
-func (_e *ServiceRegistry_Expecter) ServiceByTopic(topic interface{}) *ServiceRegistry_ServiceByTopic_Call {
+func (_e *ServiceRegistry_Expecter) ServiceByTopic(topic any) *ServiceRegistry_ServiceByTopic_Call {
 	return &ServiceRegistry_ServiceByTopic_Call{Call: _e.mock.On("ServiceByTopic", topic)}
 }
 
@@ -141,7 +141,7 @@ type ServiceRegistry_Services_Call struct {
 
 // Services is a helper method to define mock.On call
 //   - name fimptype.ServiceNameT
-func (_e *ServiceRegistry_Expecter) Services(name interface{}) *ServiceRegistry_Services_Call {
+func (_e *ServiceRegistry_Expecter) Services(name any) *ServiceRegistry_Services_Call {
 	return &ServiceRegistry_Services_Call{Call: _e.mock.On("Services", name)}
 }
 

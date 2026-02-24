@@ -22,7 +22,7 @@ func Specification(
 		Name:    serviceName,
 		Groups:  groups,
 		Enabled: true,
-		Props: map[string]interface{}{
+		Props: map[string]any{
 			PropertySupportedUnits: supportedUnits,
 		},
 		Interfaces: requiredInterfaces(),

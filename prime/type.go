@@ -162,12 +162,12 @@ type Device struct {
 	Lrn           bool                               `json:"lrn"`
 	Model         string                             `json:"model"`
 	ModelAlias    string                             `json:"modelAlias"`
-	Param         map[string]interface{}             `json:"param"`
+	Param         map[string]any                     `json:"param"`
 	Problem       bool                               `json:"problem"`
 	Room          *int                               `json:"room"`
-	Changes       map[string]interface{}             `json:"changes"`
+	Changes       map[string]any                     `json:"changes"`
 	ThingID       *int                               `json:"thing"`
-	Type          map[string]interface{}             `json:"type"`
+	Type          map[string]any                     `json:"type"`
 }
 
 func (d *Device) GetName() string {
@@ -232,7 +232,7 @@ func (d *Device) SupportsSubType(mainType, subType string) bool {
 		return false
 	}
 
-	supported, ok := supportedRaw.(map[string]interface{})
+	supported, ok := supportedRaw.(map[string]any)
 	if !ok {
 		return false
 	}
@@ -242,7 +242,7 @@ func (d *Device) SupportsSubType(mainType, subType string) bool {
 		return false
 	}
 
-	subTypes, ok := subTypesRaw.([]interface{})
+	subTypes, ok := subTypesRaw.([]any)
 	if !ok {
 		return false
 	}
@@ -300,7 +300,7 @@ func (d *Device) containsInterface(interfaceName string, interfaces []string) bo
 	return false
 }
 
-func (d *Device) GetServiceProperty(serviceName fimptype.ServiceNameT, property string) interface{} {
+func (d *Device) GetServiceProperty(serviceName fimptype.ServiceNameT, property string) any {
 	srv := d.GetService(serviceName)
 	if srv == nil {
 		return nil
@@ -347,7 +347,7 @@ func (d *Device) GetServicePropertyInteger(serviceName fimptype.ServiceNameT, pr
 	return val
 }
 
-func (d *Device) GetServicePropertyObject(serviceName fimptype.ServiceNameT, property string, object interface{}) (ok bool) {
+func (d *Device) GetServicePropertyObject(serviceName fimptype.ServiceNameT, property string, object any) (ok bool) {
 	v := d.GetServiceProperty(serviceName, property)
 	if v == nil {
 		return false
@@ -386,18 +386,18 @@ func (d *Device) GetAddresses() []string {
 }
 
 type Service struct {
-	Addr       string                 `json:"addr,omitempty"`
-	Enabled    bool                   `json:"enabled,omitempty"`
-	Interfaces []string               `json:"intf"`
-	Props      map[string]interface{} `json:"props"`
+	Addr       string         `json:"addr,omitempty"`
+	Enabled    bool           `json:"enabled,omitempty"`
+	Interfaces []string       `json:"intf"`
+	Props      map[string]any `json:"props"`
 }
 
 type DeviceFIMP struct {
-	Adapter         fimptype.ServiceNameT `json:"adapter"`
-	Address         string                `json:"address"`
-	AdapterResource string                `json:"adapter_resource"`
-	AdapterAddress  string                `json:"adapter_address"`
-	Group           string                `json:"group"`
+	Adapter         fimptype.ResourceNameT `json:"adapter"`
+	Address         string                 `json:"address"`
+	AdapterResource string                 `json:"adapter_resource"`
+	AdapterAddress  string                 `json:"adapter_address"`
+	Group           string                 `json:"group"`
 }
 
 type ClientType struct {
@@ -418,13 +418,13 @@ func (t Things) FindByID(id int) *Thing {
 }
 
 type Thing struct {
-	ID      int                    `json:"id"`
-	FIMP    ThingFIMP              `json:"fimp"`
-	Address string                 `json:"addr"`
-	Name    string                 `json:"name"`
-	Devices []int                  `json:"devices,omitempty"`
-	Props   map[string]interface{} `json:"props,omitempty"`
-	RoomID  int                    `json:"room"`
+	ID      int            `json:"id"`
+	FIMP    ThingFIMP      `json:"fimp"`
+	Address string         `json:"addr"`
+	Name    string         `json:"name"`
+	Devices []int          `json:"devices,omitempty"`
+	Props   map[string]any `json:"props,omitempty"`
+	RoomID  int            `json:"room"`
 }
 
 type ThingFIMP struct {
@@ -466,11 +466,11 @@ func (d *Room) GetAreaID() int {
 
 type RoomParams struct {
 	Heating  RoomHeating `json:"heating"`
-	Lighting interface{} `json:"lighting"`
-	Security interface{} `json:"security"`
+	Lighting any         `json:"lighting"`
+	Security any         `json:"security"`
 	Sensors  []string    `json:"sensors"`
-	Shading  interface{} `json:"shading"`
-	Triggers interface{} `json:"triggers"`
+	Shading  any         `json:"shading"`
+	Triggers any         `json:"triggers"`
 }
 
 type RoomHeating struct {
@@ -496,9 +496,9 @@ type AreaProps struct {
 }
 
 type House struct {
-	Learning interface{} `json:"learning"`
-	Mode     string      `json:"mode"`
-	Time     time.Time   `json:"time"`
+	Learning any       `json:"learning"`
+	Mode     string    `json:"mode"`
+	Time     time.Time `json:"time"`
 }
 
 type Hub struct {
@@ -532,9 +532,9 @@ type ShortcutAction struct {
 	Room   map[int]ActionRoom   `json:"room"`
 }
 
-type ActionDevice map[string]interface{}
+type ActionDevice map[string]any
 
-type ActionRoom map[string]interface{}
+type ActionRoom map[string]any
 
 type Modes []*Mode
 
@@ -552,10 +552,10 @@ type Timers []*Timer
 
 type Timer struct {
 	Action  TimerAction
-	Client  ClientType             `json:"client"`
-	Enabled bool                   `json:"enabled"`
-	Time    map[string]interface{} `json:"time"`
-	ID      int                    `json:"id"`
+	Client  ClientType     `json:"client"`
+	Enabled bool           `json:"enabled"`
+	Time    map[string]any `json:"time"`
+	ID      int            `json:"id"`
 }
 
 type TimerAction struct {
@@ -566,7 +566,7 @@ type TimerAction struct {
 }
 
 type VinculumServices struct {
-	FireAlarm map[string]interface{} `json:"fireAlarm"`
+	FireAlarm map[string]any `json:"fireAlarm"`
 }
 
 type State struct {
@@ -662,7 +662,7 @@ func (d *StateDevice) GetAttributeBoolMapValue(serviceName fimptype.ServiceNameT
 	return val, d.GetAttributeObjectValue(serviceName, attributeName, properties, &val)
 }
 
-func (d *StateDevice) GetAttributeObjectValue(serviceName fimptype.ServiceNameT, attributeName string, properties map[string]string, object interface{}) time.Time {
+func (d *StateDevice) GetAttributeObjectValue(serviceName fimptype.ServiceNameT, attributeName string, properties map[string]string, object any) time.Time {
 	if d == nil {
 		return time.Time{}
 	}
@@ -764,7 +764,7 @@ func (a *StateAttribute) FindValue(properties map[string]string) *StateAttribute
 type StateAttributeValue struct {
 	Timestamp string            `json:"ts"`
 	ValueType string            `json:"val_t"`
-	Value     interface{}       `json:"val"`
+	Value     any               `json:"val"`
 	Props     map[string]string `json:"props"`
 }
 
@@ -840,7 +840,7 @@ func (v *StateAttributeValue) GetBoolMapValue() (map[string]bool, error) {
 	return val, v.GetObjectValue(&val)
 }
 
-func (v *StateAttributeValue) GetObjectValue(object interface{}) error {
+func (v *StateAttributeValue) GetObjectValue(object any) error {
 	if v == nil {
 		return nil
 	}

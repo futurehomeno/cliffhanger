@@ -21,7 +21,7 @@ func Specification(
 		Name:    FanCtrl,
 		Groups:  groups,
 		Enabled: true,
-		Props: map[string]interface{}{
+		Props: map[string]any{
 			PropertySupportedModes: supportedModes,
 		},
 		Interfaces: requiredInterfaces(),

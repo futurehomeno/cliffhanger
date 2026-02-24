@@ -59,7 +59,7 @@ type ThingFactory_Create_Call struct {
 //   - _a0 adapter.Adapter
 //   - publisher adapter.Publisher
 //   - thingState adapter.ThingState
-func (_e *ThingFactory_Expecter) Create(_a0 interface{}, publisher interface{}, thingState interface{}) *ThingFactory_Create_Call {
+func (_e *ThingFactory_Expecter) Create(_a0 any, publisher any, thingState any) *ThingFactory_Create_Call {
 	return &ThingFactory_Create_Call{Call: _e.mock.On("Create", _a0, publisher, thingState)}
 }
 

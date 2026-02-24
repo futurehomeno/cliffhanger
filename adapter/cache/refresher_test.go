@@ -19,7 +19,7 @@ func TestRefresher_Refresh(t *testing.T) {
 		refreshMock       *refreshMock
 		refresherInterval time.Duration
 		refresherOptions  []cache.RefresherOption
-		want              interface{}
+		want              any
 		wantErr           bool
 		wantFailing       bool
 		repeatCount       int
@@ -106,7 +106,7 @@ func TestRefresher_Refresh(t *testing.T) {
 			refresher := cache.NewRefresher(tc.refreshMock.refresh, tc.refresherInterval, tc.refresherOptions...)
 
 			var (
-				got interface{}
+				got any
 				err error
 			)
 
@@ -143,13 +143,13 @@ type refreshMock struct {
 	mock.Mock
 }
 
-func (m *refreshMock) refresh() (interface{}, error) {
+func (m *refreshMock) refresh() (any, error) {
 	args := m.Called()
 
 	return args.Get(0), args.Error(1)
 }
 
-func (m *refreshMock) mockRefresh(want interface{}, err error, once bool) *refreshMock {
+func (m *refreshMock) mockRefresh(want any, err error, once bool) *refreshMock {
 	c := m.On("refresh").Return(want, err)
 
 	if once {

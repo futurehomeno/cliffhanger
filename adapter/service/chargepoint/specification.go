@@ -60,7 +60,7 @@ func Specification(
 		Name:    Chargepoint,
 		Groups:  groups,
 		Enabled: true,
-		Props: map[string]interface{}{
+		Props: map[string]any{
 			PropertySupportedStates: supportedStates,
 		},
 		Interfaces: requiredInterfaces(),

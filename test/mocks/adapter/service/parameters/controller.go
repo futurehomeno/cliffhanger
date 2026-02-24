@@ -57,7 +57,7 @@ type Controller_GetParameter_Call struct {
 
 // GetParameter is a helper method to define mock.On call
 //   - id string
-func (_e *Controller_Expecter) GetParameter(id interface{}) *Controller_GetParameter_Call {
+func (_e *Controller_Expecter) GetParameter(id any) *Controller_GetParameter_Call {
 	return &Controller_GetParameter_Call{Call: _e.mock.On("GetParameter", id)}
 }
 
@@ -160,7 +160,7 @@ type Controller_SetParameter_Call struct {
 
 // SetParameter is a helper method to define mock.On call
 //   - p *parameters.Parameter
-func (_e *Controller_Expecter) SetParameter(p interface{}) *Controller_SetParameter_Call {
+func (_e *Controller_Expecter) SetParameter(p any) *Controller_SetParameter_Call {
 	return &Controller_SetParameter_Call{Call: _e.mock.On("SetParameter", p)}
 }
 

@@ -23,7 +23,7 @@ func Specification(
 		Name:    Thermostat,
 		Groups:  groups,
 		Enabled: true,
-		Props: map[string]interface{}{
+		Props: map[string]any{
 			PropertySupportedModes:     supportedModes,
 			PropertySupportedSetpoints: supportedSetpoints,
 			PropertySupportedStates:    supportedStates,

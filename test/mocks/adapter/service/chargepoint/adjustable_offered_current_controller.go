@@ -42,7 +42,7 @@ type AdjustableOfferedCurrentController_SetChargepointOfferedCurrent_Call struct
 
 // SetChargepointOfferedCurrent is a helper method to define mock.On call
 //   - _a0 int
-func (_e *AdjustableOfferedCurrentController_Expecter) SetChargepointOfferedCurrent(_a0 interface{}) *AdjustableOfferedCurrentController_SetChargepointOfferedCurrent_Call {
+func (_e *AdjustableOfferedCurrentController_Expecter) SetChargepointOfferedCurrent(_a0 any) *AdjustableOfferedCurrentController_SetChargepointOfferedCurrent_Call {
 	return &AdjustableOfferedCurrentController_SetChargepointOfferedCurrent_Call{Call: _e.mock.On("SetChargepointOfferedCurrent", _a0)}
 }
 

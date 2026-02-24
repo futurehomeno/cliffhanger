@@ -33,7 +33,7 @@ func Specification(
 		Name:    WaterHeater,
 		Groups:  groups,
 		Enabled: true,
-		Props: map[string]interface{}{
+		Props: map[string]any{
 			PropertySupportedModes:     supportedModes,
 			PropertySupportedSetpoints: supportedSetpoints,
 			PropertySupportedStates:    supportedStates,

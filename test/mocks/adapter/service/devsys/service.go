@@ -80,7 +80,7 @@ type Service_PublishEvent_Call struct {
 
 // PublishEvent is a helper method to define mock.On call
 //   - event adapter.ServiceEvent
-func (_e *Service_Expecter) PublishEvent(event interface{}) *Service_PublishEvent_Call {
+func (_e *Service_Expecter) PublishEvent(event any) *Service_PublishEvent_Call {
 	return &Service_PublishEvent_Call{Call: _e.mock.On("PublishEvent", event)}
 }
 
@@ -126,7 +126,7 @@ type Service_Reboot_Call struct {
 
 // Reboot is a helper method to define mock.On call
 //   - hard bool
-func (_e *Service_Expecter) Reboot(hard interface{}) *Service_Reboot_Call {
+func (_e *Service_Expecter) Reboot(hard any) *Service_Reboot_Call {
 	return &Service_Reboot_Call{Call: _e.mock.On("Reboot", hard)}
 }
 
@@ -172,7 +172,7 @@ type Service_SendMessage_Call struct {
 
 // SendMessage is a helper method to define mock.On call
 //   - message *fimpgo.FimpMessage
-func (_e *Service_Expecter) SendMessage(message interface{}) *Service_SendMessage_Call {
+func (_e *Service_Expecter) SendMessage(message any) *Service_SendMessage_Call {
 	return &Service_SendMessage_Call{Call: _e.mock.On("SendMessage", message)}
 }
 

@@ -19,7 +19,7 @@ import (
 )
 
 func TestHandleCmdLogGetLevel(t *testing.T) { //nolint:paralleltest
-	makeCommand := func(valueType fimptype.ValueTypeT, value interface{}) *fimpgo.Message {
+	makeCommand := func(valueType fimptype.ValueTypeT, value any) *fimpgo.Message {
 		return &fimpgo.Message{
 			Payload: &fimpgo.FimpMessage{
 				Interface: config.CmdLogSetLevel,

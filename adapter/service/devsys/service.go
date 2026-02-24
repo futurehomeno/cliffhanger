@@ -10,7 +10,7 @@ import (
 )
 
 // Controller for dev_sys service specifies no methods, as the service has no mandatory interfaces.
-type Controller interface{}
+type Controller any
 
 // RebootController is a controller that allows to reboot the device.
 type RebootController interface {

@@ -52,7 +52,7 @@ type Reporter_NumericSensorReport_Call struct {
 
 // NumericSensorReport is a helper method to define mock.On call
 //   - unit string
-func (_e *Reporter_Expecter) NumericSensorReport(unit interface{}) *Reporter_NumericSensorReport_Call {
+func (_e *Reporter_Expecter) NumericSensorReport(unit any) *Reporter_NumericSensorReport_Call {
 	return &Reporter_NumericSensorReport_Call{Call: _e.mock.On("NumericSensorReport", unit)}
 }
 

@@ -1,6 +1,6 @@
 package mockeddatabase
 
-func (d *Database) WithGet(once, found bool, err error, args ...interface{}) *Database {
+func (d *Database) WithGet(once, found bool, err error, args ...any) *Database {
 	c := d.On("Get", args...).Return(found, err)
 
 	if once {
@@ -10,7 +10,7 @@ func (d *Database) WithGet(once, found bool, err error, args ...interface{}) *Da
 	return d
 }
 
-func (d *Database) WithSet(once bool, err error, args ...interface{}) *Database {
+func (d *Database) WithSet(once bool, err error, args ...any) *Database {
 	c := d.On("Set", args...).Return(err)
 
 	if once {

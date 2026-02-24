@@ -34,7 +34,7 @@ type ServicePublisher_PublishServiceEvent_Call struct {
 // PublishServiceEvent is a helper method to define mock.On call
 //   - service adapter.Service
 //   - payload adapter.ServiceEvent
-func (_e *ServicePublisher_Expecter) PublishServiceEvent(service interface{}, payload interface{}) *ServicePublisher_PublishServiceEvent_Call {
+func (_e *ServicePublisher_Expecter) PublishServiceEvent(service any, payload any) *ServicePublisher_PublishServiceEvent_Call {
 	return &ServicePublisher_PublishServiceEvent_Call{Call: _e.mock.On("PublishServiceEvent", service, payload)}
 }
 
@@ -81,7 +81,7 @@ type ServicePublisher_PublishServiceMessage_Call struct {
 // PublishServiceMessage is a helper method to define mock.On call
 //   - service adapter.Service
 //   - message *fimpgo.FimpMessage
-func (_e *ServicePublisher_Expecter) PublishServiceMessage(service interface{}, message interface{}) *ServicePublisher_PublishServiceMessage_Call {
+func (_e *ServicePublisher_Expecter) PublishServiceMessage(service any, message any) *ServicePublisher_PublishServiceMessage_Call {
 	return &ServicePublisher_PublishServiceMessage_Call{Call: _e.mock.On("PublishServiceMessage", service, message)}
 }
 

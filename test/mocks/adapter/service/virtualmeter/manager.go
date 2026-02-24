@@ -46,7 +46,7 @@ type Manager_RegisterThing_Call struct {
 // RegisterThing is a helper method to define mock.On call
 //   - thing adapter.Thing
 //   - publisher adapter.Publisher
-func (_e *Manager_Expecter) RegisterThing(thing interface{}, publisher interface{}) *Manager_RegisterThing_Call {
+func (_e *Manager_Expecter) RegisterThing(thing any, publisher any) *Manager_RegisterThing_Call {
 	return &Manager_RegisterThing_Call{Call: _e.mock.On("RegisterThing", thing, publisher)}
 }
 
@@ -79,7 +79,7 @@ type Manager_WithAdapter_Call struct {
 
 // WithAdapter is a helper method to define mock.On call
 //   - ad adapter.Adapter
-func (_e *Manager_Expecter) WithAdapter(ad interface{}) *Manager_WithAdapter_Call {
+func (_e *Manager_Expecter) WithAdapter(ad any) *Manager_WithAdapter_Call {
 	return &Manager_WithAdapter_Call{Call: _e.mock.On("WithAdapter", ad)}
 }
 

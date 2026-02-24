@@ -82,7 +82,7 @@ type Service_PublishEvent_Call struct {
 
 // PublishEvent is a helper method to define mock.On call
 //   - event adapter.ServiceEvent
-func (_e *Service_Expecter) PublishEvent(event interface{}) *Service_PublishEvent_Call {
+func (_e *Service_Expecter) PublishEvent(event any) *Service_PublishEvent_Call {
 	return &Service_PublishEvent_Call{Call: _e.mock.On("PublishEvent", event)}
 }
 
@@ -138,7 +138,7 @@ type Service_SendLevelReport_Call struct {
 
 // SendLevelReport is a helper method to define mock.On call
 //   - force bool
-func (_e *Service_Expecter) SendLevelReport(force interface{}) *Service_SendLevelReport_Call {
+func (_e *Service_Expecter) SendLevelReport(force any) *Service_SendLevelReport_Call {
 	return &Service_SendLevelReport_Call{Call: _e.mock.On("SendLevelReport", force)}
 }
 
@@ -184,7 +184,7 @@ type Service_SendMessage_Call struct {
 
 // SendMessage is a helper method to define mock.On call
 //   - message *fimpgo.FimpMessage
-func (_e *Service_Expecter) SendMessage(message interface{}) *Service_SendMessage_Call {
+func (_e *Service_Expecter) SendMessage(message any) *Service_SendMessage_Call {
 	return &Service_SendMessage_Call{Call: _e.mock.On("SendMessage", message)}
 }
 
@@ -230,7 +230,7 @@ type Service_SetBinaryState_Call struct {
 
 // SetBinaryState is a helper method to define mock.On call
 //   - value bool
-func (_e *Service_Expecter) SetBinaryState(value interface{}) *Service_SetBinaryState_Call {
+func (_e *Service_Expecter) SetBinaryState(value any) *Service_SetBinaryState_Call {
 	return &Service_SetBinaryState_Call{Call: _e.mock.On("SetBinaryState", value)}
 }
 
@@ -277,7 +277,7 @@ type Service_SetLevel_Call struct {
 // SetLevel is a helper method to define mock.On call
 //   - value int
 //   - duration *time.Duration
-func (_e *Service_Expecter) SetLevel(value interface{}, duration interface{}) *Service_SetLevel_Call {
+func (_e *Service_Expecter) SetLevel(value any, duration any) *Service_SetLevel_Call {
 	return &Service_SetLevel_Call{Call: _e.mock.On("SetLevel", value, duration)}
 }
 
@@ -371,7 +371,7 @@ type Service_StartLevelTransition_Call struct {
 // StartLevelTransition is a helper method to define mock.On call
 //   - _a0 string
 //   - _a1 outlvlswitch.LevelTransitionParams
-func (_e *Service_Expecter) StartLevelTransition(_a0 interface{}, _a1 interface{}) *Service_StartLevelTransition_Call {
+func (_e *Service_Expecter) StartLevelTransition(_a0 any, _a1 any) *Service_StartLevelTransition_Call {
 	return &Service_StartLevelTransition_Call{Call: _e.mock.On("StartLevelTransition", _a0, _a1)}
 }
 

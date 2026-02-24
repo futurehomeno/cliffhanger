@@ -80,7 +80,7 @@ type Service_PublishEvent_Call struct {
 
 // PublishEvent is a helper method to define mock.On call
 //   - event adapter.ServiceEvent
-func (_e *Service_Expecter) PublishEvent(event interface{}) *Service_PublishEvent_Call {
+func (_e *Service_Expecter) PublishEvent(event any) *Service_PublishEvent_Call {
 	return &Service_PublishEvent_Call{Call: _e.mock.On("PublishEvent", event)}
 }
 
@@ -136,7 +136,7 @@ type Service_SendColorReport_Call struct {
 
 // SendColorReport is a helper method to define mock.On call
 //   - force bool
-func (_e *Service_Expecter) SendColorReport(force interface{}) *Service_SendColorReport_Call {
+func (_e *Service_Expecter) SendColorReport(force any) *Service_SendColorReport_Call {
 	return &Service_SendColorReport_Call{Call: _e.mock.On("SendColorReport", force)}
 }
 
@@ -182,7 +182,7 @@ type Service_SendMessage_Call struct {
 
 // SendMessage is a helper method to define mock.On call
 //   - message *fimpgo.FimpMessage
-func (_e *Service_Expecter) SendMessage(message interface{}) *Service_SendMessage_Call {
+func (_e *Service_Expecter) SendMessage(message any) *Service_SendMessage_Call {
 	return &Service_SendMessage_Call{Call: _e.mock.On("SendMessage", message)}
 }
 
@@ -228,7 +228,7 @@ type Service_SetColor_Call struct {
 
 // SetColor is a helper method to define mock.On call
 //   - color map[string]int
-func (_e *Service_Expecter) SetColor(color interface{}) *Service_SetColor_Call {
+func (_e *Service_Expecter) SetColor(color any) *Service_SetColor_Call {
 	return &Service_SetColor_Call{Call: _e.mock.On("SetColor", color)}
 }
 

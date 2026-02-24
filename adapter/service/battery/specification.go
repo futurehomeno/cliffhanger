@@ -21,7 +21,7 @@ func Specification(
 		Name:    Battery,
 		Groups:  groups,
 		Enabled: true,
-		Props: map[string]interface{}{
+		Props: map[string]any{
 			PropertySupportedEvents: events,
 		},
 		Interfaces: requiredInterfaces(),

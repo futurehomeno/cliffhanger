@@ -61,7 +61,7 @@ type SyncClient_SendReqRespFimp_Call struct {
 //   - reqMsg *fimpgo.FimpMessage
 //   - timeout int
 //   - autoSubscribe bool
-func (_e *SyncClient_Expecter) SendReqRespFimp(cmdTopic interface{}, responseTopic interface{}, reqMsg interface{}, timeout interface{}, autoSubscribe interface{}) *SyncClient_SendReqRespFimp_Call {
+func (_e *SyncClient_Expecter) SendReqRespFimp(cmdTopic any, responseTopic any, reqMsg any, timeout any, autoSubscribe any) *SyncClient_SendReqRespFimp_Call {
 	return &SyncClient_SendReqRespFimp_Call{Call: _e.mock.On("SendReqRespFimp", cmdTopic, responseTopic, reqMsg, timeout, autoSubscribe)}
 }
 

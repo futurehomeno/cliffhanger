@@ -79,7 +79,7 @@ type Service_PublishEvent_Call struct {
 
 // PublishEvent is a helper method to define mock.On call
 //   - event adapter.ServiceEvent
-func (_e *Service_Expecter) PublishEvent(event interface{}) *Service_PublishEvent_Call {
+func (_e *Service_Expecter) PublishEvent(event any) *Service_PublishEvent_Call {
 	return &Service_PublishEvent_Call{Call: _e.mock.On("PublishEvent", event)}
 }
 
@@ -125,7 +125,7 @@ type Service_SendMessage_Call struct {
 
 // SendMessage is a helper method to define mock.On call
 //   - message *fimpgo.FimpMessage
-func (_e *Service_Expecter) SendMessage(message interface{}) *Service_SendMessage_Call {
+func (_e *Service_Expecter) SendMessage(message any) *Service_SendMessage_Call {
 	return &Service_SendMessage_Call{Call: _e.mock.On("SendMessage", message)}
 }
 
@@ -181,7 +181,7 @@ type Service_SendModeReport_Call struct {
 
 // SendModeReport is a helper method to define mock.On call
 //   - force bool
-func (_e *Service_Expecter) SendModeReport(force interface{}) *Service_SendModeReport_Call {
+func (_e *Service_Expecter) SendModeReport(force any) *Service_SendModeReport_Call {
 	return &Service_SendModeReport_Call{Call: _e.mock.On("SendModeReport", force)}
 }
 
@@ -238,7 +238,7 @@ type Service_SendSetpointReport_Call struct {
 // SendSetpointReport is a helper method to define mock.On call
 //   - mode string
 //   - force bool
-func (_e *Service_Expecter) SendSetpointReport(mode interface{}, force interface{}) *Service_SendSetpointReport_Call {
+func (_e *Service_Expecter) SendSetpointReport(mode any, force any) *Service_SendSetpointReport_Call {
 	return &Service_SendSetpointReport_Call{Call: _e.mock.On("SendSetpointReport", mode, force)}
 }
 
@@ -294,7 +294,7 @@ type Service_SendStateReport_Call struct {
 
 // SendStateReport is a helper method to define mock.On call
 //   - force bool
-func (_e *Service_Expecter) SendStateReport(force interface{}) *Service_SendStateReport_Call {
+func (_e *Service_Expecter) SendStateReport(force any) *Service_SendStateReport_Call {
 	return &Service_SendStateReport_Call{Call: _e.mock.On("SendStateReport", force)}
 }
 
@@ -340,7 +340,7 @@ type Service_SetMode_Call struct {
 
 // SetMode is a helper method to define mock.On call
 //   - mode string
-func (_e *Service_Expecter) SetMode(mode interface{}) *Service_SetMode_Call {
+func (_e *Service_Expecter) SetMode(mode any) *Service_SetMode_Call {
 	return &Service_SetMode_Call{Call: _e.mock.On("SetMode", mode)}
 }
 
@@ -388,7 +388,7 @@ type Service_SetSetpoint_Call struct {
 //   - mode string
 //   - value float64
 //   - unit string
-func (_e *Service_Expecter) SetSetpoint(mode interface{}, value interface{}, unit interface{}) *Service_SetSetpoint_Call {
+func (_e *Service_Expecter) SetSetpoint(mode any, value any, unit any) *Service_SetSetpoint_Call {
 	return &Service_SetSetpoint_Call{Call: _e.mock.On("SetSetpoint", mode, value, unit)}
 }
 
@@ -622,7 +622,7 @@ type Service_SupportsSetpoint_Call struct {
 
 // SupportsSetpoint is a helper method to define mock.On call
 //   - setpoint string
-func (_e *Service_Expecter) SupportsSetpoint(setpoint interface{}) *Service_SupportsSetpoint_Call {
+func (_e *Service_Expecter) SupportsSetpoint(setpoint any) *Service_SupportsSetpoint_Call {
 	return &Service_SupportsSetpoint_Call{Call: _e.mock.On("SupportsSetpoint", setpoint)}
 }
 

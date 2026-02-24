@@ -76,7 +76,7 @@ func FloatMessage(topic, iface string, service fimptype.ServiceNameT, value floa
 	}
 }
 
-func ObjectMessage(topic, iface string, service fimptype.ServiceNameT, value interface{}) *fimpgo.Message {
+func ObjectMessage(topic, iface string, service fimptype.ServiceNameT, value any) *fimpgo.Message {
 	return &fimpgo.Message{
 		Topic: topic,
 		Payload: fimpgo.NewObjectMessage(
@@ -245,7 +245,7 @@ func (b *MessageBuilder) FloatMessage(topic, iface string, service fimptype.Serv
 	return b
 }
 
-func (b *MessageBuilder) ObjectMessage(topic, iface string, service fimptype.ServiceNameT, value interface{}) *MessageBuilder {
+func (b *MessageBuilder) ObjectMessage(topic, iface string, service fimptype.ServiceNameT, value any) *MessageBuilder {
 	b.msg = ObjectMessage(topic, iface, service, value)
 
 	return b

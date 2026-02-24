@@ -99,7 +99,7 @@ type Controller_SetColorCtrlColor_Call struct {
 
 // SetColorCtrlColor is a helper method to define mock.On call
 //   - color map[string]int
-func (_e *Controller_Expecter) SetColorCtrlColor(color interface{}) *Controller_SetColorCtrlColor_Call {
+func (_e *Controller_Expecter) SetColorCtrlColor(color any) *Controller_SetColorCtrlColor_Call {
 	return &Controller_SetColorCtrlColor_Call{Call: _e.mock.On("SetColorCtrlColor", color)}
 }
 

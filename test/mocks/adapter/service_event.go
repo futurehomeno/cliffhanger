@@ -258,7 +258,7 @@ type ServiceEvent_setAddress_Call struct {
 
 // setAddress is a helper method to define mock.On call
 //   - address string
-func (_e *ServiceEvent_Expecter) setAddress(address interface{}) *ServiceEvent_setAddress_Call {
+func (_e *ServiceEvent_Expecter) setAddress(address any) *ServiceEvent_setAddress_Call {
 	return &ServiceEvent_setAddress_Call{Call: _e.mock.On("setAddress", address)}
 }
 
@@ -291,7 +291,7 @@ type ServiceEvent_setEvent_Call struct {
 
 // setEvent is a helper method to define mock.On call
 //   - _a0 event.Event
-func (_e *ServiceEvent_Expecter) setEvent(_a0 interface{}) *ServiceEvent_setEvent_Call {
+func (_e *ServiceEvent_Expecter) setEvent(_a0 any) *ServiceEvent_setEvent_Call {
 	return &ServiceEvent_setEvent_Call{Call: _e.mock.On("setEvent", _a0)}
 }
 
@@ -324,7 +324,7 @@ type ServiceEvent_setServiceName_Call struct {
 
 // setServiceName is a helper method to define mock.On call
 //   - serviceName fimptype.ServiceNameT
-func (_e *ServiceEvent_Expecter) setServiceName(serviceName interface{}) *ServiceEvent_setServiceName_Call {
+func (_e *ServiceEvent_Expecter) setServiceName(serviceName any) *ServiceEvent_setServiceName_Call {
 	return &ServiceEvent_setServiceName_Call{Call: _e.mock.On("setServiceName", serviceName)}
 }
 

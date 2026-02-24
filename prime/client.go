@@ -253,7 +253,7 @@ func (c *client) sendGetRequest(components []string) (*Response, error) {
 	return primeResponse, nil
 }
 
-func (c *client) sendSetRequest(component string, value interface{}) (*Response, error) {
+func (c *client) sendSetRequest(component string, value any) (*Response, error) {
 	request := &Request{
 		Cmd:       CmdSet,
 		Component: component,

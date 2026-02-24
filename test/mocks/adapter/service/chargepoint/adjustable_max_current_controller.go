@@ -97,7 +97,7 @@ type AdjustableMaxCurrentController_SetChargepointMaxCurrent_Call struct {
 
 // SetChargepointMaxCurrent is a helper method to define mock.On call
 //   - _a0 int
-func (_e *AdjustableMaxCurrentController_Expecter) SetChargepointMaxCurrent(_a0 interface{}) *AdjustableMaxCurrentController_SetChargepointMaxCurrent_Call {
+func (_e *AdjustableMaxCurrentController_Expecter) SetChargepointMaxCurrent(_a0 any) *AdjustableMaxCurrentController_SetChargepointMaxCurrent_Call {
 	return &AdjustableMaxCurrentController_SetChargepointMaxCurrent_Call{Call: _e.mock.On("SetChargepointMaxCurrent", _a0)}
 }
 

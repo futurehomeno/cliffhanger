@@ -39,7 +39,7 @@ func Specification(
 		Name:    OutLvlSwitch,
 		Groups:  groups,
 		Enabled: true,
-		Props: map[string]interface{}{
+		Props: map[string]any{
 			PropertyMaxLvl:     maxLvl,
 			PropertyMinLvl:     minLvl,
 			PropertySwitchType: switchType,

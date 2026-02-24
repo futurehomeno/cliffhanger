@@ -46,7 +46,7 @@ type LevelTransitionController_StartLevelTransition_Call struct {
 // StartLevelTransition is a helper method to define mock.On call
 //   - _a0 string
 //   - _a1 outlvlswitch.LevelTransitionParams
-func (_e *LevelTransitionController_Expecter) StartLevelTransition(_a0 interface{}, _a1 interface{}) *LevelTransitionController_StartLevelTransition_Call {
+func (_e *LevelTransitionController_Expecter) StartLevelTransition(_a0 any, _a1 any) *LevelTransitionController_StartLevelTransition_Call {
 	return &LevelTransitionController_StartLevelTransition_Call{Call: _e.mock.On("StartLevelTransition", _a0, _a1)}
 }
 

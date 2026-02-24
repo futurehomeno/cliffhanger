@@ -55,7 +55,7 @@ type Reporter_MeterReport_Call struct {
 
 // MeterReport is a helper method to define mock.On call
 //   - unit numericmeter.Unit
-func (_e *Reporter_Expecter) MeterReport(unit interface{}) *Reporter_MeterReport_Call {
+func (_e *Reporter_Expecter) MeterReport(unit any) *Reporter_MeterReport_Call {
 	return &Reporter_MeterReport_Call{Call: _e.mock.On("MeterReport", unit)}
 }
 

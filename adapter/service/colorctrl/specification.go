@@ -22,7 +22,7 @@ func Specification(
 		Name:    ColorCtrl,
 		Groups:  groups,
 		Enabled: true,
-		Props: map[string]interface{}{
+		Props: map[string]any{
 			PropertySupportedComponents: supportedComponents,
 		},
 		Interfaces: requiredInterfaces(),
