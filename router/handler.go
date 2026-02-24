@@ -109,9 +109,7 @@ type messageHandler struct {
 func (m *messageHandler) Handle(message *fimpgo.Message) *fimpgo.Message {
 	if m.locker != nil {
 		if !m.locker.Lock() {
-			return m.handleError(
-				message,
-				fmt.Errorf("another operation is already running, skipping message"))
+			return m.handleError(message, fmt.Errorf("another operation is already running, skipping message"))
 		}
 		defer m.locker.Unlock()
 	}
@@ -157,12 +155,8 @@ func (m *messageHandler) handleReply(requestMessage *fimpgo.Message, reply *fimp
 
 // handleError handles message processing error.
 func (m *messageHandler) handleError(requestMessage *fimpgo.Message, err error) *fimpgo.Message {
-	log.
-		WithError(err).
-		WithField("topic", requestMessage.Topic).
-		WithField("service", requestMessage.Payload.Service).
-		WithField("type", requestMessage.Payload.Interface).
-		Error("Process incoming msg")
+	log.WithError(err).WithField("topic", requestMessage.Topic).WithField("service", requestMessage.Payload.Service).
+		WithField("type", requestMessage.Payload.Interface).Error("Process incoming msg")
 
 	if m.silentErrors {
 		return nil
