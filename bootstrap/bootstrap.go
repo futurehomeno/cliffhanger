@@ -71,7 +71,7 @@ func InitializeLogger(logFile string, level string, logFormat string) error {
 	f, err := os.OpenFile(l.Filename, os.O_RDONLY|os.O_CREATE, 0644) //nolint:gosec
 
 	if err != nil {
-		if err := os.MkdirAll(filepath.Dir(l.Filename), 0770); err != nil { //nolint:gosec
+		if err := os.MkdirAll(filepath.Dir(l.Filename), 0755); err != nil { //nolint:gosec
 			return fmt.Errorf("create log dir=%s err: %w", filepath.Dir(l.Filename), err)
 		}
 
