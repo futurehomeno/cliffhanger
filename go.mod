@@ -3,7 +3,7 @@ module github.com/futurehomeno/cliffhanger
 go 1.26
 
 require (
-	github.com/futurehomeno/fimpgo v1.16.15
+	github.com/futurehomeno/fimpgo v1.17.0
 	github.com/google/go-cmp v0.7.0
 	github.com/google/uuid v1.6.0
 	github.com/mitchellh/mapstructure v1.5.0
