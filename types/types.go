@@ -67,3 +67,18 @@ func (m PhaseMode) Phases() []Phase {
 		return []Phase{PhaseL1, PhaseL2, PhaseL3}
 	}
 }
+
+func (m PhaseMode) EffectivePhasesCnt() int {
+	switch m {
+	case PhaseModeNL1L2L3, PhaseModeL1L2L3:
+		return 3
+	case PhaseModeNL1L2, PhaseModeNL2L3:
+		return 2
+	case PhaseModeNL1, PhaseModeNL2, PhaseModeNL3:
+		return 1
+	case PhaseModeL1L2, PhaseModeL2L3, PhaseModeL3L1:
+		return 1
+	default:
+		return 3
+	}
+}

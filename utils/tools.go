@@ -2,16 +2,19 @@ package utils
 
 import (
 	"regexp"
+	"runtime/debug"
 	"strings"
+
+	log "github.com/sirupsen/logrus"
 )
 
 func FilterGoroutinesByKeywords(input string, keywords []string) string {
-	keywordsStr := ""
+	var keywordsStr strings.Builder
 
 	for _, k := range keywords {
-		keywordsStr += k + "|"
+		keywordsStr.WriteString(k + "|")
 	}
-	keywordRE := regexp.MustCompile(`(?i)\b(` + strings.Trim(keywordsStr, "|") + `)\b`)
+	keywordRE := regexp.MustCompile(`(?i)\b(` + strings.Trim(keywordsStr.String(), "|") + `)\b`)
 
 	lines := strings.Split(input, "\n")
 
@@ -58,4 +61,15 @@ func FilterGoroutinesByKeywords(input string, keywords []string) string {
 	}
 
 	return strings.Join(out, "\n")
+}
+
+func PrintStackOnRecover(name string, terminate bool) {
+	if r := recover(); r != nil {
+		log.Errorf("panic in %s:\n%s", name, string(debug.Stack()))
+		if terminate {
+			panic(r)
+		} else {
+			log.Error(r)
+		}
+	}
 }
