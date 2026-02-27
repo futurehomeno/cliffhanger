@@ -5,9 +5,7 @@ package mockedoutbinswitch
 import (
 	adapter "github.com/futurehomeno/cliffhanger/adapter"
 	fimpgo "github.com/futurehomeno/fimpgo"
-
 	fimptype "github.com/futurehomeno/fimpgo/fimptype"
-
 	mock "github.com/stretchr/testify/mock"
 )
 
@@ -25,18 +23,18 @@ func (_m *Service) EXPECT() *Service_Expecter {
 }
 
 // Name provides a mock function with no fields
-func (_m *Service) Name() string {
+func (_m *Service) Name() fimptype.ServiceNameT {
 	ret := _m.Called()
 
 	if len(ret) == 0 {
 		panic("no return value specified for Name")
 	}
 
-	var r0 string
-	if rf, ok := ret.Get(0).(func() string); ok {
+	var r0 fimptype.ServiceNameT
+	if rf, ok := ret.Get(0).(func() fimptype.ServiceNameT); ok {
 		r0 = rf()
 	} else {
-		r0 = ret.Get(0).(string)
+		r0 = ret.Get(0).(fimptype.ServiceNameT)
 	}
 
 	return r0
@@ -59,12 +57,12 @@ func (_c *Service_Name_Call) Run(run func()) *Service_Name_Call {
 	return _c
 }
 
-func (_c *Service_Name_Call) Return(_a0 string) *Service_Name_Call {
+func (_c *Service_Name_Call) Return(_a0 fimptype.ServiceNameT) *Service_Name_Call {
 	_c.Call.Return(_a0)
 	return _c
 }
 
-func (_c *Service_Name_Call) RunAndReturn(run func() string) *Service_Name_Call {
+func (_c *Service_Name_Call) RunAndReturn(run func() fimptype.ServiceNameT) *Service_Name_Call {
 	_c.Call.Return(run)
 	return _c
 }
@@ -81,7 +79,7 @@ type Service_PublishEvent_Call struct {
 
 // PublishEvent is a helper method to define mock.On call
 //   - event adapter.ServiceEvent
-func (_e *Service_Expecter) PublishEvent(event interface{}) *Service_PublishEvent_Call {
+func (_e *Service_Expecter) PublishEvent(event any) *Service_PublishEvent_Call {
 	return &Service_PublishEvent_Call{Call: _e.mock.On("PublishEvent", event)}
 }
 
@@ -137,7 +135,7 @@ type Service_SendBinaryReport_Call struct {
 
 // SendBinaryReport is a helper method to define mock.On call
 //   - force bool
-func (_e *Service_Expecter) SendBinaryReport(force interface{}) *Service_SendBinaryReport_Call {
+func (_e *Service_Expecter) SendBinaryReport(force any) *Service_SendBinaryReport_Call {
 	return &Service_SendBinaryReport_Call{Call: _e.mock.On("SendBinaryReport", force)}
 }
 
@@ -183,7 +181,7 @@ type Service_SendMessage_Call struct {
 
 // SendMessage is a helper method to define mock.On call
 //   - message *fimpgo.FimpMessage
-func (_e *Service_Expecter) SendMessage(message interface{}) *Service_SendMessage_Call {
+func (_e *Service_Expecter) SendMessage(message any) *Service_SendMessage_Call {
 	return &Service_SendMessage_Call{Call: _e.mock.On("SendMessage", message)}
 }
 
@@ -229,7 +227,7 @@ type Service_SetBinaryState_Call struct {
 
 // SetBinaryState is a helper method to define mock.On call
 //   - state bool
-func (_e *Service_Expecter) SetBinaryState(state interface{}) *Service_SetBinaryState_Call {
+func (_e *Service_Expecter) SetBinaryState(state any) *Service_SetBinaryState_Call {
 	return &Service_SetBinaryState_Call{Call: _e.mock.On("SetBinaryState", state)}
 }
 

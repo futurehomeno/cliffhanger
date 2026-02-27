@@ -122,7 +122,7 @@ func TestOTAReporting(t *testing.T) { //nolint:paralleltest
 					{
 						Callbacks: []suite.Callback{sendStatusReportCallback(&otaService, false)},
 						Expectations: []*suite.Expectation{
-							suite.ExpectIntMap("pt:j1/mt:evt/rt:dev/rn:test_adapter/ad:1/sv:ota/ad:1", "evt.ota_progress.report", "ota", map[string]int64{
+							suite.ExpectIntMap("pt:j1/mt:evt/rt:dev/rn:test_adapter/ad:1/sv:ota/ad:1", "evt.ota_progress.report", "ota", map[string]int{
 								"progress": 20,
 							}),
 						},
@@ -149,7 +149,7 @@ func TestOTAReporting(t *testing.T) { //nolint:paralleltest
 					{
 						Callbacks: []suite.Callback{sendStatusReportCallback(&otaService, false)},
 						Expectations: []*suite.Expectation{
-							suite.ExpectIntMap("pt:j1/mt:evt/rt:dev/rn:test_adapter/ad:1/sv:ota/ad:1", "evt.ota_progress.report", "ota", map[string]int64{
+							suite.ExpectIntMap("pt:j1/mt:evt/rt:dev/rn:test_adapter/ad:1/sv:ota/ad:1", "evt.ota_progress.report", "ota", map[string]int{
 								"progress":      20,
 								"remaining_min": 2,
 							}),
@@ -178,7 +178,7 @@ func TestOTAReporting(t *testing.T) { //nolint:paralleltest
 					{
 						Callbacks: []suite.Callback{sendStatusReportCallback(&otaService, false)},
 						Expectations: []*suite.Expectation{
-							suite.ExpectIntMap("pt:j1/mt:evt/rt:dev/rn:test_adapter/ad:1/sv:ota/ad:1", "evt.ota_progress.report", "ota", map[string]int64{
+							suite.ExpectIntMap("pt:j1/mt:evt/rt:dev/rn:test_adapter/ad:1/sv:ota/ad:1", "evt.ota_progress.report", "ota", map[string]int{
 								"progress":      20,
 								"remaining_min": 2,
 								"remaining_sec": 32,

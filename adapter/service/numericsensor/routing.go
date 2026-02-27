@@ -4,6 +4,7 @@ import (
 	"fmt"
 
 	"github.com/futurehomeno/fimpgo"
+	"github.com/futurehomeno/fimpgo/fimptype"
 
 	"github.com/futurehomeno/cliffhanger/adapter"
 	"github.com/futurehomeno/cliffhanger/router"
@@ -110,7 +111,7 @@ func HandleCmdSensorGetReport(serviceRegistry adapter.ServiceRegistry) router.Me
 
 // unitsToReport is a helper method that determines which units should be reported.
 func unitsToReport(service Service, message *fimpgo.Message) ([]string, error) {
-	if message.Payload.ValueType == fimpgo.VTypeNull {
+	if message.Payload.ValueType == fimptype.VTypeNull {
 		return service.SupportedUnits(), nil
 	}
 

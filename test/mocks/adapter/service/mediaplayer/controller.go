@@ -269,7 +269,7 @@ type Controller_SetMute_Call struct {
 
 // SetMute is a helper method to define mock.On call
 //   - mute bool
-func (_e *Controller_Expecter) SetMute(mute interface{}) *Controller_SetMute_Call {
+func (_e *Controller_Expecter) SetMute(mute any) *Controller_SetMute_Call {
 	return &Controller_SetMute_Call{Call: _e.mock.On("SetMute", mute)}
 }
 
@@ -315,7 +315,7 @@ type Controller_SetPlayback_Call struct {
 
 // SetPlayback is a helper method to define mock.On call
 //   - action mediaplayer.PlaybackAction
-func (_e *Controller_Expecter) SetPlayback(action interface{}) *Controller_SetPlayback_Call {
+func (_e *Controller_Expecter) SetPlayback(action any) *Controller_SetPlayback_Call {
 	return &Controller_SetPlayback_Call{Call: _e.mock.On("SetPlayback", action)}
 }
 
@@ -361,7 +361,7 @@ type Controller_SetPlaybackMode_Call struct {
 
 // SetPlaybackMode is a helper method to define mock.On call
 //   - mode map[string]bool
-func (_e *Controller_Expecter) SetPlaybackMode(mode interface{}) *Controller_SetPlaybackMode_Call {
+func (_e *Controller_Expecter) SetPlaybackMode(mode any) *Controller_SetPlaybackMode_Call {
 	return &Controller_SetPlaybackMode_Call{Call: _e.mock.On("SetPlaybackMode", mode)}
 }
 
@@ -383,7 +383,7 @@ func (_c *Controller_SetPlaybackMode_Call) RunAndReturn(run func(map[string]bool
 }
 
 // SetVolume provides a mock function with given fields: level
-func (_m *Controller) SetVolume(level int64) error {
+func (_m *Controller) SetVolume(level int) error {
 	ret := _m.Called(level)
 
 	if len(ret) == 0 {
@@ -391,7 +391,7 @@ func (_m *Controller) SetVolume(level int64) error {
 	}
 
 	var r0 error
-	if rf, ok := ret.Get(0).(func(int64) error); ok {
+	if rf, ok := ret.Get(0).(func(int) error); ok {
 		r0 = rf(level)
 	} else {
 		r0 = ret.Error(0)
@@ -406,14 +406,14 @@ type Controller_SetVolume_Call struct {
 }
 
 // SetVolume is a helper method to define mock.On call
-//   - level int64
-func (_e *Controller_Expecter) SetVolume(level interface{}) *Controller_SetVolume_Call {
+//   - level int
+func (_e *Controller_Expecter) SetVolume(level any) *Controller_SetVolume_Call {
 	return &Controller_SetVolume_Call{Call: _e.mock.On("SetVolume", level)}
 }
 
-func (_c *Controller_SetVolume_Call) Run(run func(level int64)) *Controller_SetVolume_Call {
+func (_c *Controller_SetVolume_Call) Run(run func(level int)) *Controller_SetVolume_Call {
 	_c.Call.Run(func(args mock.Arguments) {
-		run(args[0].(int64))
+		run(args[0].(int))
 	})
 	return _c
 }
@@ -423,28 +423,28 @@ func (_c *Controller_SetVolume_Call) Return(_a0 error) *Controller_SetVolume_Cal
 	return _c
 }
 
-func (_c *Controller_SetVolume_Call) RunAndReturn(run func(int64) error) *Controller_SetVolume_Call {
+func (_c *Controller_SetVolume_Call) RunAndReturn(run func(int) error) *Controller_SetVolume_Call {
 	_c.Call.Return(run)
 	return _c
 }
 
 // Volume provides a mock function with no fields
-func (_m *Controller) Volume() (int64, error) {
+func (_m *Controller) Volume() (int, error) {
 	ret := _m.Called()
 
 	if len(ret) == 0 {
 		panic("no return value specified for Volume")
 	}
 
-	var r0 int64
+	var r0 int
 	var r1 error
-	if rf, ok := ret.Get(0).(func() (int64, error)); ok {
+	if rf, ok := ret.Get(0).(func() (int, error)); ok {
 		return rf()
 	}
-	if rf, ok := ret.Get(0).(func() int64); ok {
+	if rf, ok := ret.Get(0).(func() int); ok {
 		r0 = rf()
 	} else {
-		r0 = ret.Get(0).(int64)
+		r0 = ret.Get(0).(int)
 	}
 
 	if rf, ok := ret.Get(1).(func() error); ok {
@@ -473,12 +473,12 @@ func (_c *Controller_Volume_Call) Run(run func()) *Controller_Volume_Call {
 	return _c
 }
 
-func (_c *Controller_Volume_Call) Return(_a0 int64, _a1 error) *Controller_Volume_Call {
+func (_c *Controller_Volume_Call) Return(_a0 int, _a1 error) *Controller_Volume_Call {
 	_c.Call.Return(_a0, _a1)
 	return _c
 }
 
-func (_c *Controller_Volume_Call) RunAndReturn(run func() (int64, error)) *Controller_Volume_Call {
+func (_c *Controller_Volume_Call) RunAndReturn(run func() (int, error)) *Controller_Volume_Call {
 	_c.Call.Return(run)
 	return _c
 }

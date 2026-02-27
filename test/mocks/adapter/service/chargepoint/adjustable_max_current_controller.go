@@ -18,22 +18,22 @@ func (_m *AdjustableMaxCurrentController) EXPECT() *AdjustableMaxCurrentControll
 }
 
 // ChargepointMaxCurrentReport provides a mock function with no fields
-func (_m *AdjustableMaxCurrentController) ChargepointMaxCurrentReport() (int64, error) {
+func (_m *AdjustableMaxCurrentController) ChargepointMaxCurrentReport() (int, error) {
 	ret := _m.Called()
 
 	if len(ret) == 0 {
 		panic("no return value specified for ChargepointMaxCurrentReport")
 	}
 
-	var r0 int64
+	var r0 int
 	var r1 error
-	if rf, ok := ret.Get(0).(func() (int64, error)); ok {
+	if rf, ok := ret.Get(0).(func() (int, error)); ok {
 		return rf()
 	}
-	if rf, ok := ret.Get(0).(func() int64); ok {
+	if rf, ok := ret.Get(0).(func() int); ok {
 		r0 = rf()
 	} else {
-		r0 = ret.Get(0).(int64)
+		r0 = ret.Get(0).(int)
 	}
 
 	if rf, ok := ret.Get(1).(func() error); ok {
@@ -62,18 +62,18 @@ func (_c *AdjustableMaxCurrentController_ChargepointMaxCurrentReport_Call) Run(r
 	return _c
 }
 
-func (_c *AdjustableMaxCurrentController_ChargepointMaxCurrentReport_Call) Return(_a0 int64, _a1 error) *AdjustableMaxCurrentController_ChargepointMaxCurrentReport_Call {
+func (_c *AdjustableMaxCurrentController_ChargepointMaxCurrentReport_Call) Return(_a0 int, _a1 error) *AdjustableMaxCurrentController_ChargepointMaxCurrentReport_Call {
 	_c.Call.Return(_a0, _a1)
 	return _c
 }
 
-func (_c *AdjustableMaxCurrentController_ChargepointMaxCurrentReport_Call) RunAndReturn(run func() (int64, error)) *AdjustableMaxCurrentController_ChargepointMaxCurrentReport_Call {
+func (_c *AdjustableMaxCurrentController_ChargepointMaxCurrentReport_Call) RunAndReturn(run func() (int, error)) *AdjustableMaxCurrentController_ChargepointMaxCurrentReport_Call {
 	_c.Call.Return(run)
 	return _c
 }
 
 // SetChargepointMaxCurrent provides a mock function with given fields: _a0
-func (_m *AdjustableMaxCurrentController) SetChargepointMaxCurrent(_a0 int64) error {
+func (_m *AdjustableMaxCurrentController) SetChargepointMaxCurrent(_a0 int) error {
 	ret := _m.Called(_a0)
 
 	if len(ret) == 0 {
@@ -81,7 +81,7 @@ func (_m *AdjustableMaxCurrentController) SetChargepointMaxCurrent(_a0 int64) er
 	}
 
 	var r0 error
-	if rf, ok := ret.Get(0).(func(int64) error); ok {
+	if rf, ok := ret.Get(0).(func(int) error); ok {
 		r0 = rf(_a0)
 	} else {
 		r0 = ret.Error(0)
@@ -96,14 +96,14 @@ type AdjustableMaxCurrentController_SetChargepointMaxCurrent_Call struct {
 }
 
 // SetChargepointMaxCurrent is a helper method to define mock.On call
-//   - _a0 int64
-func (_e *AdjustableMaxCurrentController_Expecter) SetChargepointMaxCurrent(_a0 interface{}) *AdjustableMaxCurrentController_SetChargepointMaxCurrent_Call {
+//   - _a0 int
+func (_e *AdjustableMaxCurrentController_Expecter) SetChargepointMaxCurrent(_a0 any) *AdjustableMaxCurrentController_SetChargepointMaxCurrent_Call {
 	return &AdjustableMaxCurrentController_SetChargepointMaxCurrent_Call{Call: _e.mock.On("SetChargepointMaxCurrent", _a0)}
 }
 
-func (_c *AdjustableMaxCurrentController_SetChargepointMaxCurrent_Call) Run(run func(_a0 int64)) *AdjustableMaxCurrentController_SetChargepointMaxCurrent_Call {
+func (_c *AdjustableMaxCurrentController_SetChargepointMaxCurrent_Call) Run(run func(_a0 int)) *AdjustableMaxCurrentController_SetChargepointMaxCurrent_Call {
 	_c.Call.Run(func(args mock.Arguments) {
-		run(args[0].(int64))
+		run(args[0].(int))
 	})
 	return _c
 }
@@ -113,7 +113,7 @@ func (_c *AdjustableMaxCurrentController_SetChargepointMaxCurrent_Call) Return(_
 	return _c
 }
 
-func (_c *AdjustableMaxCurrentController_SetChargepointMaxCurrent_Call) RunAndReturn(run func(int64) error) *AdjustableMaxCurrentController_SetChargepointMaxCurrent_Call {
+func (_c *AdjustableMaxCurrentController_SetChargepointMaxCurrent_Call) RunAndReturn(run func(int) error) *AdjustableMaxCurrentController_SetChargepointMaxCurrent_Call {
 	_c.Call.Return(run)
 	return _c
 }

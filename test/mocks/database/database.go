@@ -47,7 +47,7 @@ type Database_Delete_Call struct {
 // Delete is a helper method to define mock.On call
 //   - bucket string
 //   - key string
-func (_e *Database_Expecter) Delete(bucket interface{}, key interface{}) *Database_Delete_Call {
+func (_e *Database_Expecter) Delete(bucket any, key any) *Database_Delete_Call {
 	return &Database_Delete_Call{Call: _e.mock.On("Delete", bucket, key)}
 }
 
@@ -69,7 +69,7 @@ func (_c *Database_Delete_Call) RunAndReturn(run func(string, string) error) *Da
 }
 
 // Get provides a mock function with given fields: bucket, key, value
-func (_m *Database) Get(bucket string, key string, value interface{}) (bool, error) {
+func (_m *Database) Get(bucket string, key string, value any) (bool, error) {
 	ret := _m.Called(bucket, key, value)
 
 	if len(ret) == 0 {
@@ -78,16 +78,16 @@ func (_m *Database) Get(bucket string, key string, value interface{}) (bool, err
 
 	var r0 bool
 	var r1 error
-	if rf, ok := ret.Get(0).(func(string, string, interface{}) (bool, error)); ok {
+	if rf, ok := ret.Get(0).(func(string, string, any) (bool, error)); ok {
 		return rf(bucket, key, value)
 	}
-	if rf, ok := ret.Get(0).(func(string, string, interface{}) bool); ok {
+	if rf, ok := ret.Get(0).(func(string, string, any) bool); ok {
 		r0 = rf(bucket, key, value)
 	} else {
 		r0 = ret.Get(0).(bool)
 	}
 
-	if rf, ok := ret.Get(1).(func(string, string, interface{}) error); ok {
+	if rf, ok := ret.Get(1).(func(string, string, any) error); ok {
 		r1 = rf(bucket, key, value)
 	} else {
 		r1 = ret.Error(1)
@@ -104,14 +104,14 @@ type Database_Get_Call struct {
 // Get is a helper method to define mock.On call
 //   - bucket string
 //   - key string
-//   - value interface{}
-func (_e *Database_Expecter) Get(bucket interface{}, key interface{}, value interface{}) *Database_Get_Call {
+//   - value any
+func (_e *Database_Expecter) Get(bucket any, key any, value any) *Database_Get_Call {
 	return &Database_Get_Call{Call: _e.mock.On("Get", bucket, key, value)}
 }
 
-func (_c *Database_Get_Call) Run(run func(bucket string, key string, value interface{})) *Database_Get_Call {
+func (_c *Database_Get_Call) Run(run func(bucket string, key string, value any)) *Database_Get_Call {
 	_c.Call.Run(func(args mock.Arguments) {
-		run(args[0].(string), args[1].(string), args[2].(interface{}))
+		run(args[0].(string), args[1].(string), args[2].(any))
 	})
 	return _c
 }
@@ -121,7 +121,7 @@ func (_c *Database_Get_Call) Return(ok bool, err error) *Database_Get_Call {
 	return _c
 }
 
-func (_c *Database_Get_Call) RunAndReturn(run func(string, string, interface{}) (bool, error)) *Database_Get_Call {
+func (_c *Database_Get_Call) RunAndReturn(run func(string, string, any) (bool, error)) *Database_Get_Call {
 	_c.Call.Return(run)
 	return _c
 }
@@ -163,7 +163,7 @@ type Database_Keys_Call struct {
 
 // Keys is a helper method to define mock.On call
 //   - bucket string
-func (_e *Database_Expecter) Keys(bucket interface{}) *Database_Keys_Call {
+func (_e *Database_Expecter) Keys(bucket any) *Database_Keys_Call {
 	return &Database_Keys_Call{Call: _e.mock.On("Keys", bucket)}
 }
 
@@ -223,7 +223,7 @@ type Database_KeysBetween_Call struct {
 //   - bucket string
 //   - from string
 //   - to string
-func (_e *Database_Expecter) KeysBetween(bucket interface{}, from interface{}, to interface{}) *Database_KeysBetween_Call {
+func (_e *Database_Expecter) KeysBetween(bucket any, from any, to any) *Database_KeysBetween_Call {
 	return &Database_KeysBetween_Call{Call: _e.mock.On("KeysBetween", bucket, from, to)}
 }
 
@@ -282,7 +282,7 @@ type Database_KeysFrom_Call struct {
 // KeysFrom is a helper method to define mock.On call
 //   - bucket string
 //   - from string
-func (_e *Database_Expecter) KeysFrom(bucket interface{}, from interface{}) *Database_KeysFrom_Call {
+func (_e *Database_Expecter) KeysFrom(bucket any, from any) *Database_KeysFrom_Call {
 	return &Database_KeysFrom_Call{Call: _e.mock.On("KeysFrom", bucket, from)}
 }
 
@@ -349,7 +349,7 @@ func (_c *Database_Reset_Call) RunAndReturn(run func() error) *Database_Reset_Ca
 }
 
 // Set provides a mock function with given fields: bucket, key, value
-func (_m *Database) Set(bucket string, key string, value interface{}) error {
+func (_m *Database) Set(bucket string, key string, value any) error {
 	ret := _m.Called(bucket, key, value)
 
 	if len(ret) == 0 {
@@ -357,7 +357,7 @@ func (_m *Database) Set(bucket string, key string, value interface{}) error {
 	}
 
 	var r0 error
-	if rf, ok := ret.Get(0).(func(string, string, interface{}) error); ok {
+	if rf, ok := ret.Get(0).(func(string, string, any) error); ok {
 		r0 = rf(bucket, key, value)
 	} else {
 		r0 = ret.Error(0)
@@ -374,14 +374,14 @@ type Database_Set_Call struct {
 // Set is a helper method to define mock.On call
 //   - bucket string
 //   - key string
-//   - value interface{}
-func (_e *Database_Expecter) Set(bucket interface{}, key interface{}, value interface{}) *Database_Set_Call {
+//   - value any
+func (_e *Database_Expecter) Set(bucket any, key any, value any) *Database_Set_Call {
 	return &Database_Set_Call{Call: _e.mock.On("Set", bucket, key, value)}
 }
 
-func (_c *Database_Set_Call) Run(run func(bucket string, key string, value interface{})) *Database_Set_Call {
+func (_c *Database_Set_Call) Run(run func(bucket string, key string, value any)) *Database_Set_Call {
 	_c.Call.Run(func(args mock.Arguments) {
-		run(args[0].(string), args[1].(string), args[2].(interface{}))
+		run(args[0].(string), args[1].(string), args[2].(any))
 	})
 	return _c
 }
@@ -391,13 +391,13 @@ func (_c *Database_Set_Call) Return(_a0 error) *Database_Set_Call {
 	return _c
 }
 
-func (_c *Database_Set_Call) RunAndReturn(run func(string, string, interface{}) error) *Database_Set_Call {
+func (_c *Database_Set_Call) RunAndReturn(run func(string, string, any) error) *Database_Set_Call {
 	_c.Call.Return(run)
 	return _c
 }
 
 // SetWithExpiry provides a mock function with given fields: bucket, key, value, expiry
-func (_m *Database) SetWithExpiry(bucket string, key string, value interface{}, expiry time.Duration) error {
+func (_m *Database) SetWithExpiry(bucket string, key string, value any, expiry time.Duration) error {
 	ret := _m.Called(bucket, key, value, expiry)
 
 	if len(ret) == 0 {
@@ -405,7 +405,7 @@ func (_m *Database) SetWithExpiry(bucket string, key string, value interface{}, 
 	}
 
 	var r0 error
-	if rf, ok := ret.Get(0).(func(string, string, interface{}, time.Duration) error); ok {
+	if rf, ok := ret.Get(0).(func(string, string, any, time.Duration) error); ok {
 		r0 = rf(bucket, key, value, expiry)
 	} else {
 		r0 = ret.Error(0)
@@ -422,15 +422,15 @@ type Database_SetWithExpiry_Call struct {
 // SetWithExpiry is a helper method to define mock.On call
 //   - bucket string
 //   - key string
-//   - value interface{}
+//   - value any
 //   - expiry time.Duration
-func (_e *Database_Expecter) SetWithExpiry(bucket interface{}, key interface{}, value interface{}, expiry interface{}) *Database_SetWithExpiry_Call {
+func (_e *Database_Expecter) SetWithExpiry(bucket any, key any, value any, expiry any) *Database_SetWithExpiry_Call {
 	return &Database_SetWithExpiry_Call{Call: _e.mock.On("SetWithExpiry", bucket, key, value, expiry)}
 }
 
-func (_c *Database_SetWithExpiry_Call) Run(run func(bucket string, key string, value interface{}, expiry time.Duration)) *Database_SetWithExpiry_Call {
+func (_c *Database_SetWithExpiry_Call) Run(run func(bucket string, key string, value any, expiry time.Duration)) *Database_SetWithExpiry_Call {
 	_c.Call.Run(func(args mock.Arguments) {
-		run(args[0].(string), args[1].(string), args[2].(interface{}), args[3].(time.Duration))
+		run(args[0].(string), args[1].(string), args[2].(any), args[3].(time.Duration))
 	})
 	return _c
 }
@@ -440,7 +440,7 @@ func (_c *Database_SetWithExpiry_Call) Return(_a0 error) *Database_SetWithExpiry
 	return _c
 }
 
-func (_c *Database_SetWithExpiry_Call) RunAndReturn(run func(string, string, interface{}, time.Duration) error) *Database_SetWithExpiry_Call {
+func (_c *Database_SetWithExpiry_Call) RunAndReturn(run func(string, string, any, time.Duration) error) *Database_SetWithExpiry_Call {
 	_c.Call.Return(run)
 	return _c
 }

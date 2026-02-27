@@ -47,7 +47,7 @@ type ThingRegistry_ThingByAddress_Call struct {
 
 // ThingByAddress is a helper method to define mock.On call
 //   - address string
-func (_e *ThingRegistry_Expecter) ThingByAddress(address interface{}) *ThingRegistry_ThingByAddress_Call {
+func (_e *ThingRegistry_Expecter) ThingByAddress(address any) *ThingRegistry_ThingByAddress_Call {
 	return &ThingRegistry_ThingByAddress_Call{Call: _e.mock.On("ThingByAddress", address)}
 }
 
@@ -95,7 +95,7 @@ type ThingRegistry_ThingByTopic_Call struct {
 
 // ThingByTopic is a helper method to define mock.On call
 //   - topic string
-func (_e *ThingRegistry_Expecter) ThingByTopic(topic interface{}) *ThingRegistry_ThingByTopic_Call {
+func (_e *ThingRegistry_Expecter) ThingByTopic(topic any) *ThingRegistry_ThingByTopic_Call {
 	return &ThingRegistry_ThingByTopic_Call{Call: _e.mock.On("ThingByTopic", topic)}
 }
 

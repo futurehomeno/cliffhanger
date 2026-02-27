@@ -4,25 +4,26 @@ import (
 	"fmt"
 
 	"github.com/futurehomeno/fimpgo"
+	"github.com/futurehomeno/fimpgo/fimptype"
 )
 
 type TopicPattern struct {
 	PayloadType     string
-	MessageType     string
-	ResourceType    string
-	ResourceName    string
+	MessageType     fimptype.MsgTypeT
+	ResourceType    fimptype.ResourceTypeT
+	ResourceName    fimptype.ResourceNameT
 	ResourceAddress string
-	ServiceName     string
+	ServiceName     fimptype.ServiceNameT
 	ServiceAddress  string
 }
 
 func (tp *TopicPattern) String() string {
 	switch tp.ResourceType {
-	case fimpgo.ResourceTypeDiscovery:
+	case fimptype.ResourceTypeDiscovery:
 		return fmt.Sprintf("%s/%s/%s", tp.pt(), tp.mt(), tp.rt())
-	case fimpgo.ResourceTypeAdapter, fimpgo.ResourceTypeApp, fimpgo.ResourceTypeCloud:
+	case fimptype.ResourceTypeAdapter, fimptype.ResourceTypeApp, fimptype.ResourceTypeCloud:
 		return fmt.Sprintf("%s/%s/%s/%s/%s", tp.pt(), tp.mt(), tp.rt(), tp.rn(), tp.ra())
-	case fimpgo.ResourceTypeDevice, fimpgo.ResourceTypeLocation:
+	case fimptype.ResourceTypeDevice, fimptype.ResourceTypeLocation:
 		fallthrough
 	default:
 		return fmt.Sprintf("%s/%s/%s/%s/%s/%s/%s", tp.pt(), tp.mt(), tp.rt(), tp.rn(), tp.ra(), tp.sv(), tp.sa())
@@ -42,7 +43,7 @@ func (tp *TopicPattern) mt() string {
 		return "+"
 	}
 
-	return "mt:" + tp.MessageType
+	return "mt:" + tp.MessageType.Str()
 }
 
 func (tp *TopicPattern) rt() string {
@@ -50,7 +51,7 @@ func (tp *TopicPattern) rt() string {
 		return "+"
 	}
 
-	return "rt:" + tp.ResourceType
+	return "rt:" + tp.ResourceType.Str()
 }
 
 func (tp *TopicPattern) rn() string {
@@ -58,7 +59,7 @@ func (tp *TopicPattern) rn() string {
 		return "+"
 	}
 
-	return "rn:" + tp.ResourceName
+	return "rn:" + tp.ResourceName.Str()
 }
 
 func (tp *TopicPattern) ra() string {
@@ -74,7 +75,7 @@ func (tp *TopicPattern) sv() string {
 		return "+"
 	}
 
-	return "sv:" + tp.ServiceName
+	return "sv:" + tp.ServiceName.Str()
 }
 
 func (tp *TopicPattern) sa() string {
@@ -86,70 +87,70 @@ func (tp *TopicPattern) sa() string {
 }
 
 // TopicPatternAdapter returns a topic pattern for an adapter useful for subscriptions.
-func TopicPatternAdapter(resourceName string) string {
+func TopicPatternAdapter(resourceName fimptype.ResourceNameT) string {
 	return (&TopicPattern{
 		PayloadType:     fimpgo.DefaultPayload,
-		ResourceType:    fimpgo.ResourceTypeAdapter,
+		ResourceType:    fimptype.ResourceTypeAdapter,
 		ResourceName:    resourceName,
 		ResourceAddress: "1",
 	}).String()
 }
 
 // TopicPatternDevices returns a topic pattern for devices useful for subscriptions.
-func TopicPatternDevices(resourceName string) string {
+func TopicPatternDevices(resourceName fimptype.ResourceNameT) string {
 	return (&TopicPattern{
 		PayloadType:     fimpgo.DefaultPayload,
-		ResourceType:    fimpgo.ResourceTypeDevice,
+		ResourceType:    fimptype.ResourceTypeDevice,
 		ResourceName:    resourceName,
 		ResourceAddress: "1",
 	}).String()
 }
 
 // TopicPatternApplication returns a topic pattern for application useful for subscriptions.
-func TopicPatternApplication(resourceName string) string {
+func TopicPatternApplication(resourceName fimptype.ResourceNameT) string {
 	return (&TopicPattern{
 		PayloadType:     fimpgo.DefaultPayload,
-		ResourceType:    fimpgo.ResourceTypeApp,
+		ResourceType:    fimptype.ResourceTypeApp,
 		ResourceName:    resourceName,
 		ResourceAddress: "1",
 	}).String()
 }
 
 // TopicPatternDeviceService returns a topic pattern for all device services of the provided type.
-func TopicPatternDeviceService(serviceName string) string {
+func TopicPatternDeviceService(serviceName fimptype.ServiceNameT) string {
 	return (&TopicPattern{
 		PayloadType:  fimpgo.DefaultPayload,
-		ResourceType: fimpgo.ResourceTypeDevice,
+		ResourceType: fimptype.ResourceTypeDevice,
 		ServiceName:  serviceName,
 	}).String()
 }
 
 // TopicPatternDeviceServiceEvents returns a topic pattern for all device services of the provided type.
-func TopicPatternDeviceServiceEvents(serviceName string) string {
+func TopicPatternDeviceServiceEvents(serviceName fimptype.ServiceNameT) string {
 	return (&TopicPattern{
 		PayloadType:  fimpgo.DefaultPayload,
-		MessageType:  fimpgo.MsgTypeEvt,
-		ResourceType: fimpgo.ResourceTypeDevice,
+		MessageType:  fimptype.MsgTypeEvt,
+		ResourceType: fimptype.ResourceTypeDevice,
 		ServiceName:  serviceName,
 	}).String()
 }
 
 // TopicPatternRoomService returns a topic pattern for all device services of the provided type.
-func TopicPatternRoomService(serviceName string) string {
+func TopicPatternRoomService(serviceName fimptype.ServiceNameT) string {
 	return (&TopicPattern{
 		PayloadType:  fimpgo.DefaultPayload,
-		ResourceType: fimpgo.ResourceTypeLocation,
+		ResourceType: fimptype.ResourceTypeLocation,
 		ResourceName: "room",
 		ServiceName:  serviceName,
 	}).String()
 }
 
 // TopicPatternRoomServiceEvents returns a topic pattern for all device services of the provided type.
-func TopicPatternRoomServiceEvents(serviceName string) string {
+func TopicPatternRoomServiceEvents(serviceName fimptype.ServiceNameT) string {
 	return (&TopicPattern{
 		PayloadType:  fimpgo.DefaultPayload,
-		MessageType:  fimpgo.MsgTypeEvt,
-		ResourceType: fimpgo.ResourceTypeLocation,
+		MessageType:  fimptype.MsgTypeEvt,
+		ResourceType: fimptype.ResourceTypeLocation,
 		ResourceName: "room",
 		ServiceName:  serviceName,
 	}).String()

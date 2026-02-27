@@ -22,22 +22,22 @@ func (_m *Controller) EXPECT() *Controller_Expecter {
 }
 
 // LevelSwitchLevelReport provides a mock function with no fields
-func (_m *Controller) LevelSwitchLevelReport() (int64, error) {
+func (_m *Controller) LevelSwitchLevelReport() (int, error) {
 	ret := _m.Called()
 
 	if len(ret) == 0 {
 		panic("no return value specified for LevelSwitchLevelReport")
 	}
 
-	var r0 int64
+	var r0 int
 	var r1 error
-	if rf, ok := ret.Get(0).(func() (int64, error)); ok {
+	if rf, ok := ret.Get(0).(func() (int, error)); ok {
 		return rf()
 	}
-	if rf, ok := ret.Get(0).(func() int64); ok {
+	if rf, ok := ret.Get(0).(func() int); ok {
 		r0 = rf()
 	} else {
-		r0 = ret.Get(0).(int64)
+		r0 = ret.Get(0).(int)
 	}
 
 	if rf, ok := ret.Get(1).(func() error); ok {
@@ -66,12 +66,12 @@ func (_c *Controller_LevelSwitchLevelReport_Call) Run(run func()) *Controller_Le
 	return _c
 }
 
-func (_c *Controller_LevelSwitchLevelReport_Call) Return(_a0 int64, _a1 error) *Controller_LevelSwitchLevelReport_Call {
+func (_c *Controller_LevelSwitchLevelReport_Call) Return(_a0 int, _a1 error) *Controller_LevelSwitchLevelReport_Call {
 	_c.Call.Return(_a0, _a1)
 	return _c
 }
 
-func (_c *Controller_LevelSwitchLevelReport_Call) RunAndReturn(run func() (int64, error)) *Controller_LevelSwitchLevelReport_Call {
+func (_c *Controller_LevelSwitchLevelReport_Call) RunAndReturn(run func() (int, error)) *Controller_LevelSwitchLevelReport_Call {
 	_c.Call.Return(run)
 	return _c
 }
@@ -101,7 +101,7 @@ type Controller_SetLevelSwitchBinaryState_Call struct {
 
 // SetLevelSwitchBinaryState is a helper method to define mock.On call
 //   - _a0 bool
-func (_e *Controller_Expecter) SetLevelSwitchBinaryState(_a0 interface{}) *Controller_SetLevelSwitchBinaryState_Call {
+func (_e *Controller_Expecter) SetLevelSwitchBinaryState(_a0 any) *Controller_SetLevelSwitchBinaryState_Call {
 	return &Controller_SetLevelSwitchBinaryState_Call{Call: _e.mock.On("SetLevelSwitchBinaryState", _a0)}
 }
 
@@ -123,7 +123,7 @@ func (_c *Controller_SetLevelSwitchBinaryState_Call) RunAndReturn(run func(bool)
 }
 
 // SetLevelSwitchLevel provides a mock function with given fields: value, duration
-func (_m *Controller) SetLevelSwitchLevel(value int64, duration time.Duration) error {
+func (_m *Controller) SetLevelSwitchLevel(value int, duration time.Duration) error {
 	ret := _m.Called(value, duration)
 
 	if len(ret) == 0 {
@@ -131,7 +131,7 @@ func (_m *Controller) SetLevelSwitchLevel(value int64, duration time.Duration) e
 	}
 
 	var r0 error
-	if rf, ok := ret.Get(0).(func(int64, time.Duration) error); ok {
+	if rf, ok := ret.Get(0).(func(int, time.Duration) error); ok {
 		r0 = rf(value, duration)
 	} else {
 		r0 = ret.Error(0)
@@ -146,15 +146,15 @@ type Controller_SetLevelSwitchLevel_Call struct {
 }
 
 // SetLevelSwitchLevel is a helper method to define mock.On call
-//   - value int64
+//   - value int
 //   - duration time.Duration
-func (_e *Controller_Expecter) SetLevelSwitchLevel(value interface{}, duration interface{}) *Controller_SetLevelSwitchLevel_Call {
+func (_e *Controller_Expecter) SetLevelSwitchLevel(value any, duration any) *Controller_SetLevelSwitchLevel_Call {
 	return &Controller_SetLevelSwitchLevel_Call{Call: _e.mock.On("SetLevelSwitchLevel", value, duration)}
 }
 
-func (_c *Controller_SetLevelSwitchLevel_Call) Run(run func(value int64, duration time.Duration)) *Controller_SetLevelSwitchLevel_Call {
+func (_c *Controller_SetLevelSwitchLevel_Call) Run(run func(value int, duration time.Duration)) *Controller_SetLevelSwitchLevel_Call {
 	_c.Call.Run(func(args mock.Arguments) {
-		run(args[0].(int64), args[1].(time.Duration))
+		run(args[0].(int), args[1].(time.Duration))
 	})
 	return _c
 }
@@ -164,7 +164,7 @@ func (_c *Controller_SetLevelSwitchLevel_Call) Return(_a0 error) *Controller_Set
 	return _c
 }
 
-func (_c *Controller_SetLevelSwitchLevel_Call) RunAndReturn(run func(int64, time.Duration) error) *Controller_SetLevelSwitchLevel_Call {
+func (_c *Controller_SetLevelSwitchLevel_Call) RunAndReturn(run func(int, time.Duration) error) *Controller_SetLevelSwitchLevel_Call {
 	_c.Call.Return(run)
 	return _c
 }

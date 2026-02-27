@@ -3,7 +3,6 @@ package mediaplayer
 import (
 	"fmt"
 
-	"github.com/futurehomeno/fimpgo"
 	"github.com/futurehomeno/fimpgo/fimptype"
 
 	"github.com/futurehomeno/cliffhanger/adapter"
@@ -26,7 +25,7 @@ func Specification(
 		Name:    MediaPlayer,
 		Groups:  groups,
 		Enabled: true,
-		Props: map[string]interface{}{
+		Props: map[string]any{
 			PropertySupportedPlayback: supportedPlayback,
 			PropertySupportedModes:    supportedModes,
 			PropertySupportedMetadata: supportedMetadata,
@@ -47,91 +46,91 @@ func requiredInterfaces() []fimptype.Interface { //nolint:funlen
 		{
 			Type:      fimptype.TypeIn,
 			MsgType:   CmdPlaybackSet,
-			ValueType: fimpgo.VTypeString,
+			ValueType: fimptype.VTypeString,
 			Version:   "1",
 		},
 		{
 			Type:      fimptype.TypeIn,
 			MsgType:   CmdPlaybackGetReport,
-			ValueType: fimpgo.VTypeNull,
+			ValueType: fimptype.VTypeNull,
 			Version:   "1",
 		},
 		{
 			Type:      fimptype.TypeOut,
 			MsgType:   EvtPlaybackReport,
-			ValueType: fimpgo.VTypeString,
+			ValueType: fimptype.VTypeString,
 			Version:   "1",
 		},
 		{
 			Type:      fimptype.TypeIn,
 			MsgType:   CmdPlaybackModeSet,
-			ValueType: fimpgo.VTypeBoolMap,
+			ValueType: fimptype.VTypeBoolMap,
 			Version:   "1",
 		},
 		{
 			Type:      fimptype.TypeIn,
 			MsgType:   CmdPlaybackModeGetReport,
-			ValueType: fimpgo.VTypeNull,
+			ValueType: fimptype.VTypeNull,
 			Version:   "1",
 		},
 		{
 			Type:      fimptype.TypeOut,
 			MsgType:   EvtPlaybackModeReport,
-			ValueType: fimpgo.VTypeBoolMap,
+			ValueType: fimptype.VTypeBoolMap,
 			Version:   "1",
 		},
 		{
 			Type:      fimptype.TypeIn,
 			MsgType:   CmdVolumeSet,
-			ValueType: fimpgo.VTypeInt,
+			ValueType: fimptype.VTypeInt,
 			Version:   "1",
 		},
 		{
 			Type:      fimptype.TypeIn,
 			MsgType:   CmdVolumeGetReport,
-			ValueType: fimpgo.VTypeNull,
+			ValueType: fimptype.VTypeNull,
 			Version:   "1",
 		},
 		{
 			Type:      fimptype.TypeOut,
 			MsgType:   EvtVolumeReport,
-			ValueType: fimpgo.VTypeInt,
+			ValueType: fimptype.VTypeInt,
 			Version:   "1",
 		},
 		{
 			Type:      fimptype.TypeIn,
 			MsgType:   CmdMuteSet,
-			ValueType: fimpgo.VTypeBool,
+			ValueType: fimptype.VTypeBool,
 			Version:   "1",
 		},
 		{
 			Type:      fimptype.TypeIn,
 			MsgType:   CmdMuteGetReport,
-			ValueType: fimpgo.VTypeNull,
+			ValueType: fimptype.VTypeNull,
 			Version:   "1",
 		},
 		{
 			Type:      fimptype.TypeOut,
 			MsgType:   EvtMuteReport,
-			ValueType: fimpgo.VTypeBool,
+			ValueType: fimptype.VTypeBool,
 			Version:   "1",
 		},
 		{
 			Type:      fimptype.TypeIn,
 			MsgType:   CmdMetadataGetReport,
-			ValueType: fimpgo.VTypeNull,
+			ValueType: fimptype.VTypeNull,
 			Version:   "1",
 		},
 		{
 			Type:      fimptype.TypeOut,
 			MsgType:   EvtMetadataReport,
-			ValueType: fimpgo.VTypeStrMap,
+			ValueType: fimptype.VTypeStrMap,
 			Version:   "1",
 		},
 		{
 			Type:      fimptype.TypeOut,
 			MsgType:   router.EvtErrorReport,
-			ValueType: fimpgo.VTypeString,
+			ValueType: fimptype.VTypeString,
 			Version:   "1",
 		},
 	}

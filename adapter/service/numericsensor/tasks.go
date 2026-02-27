@@ -21,7 +21,7 @@ func TaskReporting(serviceRegistry adapter.ServiceRegistry, frequency time.Durat
 func handleReporting(serviceRegistry adapter.ServiceRegistry) func() {
 	return func() {
 		for _, s := range serviceRegistry.Services("") {
-			if !strings.HasPrefix(s.Name(), prefix) {
+			if !strings.HasPrefix(s.Name().Str(), prefix) {
 				continue
 			}
 

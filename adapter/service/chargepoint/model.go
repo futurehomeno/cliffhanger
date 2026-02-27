@@ -50,7 +50,7 @@ type ChargingSettings struct {
 // CableReport represents an extended cable status report.
 type CableReport struct {
 	CableLock    bool
-	CableCurrent *int64
+	CableCurrent *int
 }
 
 func (r *CableReport) reportProperties() map[string]string {
@@ -59,7 +59,7 @@ func (r *CableReport) reportProperties() map[string]string {
 	}
 
 	return map[string]string{
-		PropertyCableCurrent: strconv.Itoa(int(*r.CableCurrent)),
+		PropertyCableCurrent: strconv.Itoa(*r.CableCurrent),
 	}
 }
 
@@ -69,7 +69,7 @@ type SessionReport struct {
 	PreviousSessionEnergy float64
 	StartedAt             time.Time
 	FinishedAt            time.Time
-	OfferedCurrent        int64
+	OfferedCurrent        int
 }
 
 func (r *SessionReport) reportProperties(supportsAdjustingCurrent bool) map[string]string {
@@ -88,7 +88,7 @@ func (r *SessionReport) reportProperties(supportsAdjustingCurrent bool) map[stri
 	}
 
 	if supportsAdjustingCurrent {
-		properties[PropertyOfferedCurrent] = strconv.Itoa(int(r.OfferedCurrent))
+		properties[PropertyOfferedCurrent] = strconv.Itoa(r.OfferedCurrent)
 	}
 
 	return properties

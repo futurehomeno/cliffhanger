@@ -3,7 +3,6 @@ package colorctrl
 import (
 	"fmt"
 
-	"github.com/futurehomeno/fimpgo"
 	"github.com/futurehomeno/fimpgo/fimptype"
 
 	"github.com/futurehomeno/cliffhanger/router"
@@ -16,14 +15,14 @@ func Specification(
 	address string,
 	groups,
 	supportedComponents []string,
-	supportedDurations map[string]int64,
+	supportedDurations map[string]int,
 ) *fimptype.Service {
 	s := &fimptype.Service{
 		Address: fmt.Sprintf("/rt:dev/rn:%s/ad:%s/sv:%s/ad:%s", resourceName, resourceAddress, ColorCtrl, address),
 		Name:    ColorCtrl,
 		Groups:  groups,
 		Enabled: true,
-		Props: map[string]interface{}{
+		Props: map[string]any{
 			PropertySupportedComponents: supportedComponents,
 		},
 		Interfaces: requiredInterfaces(),
@@ -42,25 +41,25 @@ func requiredInterfaces() []fimptype.Interface {
 		{
 			Type:      fimptype.TypeIn,
 			MsgType:   CmdColorSet,
-			ValueType: fimpgo.VTypeNull,
+			ValueType: fimptype.VTypeNull,
 			Version:   "1",
 		},
 		{
 			Type:      fimptype.TypeOut,
 			MsgType:   EvtColorReport,
-			ValueType: fimpgo.VTypeIntMap,
+			ValueType: fimptype.VTypeIntMap,
 			Version:   "1",
 		},
 		{
 			Type:      fimptype.TypeIn,
 			MsgType:   CmdColorGetReport,
-			ValueType: fimpgo.VTypeNull,
+			ValueType: fimptype.VTypeNull,
 			Version:   "1",
 		},
 		{
 			Type:      fimptype.TypeOut,
 			MsgType:   router.EvtErrorReport,
-			ValueType: fimpgo.VTypeString,
+			ValueType: fimptype.VTypeString,
 			Version:   "1",
 		},
 	}

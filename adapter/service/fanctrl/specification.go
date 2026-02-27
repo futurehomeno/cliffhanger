@@ -3,7 +3,6 @@ package fanctrl
 import (
 	"fmt"
 
-	"github.com/futurehomeno/fimpgo"
 	"github.com/futurehomeno/fimpgo/fimptype"
 
 	"github.com/futurehomeno/cliffhanger/router"
@@ -22,7 +21,7 @@ func Specification(
 		Name:    FanCtrl,
 		Groups:  groups,
 		Enabled: true,
-		Props: map[string]interface{}{
+		Props: map[string]any{
 			PropertySupportedModes: supportedModes,
 		},
 		Interfaces: requiredInterfaces(),
@@ -37,25 +36,25 @@ func requiredInterfaces() []fimptype.Interface {
 		{
 			Type:      fimptype.TypeIn,
 			MsgType:   CmdModeSet,
-			ValueType: fimpgo.VTypeNull,
+			ValueType: fimptype.VTypeNull,
 			Version:   "1",
 		},
 		{
 			Type:      fimptype.TypeOut,
 			MsgType:   EvtModeReport,
-			ValueType: fimpgo.VTypeIntMap,
+			ValueType: fimptype.VTypeIntMap,
 			Version:   "1",
 		},
 		{
 			Type:      fimptype.TypeIn,
 			MsgType:   CmdModeGetReport,
-			ValueType: fimpgo.VTypeNull,
+			ValueType: fimptype.VTypeNull,
 			Version:   "1",
 		},
 		{
 			Type:      fimptype.TypeOut,
 			MsgType:   router.EvtErrorReport,
-			ValueType: fimpgo.VTypeString,
+			ValueType: fimptype.VTypeString,
 			Version:   "1",
 		},
 	}

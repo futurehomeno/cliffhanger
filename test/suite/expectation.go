@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 
 	"github.com/futurehomeno/fimpgo"
+	"github.com/futurehomeno/fimpgo/fimptype"
 	"github.com/google/go-cmp/cmp"
 
 	"github.com/futurehomeno/cliffhanger/router"
@@ -33,14 +34,14 @@ func (o Occurrence) String() string {
 	}
 }
 
-func ExpectMessage(topic, messageType, service string) *Expectation {
+func ExpectMessage(topic, messageType string, service fimptype.ServiceNameT) *Expectation {
 	return NewExpectation().
 		ExpectTopic(topic).
 		ExpectType(messageType).
 		ExpectService(service)
 }
 
-func ExpectString(topic, messageType, service, value string) *Expectation {
+func ExpectString(topic, messageType string, service fimptype.ServiceNameT, value string) *Expectation {
 	return NewExpectation().
 		ExpectTopic(topic).
 		ExpectType(messageType).
@@ -48,7 +49,7 @@ func ExpectString(topic, messageType, service, value string) *Expectation {
 		ExpectString(value)
 }
 
-func ExpectBool(topic, messageType, service string, value bool) *Expectation {
+func ExpectBool(topic, messageType string, service fimptype.ServiceNameT, value bool) *Expectation {
 	return NewExpectation().
 		ExpectTopic(topic).
 		ExpectType(messageType).
@@ -56,7 +57,7 @@ func ExpectBool(topic, messageType, service string, value bool) *Expectation {
 		ExpectBool(value)
 }
 
-func ExpectInt(topic, messageType, service string, value int64) *Expectation {
+func ExpectInt(topic, messageType string, service fimptype.ServiceNameT, value int) *Expectation {
 	return NewExpectation().
 		ExpectTopic(topic).
 		ExpectType(messageType).
@@ -64,7 +65,7 @@ func ExpectInt(topic, messageType, service string, value int64) *Expectation {
 		ExpectInt(value)
 }
 
-func ExpectFloat(topic, messageType, service string, value float64) *Expectation {
+func ExpectFloat(topic, messageType string, service fimptype.ServiceNameT, value float64) *Expectation {
 	return NewExpectation().
 		ExpectTopic(topic).
 		ExpectType(messageType).
@@ -72,7 +73,7 @@ func ExpectFloat(topic, messageType, service string, value float64) *Expectation
 		ExpectFloat(value)
 }
 
-func ExpectObject(topic, messageType, service string, object interface{}) *Expectation {
+func ExpectObject(topic, messageType string, service fimptype.ServiceNameT, object any) *Expectation {
 	return NewExpectation().
 		ExpectTopic(topic).
 		ExpectType(messageType).
@@ -80,7 +81,7 @@ func ExpectObject(topic, messageType, service string, object interface{}) *Expec
 		ExpectObject(object)
 }
 
-func ExpectNull(topic, messageType, service string) *Expectation {
+func ExpectNull(topic, messageType string, service fimptype.ServiceNameT) *Expectation {
 	return NewExpectation().
 		ExpectTopic(topic).
 		ExpectType(messageType).
@@ -88,7 +89,7 @@ func ExpectNull(topic, messageType, service string) *Expectation {
 		ExpectNull()
 }
 
-func ExpectStringMap(topic, messageType, service string, value map[string]string) *Expectation {
+func ExpectStringMap(topic, messageType string, service fimptype.ServiceNameT, value map[string]string) *Expectation {
 	return NewExpectation().
 		ExpectTopic(topic).
 		ExpectType(messageType).
@@ -96,7 +97,7 @@ func ExpectStringMap(topic, messageType, service string, value map[string]string
 		ExpectStringMap(value)
 }
 
-func ExpectIntMap(topic, messageType, service string, value map[string]int64) *Expectation {
+func ExpectIntMap(topic, messageType string, service fimptype.ServiceNameT, value map[string]int) *Expectation {
 	return NewExpectation().
 		ExpectTopic(topic).
 		ExpectType(messageType).
@@ -104,7 +105,7 @@ func ExpectIntMap(topic, messageType, service string, value map[string]int64) *E
 		ExpectIntMap(value)
 }
 
-func ExpectFloatMap(topic, messageType, service string, value map[string]float64) *Expectation {
+func ExpectFloatMap(topic, messageType string, service fimptype.ServiceNameT, value map[string]float64) *Expectation {
 	return NewExpectation().
 		ExpectTopic(topic).
 		ExpectType(messageType).
@@ -112,7 +113,7 @@ func ExpectFloatMap(topic, messageType, service string, value map[string]float64
 		ExpectFloatMap(value)
 }
 
-func ExpectBoolMap(topic, messageType, service string, value map[string]bool) *Expectation {
+func ExpectBoolMap(topic, messageType string, service fimptype.ServiceNameT, value map[string]bool) *Expectation {
 	return NewExpectation().
 		ExpectTopic(topic).
 		ExpectType(messageType).
@@ -120,7 +121,7 @@ func ExpectBoolMap(topic, messageType, service string, value map[string]bool) *E
 		ExpectBoolMap(value)
 }
 
-func ExpectStringArray(topic, messageType, service string, value []string) *Expectation {
+func ExpectStringArray(topic, messageType string, service fimptype.ServiceNameT, value []string) *Expectation {
 	return NewExpectation().
 		ExpectTopic(topic).
 		ExpectType(messageType).
@@ -128,7 +129,7 @@ func ExpectStringArray(topic, messageType, service string, value []string) *Expe
 		ExpectStringArray(value)
 }
 
-func ExpectIntArray(topic, messageType, service string, value []int64) *Expectation {
+func ExpectIntArray(topic, messageType string, service fimptype.ServiceNameT, value []int) *Expectation {
 	return NewExpectation().
 		ExpectTopic(topic).
 		ExpectType(messageType).
@@ -136,7 +137,7 @@ func ExpectIntArray(topic, messageType, service string, value []int64) *Expectat
 		ExpectIntArray(value)
 }
 
-func ExpectFloatArray(topic, messageType, service string, value []float64) *Expectation {
+func ExpectFloatArray(topic, messageType string, service fimptype.ServiceNameT, value []float64) *Expectation {
 	return NewExpectation().
 		ExpectTopic(topic).
 		ExpectType(messageType).
@@ -144,7 +145,7 @@ func ExpectFloatArray(topic, messageType, service string, value []float64) *Expe
 		ExpectFloatArray(value)
 }
 
-func ExpectBoolArray(topic, messageType, service string, value []bool) *Expectation {
+func ExpectBoolArray(topic, messageType string, service fimptype.ServiceNameT, value []bool) *Expectation {
 	return NewExpectation().
 		ExpectTopic(topic).
 		ExpectType(messageType).
@@ -152,14 +153,14 @@ func ExpectBoolArray(topic, messageType, service string, value []bool) *Expectat
 		ExpectBoolArray(value)
 }
 
-func ExpectError(topic, service string) *Expectation {
+func ExpectError(topic string, service fimptype.ServiceNameT) *Expectation {
 	return NewExpectation().
 		ExpectTopic(topic).
 		ExpectType(router.EvtErrorReport).
 		ExpectService(service)
 }
 
-func ExpectSuccess(topic, service string) *Expectation {
+func ExpectSuccess(topic string, service fimptype.ServiceNameT) *Expectation {
 	return NewExpectation().
 		ExpectTopic(topic).
 		ExpectType(router.EvtSuccessReport).
@@ -196,7 +197,7 @@ func (e *Expectation) ExpectTopic(topic string) *Expectation {
 	return e
 }
 
-func (e *Expectation) ExpectService(service string) *Expectation {
+func (e *Expectation) ExpectService(service fimptype.ServiceNameT) *Expectation {
 	e.Voters = append(e.Voters, router.ForService(service))
 
 	return e
@@ -234,7 +235,7 @@ func (e *Expectation) ExpectBool(value bool) *Expectation {
 	return e
 }
 
-func (e *Expectation) ExpectInt(value int64) *Expectation {
+func (e *Expectation) ExpectInt(value int) *Expectation {
 	e.Voters = append(e.Voters, router.MessageVoterFn(func(message *fimpgo.Message) bool {
 		v, err := message.Payload.GetIntValue()
 		if err != nil {
@@ -260,7 +261,7 @@ func (e *Expectation) ExpectFloat(value float64) *Expectation {
 	return e
 }
 
-func (e *Expectation) ExpectObject(object interface{}) *Expectation {
+func (e *Expectation) ExpectObject(object any) *Expectation {
 	e.Voters = append(e.Voters, router.MessageVoterFn(func(message *fimpgo.Message) bool {
 		raw, err := json.Marshal(object)
 		if err != nil {
@@ -275,7 +276,7 @@ func (e *Expectation) ExpectObject(object interface{}) *Expectation {
 
 func (e *Expectation) ExpectNull() *Expectation {
 	e.Voters = append(e.Voters, router.MessageVoterFn(func(message *fimpgo.Message) bool {
-		if message.Payload.ValueType != fimpgo.VTypeNull {
+		if message.Payload.ValueType != fimptype.VTypeNull {
 			return false
 		}
 
@@ -311,7 +312,7 @@ func (e *Expectation) ExpectFloatMap(value map[string]float64) *Expectation {
 	return e
 }
 
-func (e *Expectation) ExpectIntMap(value map[string]int64) *Expectation {
+func (e *Expectation) ExpectIntMap(value map[string]int) *Expectation {
 	e.Voters = append(e.Voters, router.MessageVoterFn(func(message *fimpgo.Message) bool {
 		v, err := message.Payload.GetIntMapValue()
 		if err != nil {
@@ -363,7 +364,7 @@ func (e *Expectation) ExpectFloatArray(value []float64) *Expectation {
 	return e
 }
 
-func (e *Expectation) ExpectIntArray(value []int64) *Expectation {
+func (e *Expectation) ExpectIntArray(value []int) *Expectation {
 	e.Voters = append(e.Voters, router.MessageVoterFn(func(message *fimpgo.Message) bool {
 		v, err := message.Payload.GetIntArrayValue()
 		if err != nil {
@@ -389,7 +390,7 @@ func (e *Expectation) ExpectBoolArray(value []bool) *Expectation {
 	return e
 }
 
-func (e *Expectation) ExpectProperty(propertyName string, propertyValue interface{}) *Expectation {
+func (e *Expectation) ExpectProperty(propertyName string, propertyValue any) *Expectation {
 	e.Voters = append(e.Voters, router.MessageVoterFn(func(message *fimpgo.Message) bool {
 		property, ok := message.Payload.Properties[propertyName]
 		if !ok {

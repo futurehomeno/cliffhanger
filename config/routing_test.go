@@ -7,6 +7,7 @@ import (
 	"time"
 
 	"github.com/futurehomeno/fimpgo"
+	"github.com/futurehomeno/fimpgo/fimptype"
 	log "github.com/sirupsen/logrus"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
@@ -18,10 +19,10 @@ import (
 )
 
 func TestHandleCmdLogGetLevel(t *testing.T) { //nolint:paralleltest
-	makeCommand := func(valueType string, value interface{}) *fimpgo.Message {
+	makeCommand := func(valueType fimptype.ValueTypeT, value any) *fimpgo.Message {
 		return &fimpgo.Message{
 			Payload: &fimpgo.FimpMessage{
-				Type:      config.CmdLogSetLevel,
+				Interface: config.CmdLogSetLevel,
 				ValueType: valueType,
 				Value:     value,
 			},
@@ -72,10 +73,10 @@ func TestHandleCmdLogGetLevel(t *testing.T) { //nolint:paralleltest
 
 			if tt.wantErr {
 				assert.NotNil(t, got)
-				assert.Equal(t, "evt.error.report", got.Payload.Type)
+				assert.Equal(t, "evt.error.report", got.Payload.Interface)
 			} else {
 				assert.NotNil(t, got)
-				assert.Equal(t, config.EvtLogLevelReport, got.Payload.Type)
+				assert.Equal(t, config.EvtLogLevelReport, got.Payload.Interface)
 				assert.Equal(t, tt.wantLogLvl.String(), got.Payload.Value)
 				assert.Equal(t, tt.wantLogLvl, log.GetLevel())
 			}
@@ -243,13 +244,13 @@ func TestRouteConfig(t *testing.T) { //nolint:paralleltest
 					{
 						Command: suite.NullMessage("pt:j1/mt:cmd/rt:app/rn:test/ad:1", "cmd.config.get_test_setting_int_map", "test_service"),
 						Expectations: []*suite.Expectation{
-							suite.ExpectIntMap("pt:j1/mt:evt/rt:app/rn:test/ad:1", "evt.config.test_setting_int_map_report", "test_service", map[string]int64{"a": 1}),
+							suite.ExpectIntMap("pt:j1/mt:evt/rt:app/rn:test/ad:1", "evt.config.test_setting_int_map_report", "test_service", map[string]int{"a": 1}),
 						},
 					},
 					{
-						Command: suite.IntMapMessage("pt:j1/mt:cmd/rt:app/rn:test/ad:1", "cmd.config.set_test_setting_int_map", "test_service", map[string]int64{"c": 2}),
+						Command: suite.IntMapMessage("pt:j1/mt:cmd/rt:app/rn:test/ad:1", "cmd.config.set_test_setting_int_map", "test_service", map[string]int{"c": 2}),
 						Expectations: []*suite.Expectation{
-							suite.ExpectIntMap("pt:j1/mt:evt/rt:app/rn:test/ad:1", "evt.config.test_setting_int_map_report", "test_service", map[string]int64{"c": 2}),
+							suite.ExpectIntMap("pt:j1/mt:evt/rt:app/rn:test/ad:1", "evt.config.test_setting_int_map_report", "test_service", map[string]int{"c": 2}),
 						},
 					},
 					{
@@ -291,13 +292,13 @@ func TestRouteConfig(t *testing.T) { //nolint:paralleltest
 					{
 						Command: suite.NullMessage("pt:j1/mt:cmd/rt:app/rn:test/ad:1", "cmd.config.get_test_setting_int_array", "test_service"),
 						Expectations: []*suite.Expectation{
-							suite.ExpectIntArray("pt:j1/mt:evt/rt:app/rn:test/ad:1", "evt.config.test_setting_int_array_report", "test_service", []int64{1}),
+							suite.ExpectIntArray("pt:j1/mt:evt/rt:app/rn:test/ad:1", "evt.config.test_setting_int_array_report", "test_service", []int{1}),
 						},
 					},
 					{
-						Command: suite.IntArrayMessage("pt:j1/mt:cmd/rt:app/rn:test/ad:1", "cmd.config.set_test_setting_int_array", "test_service", []int64{2}),
+						Command: suite.IntArrayMessage("pt:j1/mt:cmd/rt:app/rn:test/ad:1", "cmd.config.set_test_setting_int_array", "test_service", []int{2}),
 						Expectations: []*suite.Expectation{
-							suite.ExpectIntArray("pt:j1/mt:evt/rt:app/rn:test/ad:1", "evt.config.test_setting_int_array_report", "test_service", []int64{2}),
+							suite.ExpectIntArray("pt:j1/mt:evt/rt:app/rn:test/ad:1", "evt.config.test_setting_int_array_report", "test_service", []int{2}),
 						},
 					},
 					{
@@ -374,7 +375,7 @@ func TestRouteConfig(t *testing.T) { //nolint:paralleltest
 					},
 					{
 						Name:    "Invalid value type",
-						Command: suite.IntMessage("pt:j1/mt:cmd/rt:app/rn:test/ad:1", "cmd.config.set_test_setting_duration", "test_service", int64(time.Second)),
+						Command: suite.IntMessage("pt:j1/mt:cmd/rt:app/rn:test/ad:1", "cmd.config.set_test_setting_duration", "test_service", int(time.Second)),
 						Expectations: []*suite.Expectation{
 							suite.ExpectError("pt:j1/mt:evt/rt:app/rn:test/ad:1", "test_service"),
 						},
@@ -395,9 +396,9 @@ func TestRouteConfig(t *testing.T) { //nolint:paralleltest
 					},
 					{
 						Name:    "Properly handle an empty slice",
-						Command: suite.IntArrayMessage("pt:j1/mt:cmd/rt:app/rn:test/ad:1", "cmd.config.set_test_setting_int_array", "test_service", []int64{}),
+						Command: suite.IntArrayMessage("pt:j1/mt:cmd/rt:app/rn:test/ad:1", "cmd.config.set_test_setting_int_array", "test_service", []int{}),
 						Expectations: []*suite.Expectation{
-							suite.ExpectIntArray("pt:j1/mt:evt/rt:app/rn:test/ad:1", "evt.config.test_setting_int_array_report", "test_service", []int64{}),
+							suite.ExpectIntArray("pt:j1/mt:evt/rt:app/rn:test/ad:1", "evt.config.test_setting_int_array_report", "test_service", []int{}),
 						},
 					},
 				},

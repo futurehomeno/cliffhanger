@@ -97,7 +97,7 @@ type Controller_SetBinarySwitchState_Call struct {
 
 // SetBinarySwitchState is a helper method to define mock.On call
 //   - _a0 bool
-func (_e *Controller_Expecter) SetBinarySwitchState(_a0 interface{}) *Controller_SetBinarySwitchState_Call {
+func (_e *Controller_Expecter) SetBinarySwitchState(_a0 any) *Controller_SetBinarySwitchState_Call {
 	return &Controller_SetBinarySwitchState_Call{Call: _e.mock.On("SetBinarySwitchState", _a0)}
 }
 

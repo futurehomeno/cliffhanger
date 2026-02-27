@@ -6,9 +6,7 @@ import (
 	adapter "github.com/futurehomeno/cliffhanger/adapter"
 
 	fimpgo "github.com/futurehomeno/fimpgo"
-
 	fimptype "github.com/futurehomeno/fimpgo/fimptype"
-
 	mock "github.com/stretchr/testify/mock"
 )
 
@@ -26,18 +24,18 @@ func (_m *Service) EXPECT() *Service_Expecter {
 }
 
 // Name provides a mock function with no fields
-func (_m *Service) Name() string {
+func (_m *Service) Name() fimptype.ServiceNameT {
 	ret := _m.Called()
 
 	if len(ret) == 0 {
 		panic("no return value specified for Name")
 	}
 
-	var r0 string
-	if rf, ok := ret.Get(0).(func() string); ok {
+	var r0 fimptype.ServiceNameT
+	if rf, ok := ret.Get(0).(func() fimptype.ServiceNameT); ok {
 		r0 = rf()
 	} else {
-		r0 = ret.Get(0).(string)
+		r0 = ret.Get(0).(fimptype.ServiceNameT)
 	}
 
 	return r0
@@ -60,12 +58,12 @@ func (_c *Service_Name_Call) Run(run func()) *Service_Name_Call {
 	return _c
 }
 
-func (_c *Service_Name_Call) Return(_a0 string) *Service_Name_Call {
+func (_c *Service_Name_Call) Return(_a0 fimptype.ServiceNameT) *Service_Name_Call {
 	_c.Call.Return(_a0)
 	return _c
 }
 
-func (_c *Service_Name_Call) RunAndReturn(run func() string) *Service_Name_Call {
+func (_c *Service_Name_Call) RunAndReturn(run func() fimptype.ServiceNameT) *Service_Name_Call {
 	_c.Call.Return(run)
 	return _c
 }
@@ -82,7 +80,7 @@ type Service_PublishEvent_Call struct {
 
 // PublishEvent is a helper method to define mock.On call
 //   - event adapter.ServiceEvent
-func (_e *Service_Expecter) PublishEvent(event interface{}) *Service_PublishEvent_Call {
+func (_e *Service_Expecter) PublishEvent(event any) *Service_PublishEvent_Call {
 	return &Service_PublishEvent_Call{Call: _e.mock.On("PublishEvent", event)}
 }
 
@@ -138,7 +136,7 @@ type Service_SendColorReport_Call struct {
 
 // SendColorReport is a helper method to define mock.On call
 //   - force bool
-func (_e *Service_Expecter) SendColorReport(force interface{}) *Service_SendColorReport_Call {
+func (_e *Service_Expecter) SendColorReport(force any) *Service_SendColorReport_Call {
 	return &Service_SendColorReport_Call{Call: _e.mock.On("SendColorReport", force)}
 }
 
@@ -184,7 +182,7 @@ type Service_SendMessage_Call struct {
 
 // SendMessage is a helper method to define mock.On call
 //   - message *fimpgo.FimpMessage
-func (_e *Service_Expecter) SendMessage(message interface{}) *Service_SendMessage_Call {
+func (_e *Service_Expecter) SendMessage(message any) *Service_SendMessage_Call {
 	return &Service_SendMessage_Call{Call: _e.mock.On("SendMessage", message)}
 }
 
@@ -206,7 +204,7 @@ func (_c *Service_SendMessage_Call) RunAndReturn(run func(*fimpgo.FimpMessage) e
 }
 
 // SetColor provides a mock function with given fields: color
-func (_m *Service) SetColor(color map[string]int64) error {
+func (_m *Service) SetColor(color map[string]int) error {
 	ret := _m.Called(color)
 
 	if len(ret) == 0 {
@@ -214,7 +212,7 @@ func (_m *Service) SetColor(color map[string]int64) error {
 	}
 
 	var r0 error
-	if rf, ok := ret.Get(0).(func(map[string]int64) error); ok {
+	if rf, ok := ret.Get(0).(func(map[string]int) error); ok {
 		r0 = rf(color)
 	} else {
 		r0 = ret.Error(0)
@@ -229,14 +227,14 @@ type Service_SetColor_Call struct {
 }
 
 // SetColor is a helper method to define mock.On call
-//   - color map[string]int64
-func (_e *Service_Expecter) SetColor(color interface{}) *Service_SetColor_Call {
+//   - color map[string]int
+func (_e *Service_Expecter) SetColor(color any) *Service_SetColor_Call {
 	return &Service_SetColor_Call{Call: _e.mock.On("SetColor", color)}
 }
 
-func (_c *Service_SetColor_Call) Run(run func(color map[string]int64)) *Service_SetColor_Call {
+func (_c *Service_SetColor_Call) Run(run func(color map[string]int)) *Service_SetColor_Call {
 	_c.Call.Run(func(args mock.Arguments) {
-		run(args[0].(map[string]int64))
+		run(args[0].(map[string]int))
 	})
 	return _c
 }
@@ -246,7 +244,7 @@ func (_c *Service_SetColor_Call) Return(_a0 error) *Service_SetColor_Call {
 	return _c
 }
 
-func (_c *Service_SetColor_Call) RunAndReturn(run func(map[string]int64) error) *Service_SetColor_Call {
+func (_c *Service_SetColor_Call) RunAndReturn(run func(map[string]int) error) *Service_SetColor_Call {
 	_c.Call.Return(run)
 	return _c
 }
@@ -346,19 +344,19 @@ func (_c *Service_SupportedComponents_Call) RunAndReturn(run func() []string) *S
 }
 
 // SupportedDurations provides a mock function with no fields
-func (_m *Service) SupportedDurations() []int64 {
+func (_m *Service) SupportedDurations() []int {
 	ret := _m.Called()
 
 	if len(ret) == 0 {
 		panic("no return value specified for SupportedDurations")
 	}
 
-	var r0 []int64
-	if rf, ok := ret.Get(0).(func() []int64); ok {
+	var r0 []int
+	if rf, ok := ret.Get(0).(func() []int); ok {
 		r0 = rf()
 	} else {
 		if ret.Get(0) != nil {
-			r0 = ret.Get(0).([]int64)
+			r0 = ret.Get(0).([]int)
 		}
 	}
 
@@ -382,12 +380,12 @@ func (_c *Service_SupportedDurations_Call) Run(run func()) *Service_SupportedDur
 	return _c
 }
 
-func (_c *Service_SupportedDurations_Call) Return(_a0 []int64) *Service_SupportedDurations_Call {
+func (_c *Service_SupportedDurations_Call) Return(_a0 []int) *Service_SupportedDurations_Call {
 	_c.Call.Return(_a0)
 	return _c
 }
 
-func (_c *Service_SupportedDurations_Call) RunAndReturn(run func() []int64) *Service_SupportedDurations_Call {
+func (_c *Service_SupportedDurations_Call) RunAndReturn(run func() []int) *Service_SupportedDurations_Call {
 	_c.Call.Return(run)
 	return _c
 }

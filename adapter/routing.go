@@ -4,6 +4,7 @@ import (
 	"fmt"
 
 	"github.com/futurehomeno/fimpgo"
+	"github.com/futurehomeno/fimpgo/fimptype"
 
 	"github.com/futurehomeno/cliffhanger/router"
 )
@@ -39,7 +40,7 @@ func RouteAdapter(adapter Adapter) []*router.Routing {
 func routeCmdThingGetInclusionReport(adapter Adapter) *router.Routing {
 	return router.NewRouting(
 		handleCmdThingGetInclusionReport(adapter),
-		router.ForService(adapter.Name()),
+		router.ForService(fimptype.ServiceNameT(adapter.Name())),
 		router.ForType(CmdThingGetInclusionReport),
 	)
 }
@@ -67,7 +68,7 @@ func handleCmdThingGetInclusionReport(adapter Adapter) router.MessageHandler {
 func routeCmdThingDelete(adapter Adapter) *router.Routing {
 	return router.NewRouting(
 		handleCmdThingDelete(adapter),
-		router.ForService(adapter.Name()),
+		router.ForService(fimptype.ServiceNameT(adapter.Name())),
 		router.ForType(CmdThingDelete),
 	)
 }
@@ -97,7 +98,7 @@ func handleCmdThingDelete(adapter Adapter) router.MessageHandler {
 func routeCmdNetworkReset(adapter Adapter) *router.Routing {
 	return router.NewRouting(
 		handleCmdNetworkReset(adapter),
-		router.ForService(adapter.Name()),
+		router.ForService(fimptype.ServiceNameT(adapter.Name())),
 		router.ForType(CmdNetworkReset),
 	)
 }
@@ -113,7 +114,7 @@ func handleCmdNetworkReset(adapter Adapter) router.MessageHandler {
 
 			return fimpgo.NewNullMessage(
 				EvtNetworkResetDone,
-				adapter.Name(),
+				fimptype.ServiceNameT(adapter.Name()),
 				nil,
 				nil,
 				message.Payload,
@@ -126,7 +127,7 @@ func handleCmdNetworkReset(adapter Adapter) router.MessageHandler {
 func routeCmdNetworkGetNode(adapter Adapter) *router.Routing {
 	return router.NewRouting(
 		handleCmdNetworkGetNode(adapter),
-		router.ForService(adapter.Name()),
+		router.ForService(fimptype.ServiceNameT(adapter.Name())),
 		router.ForType(CmdNetworkGetNode),
 	)
 }
@@ -154,7 +155,7 @@ func handleCmdNetworkGetNode(adapter Adapter) router.MessageHandler {
 func routeCmdNetworkGetAllNodes(adapter Adapter) *router.Routing {
 	return router.NewRouting(
 		handleCmdNetworkGetAllNodes(adapter),
-		router.ForService(adapter.Name()),
+		router.ForService(fimptype.ServiceNameT(adapter.Name())),
 		router.ForType(CmdNetworkGetAllNodes),
 	)
 }
@@ -177,7 +178,7 @@ func handleCmdNetworkGetAllNodes(adapter Adapter) router.MessageHandler {
 func routeCmdPingSend(adapter Adapter) *router.Routing {
 	return router.NewRouting(
 		handleCmdPingSend(adapter),
-		router.ForService(adapter.Name()),
+		router.ForService(fimptype.ServiceNameT(adapter.Name())),
 		router.ForType(CmdPingSend),
 	)
 }

@@ -153,11 +153,11 @@ type ThingState interface {
 	// Address returns the address assigned to the thing by the adapter.
 	Address() string
 	// Info marshals thing optional information into the provided model.
-	Info(model interface{}) error
+	Info(model any) error
 	// State marshals thing persisted state into the provided model.
-	State(model interface{}) error
+	State(model any) error
 	// SetState persists new state of a thing.
-	SetState(model interface{}) error
+	SetState(model any) error
 	// GetInclusionChecksum returns the checksum of the inclusion report stored in the thing state.
 	GetInclusionChecksum() uint32
 	// SetInclusionChecksum persists the checksum of the inclusion report in the thing state.
@@ -195,7 +195,7 @@ func (s *thingState) Address() string {
 }
 
 // Info marshals thing optional information into the provided model.
-func (s *thingState) Info(model interface{}) error {
+func (s *thingState) Info(model any) error {
 	s.state.lock.RLock()
 	defer s.state.lock.RUnlock()
 
@@ -212,7 +212,7 @@ func (s *thingState) Info(model interface{}) error {
 }
 
 // State marshals thing persisted state into the provided model.
-func (s *thingState) State(model interface{}) error {
+func (s *thingState) State(model any) error {
 	s.state.lock.RLock()
 	defer s.state.lock.RUnlock()
 
@@ -229,7 +229,7 @@ func (s *thingState) State(model interface{}) error {
 }
 
 // SetState persists new state of a thing.
-func (s *thingState) SetState(model interface{}) error {
+func (s *thingState) SetState(model any) error {
 	s.state.lock.Lock()
 	defer s.state.lock.Unlock()
 

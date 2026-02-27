@@ -4,6 +4,7 @@ package mockedadapter
 
 import (
 	event "github.com/futurehomeno/cliffhanger/event"
+	fimptype "github.com/futurehomeno/fimpgo/fimptype"
 	mock "github.com/stretchr/testify/mock"
 )
 
@@ -201,18 +202,18 @@ func (_c *ServiceEvent_HasChanged_Call) RunAndReturn(run func() bool) *ServiceEv
 }
 
 // ServiceName provides a mock function with no fields
-func (_m *ServiceEvent) ServiceName() string {
+func (_m *ServiceEvent) ServiceName() fimptype.ServiceNameT {
 	ret := _m.Called()
 
 	if len(ret) == 0 {
 		panic("no return value specified for ServiceName")
 	}
 
-	var r0 string
-	if rf, ok := ret.Get(0).(func() string); ok {
+	var r0 fimptype.ServiceNameT
+	if rf, ok := ret.Get(0).(func() fimptype.ServiceNameT); ok {
 		r0 = rf()
 	} else {
-		r0 = ret.Get(0).(string)
+		r0 = ret.Get(0).(fimptype.ServiceNameT)
 	}
 
 	return r0
@@ -235,12 +236,12 @@ func (_c *ServiceEvent_ServiceName_Call) Run(run func()) *ServiceEvent_ServiceNa
 	return _c
 }
 
-func (_c *ServiceEvent_ServiceName_Call) Return(_a0 string) *ServiceEvent_ServiceName_Call {
+func (_c *ServiceEvent_ServiceName_Call) Return(_a0 fimptype.ServiceNameT) *ServiceEvent_ServiceName_Call {
 	_c.Call.Return(_a0)
 	return _c
 }
 
-func (_c *ServiceEvent_ServiceName_Call) RunAndReturn(run func() string) *ServiceEvent_ServiceName_Call {
+func (_c *ServiceEvent_ServiceName_Call) RunAndReturn(run func() fimptype.ServiceNameT) *ServiceEvent_ServiceName_Call {
 	_c.Call.Return(run)
 	return _c
 }
@@ -257,7 +258,7 @@ type ServiceEvent_setAddress_Call struct {
 
 // setAddress is a helper method to define mock.On call
 //   - address string
-func (_e *ServiceEvent_Expecter) setAddress(address interface{}) *ServiceEvent_setAddress_Call {
+func (_e *ServiceEvent_Expecter) setAddress(address any) *ServiceEvent_setAddress_Call {
 	return &ServiceEvent_setAddress_Call{Call: _e.mock.On("setAddress", address)}
 }
 
@@ -290,7 +291,7 @@ type ServiceEvent_setEvent_Call struct {
 
 // setEvent is a helper method to define mock.On call
 //   - _a0 event.Event
-func (_e *ServiceEvent_Expecter) setEvent(_a0 interface{}) *ServiceEvent_setEvent_Call {
+func (_e *ServiceEvent_Expecter) setEvent(_a0 any) *ServiceEvent_setEvent_Call {
 	return &ServiceEvent_setEvent_Call{Call: _e.mock.On("setEvent", _a0)}
 }
 
@@ -312,7 +313,7 @@ func (_c *ServiceEvent_setEvent_Call) RunAndReturn(run func(event.Event)) *Servi
 }
 
 // setServiceName provides a mock function with given fields: serviceName
-func (_m *ServiceEvent) setServiceName(serviceName string) {
+func (_m *ServiceEvent) setServiceName(serviceName fimptype.ServiceNameT) {
 	_m.Called(serviceName)
 }
 
@@ -322,14 +323,14 @@ type ServiceEvent_setServiceName_Call struct {
 }
 
 // setServiceName is a helper method to define mock.On call
-//   - serviceName string
-func (_e *ServiceEvent_Expecter) setServiceName(serviceName interface{}) *ServiceEvent_setServiceName_Call {
+//   - serviceName fimptype.ServiceNameT
+func (_e *ServiceEvent_Expecter) setServiceName(serviceName any) *ServiceEvent_setServiceName_Call {
 	return &ServiceEvent_setServiceName_Call{Call: _e.mock.On("setServiceName", serviceName)}
 }
 
-func (_c *ServiceEvent_setServiceName_Call) Run(run func(serviceName string)) *ServiceEvent_setServiceName_Call {
+func (_c *ServiceEvent_setServiceName_Call) Run(run func(serviceName fimptype.ServiceNameT)) *ServiceEvent_setServiceName_Call {
 	_c.Call.Run(func(args mock.Arguments) {
-		run(args[0].(string))
+		run(args[0].(fimptype.ServiceNameT))
 	})
 	return _c
 }
@@ -339,7 +340,7 @@ func (_c *ServiceEvent_setServiceName_Call) Return() *ServiceEvent_setServiceNam
 	return _c
 }
 
-func (_c *ServiceEvent_setServiceName_Call) RunAndReturn(run func(string)) *ServiceEvent_setServiceName_Call {
+func (_c *ServiceEvent_setServiceName_Call) RunAndReturn(run func(fimptype.ServiceNameT)) *ServiceEvent_setServiceName_Call {
 	_c.Run(run)
 	return _c
 }

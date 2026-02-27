@@ -3,7 +3,6 @@ package virtualmeter
 import (
 	"fmt"
 
-	"github.com/futurehomeno/fimpgo"
 	"github.com/futurehomeno/fimpgo/fimptype"
 
 	"github.com/futurehomeno/cliffhanger/adapter"
@@ -11,8 +10,8 @@ import (
 )
 
 func Specification(
-	resourceName,
-	resourceAddress,
+	resourceName fimptype.ResourceNameT,
+	resourceAddress string,
 	address string,
 	groups []string,
 	supportedUnits []numericmeter.Unit,
@@ -24,7 +23,7 @@ func Specification(
 		Name:    VirtualMeterElec,
 		Groups:  groups,
 		Enabled: true,
-		Props: map[string]interface{}{
+		Props: map[string]any{
 			PropertySupportedUnits: supportedUnits,
 			PropertySupportedModes: supportedModes,
 		},
@@ -43,25 +42,25 @@ func requiredInterfaces() []fimptype.Interface {
 		{
 			Type:      fimptype.TypeIn,
 			MsgType:   CmdMeterAdd,
-			ValueType: fimpgo.VTypeFloatMap,
+			ValueType: fimptype.VTypeFloatMap,
 			Version:   "1",
 		},
 		{
 			Type:      fimptype.TypeIn,
 			MsgType:   CmdMeterRemove,
-			ValueType: fimpgo.VTypeNull,
+			ValueType: fimptype.VTypeNull,
 			Version:   "1",
 		},
 		{
 			Type:      fimptype.TypeIn,
 			MsgType:   CmdMeterGetReport,
-			ValueType: fimpgo.VTypeNull,
+			ValueType: fimptype.VTypeNull,
 			Version:   "1",
 		},
 		{
 			Type:      fimptype.TypeOut,
 			MsgType:   EvtMeterReport,
-			ValueType: fimpgo.VTypeFloatMap,
+			ValueType: fimptype.VTypeFloatMap,
 			Version:   "1",
 		},
 	}

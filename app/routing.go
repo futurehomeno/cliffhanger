@@ -4,6 +4,7 @@ import (
 	"fmt"
 
 	"github.com/futurehomeno/fimpgo"
+	"github.com/futurehomeno/fimpgo/fimptype"
 	log "github.com/sirupsen/logrus"
 
 	"github.com/futurehomeno/cliffhanger/auth"
@@ -35,7 +36,7 @@ const (
 
 // RouteApp creates routing for an application.
 func RouteApp[C any](
-	serviceName string,
+	serviceName fimptype.ServiceNameT,
 	appLifecycle *lifecycle.Lifecycle,
 	configStorage storage.Storage[C],
 	configFactory func() C,
@@ -77,7 +78,7 @@ func RouteApp[C any](
 }
 
 // RouteCmdAppGetState returns a routing responsible for handling the command.
-func RouteCmdAppGetState(serviceName string, appLifecycle *lifecycle.Lifecycle) *router.Routing {
+func RouteCmdAppGetState(serviceName fimptype.ServiceNameT, appLifecycle *lifecycle.Lifecycle) *router.Routing {
 	return router.NewRouting(
 		HandleCmdAppGetState(serviceName, appLifecycle),
 		router.ForService(serviceName),
@@ -86,13 +87,13 @@ func RouteCmdAppGetState(serviceName string, appLifecycle *lifecycle.Lifecycle) 
 }
 
 // HandleCmdAppGetState returns a handler responsible for handling the command.
-func HandleCmdAppGetState(serviceName string, appLifecycle *lifecycle.Lifecycle) router.MessageHandler {
+func HandleCmdAppGetState(serviceName fimptype.ServiceNameT, appLifecycle *lifecycle.Lifecycle) router.MessageHandler {
 	return router.NewMessageHandler(
 		router.MessageProcessorFn(func(message *fimpgo.Message) (reply *fimpgo.FimpMessage, err error) {
 			msg := fimpgo.NewMessage(
 				EvtAppStateReport,
 				serviceName,
-				fimpgo.VTypeObject,
+				fimptype.VTypeObject,
 				appLifecycle.GetAllStates(),
 				nil,
 				nil,
@@ -104,7 +105,7 @@ func HandleCmdAppGetState(serviceName string, appLifecycle *lifecycle.Lifecycle)
 }
 
 // RouteCmdConfigGetExtendedReport returns a routing responsible for handling the command.
-func RouteCmdConfigGetExtendedReport[C any](serviceName string, storage storage.Storage[C]) *router.Routing {
+func RouteCmdConfigGetExtendedReport[C any](serviceName fimptype.ServiceNameT, storage storage.Storage[C]) *router.Routing {
 	return router.NewRouting(
 		HandleCmdConfigGetExtendedReport(serviceName, storage),
 		router.ForService(serviceName),
@@ -113,13 +114,13 @@ func RouteCmdConfigGetExtendedReport[C any](serviceName string, storage storage.
 }
 
 // HandleCmdConfigGetExtendedReport returns a handler responsible for handling the command.
-func HandleCmdConfigGetExtendedReport[C any](serviceName string, storage storage.Storage[C]) router.MessageHandler {
+func HandleCmdConfigGetExtendedReport[C any](serviceName fimptype.ServiceNameT, storage storage.Storage[C]) router.MessageHandler {
 	return router.NewMessageHandler(
 		router.MessageProcessorFn(func(message *fimpgo.Message) (reply *fimpgo.FimpMessage, err error) {
 			msg := fimpgo.NewMessage(
 				EvtConfigExtendedReport,
 				serviceName,
-				fimpgo.VTypeObject,
+				fimptype.VTypeObject,
 				storage.Model(),
 				nil,
 				nil,
@@ -132,7 +133,7 @@ func HandleCmdConfigGetExtendedReport[C any](serviceName string, storage storage
 
 // RouteCmdAppGetManifest returns a routing responsible for handling the command.
 func RouteCmdAppGetManifest[C any](
-	serviceName string,
+	serviceName fimptype.ServiceNameT,
 	appLifecycle *lifecycle.Lifecycle,
 	configStorage storage.Storage[C],
 	app App,
@@ -146,7 +147,7 @@ func RouteCmdAppGetManifest[C any](
 
 // HandleCmdAppGetManifest returns a handler responsible for handling the command.
 func HandleCmdAppGetManifest[C any](
-	serviceName string,
+	serviceName fimptype.ServiceNameT,
 	appLifecycle *lifecycle.Lifecycle,
 	configStorage storage.Storage[C],
 	app App,
@@ -168,7 +169,7 @@ func HandleCmdAppGetManifest[C any](
 				m.ConfigState = configStorage.Model()
 			}
 
-			reply := fimpgo.NewMessage(EvtAppManifestReport, serviceName, fimpgo.VTypeObject, m, nil, nil, message.Payload)
+			reply := fimpgo.NewMessage(EvtAppManifestReport, serviceName, fimptype.VTypeObject, m, nil, nil, message.Payload)
 
 			return reply, nil
 		}),
@@ -178,7 +179,7 @@ func HandleCmdAppGetManifest[C any](
 // RouteCmdConfigExtendedSet returns a routing responsible for handling the command.
 // Provided locker is optional.
 func RouteCmdConfigExtendedSet[C any](
-	serviceName string,
+	serviceName fimptype.ServiceNameT,
 	appLifecycle *lifecycle.Lifecycle,
 	configFactory func() C,
 	app App,
@@ -194,7 +195,7 @@ func RouteCmdConfigExtendedSet[C any](
 // HandleCmdConfigExtendedSet returns a handler responsible for handling the command.
 // Provided locker is optional.
 func HandleCmdConfigExtendedSet[C any](
-	serviceName string,
+	serviceName fimptype.ServiceNameT,
 	appLifecycle *lifecycle.Lifecycle,
 	configFactory func() C,
 	app App,
@@ -223,7 +224,7 @@ func HandleCmdConfigExtendedSet[C any](
 // RouteCmdAppUninstall returns a routing responsible for handling the command.
 // Provided locker is optional.
 func RouteCmdAppUninstall(
-	serviceName string,
+	serviceName fimptype.ServiceNameT,
 	appLifecycle *lifecycle.Lifecycle,
 	app App,
 	locker router.MessageHandlerLocker,
@@ -238,7 +239,7 @@ func RouteCmdAppUninstall(
 // HandleCmdAppUninstall returns a handler responsible for handling the command.
 // Provided locker is optional.
 func HandleCmdAppUninstall(
-	serviceName string,
+	serviceName fimptype.ServiceNameT,
 	appLifecycle *lifecycle.Lifecycle,
 	app App,
 	locker router.MessageHandlerLocker,
@@ -259,7 +260,7 @@ func HandleCmdAppUninstall(
 // RouteCmdAppReset returns a routing responsible for handling the command.
 // Provided locker is optional.
 func RouteCmdAppReset(
-	serviceName string,
+	serviceName fimptype.ServiceNameT,
 	locker router.MessageHandlerLocker,
 	app ResettableApp,
 ) *router.Routing {
@@ -295,7 +296,7 @@ func RouteCmdAppReset(
 // RouteConfigActionCommand returns a routing responsible for handling the command.
 // Provided locker is optional.
 func RouteConfigActionCommand(
-	serviceName, commandName string,
+	serviceName fimptype.ServiceNameT, commandName string,
 	action func(parameter string) *manifest.ButtonActionResponse,
 	locker router.MessageHandlerLocker,
 ) *router.Routing {
@@ -309,7 +310,7 @@ func RouteConfigActionCommand(
 // HandleConfigActionCommand returns a handler responsible for handling the command.
 // Provided locker is optional.
 func HandleConfigActionCommand(
-	serviceName string,
+	serviceName fimptype.ServiceNameT,
 	action func(parameter string) *manifest.ButtonActionResponse,
 	locker router.MessageHandlerLocker,
 ) router.MessageHandler {
@@ -322,7 +323,7 @@ func HandleConfigActionCommand(
 			return fimpgo.NewMessage(
 				EvtAppConfigActionReport,
 				serviceName,
-				fimpgo.VTypeObject,
+				fimptype.VTypeObject,
 				response,
 				nil,
 				nil,
@@ -335,7 +336,7 @@ func HandleConfigActionCommand(
 
 // makeConfigurationReply creates configuration reply for an edge application.
 func makeConfigurationReply(
-	serviceName string,
+	serviceName fimptype.ServiceNameT,
 	messageType string,
 	message *fimpgo.Message,
 	appLifecycle *lifecycle.Lifecycle,
@@ -349,7 +350,7 @@ func makeConfigurationReply(
 		log.WithError(err).
 			WithField("topic", message.Topic).
 			WithField("service", message.Payload.Service).
-			WithField("type", message.Payload.Type).
+			WithField("type", message.Payload.Interface).
 			Error("failed to configure the application")
 
 		configReport.OpStatus = OperationStatusError
@@ -361,7 +362,7 @@ func makeConfigurationReply(
 	return fimpgo.NewMessage(
 		messageType,
 		serviceName,
-		fimpgo.VTypeObject,
+		fimptype.VTypeObject,
 		configReport,
 		nil,
 		nil,
@@ -371,7 +372,7 @@ func makeConfigurationReply(
 
 // RouteCmdAuthLogin returns a routing responsible for handling the command.
 func RouteCmdAuthLogin(
-	serviceName string,
+	serviceName fimptype.ServiceNameT,
 	appLifecycle *lifecycle.Lifecycle,
 	locker router.MessageHandlerLocker,
 	app LogginableApp,
@@ -385,7 +386,7 @@ func RouteCmdAuthLogin(
 
 // HandleCmdAuthLogin returns a handler responsible for handling the command.
 func HandleCmdAuthLogin(
-	serviceName string,
+	serviceName fimptype.ServiceNameT,
 	appLifecycle *lifecycle.Lifecycle,
 	locker router.MessageHandlerLocker,
 	app LogginableApp,
@@ -417,7 +418,7 @@ func HandleCmdAuthLogin(
 			msg := fimpgo.NewMessage(
 				EvtAuthStatusReport,
 				serviceName,
-				fimpgo.VTypeObject,
+				fimptype.VTypeObject,
 				report,
 				nil,
 				nil,
@@ -431,7 +432,7 @@ func HandleCmdAuthLogin(
 
 // RouteCmdAuthSetTokens returns a routing responsible for handling the command.
 func RouteCmdAuthSetTokens(
-	serviceName string,
+	serviceName fimptype.ServiceNameT,
 	appLifecycle *lifecycle.Lifecycle,
 	locker router.MessageHandlerLocker,
 	app AuthorizableApp,
@@ -445,7 +446,7 @@ func RouteCmdAuthSetTokens(
 
 // HandleCmdAuthSetTokens returns a handler responsible for handling the command.
 func HandleCmdAuthSetTokens(
-	serviceName string,
+	serviceName fimptype.ServiceNameT,
 	appLifecycle *lifecycle.Lifecycle,
 	locker router.MessageHandlerLocker,
 	app AuthorizableApp,
@@ -472,7 +473,7 @@ func HandleCmdAuthSetTokens(
 			msg := fimpgo.NewMessage(
 				EvtAuthStatusReport,
 				serviceName,
-				fimpgo.VTypeObject,
+				fimptype.VTypeObject,
 				report,
 				nil,
 				nil,
@@ -486,7 +487,7 @@ func HandleCmdAuthSetTokens(
 
 // RouteCmdAuthLogout returns a routing responsible for handling the command.
 func RouteCmdAuthLogout(
-	serviceName string,
+	serviceName fimptype.ServiceNameT,
 	appLifecycle *lifecycle.Lifecycle,
 	locker router.MessageHandlerLocker,
 	app LogoutableApp,
@@ -500,7 +501,7 @@ func RouteCmdAuthLogout(
 
 // HandleCmdAuthLogout returns a handler responsible for handling the command.
 func HandleCmdAuthLogout(
-	serviceName string,
+	serviceName fimptype.ServiceNameT,
 	appLifecycle *lifecycle.Lifecycle,
 	locker router.MessageHandlerLocker,
 	app LogoutableApp,
@@ -520,7 +521,7 @@ func HandleCmdAuthLogout(
 			msg := fimpgo.NewMessage(
 				EvtAuthStatusReport,
 				serviceName,
-				fimpgo.VTypeObject,
+				fimptype.VTypeObject,
 				report,
 				nil,
 				nil,

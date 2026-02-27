@@ -2,8 +2,10 @@ package suite
 
 import (
 	"testing"
+	"time"
 
 	"github.com/futurehomeno/fimpgo"
+	"github.com/futurehomeno/fimpgo/fimptype"
 )
 
 type Config struct {
@@ -64,7 +66,7 @@ func (s *Suite) init(t *testing.T) {
 		s.Config.MQTTPassword,
 	)
 
-	err := s.mqtt.Start()
+	err := s.mqtt.Start(10 * time.Second)
 	if err != nil {
 		t.Fatalf("failed to start the MQTT client: %s", err)
 	}
@@ -83,7 +85,7 @@ func (s *Suite) tearDown(t *testing.T) {
 
 func DefaultMQTT(clientID, url, user, pass string) *fimpgo.MqttTransport {
 	if url == "" {
-		url = "tcp://localhost:11883"
+		url = "tcp://127.0.0.1:11883"
 	}
 
 	mqtt := fimpgo.NewMqttTransport(
@@ -94,9 +96,10 @@ func DefaultMQTT(clientID, url, user, pass string) *fimpgo.MqttTransport {
 		true,
 		1,
 		1,
+		nil,
 	)
 
-	mqtt.SetDefaultSource(clientID)
+	mqtt.SetDefaultSource(fimptype.ResourceNameT(clientID))
 
 	return mqtt
 }

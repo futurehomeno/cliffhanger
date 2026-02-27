@@ -4,6 +4,7 @@ import (
 	"testing"
 
 	"github.com/futurehomeno/fimpgo"
+	"github.com/futurehomeno/fimpgo/fimptype"
 	"github.com/stretchr/testify/assert"
 
 	"github.com/futurehomeno/cliffhanger/router"
@@ -19,37 +20,37 @@ func TestTopicPattern(t *testing.T) {
 	}{
 		{
 			name:    "All default messages for test_resource adapter",
-			pattern: router.TopicPattern{PayloadType: fimpgo.DefaultPayload, ResourceType: fimpgo.ResourceTypeAdapter, ResourceName: "test_resource", ResourceAddress: "1"},
+			pattern: router.TopicPattern{PayloadType: fimpgo.DefaultPayload, ResourceType: fimptype.ResourceTypeAdapter, ResourceName: "test_resource", ResourceAddress: "1"},
 			want:    "pt:j1/+/rt:ad/rn:test_resource/ad:1",
 		},
 		{
 			name:    "All default messages for test_resource application",
-			pattern: router.TopicPattern{PayloadType: fimpgo.DefaultPayload, ResourceType: fimpgo.ResourceTypeApp, ResourceName: "test_resource", ResourceAddress: "1"},
+			pattern: router.TopicPattern{PayloadType: fimpgo.DefaultPayload, ResourceType: fimptype.ResourceTypeApp, ResourceName: "test_resource", ResourceAddress: "1"},
 			want:    "pt:j1/+/rt:app/rn:test_resource/ad:1",
 		},
 		{
 			name:    "All default messages for test_resource devices",
-			pattern: router.TopicPattern{PayloadType: fimpgo.DefaultPayload, ResourceType: fimpgo.ResourceTypeDevice, ResourceName: "test_resource", ResourceAddress: "1"},
+			pattern: router.TopicPattern{PayloadType: fimpgo.DefaultPayload, ResourceType: fimptype.ResourceTypeDevice, ResourceName: "test_resource", ResourceAddress: "1"},
 			want:    "pt:j1/+/rt:dev/rn:test_resource/ad:1/+/+",
 		},
 		{
 			name:    "All messages for room location",
-			pattern: router.TopicPattern{PayloadType: fimpgo.DefaultPayload, ResourceType: fimpgo.ResourceTypeLocation, ResourceName: "room"},
+			pattern: router.TopicPattern{PayloadType: fimpgo.DefaultPayload, ResourceType: fimptype.ResourceTypeLocation, ResourceName: "room"},
 			want:    "pt:j1/+/rt:loc/rn:room/+/+/+",
 		},
 		{
 			name:    "All messages for device meter_elec service",
-			pattern: router.TopicPattern{ResourceType: fimpgo.ResourceTypeDevice, ServiceName: "meter_elec"},
+			pattern: router.TopicPattern{ResourceType: fimptype.ResourceTypeDevice, ServiceName: "meter_elec"},
 			want:    "+/+/rt:dev/+/+/sv:meter_elec/+",
 		},
 		{
 			name:    "All events for device meter_elec service at address 1",
-			pattern: router.TopicPattern{MessageType: fimpgo.MsgTypeEvt, ResourceType: fimpgo.ResourceTypeDevice, ServiceName: "meter_elec", ServiceAddress: "1"},
+			pattern: router.TopicPattern{MessageType: fimptype.MsgTypeEvt, ResourceType: fimptype.ResourceTypeDevice, ServiceName: "meter_elec", ServiceAddress: "1"},
 			want:    "+/mt:evt/rt:dev/+/+/sv:meter_elec/ad:1",
 		},
 		{
 			name:    "All discovery events",
-			pattern: router.TopicPattern{MessageType: fimpgo.MsgTypeEvt, ResourceType: fimpgo.ResourceTypeDiscovery},
+			pattern: router.TopicPattern{MessageType: fimptype.MsgTypeEvt, ResourceType: fimptype.ResourceTypeDiscovery},
 			want:    "+/mt:evt/rt:discovery",
 		},
 		{

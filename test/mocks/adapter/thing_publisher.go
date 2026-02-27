@@ -5,7 +5,6 @@ package mockedadapter
 import (
 	adapter "github.com/futurehomeno/cliffhanger/adapter"
 	fimpgo "github.com/futurehomeno/fimpgo"
-
 	mock "github.com/stretchr/testify/mock"
 )
 
@@ -35,7 +34,7 @@ type ThingPublisher_PublishServiceEvent_Call struct {
 // PublishServiceEvent is a helper method to define mock.On call
 //   - service adapter.Service
 //   - payload adapter.ServiceEvent
-func (_e *ThingPublisher_Expecter) PublishServiceEvent(service interface{}, payload interface{}) *ThingPublisher_PublishServiceEvent_Call {
+func (_e *ThingPublisher_Expecter) PublishServiceEvent(service any, payload any) *ThingPublisher_PublishServiceEvent_Call {
 	return &ThingPublisher_PublishServiceEvent_Call{Call: _e.mock.On("PublishServiceEvent", service, payload)}
 }
 
@@ -82,7 +81,7 @@ type ThingPublisher_PublishServiceMessage_Call struct {
 // PublishServiceMessage is a helper method to define mock.On call
 //   - service adapter.Service
 //   - message *fimpgo.FimpMessage
-func (_e *ThingPublisher_Expecter) PublishServiceMessage(service interface{}, message interface{}) *ThingPublisher_PublishServiceMessage_Call {
+func (_e *ThingPublisher_Expecter) PublishServiceMessage(service any, message any) *ThingPublisher_PublishServiceMessage_Call {
 	return &ThingPublisher_PublishServiceMessage_Call{Call: _e.mock.On("PublishServiceMessage", service, message)}
 }
 
@@ -115,7 +114,7 @@ type ThingPublisher_PublishThingEvent_Call struct {
 
 // PublishThingEvent is a helper method to define mock.On call
 //   - thingEvent adapter.ThingEvent
-func (_e *ThingPublisher_Expecter) PublishThingEvent(thingEvent interface{}) *ThingPublisher_PublishThingEvent_Call {
+func (_e *ThingPublisher_Expecter) PublishThingEvent(thingEvent any) *ThingPublisher_PublishThingEvent_Call {
 	return &ThingPublisher_PublishThingEvent_Call{Call: _e.mock.On("PublishThingEvent", thingEvent)}
 }
 
@@ -162,7 +161,7 @@ type ThingPublisher_PublishThingMessage_Call struct {
 // PublishThingMessage is a helper method to define mock.On call
 //   - thing adapter.Thing
 //   - message *fimpgo.FimpMessage
-func (_e *ThingPublisher_Expecter) PublishThingMessage(thing interface{}, message interface{}) *ThingPublisher_PublishThingMessage_Call {
+func (_e *ThingPublisher_Expecter) PublishThingMessage(thing any, message any) *ThingPublisher_PublishThingMessage_Call {
 	return &ThingPublisher_PublishThingMessage_Call{Call: _e.mock.On("PublishThingMessage", thing, message)}
 }
 
