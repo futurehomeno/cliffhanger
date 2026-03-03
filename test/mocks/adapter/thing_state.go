@@ -153,7 +153,7 @@ func (_c *ThingState_ID_Call) RunAndReturn(run func() string) *ThingState_ID_Cal
 }
 
 // Info provides a mock function with given fields: model
-func (_m *ThingState) Info(model interface{}) error {
+func (_m *ThingState) Info(model any) error {
 	ret := _m.Called(model)
 
 	if len(ret) == 0 {
@@ -161,7 +161,7 @@ func (_m *ThingState) Info(model interface{}) error {
 	}
 
 	var r0 error
-	if rf, ok := ret.Get(0).(func(interface{}) error); ok {
+	if rf, ok := ret.Get(0).(func(any) error); ok {
 		r0 = rf(model)
 	} else {
 		r0 = ret.Error(0)
@@ -176,14 +176,14 @@ type ThingState_Info_Call struct {
 }
 
 // Info is a helper method to define mock.On call
-//   - model interface{}
-func (_e *ThingState_Expecter) Info(model interface{}) *ThingState_Info_Call {
+//   - model any
+func (_e *ThingState_Expecter) Info(model any) *ThingState_Info_Call {
 	return &ThingState_Info_Call{Call: _e.mock.On("Info", model)}
 }
 
-func (_c *ThingState_Info_Call) Run(run func(model interface{})) *ThingState_Info_Call {
+func (_c *ThingState_Info_Call) Run(run func(model any)) *ThingState_Info_Call {
 	_c.Call.Run(func(args mock.Arguments) {
-		run(args[0].(interface{}))
+		run(args[0].(any))
 	})
 	return _c
 }
@@ -193,7 +193,7 @@ func (_c *ThingState_Info_Call) Return(_a0 error) *ThingState_Info_Call {
 	return _c
 }
 
-func (_c *ThingState_Info_Call) RunAndReturn(run func(interface{}) error) *ThingState_Info_Call {
+func (_c *ThingState_Info_Call) RunAndReturn(run func(any) error) *ThingState_Info_Call {
 	_c.Call.Return(run)
 	return _c
 }
@@ -223,7 +223,7 @@ type ThingState_SetInclusionChecksum_Call struct {
 
 // SetInclusionChecksum is a helper method to define mock.On call
 //   - checksum uint32
-func (_e *ThingState_Expecter) SetInclusionChecksum(checksum interface{}) *ThingState_SetInclusionChecksum_Call {
+func (_e *ThingState_Expecter) SetInclusionChecksum(checksum any) *ThingState_SetInclusionChecksum_Call {
 	return &ThingState_SetInclusionChecksum_Call{Call: _e.mock.On("SetInclusionChecksum", checksum)}
 }
 
@@ -245,7 +245,7 @@ func (_c *ThingState_SetInclusionChecksum_Call) RunAndReturn(run func(uint32) er
 }
 
 // SetState provides a mock function with given fields: model
-func (_m *ThingState) SetState(model interface{}) error {
+func (_m *ThingState) SetState(model any) error {
 	ret := _m.Called(model)
 
 	if len(ret) == 0 {
@@ -253,7 +253,7 @@ func (_m *ThingState) SetState(model interface{}) error {
 	}
 
 	var r0 error
-	if rf, ok := ret.Get(0).(func(interface{}) error); ok {
+	if rf, ok := ret.Get(0).(func(any) error); ok {
 		r0 = rf(model)
 	} else {
 		r0 = ret.Error(0)
@@ -268,14 +268,14 @@ type ThingState_SetState_Call struct {
 }
 
 // SetState is a helper method to define mock.On call
-//   - model interface{}
-func (_e *ThingState_Expecter) SetState(model interface{}) *ThingState_SetState_Call {
+//   - model any
+func (_e *ThingState_Expecter) SetState(model any) *ThingState_SetState_Call {
 	return &ThingState_SetState_Call{Call: _e.mock.On("SetState", model)}
 }
 
-func (_c *ThingState_SetState_Call) Run(run func(model interface{})) *ThingState_SetState_Call {
+func (_c *ThingState_SetState_Call) Run(run func(model any)) *ThingState_SetState_Call {
 	_c.Call.Run(func(args mock.Arguments) {
-		run(args[0].(interface{}))
+		run(args[0].(any))
 	})
 	return _c
 }
@@ -285,13 +285,13 @@ func (_c *ThingState_SetState_Call) Return(_a0 error) *ThingState_SetState_Call 
 	return _c
 }
 
-func (_c *ThingState_SetState_Call) RunAndReturn(run func(interface{}) error) *ThingState_SetState_Call {
+func (_c *ThingState_SetState_Call) RunAndReturn(run func(any) error) *ThingState_SetState_Call {
 	_c.Call.Return(run)
 	return _c
 }
 
 // State provides a mock function with given fields: model
-func (_m *ThingState) State(model interface{}) error {
+func (_m *ThingState) State(model any) error {
 	ret := _m.Called(model)
 
 	if len(ret) == 0 {
@@ -299,7 +299,7 @@ func (_m *ThingState) State(model interface{}) error {
 	}
 
 	var r0 error
-	if rf, ok := ret.Get(0).(func(interface{}) error); ok {
+	if rf, ok := ret.Get(0).(func(any) error); ok {
 		r0 = rf(model)
 	} else {
 		r0 = ret.Error(0)
@@ -314,14 +314,14 @@ type ThingState_State_Call struct {
 }
 
 // State is a helper method to define mock.On call
-//   - model interface{}
-func (_e *ThingState_Expecter) State(model interface{}) *ThingState_State_Call {
+//   - model any
+func (_e *ThingState_Expecter) State(model any) *ThingState_State_Call {
 	return &ThingState_State_Call{Call: _e.mock.On("State", model)}
 }
 
-func (_c *ThingState_State_Call) Run(run func(model interface{})) *ThingState_State_Call {
+func (_c *ThingState_State_Call) Run(run func(model any)) *ThingState_State_Call {
 	_c.Call.Run(func(args mock.Arguments) {
-		run(args[0].(interface{}))
+		run(args[0].(any))
 	})
 	return _c
 }
@@ -331,7 +331,7 @@ func (_c *ThingState_State_Call) Return(_a0 error) *ThingState_State_Call {
 	return _c
 }
 
-func (_c *ThingState_State_Call) RunAndReturn(run func(interface{}) error) *ThingState_State_Call {
+func (_c *ThingState_State_Call) RunAndReturn(run func(any) error) *ThingState_State_Call {
 	_c.Call.Return(run)
 	return _c
 }

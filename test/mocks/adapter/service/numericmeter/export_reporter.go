@@ -55,7 +55,7 @@ type ExportReporter_MeterExportReport_Call struct {
 
 // MeterExportReport is a helper method to define mock.On call
 //   - unit numericmeter.Unit
-func (_e *ExportReporter_Expecter) MeterExportReport(unit interface{}) *ExportReporter_MeterExportReport_Call {
+func (_e *ExportReporter_Expecter) MeterExportReport(unit any) *ExportReporter_MeterExportReport_Call {
 	return &ExportReporter_MeterExportReport_Call{Call: _e.mock.On("MeterExportReport", unit)}
 }
 

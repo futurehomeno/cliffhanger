@@ -18,12 +18,12 @@ type (
 	ServiceEvent interface {
 		event.Event
 
-		ServiceName() string
+		ServiceName() fimptype.ServiceNameT
 		Address() string
 		HasChanged() bool
 
 		setEvent(event event.Event)
-		setServiceName(serviceName string)
+		setServiceName(serviceName fimptype.ServiceNameT)
 		setAddress(address string)
 	}
 
@@ -36,7 +36,7 @@ type (
 	serviceEvent struct {
 		event.Event
 
-		serviceName string
+		serviceName fimptype.ServiceNameT
 		address     string
 		eventType   string
 		hasChanged  bool
@@ -56,7 +56,7 @@ func NewServiceEvent(eventType string, hasChanged bool) ServiceEvent {
 	}
 }
 
-func NewThingEvent(address string, payload interface{}) ThingEvent {
+func NewThingEvent(address string, payload any) ThingEvent {
 	return &thingEvent{
 		Event:   event.NewWithPayload(EventDomainAdapterThing, EventClassAdapterThing, payload),
 		address: address,
@@ -70,7 +70,7 @@ func NewInclusionReportSentEvent(address string, payload fimptype.ThingInclusion
 	}
 }
 
-func (e *serviceEvent) ServiceName() string {
+func (e *serviceEvent) ServiceName() fimptype.ServiceNameT {
 	return e.serviceName
 }
 
@@ -90,7 +90,7 @@ func (e *serviceEvent) setEvent(event event.Event) {
 	e.Event = event
 }
 
-func (e *serviceEvent) setServiceName(serviceName string) {
+func (e *serviceEvent) setServiceName(serviceName fimptype.ServiceNameT) {
 	e.serviceName = serviceName
 }
 

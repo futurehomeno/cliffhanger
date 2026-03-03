@@ -57,7 +57,7 @@ type ExtendedReporter_MeterExtendedReport_Call struct {
 
 // MeterExtendedReport is a helper method to define mock.On call
 //   - values numericmeter.Values
-func (_e *ExtendedReporter_Expecter) MeterExtendedReport(values interface{}) *ExtendedReporter_MeterExtendedReport_Call {
+func (_e *ExtendedReporter_Expecter) MeterExtendedReport(values any) *ExtendedReporter_MeterExtendedReport_Call {
 	return &ExtendedReporter_MeterExtendedReport_Call{Call: _e.mock.On("MeterExtendedReport", values)}
 }
 

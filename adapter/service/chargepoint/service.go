@@ -37,14 +37,14 @@ type Controller interface {
 // AdjustableMaxCurrentController is an interface representing capability of a charger device to adjust charging current.
 type AdjustableMaxCurrentController interface {
 	// SetChargepointMaxCurrent sets max current of a chargepoint.
-	SetChargepointMaxCurrent(int64) error
+	SetChargepointMaxCurrent(int) error
 	// ChargepointMaxCurrentReport returns max current of a chargepoint.
-	ChargepointMaxCurrentReport() (int64, error)
+	ChargepointMaxCurrentReport() (int, error)
 }
 
 type AdjustableOfferedCurrentController interface {
 	// SetChargepointOfferedCurrent sets offered current of a current session.
-	SetChargepointOfferedCurrent(int64) error
+	SetChargepointOfferedCurrent(int) error
 }
 
 // AdjustablePhaseModeController is an interface representing capability of a charger device to adjust phase mode.
@@ -88,9 +88,9 @@ type Service interface {
 	// SetCableLock locks and unlocks the cable connector.
 	SetCableLock(bool) error
 	// SetOfferedCurrent sets offered current of a current session.
-	SetOfferedCurrent(int64) error
+	SetOfferedCurrent(int) error
 	// SetMaxCurrent sets max current of a chargepoint.
-	SetMaxCurrent(int64) error
+	SetMaxCurrent(int) error
 	// SetPhaseMode sets phase mode of a chargepoint.
 	SetPhaseMode(types.PhaseMode) error
 	// SendCurrentSessionReport sends a current charging session report. Returns true if a report was sent.
@@ -241,7 +241,7 @@ func (s *service) SetCableLock(lock bool) error {
 }
 
 // SetOfferedCurrent sets offered current of a current session.
-func (s *service) SetOfferedCurrent(current int64) error {
+func (s *service) SetOfferedCurrent(current int) error {
 	s.lock.Lock()
 	defer s.lock.Unlock()
 
@@ -264,7 +264,7 @@ func (s *service) SetOfferedCurrent(current int64) error {
 }
 
 // SetMaxCurrent sets max current of a chargepoint.
-func (s *service) SetMaxCurrent(current int64) error {
+func (s *service) SetMaxCurrent(current int) error {
 	s.lock.Lock()
 	defer s.lock.Unlock()
 
@@ -644,7 +644,7 @@ func (s *service) normalizeChargingMode(mode string) (string, error) {
 }
 
 // validateCurrent validates provided current.
-func (s *service) validateCurrent(current int64) error {
+func (s *service) validateCurrent(current int) error {
 	if current < 6 {
 		return fmt.Errorf("%s: configured current must be at least 6A, received %dA instead", s.Name(), current)
 	}

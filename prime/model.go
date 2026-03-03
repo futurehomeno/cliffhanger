@@ -13,17 +13,15 @@ const (
 	EvtPD7Response = "evt.pd7.response"
 	EvtPD7Notify   = "evt.pd7.notify"
 
-	ServiceName = "vinculum"
-
 	NotifyTopic = "pt:j1/mt:evt/rt:app/rn:vinculum/ad:1"
 )
 
 type Request struct {
 	Cmd       string        `json:"cmd"`
-	Component interface{}   `json:"component"`
+	Component any           `json:"component"`
 	Param     *RequestParam `json:"param,omitempty"`
-	RequestID interface{}   `json:"requestId,omitempty"`
-	ID        interface{}   `json:"id,omitempty"`
+	RequestID any           `json:"requestId,omitempty"`
+	ID        any           `json:"id,omitempty"`
 }
 
 type RequestParam struct {
@@ -32,12 +30,12 @@ type RequestParam struct {
 }
 
 type Response struct {
-	Errors    interface{}                `json:"errors"`
+	Errors    any                        `json:"errors"`
 	Cmd       string                     `json:"cmd"`
 	ParamRaw  map[string]json.RawMessage `json:"param"`
-	RequestID interface{}                `json:"requestId"`
+	RequestID any                        `json:"requestId"`
 	Success   bool                       `json:"success"`
-	ID        interface{}                `json:"id,omitempty"`
+	ID        any                        `json:"id,omitempty"`
 }
 
 func ResponseFromMessage(msg *fimpgo.FimpMessage) (*Response, error) {
@@ -290,13 +288,13 @@ func (r *Response) GetAll() (*ComponentSet, error) {
 }
 
 type Notify struct {
-	Errors     interface{}     `json:"errors"`
+	Errors     any             `json:"errors"`
 	Cmd        string          `json:"cmd"`
 	Component  string          `json:"component"`
 	ParamRaw   json.RawMessage `json:"param"`
 	ChangesRaw json.RawMessage `json:"changes"`
 	Success    bool            `json:"success"`
-	ID         interface{}     `json:"id,omitempty"`
+	ID         any             `json:"id,omitempty"`
 }
 
 func NotifyFromMessage(msg *fimpgo.Message) (*Notify, error) {
@@ -317,6 +315,8 @@ func (n *Notify) ParseIntegerID() (int, error) {
 	switch id := n.ID.(type) {
 	case int:
 		return id, nil
+	case int64:
+		return int(id), nil
 	case float64:
 		return int(id), nil
 	case string:

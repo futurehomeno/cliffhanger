@@ -4,6 +4,7 @@ import (
 	"fmt"
 
 	"github.com/futurehomeno/fimpgo"
+	"github.com/futurehomeno/fimpgo/fimptype"
 
 	"github.com/futurehomeno/cliffhanger/adapter"
 	"github.com/futurehomeno/cliffhanger/router"
@@ -56,10 +57,10 @@ func handleCmdMeterGetReport(serviceRegistry adapter.ServiceRegistry) router.Mes
 				return nil, err
 			}
 
-			if message.Payload.ValueType != fimpgo.VTypeString && message.Payload.ValueType != fimpgo.VTypeNull {
+			if message.Payload.ValueType != fimptype.VTypeString && message.Payload.ValueType != fimptype.VTypeNull {
 				return nil, fmt.Errorf(
 					"provided message value has an invalid type, received %s instead of %s or %s",
-					message.Payload.ValueType, fimpgo.VTypeString, fimpgo.VTypeNull,
+					message.Payload.ValueType, fimptype.VTypeString, fimptype.VTypeNull,
 				)
 			}
 
@@ -98,10 +99,10 @@ func handleCmdMeterExportGetReport(serviceRegistry adapter.ServiceRegistry) rout
 				return nil, err
 			}
 
-			if message.Payload.ValueType != fimpgo.VTypeString && message.Payload.ValueType != fimpgo.VTypeNull {
+			if message.Payload.ValueType != fimptype.VTypeString && message.Payload.ValueType != fimptype.VTypeNull {
 				return nil, fmt.Errorf(
 					"provided message value has an invalid type, received %s instead of %s or %s",
-					message.Payload.ValueType, fimpgo.VTypeString, fimpgo.VTypeNull,
+					message.Payload.ValueType, fimptype.VTypeString, fimptype.VTypeNull,
 				)
 			}
 
@@ -140,10 +141,10 @@ func handleCmdMeterExtGetReport(serviceRegistry adapter.ServiceRegistry) router.
 				return nil, err
 			}
 
-			if message.Payload.ValueType != fimpgo.VTypeStrArray && message.Payload.ValueType != fimpgo.VTypeNull {
+			if message.Payload.ValueType != fimptype.VTypeStrArray && message.Payload.ValueType != fimptype.VTypeNull {
 				return nil, fmt.Errorf(
 					"provided message value has an invalid type, received %s instead of %s or %s",
-					message.Payload.ValueType, fimpgo.VTypeStrArray, fimpgo.VTypeNull,
+					message.Payload.ValueType, fimptype.VTypeStrArray, fimptype.VTypeNull,
 				)
 			}
 
@@ -192,7 +193,7 @@ func handleCmdMeterReset(serviceRegistry adapter.ServiceRegistry) router.Message
 
 // unitsToReport is a helper method that determines which units should be reported.
 func unitsToReport(message *fimpgo.Message, supportedUnits Units) (Units, error) {
-	if message.Payload.ValueType == fimpgo.VTypeNull {
+	if message.Payload.ValueType == fimptype.VTypeNull {
 		return supportedUnits, nil
 	}
 
@@ -210,7 +211,7 @@ func unitsToReport(message *fimpgo.Message, supportedUnits Units) (Units, error)
 
 // valuesToReport is a helper method that determines which values should be reported.
 func valuesToReport(message *fimpgo.Message, supportedValues Values) (Values, error) {
-	if message.Payload.ValueType == fimpgo.VTypeNull {
+	if message.Payload.ValueType == fimptype.VTypeNull {
 		return supportedValues, nil
 	}
 

@@ -4,13 +4,14 @@ import (
 	"time"
 
 	"github.com/futurehomeno/fimpgo"
+	"github.com/futurehomeno/fimpgo/fimptype"
 )
 
-func NullMessage(topic, messageType, service string) *fimpgo.Message {
+func NullMessage(topic, iface string, service fimptype.ServiceNameT) *fimpgo.Message {
 	return &fimpgo.Message{
 		Topic: topic,
 		Payload: fimpgo.NewNullMessage(
-			messageType,
+			iface,
 			service,
 			nil,
 			nil,
@@ -19,11 +20,11 @@ func NullMessage(topic, messageType, service string) *fimpgo.Message {
 	}
 }
 
-func BoolMessage(topic, messageType, service string, value bool) *fimpgo.Message {
+func BoolMessage(topic string, iface string, service fimptype.ServiceNameT, value bool) *fimpgo.Message {
 	return &fimpgo.Message{
 		Topic: topic,
 		Payload: fimpgo.NewBoolMessage(
-			messageType,
+			iface,
 			service,
 			value,
 			nil,
@@ -33,11 +34,11 @@ func BoolMessage(topic, messageType, service string, value bool) *fimpgo.Message
 	}
 }
 
-func StringMessage(topic, messageType, service, value string) *fimpgo.Message {
+func StringMessage(topic, iface string, service fimptype.ServiceNameT, value string) *fimpgo.Message {
 	return &fimpgo.Message{
 		Topic: topic,
 		Payload: fimpgo.NewStringMessage(
-			messageType,
+			iface,
 			service,
 			value,
 			nil,
@@ -47,11 +48,11 @@ func StringMessage(topic, messageType, service, value string) *fimpgo.Message {
 	}
 }
 
-func IntMessage(topic, messageType, service string, value int64) *fimpgo.Message {
+func IntMessage(topic, iface string, service fimptype.ServiceNameT, value int) *fimpgo.Message {
 	return &fimpgo.Message{
 		Topic: topic,
 		Payload: fimpgo.NewIntMessage(
-			messageType,
+			iface,
 			service,
 			value,
 			nil,
@@ -61,11 +62,11 @@ func IntMessage(topic, messageType, service string, value int64) *fimpgo.Message
 	}
 }
 
-func FloatMessage(topic, messageType, service string, value float64) *fimpgo.Message {
+func FloatMessage(topic, iface string, service fimptype.ServiceNameT, value float64) *fimpgo.Message {
 	return &fimpgo.Message{
 		Topic: topic,
 		Payload: fimpgo.NewFloatMessage(
-			messageType,
+			iface,
 			service,
 			value,
 			nil,
@@ -75,11 +76,11 @@ func FloatMessage(topic, messageType, service string, value float64) *fimpgo.Mes
 	}
 }
 
-func ObjectMessage(topic, messageType, service string, value interface{}) *fimpgo.Message {
+func ObjectMessage(topic, iface string, service fimptype.ServiceNameT, value any) *fimpgo.Message {
 	return &fimpgo.Message{
 		Topic: topic,
 		Payload: fimpgo.NewObjectMessage(
-			messageType,
+			iface,
 			service,
 			value,
 			nil,
@@ -89,11 +90,11 @@ func ObjectMessage(topic, messageType, service string, value interface{}) *fimpg
 	}
 }
 
-func StringMapMessage(topic, messageType, service string, value map[string]string) *fimpgo.Message {
+func StringMapMessage(topic, iface string, service fimptype.ServiceNameT, value map[string]string) *fimpgo.Message {
 	return &fimpgo.Message{
 		Topic: topic,
 		Payload: fimpgo.NewStrMapMessage(
-			messageType,
+			iface,
 			service,
 			value,
 			nil,
@@ -103,11 +104,11 @@ func StringMapMessage(topic, messageType, service string, value map[string]strin
 	}
 }
 
-func FloatMapMessage(topic, messageType, service string, value map[string]float64) *fimpgo.Message {
+func FloatMapMessage(topic, iface string, service fimptype.ServiceNameT, value map[string]float64) *fimpgo.Message {
 	return &fimpgo.Message{
 		Topic: topic,
 		Payload: fimpgo.NewFloatMapMessage(
-			messageType,
+			iface,
 			service,
 			value,
 			nil,
@@ -117,11 +118,11 @@ func FloatMapMessage(topic, messageType, service string, value map[string]float6
 	}
 }
 
-func IntMapMessage(topic, messageType, service string, value map[string]int64) *fimpgo.Message {
+func IntMapMessage(topic, iface string, service fimptype.ServiceNameT, value map[string]int) *fimpgo.Message {
 	return &fimpgo.Message{
 		Topic: topic,
 		Payload: fimpgo.NewIntMapMessage(
-			messageType,
+			iface,
 			service,
 			value,
 			nil,
@@ -131,11 +132,11 @@ func IntMapMessage(topic, messageType, service string, value map[string]int64) *
 	}
 }
 
-func BoolMapMessage(topic, messageType, service string, value map[string]bool) *fimpgo.Message {
+func BoolMapMessage(topic, iface string, service fimptype.ServiceNameT, value map[string]bool) *fimpgo.Message {
 	return &fimpgo.Message{
 		Topic: topic,
 		Payload: fimpgo.NewBoolMapMessage(
-			messageType,
+			iface,
 			service,
 			value,
 			nil,
@@ -145,11 +146,11 @@ func BoolMapMessage(topic, messageType, service string, value map[string]bool) *
 	}
 }
 
-func StringArrayMessage(topic, messageType, service string, value []string) *fimpgo.Message {
+func StringArrayMessage(topic, iface string, service fimptype.ServiceNameT, value []string) *fimpgo.Message {
 	return &fimpgo.Message{
 		Topic: topic,
 		Payload: fimpgo.NewStrArrayMessage(
-			messageType,
+			iface,
 			service,
 			value,
 			nil,
@@ -159,11 +160,11 @@ func StringArrayMessage(topic, messageType, service string, value []string) *fim
 	}
 }
 
-func FloatArrayMessage(topic, messageType, service string, value []float64) *fimpgo.Message {
+func FloatArrayMessage(topic, iface string, service fimptype.ServiceNameT, value []float64) *fimpgo.Message {
 	return &fimpgo.Message{
 		Topic: topic,
 		Payload: fimpgo.NewFloatArrayMessage(
-			messageType,
+			iface,
 			service,
 			value,
 			nil,
@@ -173,11 +174,11 @@ func FloatArrayMessage(topic, messageType, service string, value []float64) *fim
 	}
 }
 
-func IntArrayMessage(topic, messageType, service string, value []int64) *fimpgo.Message {
+func IntArrayMessage(topic, iface string, service fimptype.ServiceNameT, value []int) *fimpgo.Message {
 	return &fimpgo.Message{
 		Topic: topic,
 		Payload: fimpgo.NewIntArrayMessage(
-			messageType,
+			iface,
 			service,
 			value,
 			nil,
@@ -187,11 +188,11 @@ func IntArrayMessage(topic, messageType, service string, value []int64) *fimpgo.
 	}
 }
 
-func BoolArrayMessage(topic, messageType, service string, value []bool) *fimpgo.Message {
+func BoolArrayMessage(topic, iface string, service fimptype.ServiceNameT, value []bool) *fimpgo.Message {
 	return &fimpgo.Message{
 		Topic: topic,
 		Payload: fimpgo.NewBoolArrayMessage(
-			messageType,
+			iface,
 			service,
 			value,
 			nil,
@@ -214,86 +215,86 @@ type MessageBuilder struct {
 	tags  fimpgo.Tags
 }
 
-func (b *MessageBuilder) NullMessage(topic, messageType, service string) *MessageBuilder {
-	b.msg = NullMessage(topic, messageType, service)
+func (b *MessageBuilder) NullMessage(topic, iface string, service fimptype.ServiceNameT) *MessageBuilder {
+	b.msg = NullMessage(topic, iface, service)
 
 	return b
 }
 
-func (b *MessageBuilder) BoolMessage(topic, messageType, service string, value bool) *MessageBuilder {
-	b.msg = BoolMessage(topic, messageType, service, value)
+func (b *MessageBuilder) BoolMessage(topic, iface string, service fimptype.ServiceNameT, value bool) *MessageBuilder {
+	b.msg = BoolMessage(topic, iface, service, value)
 
 	return b
 }
 
-func (b *MessageBuilder) StringMessage(topic, messageType, service, value string) *MessageBuilder {
-	b.msg = StringMessage(topic, messageType, service, value)
+func (b *MessageBuilder) StringMessage(topic, iface string, service fimptype.ServiceNameT, value string) *MessageBuilder {
+	b.msg = StringMessage(topic, iface, service, value)
 
 	return b
 }
 
-func (b *MessageBuilder) IntMessage(topic, messageType, service string, value int64) *MessageBuilder {
-	b.msg = IntMessage(topic, messageType, service, value)
+func (b *MessageBuilder) IntMessage(topic, iface string, service fimptype.ServiceNameT, value int) *MessageBuilder {
+	b.msg = IntMessage(topic, iface, service, value)
 
 	return b
 }
 
-func (b *MessageBuilder) FloatMessage(topic, messageType, service string, value float64) *MessageBuilder {
-	b.msg = FloatMessage(topic, messageType, service, value)
+func (b *MessageBuilder) FloatMessage(topic, iface string, service fimptype.ServiceNameT, value float64) *MessageBuilder {
+	b.msg = FloatMessage(topic, iface, service, value)
 
 	return b
 }
 
-func (b *MessageBuilder) ObjectMessage(topic, messageType, service string, value interface{}) *MessageBuilder {
-	b.msg = ObjectMessage(topic, messageType, service, value)
+func (b *MessageBuilder) ObjectMessage(topic, iface string, service fimptype.ServiceNameT, value any) *MessageBuilder {
+	b.msg = ObjectMessage(topic, iface, service, value)
 
 	return b
 }
 
-func (b *MessageBuilder) StringMapMessage(topic, messageType, service string, value map[string]string) *MessageBuilder {
-	b.msg = StringMapMessage(topic, messageType, service, value)
+func (b *MessageBuilder) StringMapMessage(topic, iface string, service fimptype.ServiceNameT, value map[string]string) *MessageBuilder {
+	b.msg = StringMapMessage(topic, iface, service, value)
 
 	return b
 }
 
-func (b *MessageBuilder) FloatMapMessage(topic, messageType, service string, value map[string]float64) *MessageBuilder {
-	b.msg = FloatMapMessage(topic, messageType, service, value)
+func (b *MessageBuilder) FloatMapMessage(topic, iface string, service fimptype.ServiceNameT, value map[string]float64) *MessageBuilder {
+	b.msg = FloatMapMessage(topic, iface, service, value)
 
 	return b
 }
 
-func (b *MessageBuilder) IntMapMessage(topic, messageType, service string, value map[string]int64) *MessageBuilder {
-	b.msg = IntMapMessage(topic, messageType, service, value)
+func (b *MessageBuilder) IntMapMessage(topic, iface string, service fimptype.ServiceNameT, value map[string]int) *MessageBuilder {
+	b.msg = IntMapMessage(topic, iface, service, value)
 
 	return b
 }
 
-func (b *MessageBuilder) BoolMapMessage(topic, messageType, service string, value map[string]bool) *MessageBuilder {
-	b.msg = BoolMapMessage(topic, messageType, service, value)
+func (b *MessageBuilder) BoolMapMessage(topic, iface string, service fimptype.ServiceNameT, value map[string]bool) *MessageBuilder {
+	b.msg = BoolMapMessage(topic, iface, service, value)
 
 	return b
 }
 
-func (b *MessageBuilder) StringArrayMessage(topic, messageType, service string, value []string) *MessageBuilder {
-	b.msg = StringArrayMessage(topic, messageType, service, value)
+func (b *MessageBuilder) StringArrayMessage(topic, iface string, service fimptype.ServiceNameT, value []string) *MessageBuilder {
+	b.msg = StringArrayMessage(topic, iface, service, value)
 
 	return b
 }
 
-func (b *MessageBuilder) FloatArrayMessage(topic, messageType, service string, value []float64) *MessageBuilder {
-	b.msg = FloatArrayMessage(topic, messageType, service, value)
+func (b *MessageBuilder) FloatArrayMessage(topic, iface string, service fimptype.ServiceNameT, value []float64) *MessageBuilder {
+	b.msg = FloatArrayMessage(topic, iface, service, value)
 
 	return b
 }
 
-func (b *MessageBuilder) IntArrayMessage(topic, messageType, service string, value []int64) *MessageBuilder {
-	b.msg = IntArrayMessage(topic, messageType, service, value)
+func (b *MessageBuilder) IntArrayMessage(topic, iface string, service fimptype.ServiceNameT, value []int) *MessageBuilder {
+	b.msg = IntArrayMessage(topic, iface, service, value)
 
 	return b
 }
 
-func (b *MessageBuilder) BoolArrayMessage(topic, messageType, service string, value []bool) *MessageBuilder {
-	b.msg = BoolArrayMessage(topic, messageType, service, value)
+func (b *MessageBuilder) BoolArrayMessage(topic, iface string, service fimptype.ServiceNameT, value []bool) *MessageBuilder {
+	b.msg = BoolArrayMessage(topic, iface, service, value)
 
 	return b
 }

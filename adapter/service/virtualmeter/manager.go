@@ -178,8 +178,12 @@ func (m *manager) update(topic, newMode string, newLevel float64) error {
 	defer m.lock.Unlock()
 
 	device, err := m.storage.Device(topic)
-	if err != nil || device == nil {
-		return fmt.Errorf("manager: virtual meter update failed, device - %v: %w", device, err)
+	if err != nil {
+		return fmt.Errorf("manager: virtual meter update failed err: %w", err)
+	}
+
+	if device == nil {
+		return fmt.Errorf("manager: virtual meter update failed, device not found topic=%s", topic)
 	}
 
 	if !device.Initialised() {
@@ -387,7 +391,7 @@ func (m *manager) vmsAddressFromTopic(topic string) (string, error) {
 	return "", fmt.Errorf("manager: no vms service found using topic: %s", topic)
 }
 
-func (m *manager) normalizeOutLvlSwitchLevel(level int64, serviceAddr string) (float64, error) {
+func (m *manager) normalizeOutLvlSwitchLevel(level int, serviceAddr string) (float64, error) {
 	t := m.ad.ThingByTopic(serviceAddr)
 
 	if t == nil {

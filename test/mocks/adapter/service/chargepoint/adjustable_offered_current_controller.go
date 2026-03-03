@@ -18,7 +18,7 @@ func (_m *AdjustableOfferedCurrentController) EXPECT() *AdjustableOfferedCurrent
 }
 
 // SetChargepointOfferedCurrent provides a mock function with given fields: _a0
-func (_m *AdjustableOfferedCurrentController) SetChargepointOfferedCurrent(_a0 int64) error {
+func (_m *AdjustableOfferedCurrentController) SetChargepointOfferedCurrent(_a0 int) error {
 	ret := _m.Called(_a0)
 
 	if len(ret) == 0 {
@@ -26,7 +26,7 @@ func (_m *AdjustableOfferedCurrentController) SetChargepointOfferedCurrent(_a0 i
 	}
 
 	var r0 error
-	if rf, ok := ret.Get(0).(func(int64) error); ok {
+	if rf, ok := ret.Get(0).(func(int) error); ok {
 		r0 = rf(_a0)
 	} else {
 		r0 = ret.Error(0)
@@ -41,14 +41,14 @@ type AdjustableOfferedCurrentController_SetChargepointOfferedCurrent_Call struct
 }
 
 // SetChargepointOfferedCurrent is a helper method to define mock.On call
-//   - _a0 int64
-func (_e *AdjustableOfferedCurrentController_Expecter) SetChargepointOfferedCurrent(_a0 interface{}) *AdjustableOfferedCurrentController_SetChargepointOfferedCurrent_Call {
+//   - _a0 int
+func (_e *AdjustableOfferedCurrentController_Expecter) SetChargepointOfferedCurrent(_a0 any) *AdjustableOfferedCurrentController_SetChargepointOfferedCurrent_Call {
 	return &AdjustableOfferedCurrentController_SetChargepointOfferedCurrent_Call{Call: _e.mock.On("SetChargepointOfferedCurrent", _a0)}
 }
 
-func (_c *AdjustableOfferedCurrentController_SetChargepointOfferedCurrent_Call) Run(run func(_a0 int64)) *AdjustableOfferedCurrentController_SetChargepointOfferedCurrent_Call {
+func (_c *AdjustableOfferedCurrentController_SetChargepointOfferedCurrent_Call) Run(run func(_a0 int)) *AdjustableOfferedCurrentController_SetChargepointOfferedCurrent_Call {
 	_c.Call.Run(func(args mock.Arguments) {
-		run(args[0].(int64))
+		run(args[0].(int))
 	})
 	return _c
 }
@@ -58,7 +58,7 @@ func (_c *AdjustableOfferedCurrentController_SetChargepointOfferedCurrent_Call) 
 	return _c
 }
 
-func (_c *AdjustableOfferedCurrentController_SetChargepointOfferedCurrent_Call) RunAndReturn(run func(int64) error) *AdjustableOfferedCurrentController_SetChargepointOfferedCurrent_Call {
+func (_c *AdjustableOfferedCurrentController_SetChargepointOfferedCurrent_Call) RunAndReturn(run func(int) error) *AdjustableOfferedCurrentController_SetChargepointOfferedCurrent_Call {
 	_c.Call.Return(run)
 	return _c
 }

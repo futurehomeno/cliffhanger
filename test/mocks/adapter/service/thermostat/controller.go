@@ -42,7 +42,7 @@ type Controller_SetThermostatMode_Call struct {
 
 // SetThermostatMode is a helper method to define mock.On call
 //   - mode string
-func (_e *Controller_Expecter) SetThermostatMode(mode interface{}) *Controller_SetThermostatMode_Call {
+func (_e *Controller_Expecter) SetThermostatMode(mode any) *Controller_SetThermostatMode_Call {
 	return &Controller_SetThermostatMode_Call{Call: _e.mock.On("SetThermostatMode", mode)}
 }
 
@@ -90,7 +90,7 @@ type Controller_SetThermostatSetpoint_Call struct {
 //   - mode string
 //   - value float64
 //   - unit string
-func (_e *Controller_Expecter) SetThermostatSetpoint(mode interface{}, value interface{}, unit interface{}) *Controller_SetThermostatSetpoint_Call {
+func (_e *Controller_Expecter) SetThermostatSetpoint(mode any, value any, unit any) *Controller_SetThermostatSetpoint_Call {
 	return &Controller_SetThermostatSetpoint_Call{Call: _e.mock.On("SetThermostatSetpoint", mode, value, unit)}
 }
 
@@ -208,7 +208,7 @@ type Controller_ThermostatSetpointReport_Call struct {
 
 // ThermostatSetpointReport is a helper method to define mock.On call
 //   - mode string
-func (_e *Controller_Expecter) ThermostatSetpointReport(mode interface{}) *Controller_ThermostatSetpointReport_Call {
+func (_e *Controller_Expecter) ThermostatSetpointReport(mode any) *Controller_ThermostatSetpointReport_Call {
 	return &Controller_ThermostatSetpointReport_Call{Call: _e.mock.On("ThermostatSetpointReport", mode)}
 }
 

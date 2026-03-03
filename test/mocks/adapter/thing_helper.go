@@ -36,7 +36,7 @@ func (t *Thing) WithAddress(addr string, once bool) *Thing {
 	return t
 }
 
-func (t *Thing) WithServices(service string, once bool, services []adapter.Service) *Thing {
+func (t *Thing) WithServices(service fimptype.ServiceNameT, once bool, services []adapter.Service) *Thing {
 	c := t.On("Services", service).Return(services)
 
 	if once {

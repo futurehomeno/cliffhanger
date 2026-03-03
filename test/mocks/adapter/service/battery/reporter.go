@@ -57,7 +57,7 @@ type Reporter_BatteryAlarmReport_Call struct {
 
 // BatteryAlarmReport is a helper method to define mock.On call
 //   - event string
-func (_e *Reporter_Expecter) BatteryAlarmReport(event interface{}) *Reporter_BatteryAlarmReport_Call {
+func (_e *Reporter_Expecter) BatteryAlarmReport(event any) *Reporter_BatteryAlarmReport_Call {
 	return &Reporter_BatteryAlarmReport_Call{Call: _e.mock.On("BatteryAlarmReport", event)}
 }
 
@@ -79,22 +79,22 @@ func (_c *Reporter_BatteryAlarmReport_Call) RunAndReturn(run func(string) (*batt
 }
 
 // BatteryLevelReport provides a mock function with no fields
-func (_m *Reporter) BatteryLevelReport() (int64, error) {
+func (_m *Reporter) BatteryLevelReport() (int, error) {
 	ret := _m.Called()
 
 	if len(ret) == 0 {
 		panic("no return value specified for BatteryLevelReport")
 	}
 
-	var r0 int64
+	var r0 int
 	var r1 error
-	if rf, ok := ret.Get(0).(func() (int64, error)); ok {
+	if rf, ok := ret.Get(0).(func() (int, error)); ok {
 		return rf()
 	}
-	if rf, ok := ret.Get(0).(func() int64); ok {
+	if rf, ok := ret.Get(0).(func() int); ok {
 		r0 = rf()
 	} else {
-		r0 = ret.Get(0).(int64)
+		r0 = ret.Get(0).(int)
 	}
 
 	if rf, ok := ret.Get(1).(func() error); ok {
@@ -123,12 +123,12 @@ func (_c *Reporter_BatteryLevelReport_Call) Run(run func()) *Reporter_BatteryLev
 	return _c
 }
 
-func (_c *Reporter_BatteryLevelReport_Call) Return(level int64, err error) *Reporter_BatteryLevelReport_Call {
+func (_c *Reporter_BatteryLevelReport_Call) Return(level int, err error) *Reporter_BatteryLevelReport_Call {
 	_c.Call.Return(level, err)
 	return _c
 }
 
-func (_c *Reporter_BatteryLevelReport_Call) RunAndReturn(run func() (int64, error)) *Reporter_BatteryLevelReport_Call {
+func (_c *Reporter_BatteryLevelReport_Call) RunAndReturn(run func() (int, error)) *Reporter_BatteryLevelReport_Call {
 	_c.Call.Return(run)
 	return _c
 }

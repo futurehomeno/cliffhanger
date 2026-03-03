@@ -21,7 +21,7 @@ func (_m *SyncClient) EXPECT() *SyncClient_Expecter {
 }
 
 // SendReqRespFimp provides a mock function with given fields: cmdTopic, responseTopic, reqMsg, timeout, autoSubscribe
-func (_m *SyncClient) SendReqRespFimp(cmdTopic string, responseTopic string, reqMsg *fimpgo.FimpMessage, timeout int64, autoSubscribe bool) (*fimpgo.FimpMessage, error) {
+func (_m *SyncClient) SendReqRespFimp(cmdTopic string, responseTopic string, reqMsg *fimpgo.FimpMessage, timeout int, autoSubscribe bool) (*fimpgo.FimpMessage, error) {
 	ret := _m.Called(cmdTopic, responseTopic, reqMsg, timeout, autoSubscribe)
 
 	if len(ret) == 0 {
@@ -30,10 +30,10 @@ func (_m *SyncClient) SendReqRespFimp(cmdTopic string, responseTopic string, req
 
 	var r0 *fimpgo.FimpMessage
 	var r1 error
-	if rf, ok := ret.Get(0).(func(string, string, *fimpgo.FimpMessage, int64, bool) (*fimpgo.FimpMessage, error)); ok {
+	if rf, ok := ret.Get(0).(func(string, string, *fimpgo.FimpMessage, int, bool) (*fimpgo.FimpMessage, error)); ok {
 		return rf(cmdTopic, responseTopic, reqMsg, timeout, autoSubscribe)
 	}
-	if rf, ok := ret.Get(0).(func(string, string, *fimpgo.FimpMessage, int64, bool) *fimpgo.FimpMessage); ok {
+	if rf, ok := ret.Get(0).(func(string, string, *fimpgo.FimpMessage, int, bool) *fimpgo.FimpMessage); ok {
 		r0 = rf(cmdTopic, responseTopic, reqMsg, timeout, autoSubscribe)
 	} else {
 		if ret.Get(0) != nil {
@@ -41,7 +41,7 @@ func (_m *SyncClient) SendReqRespFimp(cmdTopic string, responseTopic string, req
 		}
 	}
 
-	if rf, ok := ret.Get(1).(func(string, string, *fimpgo.FimpMessage, int64, bool) error); ok {
+	if rf, ok := ret.Get(1).(func(string, string, *fimpgo.FimpMessage, int, bool) error); ok {
 		r1 = rf(cmdTopic, responseTopic, reqMsg, timeout, autoSubscribe)
 	} else {
 		r1 = ret.Error(1)
@@ -59,15 +59,15 @@ type SyncClient_SendReqRespFimp_Call struct {
 //   - cmdTopic string
 //   - responseTopic string
 //   - reqMsg *fimpgo.FimpMessage
-//   - timeout int64
+//   - timeout int
 //   - autoSubscribe bool
-func (_e *SyncClient_Expecter) SendReqRespFimp(cmdTopic interface{}, responseTopic interface{}, reqMsg interface{}, timeout interface{}, autoSubscribe interface{}) *SyncClient_SendReqRespFimp_Call {
+func (_e *SyncClient_Expecter) SendReqRespFimp(cmdTopic any, responseTopic any, reqMsg any, timeout any, autoSubscribe any) *SyncClient_SendReqRespFimp_Call {
 	return &SyncClient_SendReqRespFimp_Call{Call: _e.mock.On("SendReqRespFimp", cmdTopic, responseTopic, reqMsg, timeout, autoSubscribe)}
 }
 
-func (_c *SyncClient_SendReqRespFimp_Call) Run(run func(cmdTopic string, responseTopic string, reqMsg *fimpgo.FimpMessage, timeout int64, autoSubscribe bool)) *SyncClient_SendReqRespFimp_Call {
+func (_c *SyncClient_SendReqRespFimp_Call) Run(run func(cmdTopic string, responseTopic string, reqMsg *fimpgo.FimpMessage, timeout int, autoSubscribe bool)) *SyncClient_SendReqRespFimp_Call {
 	_c.Call.Run(func(args mock.Arguments) {
-		run(args[0].(string), args[1].(string), args[2].(*fimpgo.FimpMessage), args[3].(int64), args[4].(bool))
+		run(args[0].(string), args[1].(string), args[2].(*fimpgo.FimpMessage), args[3].(int), args[4].(bool))
 	})
 	return _c
 }
@@ -77,7 +77,7 @@ func (_c *SyncClient_SendReqRespFimp_Call) Return(_a0 *fimpgo.FimpMessage, _a1 e
 	return _c
 }
 
-func (_c *SyncClient_SendReqRespFimp_Call) RunAndReturn(run func(string, string, *fimpgo.FimpMessage, int64, bool) (*fimpgo.FimpMessage, error)) *SyncClient_SendReqRespFimp_Call {
+func (_c *SyncClient_SendReqRespFimp_Call) RunAndReturn(run func(string, string, *fimpgo.FimpMessage, int, bool) (*fimpgo.FimpMessage, error)) *SyncClient_SendReqRespFimp_Call {
 	_c.Call.Return(run)
 	return _c
 }

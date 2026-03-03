@@ -100,7 +100,7 @@ type Controller_StartOTAUpdate_Call struct {
 
 // StartOTAUpdate is a helper method to define mock.On call
 //   - firmwarePath string
-func (_e *Controller_Expecter) StartOTAUpdate(firmwarePath interface{}) *Controller_StartOTAUpdate_Call {
+func (_e *Controller_Expecter) StartOTAUpdate(firmwarePath any) *Controller_StartOTAUpdate_Call {
 	return &Controller_StartOTAUpdate_Call{Call: _e.mock.On("StartOTAUpdate", firmwarePath)}
 }
 

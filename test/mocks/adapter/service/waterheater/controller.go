@@ -42,7 +42,7 @@ type Controller_SetWaterHeaterMode_Call struct {
 
 // SetWaterHeaterMode is a helper method to define mock.On call
 //   - mode string
-func (_e *Controller_Expecter) SetWaterHeaterMode(mode interface{}) *Controller_SetWaterHeaterMode_Call {
+func (_e *Controller_Expecter) SetWaterHeaterMode(mode any) *Controller_SetWaterHeaterMode_Call {
 	return &Controller_SetWaterHeaterMode_Call{Call: _e.mock.On("SetWaterHeaterMode", mode)}
 }
 
@@ -90,7 +90,7 @@ type Controller_SetWaterHeaterSetpoint_Call struct {
 //   - mode string
 //   - value float64
 //   - unit string
-func (_e *Controller_Expecter) SetWaterHeaterSetpoint(mode interface{}, value interface{}, unit interface{}) *Controller_SetWaterHeaterSetpoint_Call {
+func (_e *Controller_Expecter) SetWaterHeaterSetpoint(mode any, value any, unit any) *Controller_SetWaterHeaterSetpoint_Call {
 	return &Controller_SetWaterHeaterSetpoint_Call{Call: _e.mock.On("SetWaterHeaterSetpoint", mode, value, unit)}
 }
 
@@ -208,7 +208,7 @@ type Controller_WaterHeaterSetpointReport_Call struct {
 
 // WaterHeaterSetpointReport is a helper method to define mock.On call
 //   - mode string
-func (_e *Controller_Expecter) WaterHeaterSetpointReport(mode interface{}) *Controller_WaterHeaterSetpointReport_Call {
+func (_e *Controller_Expecter) WaterHeaterSetpointReport(mode any) *Controller_WaterHeaterSetpointReport_Call {
 	return &Controller_WaterHeaterSetpointReport_Call{Call: _e.mock.On("WaterHeaterSetpointReport", mode)}
 }
 

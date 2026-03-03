@@ -100,7 +100,7 @@ type AdjustablePhaseModeController_SetChargepointPhaseMode_Call struct {
 
 // SetChargepointPhaseMode is a helper method to define mock.On call
 //   - _a0 types.PhaseMode
-func (_e *AdjustablePhaseModeController_Expecter) SetChargepointPhaseMode(_a0 interface{}) *AdjustablePhaseModeController_SetChargepointPhaseMode_Call {
+func (_e *AdjustablePhaseModeController_Expecter) SetChargepointPhaseMode(_a0 any) *AdjustablePhaseModeController_SetChargepointPhaseMode_Call {
 	return &AdjustablePhaseModeController_SetChargepointPhaseMode_Call{Call: _e.mock.On("SetChargepointPhaseMode", _a0)}
 }
 

@@ -42,7 +42,7 @@ type RebootController_RebootDevice_Call struct {
 
 // RebootDevice is a helper method to define mock.On call
 //   - hard bool
-func (_e *RebootController_Expecter) RebootDevice(hard interface{}) *RebootController_RebootDevice_Call {
+func (_e *RebootController_Expecter) RebootDevice(hard any) *RebootController_RebootDevice_Call {
 	return &RebootController_RebootDevice_Call{Call: _e.mock.On("RebootDevice", hard)}
 }
 

@@ -236,7 +236,7 @@ func TestTaskMainElec(t *testing.T) { //nolint:paralleltest
 }
 
 func routeMainElec(
-	meter interface{},
+	meter any,
 ) suite.BaseSetup {
 	return func(t *testing.T, mqtt *fimpgo.MqttTransport) ([]*router.Routing, []*task.Task, []suite.Mock) {
 		t.Helper()
@@ -248,7 +248,7 @@ func routeMainElec(
 }
 
 func taskMainElec(
-	meterElecReporter interface{},
+	meterElecReporter any,
 	interval time.Duration,
 ) suite.BaseSetup {
 	return func(t *testing.T, mqtt *fimpgo.MqttTransport) ([]*router.Routing, []*task.Task, []suite.Mock) {
@@ -263,7 +263,7 @@ func taskMainElec(
 func setupMainElec(
 	t *testing.T,
 	mqtt *fimpgo.MqttTransport,
-	mockedMeter interface{},
+	mockedMeter any,
 	duration time.Duration,
 ) ([]*router.Routing, []*task.Task, []suite.Mock) {
 	t.Helper()

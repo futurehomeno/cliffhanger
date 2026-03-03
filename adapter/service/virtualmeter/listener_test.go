@@ -25,7 +25,7 @@ func TestHandlerLevelEvent(t *testing.T) { //nolint:paralleltest
 			Specification: &fimptype.Service{
 				Name:    outlvlswitch.OutLvlSwitch,
 				Address: "",
-				Props: map[string]interface{}{
+				Props: map[string]any{
 					outlvlswitch.PropertyMaxLvl: 100,
 				},
 			},

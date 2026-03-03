@@ -5,7 +5,6 @@ package mockedadapter
 import (
 	adapter "github.com/futurehomeno/cliffhanger/adapter"
 	fimptype "github.com/futurehomeno/fimpgo/fimptype"
-
 	mock "github.com/stretchr/testify/mock"
 )
 
@@ -260,7 +259,7 @@ type Thing_SendConnectivityReport_Call struct {
 
 // SendConnectivityReport is a helper method to define mock.On call
 //   - force bool
-func (_e *Thing_Expecter) SendConnectivityReport(force interface{}) *Thing_SendConnectivityReport_Call {
+func (_e *Thing_Expecter) SendConnectivityReport(force any) *Thing_SendConnectivityReport_Call {
 	return &Thing_SendConnectivityReport_Call{Call: _e.mock.On("SendConnectivityReport", force)}
 }
 
@@ -316,7 +315,7 @@ type Thing_SendInclusionReport_Call struct {
 
 // SendInclusionReport is a helper method to define mock.On call
 //   - force bool
-func (_e *Thing_Expecter) SendInclusionReport(force interface{}) *Thing_SendInclusionReport_Call {
+func (_e *Thing_Expecter) SendInclusionReport(force any) *Thing_SendInclusionReport_Call {
 	return &Thing_SendInclusionReport_Call{Call: _e.mock.On("SendInclusionReport", force)}
 }
 
@@ -409,7 +408,7 @@ type Thing_ServiceByTopic_Call struct {
 
 // ServiceByTopic is a helper method to define mock.On call
 //   - topic string
-func (_e *Thing_Expecter) ServiceByTopic(topic interface{}) *Thing_ServiceByTopic_Call {
+func (_e *Thing_Expecter) ServiceByTopic(topic any) *Thing_ServiceByTopic_Call {
 	return &Thing_ServiceByTopic_Call{Call: _e.mock.On("ServiceByTopic", topic)}
 }
 
@@ -431,7 +430,7 @@ func (_c *Thing_ServiceByTopic_Call) RunAndReturn(run func(string) adapter.Servi
 }
 
 // Services provides a mock function with given fields: name
-func (_m *Thing) Services(name string) []adapter.Service {
+func (_m *Thing) Services(name fimptype.ServiceNameT) []adapter.Service {
 	ret := _m.Called(name)
 
 	if len(ret) == 0 {
@@ -439,7 +438,7 @@ func (_m *Thing) Services(name string) []adapter.Service {
 	}
 
 	var r0 []adapter.Service
-	if rf, ok := ret.Get(0).(func(string) []adapter.Service); ok {
+	if rf, ok := ret.Get(0).(func(fimptype.ServiceNameT) []adapter.Service); ok {
 		r0 = rf(name)
 	} else {
 		if ret.Get(0) != nil {
@@ -456,14 +455,14 @@ type Thing_Services_Call struct {
 }
 
 // Services is a helper method to define mock.On call
-//   - name string
-func (_e *Thing_Expecter) Services(name interface{}) *Thing_Services_Call {
+//   - name fimptype.ServiceNameT
+func (_e *Thing_Expecter) Services(name any) *Thing_Services_Call {
 	return &Thing_Services_Call{Call: _e.mock.On("Services", name)}
 }
 
-func (_c *Thing_Services_Call) Run(run func(name string)) *Thing_Services_Call {
+func (_c *Thing_Services_Call) Run(run func(name fimptype.ServiceNameT)) *Thing_Services_Call {
 	_c.Call.Run(func(args mock.Arguments) {
-		run(args[0].(string))
+		run(args[0].(fimptype.ServiceNameT))
 	})
 	return _c
 }
@@ -473,18 +472,18 @@ func (_c *Thing_Services_Call) Return(_a0 []adapter.Service) *Thing_Services_Cal
 	return _c
 }
 
-func (_c *Thing_Services_Call) RunAndReturn(run func(string) []adapter.Service) *Thing_Services_Call {
+func (_c *Thing_Services_Call) RunAndReturn(run func(fimptype.ServiceNameT) []adapter.Service) *Thing_Services_Call {
 	_c.Call.Return(run)
 	return _c
 }
 
 // Update provides a mock function with given fields: _a0
 func (_m *Thing) Update(_a0 ...adapter.ThingUpdate) error {
-	_va := make([]interface{}, len(_a0))
+	_va := make([]any, len(_a0))
 	for _i := range _a0 {
 		_va[_i] = _a0[_i]
 	}
-	var _ca []interface{}
+	var _ca []any
 	_ca = append(_ca, _va...)
 	ret := _m.Called(_ca...)
 
@@ -509,9 +508,9 @@ type Thing_Update_Call struct {
 
 // Update is a helper method to define mock.On call
 //   - _a0 ...adapter.ThingUpdate
-func (_e *Thing_Expecter) Update(_a0 ...interface{}) *Thing_Update_Call {
+func (_e *Thing_Expecter) Update(_a0 ...any) *Thing_Update_Call {
 	return &Thing_Update_Call{Call: _e.mock.On("Update",
-		append([]interface{}{}, _a0...)...)}
+		append([]any{}, _a0...)...)}
 }
 
 func (_c *Thing_Update_Call) Run(run func(_a0 ...adapter.ThingUpdate)) *Thing_Update_Call {

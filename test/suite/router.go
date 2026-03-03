@@ -13,7 +13,7 @@ import (
 	"github.com/google/uuid"
 	log "github.com/sirupsen/logrus"
 
-	"github.com/futurehomeno/cliffhanger/router"
+	rt "github.com/futurehomeno/cliffhanger/router"
 )
 
 // Router is an MQTT router used for testing purposes.
@@ -21,7 +21,7 @@ import (
 type Router struct {
 	t      *testing.T
 	mqtt   *fimpgo.MqttTransport
-	router router.Router
+	router rt.Router
 
 	mu           sync.RWMutex
 	expectations []*Expectation
@@ -40,7 +40,7 @@ func NewTestRouter(t *testing.T, mqtt *fimpgo.MqttTransport) *Router {
 	}
 
 	channelID := "test-router-" + uuid.New().String()
-	r.router = router.NewRouter(mqtt, channelID, r.expectationsRouting())
+	r.router = rt.NewRouter(mqtt, channelID, r.expectationsRouting())
 
 	return r
 }
@@ -139,7 +139,7 @@ func (r *Router) shouldWaitUntilTimeout() bool {
 func (r *Router) failedExpectationsMessage() string {
 	var sb strings.Builder
 
-	sb.WriteString("Test router: some expectations have not been met:\n")
+	fmt.Fprintf(&sb, "Test router: some expectations have not been met:\n")
 
 	r.mu.RLock()
 	defer r.mu.RUnlock()
@@ -149,8 +149,8 @@ func (r *Router) failedExpectationsMessage() string {
 			continue
 		}
 
-		sb.WriteString("---------------------------------------------------------------------------\n")
-		sb.WriteString(fmt.Sprintf("Expectation #%d, occurrence: %s, called times: %d\n", i, e.Occurrence, e.called))
+		fmt.Fprintf(&sb, "---------------------------------------------------------------------------\n")
+		fmt.Fprintf(&sb, "Expectation #%d, occurrence: %s, called times: %d\n", i, e.Occurrence, e.called)
 
 		r.registryMu.RLock()
 		bucket, ok := r.messageRegistry[e]
@@ -160,31 +160,30 @@ func (r *Router) failedExpectationsMessage() string {
 			continue
 		}
 
-		sb.WriteString("\nThe closest messages I have are:\n")
+		fmt.Fprintf(&sb, "\nThe closest messages I have are:\n")
 
 		for _, m := range bucket.messages {
-			sb.WriteString(fmt.Sprintf("\nTopic: %s\n", getMessageTopic(r.t, m)))
+			fmt.Fprintf(&sb, "\nTopic: %s\n", getMessageTopic(r.t, m))
 
 			b, err := m.Payload.SerializeToJson()
 			if err != nil {
-				sb.WriteString(fmt.Sprintf("The message could not be serialized to JSON: %s\n", err))
+				fmt.Fprintf(&sb, "The message could not be serialized to JSON: %s\n", err)
 
 				continue
 			}
 
 			var buf bytes.Buffer
 			if err = json.Indent(&buf, b, "", "  "); err != nil {
-				sb.WriteString(fmt.Sprintf("The message could not be indented: %s\n", err))
+				fmt.Fprintf(&sb, "The message could not be indented: %s\n", err)
 
 				continue
 			}
 
-			sb.Write(buf.Bytes())
-			sb.WriteString("\n")
+			fmt.Fprint(&sb, buf.String()+"\n")
 		}
 	}
 
-	sb.WriteString("\n")
+	fmt.Fprintf(&sb, "\n")
 
 	return sb.String()
 }
@@ -203,11 +202,11 @@ func (r *Router) cleanUpExpectations() {
 	r.messageRegistry = make(map[*Expectation]*messageBucket)
 }
 
-func (r *Router) expectationsRouting() *router.Routing {
+func (r *Router) expectationsRouting() *rt.Routing {
 	r.t.Helper()
 
-	return router.NewRouting(router.NewMessageHandler(
-		router.MessageProcessorFn(func(message *fimpgo.Message) (*fimpgo.FimpMessage, error) {
+	return rt.NewRouting(rt.NewMessageHandler(
+		rt.MessageProcessorFn(func(message *fimpgo.Message) (*fimpgo.FimpMessage, error) {
 			return r.processMessage(message)
 		}),
 	))
@@ -222,7 +221,7 @@ func (r *Router) processMessage(message *fimpgo.Message) (*fimpgo.FimpMessage, e
 
 	log.
 		WithField("topic", message.Topic).
-		WithField("type", message.Payload.Type).
+		WithField("type", message.Payload.Interface).
 		WithField("service", message.Payload.Service).
 		Debug("test node router received a message")
 

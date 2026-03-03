@@ -18,23 +18,23 @@ func (_m *Controller) EXPECT() *Controller_Expecter {
 }
 
 // ColorCtrlColorReport provides a mock function with no fields
-func (_m *Controller) ColorCtrlColorReport() (map[string]int64, error) {
+func (_m *Controller) ColorCtrlColorReport() (map[string]int, error) {
 	ret := _m.Called()
 
 	if len(ret) == 0 {
 		panic("no return value specified for ColorCtrlColorReport")
 	}
 
-	var r0 map[string]int64
+	var r0 map[string]int
 	var r1 error
-	if rf, ok := ret.Get(0).(func() (map[string]int64, error)); ok {
+	if rf, ok := ret.Get(0).(func() (map[string]int, error)); ok {
 		return rf()
 	}
-	if rf, ok := ret.Get(0).(func() map[string]int64); ok {
+	if rf, ok := ret.Get(0).(func() map[string]int); ok {
 		r0 = rf()
 	} else {
 		if ret.Get(0) != nil {
-			r0 = ret.Get(0).(map[string]int64)
+			r0 = ret.Get(0).(map[string]int)
 		}
 	}
 
@@ -64,18 +64,18 @@ func (_c *Controller_ColorCtrlColorReport_Call) Run(run func()) *Controller_Colo
 	return _c
 }
 
-func (_c *Controller_ColorCtrlColorReport_Call) Return(_a0 map[string]int64, _a1 error) *Controller_ColorCtrlColorReport_Call {
+func (_c *Controller_ColorCtrlColorReport_Call) Return(_a0 map[string]int, _a1 error) *Controller_ColorCtrlColorReport_Call {
 	_c.Call.Return(_a0, _a1)
 	return _c
 }
 
-func (_c *Controller_ColorCtrlColorReport_Call) RunAndReturn(run func() (map[string]int64, error)) *Controller_ColorCtrlColorReport_Call {
+func (_c *Controller_ColorCtrlColorReport_Call) RunAndReturn(run func() (map[string]int, error)) *Controller_ColorCtrlColorReport_Call {
 	_c.Call.Return(run)
 	return _c
 }
 
 // SetColorCtrlColor provides a mock function with given fields: color
-func (_m *Controller) SetColorCtrlColor(color map[string]int64) error {
+func (_m *Controller) SetColorCtrlColor(color map[string]int) error {
 	ret := _m.Called(color)
 
 	if len(ret) == 0 {
@@ -83,7 +83,7 @@ func (_m *Controller) SetColorCtrlColor(color map[string]int64) error {
 	}
 
 	var r0 error
-	if rf, ok := ret.Get(0).(func(map[string]int64) error); ok {
+	if rf, ok := ret.Get(0).(func(map[string]int) error); ok {
 		r0 = rf(color)
 	} else {
 		r0 = ret.Error(0)
@@ -98,14 +98,14 @@ type Controller_SetColorCtrlColor_Call struct {
 }
 
 // SetColorCtrlColor is a helper method to define mock.On call
-//   - color map[string]int64
-func (_e *Controller_Expecter) SetColorCtrlColor(color interface{}) *Controller_SetColorCtrlColor_Call {
+//   - color map[string]int
+func (_e *Controller_Expecter) SetColorCtrlColor(color any) *Controller_SetColorCtrlColor_Call {
 	return &Controller_SetColorCtrlColor_Call{Call: _e.mock.On("SetColorCtrlColor", color)}
 }
 
-func (_c *Controller_SetColorCtrlColor_Call) Run(run func(color map[string]int64)) *Controller_SetColorCtrlColor_Call {
+func (_c *Controller_SetColorCtrlColor_Call) Run(run func(color map[string]int)) *Controller_SetColorCtrlColor_Call {
 	_c.Call.Run(func(args mock.Arguments) {
-		run(args[0].(map[string]int64))
+		run(args[0].(map[string]int))
 	})
 	return _c
 }
@@ -115,7 +115,7 @@ func (_c *Controller_SetColorCtrlColor_Call) Return(_a0 error) *Controller_SetCo
 	return _c
 }
 
-func (_c *Controller_SetColorCtrlColor_Call) RunAndReturn(run func(map[string]int64) error) *Controller_SetColorCtrlColor_Call {
+func (_c *Controller_SetColorCtrlColor_Call) RunAndReturn(run func(map[string]int) error) *Controller_SetColorCtrlColor_Call {
 	_c.Call.Return(run)
 	return _c
 }

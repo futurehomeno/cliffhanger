@@ -100,7 +100,7 @@ type Controller_SetSceneCtrlScene_Call struct {
 
 // SetSceneCtrlScene is a helper method to define mock.On call
 //   - scene string
-func (_e *Controller_Expecter) SetSceneCtrlScene(scene interface{}) *Controller_SetSceneCtrlScene_Call {
+func (_e *Controller_Expecter) SetSceneCtrlScene(scene any) *Controller_SetSceneCtrlScene_Call {
 	return &Controller_SetSceneCtrlScene_Call{Call: _e.mock.On("SetSceneCtrlScene", scene)}
 }
 

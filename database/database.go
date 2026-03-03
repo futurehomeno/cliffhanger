@@ -34,11 +34,11 @@ type Database interface {
 	// KeysBetween gets the keys for the bucket between the provided keys.
 	KeysBetween(bucket, from, to string) ([]string, error)
 	// Get gets the value for the key.
-	Get(bucket, key string, value interface{}) (ok bool, err error)
+	Get(bucket, key string, value any) (ok bool, err error)
 	// Set sets the value for the key.
-	Set(bucket, key string, value interface{}) error
+	Set(bucket, key string, value any) error
 	// SetWithExpiry sets the value for the key with expiry.
-	SetWithExpiry(bucket, key string, value interface{}, expiry time.Duration) error
+	SetWithExpiry(bucket, key string, value any, expiry time.Duration) error
 	// Delete deletes the key.
 	Delete(bucket, key string) error
 }
@@ -192,12 +192,12 @@ func (d *database) Reset() error {
 }
 
 // Set sets the value for the key.
-func (d *database) Set(bucket, key string, value interface{}) error {
+func (d *database) Set(bucket, key string, value any) error {
 	return d.SetWithExpiry(bucket, key, value, 0)
 }
 
 // SetWithExpiry sets the value for the key with expiry.
-func (d *database) SetWithExpiry(bucket, key string, value interface{}, expiry time.Duration) error {
+func (d *database) SetWithExpiry(bucket, key string, value any, expiry time.Duration) error {
 	return d.db.Update(func(tx *buntdb.Tx) error {
 		rawData, err := json.Marshal(value)
 		if err != nil {
@@ -234,7 +234,7 @@ func (d *database) Delete(bucket, key string) error {
 }
 
 // Get gets the value for the key.
-func (d *database) Get(bucket, key string, value interface{}) (ok bool, err error) {
+func (d *database) Get(bucket, key string, value any) (ok bool, err error) {
 	err = d.db.View(func(tx *buntdb.Tx) error {
 		rawData, txErr := tx.Get(d.key(bucket, key))
 		if txErr != nil {
@@ -358,17 +358,17 @@ func (d *domainDatabase) KeysBetween(bucket, from, to string) ([]string, error) 
 }
 
 // Get gets the value for the key.
-func (d *domainDatabase) Get(bucket, key string, value interface{}) (bool, error) {
+func (d *domainDatabase) Get(bucket, key string, value any) (bool, error) {
 	return d.Database.Get(d.bucket(bucket), key, value)
 }
 
 // Set sets the value for the key.
-func (d *domainDatabase) Set(bucket, key string, value interface{}) error {
+func (d *domainDatabase) Set(bucket, key string, value any) error {
 	return d.Database.Set(d.bucket(bucket), key, value)
 }
 
 // SetWithExpiry sets the value for the key with expiry.
-func (d *domainDatabase) SetWithExpiry(bucket, key string, value interface{}, expiry time.Duration) error {
+func (d *domainDatabase) SetWithExpiry(bucket, key string, value any, expiry time.Duration) error {
 	return d.Database.SetWithExpiry(d.bucket(bucket), key, value, expiry)
 }
 

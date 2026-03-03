@@ -97,7 +97,7 @@ type Controller_SetFanCtrlMode_Call struct {
 
 // SetFanCtrlMode is a helper method to define mock.On call
 //   - mode string
-func (_e *Controller_Expecter) SetFanCtrlMode(mode interface{}) *Controller_SetFanCtrlMode_Call {
+func (_e *Controller_Expecter) SetFanCtrlMode(mode any) *Controller_SetFanCtrlMode_Call {
 	return &Controller_SetFanCtrlMode_Call{Call: _e.mock.On("SetFanCtrlMode", mode)}
 }
 

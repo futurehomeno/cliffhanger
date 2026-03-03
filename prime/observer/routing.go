@@ -4,6 +4,7 @@ import (
 	"fmt"
 
 	"github.com/futurehomeno/fimpgo"
+	"github.com/futurehomeno/fimpgo/fimptype"
 
 	"github.com/futurehomeno/cliffhanger/prime"
 	"github.com/futurehomeno/cliffhanger/router"
@@ -21,7 +22,7 @@ func RouteEvtPD7Notify(observer Observer) *router.Routing {
 	return router.NewRouting(
 		HandleEvtPD7Notify(observer),
 		router.ForTopic(prime.NotifyTopic),
-		router.ForService(prime.ServiceName),
+		router.ForService(fimptype.VinculumService),
 		router.ForType(prime.EvtPD7Notify),
 	)
 }

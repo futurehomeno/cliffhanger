@@ -23,9 +23,9 @@ var DefaultReportingStrategy = cache.ReportOnChangeOnly()
 // In a polling scenario implementation might require some safeguards against excessive polling.
 type Controller interface {
 	// SetColorCtrlColor sets the color of the device.
-	SetColorCtrlColor(color map[string]int64) error
+	SetColorCtrlColor(color map[string]int) error
 	// ColorCtrlColorReport returns a current color of the device.
-	ColorCtrlColorReport() (map[string]int64, error)
+	ColorCtrlColorReport() (map[string]int, error)
 }
 
 // Service is an interface representing a colorctrl FIMP service.
@@ -33,7 +33,7 @@ type Service interface {
 	adapter.Service
 
 	// SetColor sets the color of the device.
-	SetColor(color map[string]int64) error
+	SetColor(color map[string]int) error
 	// SendColorReport sends a current color report. Returns true if a report was sent.
 	// Depending on a caching and reporting configuration the service might decide to skip a report.
 	// To make sure report is being sent regardless of circumstances set the force argument to true.
@@ -41,7 +41,7 @@ type Service interface {
 	// SupportedComponents returns a list of supported color components.
 	SupportedComponents() []string
 	// SupportedDurations returns a list of supported durations.
-	SupportedDurations() []int64
+	SupportedDurations() []int
 }
 
 // Config represents a service configuration.
@@ -86,7 +86,7 @@ type service struct {
 }
 
 // SetColor sets the color of the device.
-func (s *service) SetColor(color map[string]int64) error {
+func (s *service) SetColor(color map[string]int) error {
 	s.lock.Lock()
 	defer s.lock.Unlock()
 
@@ -139,6 +139,6 @@ func (s *service) SupportedComponents() []string {
 }
 
 // SupportedDurations returns a list of supported durations.
-func (s *service) SupportedDurations() []int64 {
+func (s *service) SupportedDurations() []int {
 	return s.Service.Specification().PropertyIntegers(PropertySupportedDurations)
 }

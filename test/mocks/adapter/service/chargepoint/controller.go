@@ -157,7 +157,7 @@ type Controller_StartChargepointCharging_Call struct {
 
 // StartChargepointCharging is a helper method to define mock.On call
 //   - settings *chargepoint.ChargingSettings
-func (_e *Controller_Expecter) StartChargepointCharging(settings interface{}) *Controller_StartChargepointCharging_Call {
+func (_e *Controller_Expecter) StartChargepointCharging(settings any) *Controller_StartChargepointCharging_Call {
 	return &Controller_StartChargepointCharging_Call{Call: _e.mock.On("StartChargepointCharging", settings)}
 }
 

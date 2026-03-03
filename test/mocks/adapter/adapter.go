@@ -4,6 +4,7 @@ package mockedadapter
 
 import (
 	adapter "github.com/futurehomeno/cliffhanger/adapter"
+	fimptype "github.com/futurehomeno/fimpgo/fimptype"
 	mock "github.com/stretchr/testify/mock"
 )
 
@@ -90,7 +91,7 @@ type Adapter_CreateThing_Call struct {
 
 // CreateThing is a helper method to define mock.On call
 //   - seed *adapter.ThingSeed
-func (_e *Adapter_Expecter) CreateThing(seed interface{}) *Adapter_CreateThing_Call {
+func (_e *Adapter_Expecter) CreateThing(seed any) *Adapter_CreateThing_Call {
 	return &Adapter_CreateThing_Call{Call: _e.mock.On("CreateThing", seed)}
 }
 
@@ -181,7 +182,7 @@ type Adapter_DestroyThingByAddress_Call struct {
 
 // DestroyThingByAddress is a helper method to define mock.On call
 //   - address string
-func (_e *Adapter_Expecter) DestroyThingByAddress(address interface{}) *Adapter_DestroyThingByAddress_Call {
+func (_e *Adapter_Expecter) DestroyThingByAddress(address any) *Adapter_DestroyThingByAddress_Call {
 	return &Adapter_DestroyThingByAddress_Call{Call: _e.mock.On("DestroyThingByAddress", address)}
 }
 
@@ -227,7 +228,7 @@ type Adapter_DestroyThingByID_Call struct {
 
 // DestroyThingByID is a helper method to define mock.On call
 //   - id string
-func (_e *Adapter_Expecter) DestroyThingByID(id interface{}) *Adapter_DestroyThingByID_Call {
+func (_e *Adapter_Expecter) DestroyThingByID(id any) *Adapter_DestroyThingByID_Call {
 	return &Adapter_DestroyThingByID_Call{Call: _e.mock.On("DestroyThingByID", id)}
 }
 
@@ -273,7 +274,7 @@ type Adapter_EnsureThings_Call struct {
 
 // EnsureThings is a helper method to define mock.On call
 //   - seeds adapter.ThingSeeds
-func (_e *Adapter_Expecter) EnsureThings(seeds interface{}) *Adapter_EnsureThings_Call {
+func (_e *Adapter_Expecter) EnsureThings(seeds any) *Adapter_EnsureThings_Call {
 	return &Adapter_EnsureThings_Call{Call: _e.mock.On("EnsureThings", seeds)}
 }
 
@@ -329,7 +330,7 @@ type Adapter_ExchangeAddress_Call struct {
 
 // ExchangeAddress is a helper method to define mock.On call
 //   - address string
-func (_e *Adapter_Expecter) ExchangeAddress(address interface{}) *Adapter_ExchangeAddress_Call {
+func (_e *Adapter_Expecter) ExchangeAddress(address any) *Adapter_ExchangeAddress_Call {
 	return &Adapter_ExchangeAddress_Call{Call: _e.mock.On("ExchangeAddress", address)}
 }
 
@@ -385,7 +386,7 @@ type Adapter_ExchangeID_Call struct {
 
 // ExchangeID is a helper method to define mock.On call
 //   - id string
-func (_e *Adapter_Expecter) ExchangeID(id interface{}) *Adapter_ExchangeID_Call {
+func (_e *Adapter_Expecter) ExchangeID(id any) *Adapter_ExchangeID_Call {
 	return &Adapter_ExchangeID_Call{Call: _e.mock.On("ExchangeID", id)}
 }
 
@@ -497,18 +498,18 @@ func (_c *Adapter_IsInitialized_Call) RunAndReturn(run func() bool) *Adapter_IsI
 }
 
 // Name provides a mock function with no fields
-func (_m *Adapter) Name() string {
+func (_m *Adapter) Name() fimptype.ResourceNameT {
 	ret := _m.Called()
 
 	if len(ret) == 0 {
 		panic("no return value specified for Name")
 	}
 
-	var r0 string
-	if rf, ok := ret.Get(0).(func() string); ok {
+	var r0 fimptype.ResourceNameT
+	if rf, ok := ret.Get(0).(func() fimptype.ResourceNameT); ok {
 		r0 = rf()
 	} else {
-		r0 = ret.Get(0).(string)
+		r0 = ret.Get(0).(fimptype.ResourceNameT)
 	}
 
 	return r0
@@ -531,12 +532,12 @@ func (_c *Adapter_Name_Call) Run(run func()) *Adapter_Name_Call {
 	return _c
 }
 
-func (_c *Adapter_Name_Call) Return(_a0 string) *Adapter_Name_Call {
+func (_c *Adapter_Name_Call) Return(_a0 fimptype.ResourceNameT) *Adapter_Name_Call {
 	_c.Call.Return(_a0)
 	return _c
 }
 
-func (_c *Adapter_Name_Call) RunAndReturn(run func() string) *Adapter_Name_Call {
+func (_c *Adapter_Name_Call) RunAndReturn(run func() fimptype.ResourceNameT) *Adapter_Name_Call {
 	_c.Call.Return(run)
 	return _c
 }
@@ -613,7 +614,7 @@ type Adapter_ServiceByTopic_Call struct {
 
 // ServiceByTopic is a helper method to define mock.On call
 //   - topic string
-func (_e *Adapter_Expecter) ServiceByTopic(topic interface{}) *Adapter_ServiceByTopic_Call {
+func (_e *Adapter_Expecter) ServiceByTopic(topic any) *Adapter_ServiceByTopic_Call {
 	return &Adapter_ServiceByTopic_Call{Call: _e.mock.On("ServiceByTopic", topic)}
 }
 
@@ -635,7 +636,7 @@ func (_c *Adapter_ServiceByTopic_Call) RunAndReturn(run func(string) adapter.Ser
 }
 
 // Services provides a mock function with given fields: name
-func (_m *Adapter) Services(name string) []adapter.Service {
+func (_m *Adapter) Services(name fimptype.ServiceNameT) []adapter.Service {
 	ret := _m.Called(name)
 
 	if len(ret) == 0 {
@@ -643,7 +644,7 @@ func (_m *Adapter) Services(name string) []adapter.Service {
 	}
 
 	var r0 []adapter.Service
-	if rf, ok := ret.Get(0).(func(string) []adapter.Service); ok {
+	if rf, ok := ret.Get(0).(func(fimptype.ServiceNameT) []adapter.Service); ok {
 		r0 = rf(name)
 	} else {
 		if ret.Get(0) != nil {
@@ -660,14 +661,14 @@ type Adapter_Services_Call struct {
 }
 
 // Services is a helper method to define mock.On call
-//   - name string
-func (_e *Adapter_Expecter) Services(name interface{}) *Adapter_Services_Call {
+//   - name fimptype.ServiceNameT
+func (_e *Adapter_Expecter) Services(name any) *Adapter_Services_Call {
 	return &Adapter_Services_Call{Call: _e.mock.On("Services", name)}
 }
 
-func (_c *Adapter_Services_Call) Run(run func(name string)) *Adapter_Services_Call {
+func (_c *Adapter_Services_Call) Run(run func(name fimptype.ServiceNameT)) *Adapter_Services_Call {
 	_c.Call.Run(func(args mock.Arguments) {
-		run(args[0].(string))
+		run(args[0].(fimptype.ServiceNameT))
 	})
 	return _c
 }
@@ -677,7 +678,7 @@ func (_c *Adapter_Services_Call) Return(_a0 []adapter.Service) *Adapter_Services
 	return _c
 }
 
-func (_c *Adapter_Services_Call) RunAndReturn(run func(string) []adapter.Service) *Adapter_Services_Call {
+func (_c *Adapter_Services_Call) RunAndReturn(run func(fimptype.ServiceNameT) []adapter.Service) *Adapter_Services_Call {
 	_c.Call.Return(run)
 	return _c
 }
@@ -709,7 +710,7 @@ type Adapter_ThingByAddress_Call struct {
 
 // ThingByAddress is a helper method to define mock.On call
 //   - address string
-func (_e *Adapter_Expecter) ThingByAddress(address interface{}) *Adapter_ThingByAddress_Call {
+func (_e *Adapter_Expecter) ThingByAddress(address any) *Adapter_ThingByAddress_Call {
 	return &Adapter_ThingByAddress_Call{Call: _e.mock.On("ThingByAddress", address)}
 }
 
@@ -757,7 +758,7 @@ type Adapter_ThingByID_Call struct {
 
 // ThingByID is a helper method to define mock.On call
 //   - id string
-func (_e *Adapter_Expecter) ThingByID(id interface{}) *Adapter_ThingByID_Call {
+func (_e *Adapter_Expecter) ThingByID(id any) *Adapter_ThingByID_Call {
 	return &Adapter_ThingByID_Call{Call: _e.mock.On("ThingByID", id)}
 }
 
@@ -805,7 +806,7 @@ type Adapter_ThingByTopic_Call struct {
 
 // ThingByTopic is a helper method to define mock.On call
 //   - topic string
-func (_e *Adapter_Expecter) ThingByTopic(topic interface{}) *Adapter_ThingByTopic_Call {
+func (_e *Adapter_Expecter) ThingByTopic(topic any) *Adapter_ThingByTopic_Call {
 	return &Adapter_ThingByTopic_Call{Call: _e.mock.On("ThingByTopic", topic)}
 }
 

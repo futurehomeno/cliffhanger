@@ -32,7 +32,7 @@ type ControllableConnector_Connect_Call struct {
 
 // Connect is a helper method to define mock.On call
 //   - t adapter.Thing
-func (_e *ControllableConnector_Expecter) Connect(t interface{}) *ControllableConnector_Connect_Call {
+func (_e *ControllableConnector_Expecter) Connect(t any) *ControllableConnector_Connect_Call {
 	return &ControllableConnector_Connect_Call{Call: _e.mock.On("Connect", t)}
 }
 
@@ -112,7 +112,7 @@ type ControllableConnector_Disconnect_Call struct {
 
 // Disconnect is a helper method to define mock.On call
 //   - t adapter.Thing
-func (_e *ControllableConnector_Expecter) Disconnect(t interface{}) *ControllableConnector_Disconnect_Call {
+func (_e *ControllableConnector_Expecter) Disconnect(t any) *ControllableConnector_Disconnect_Call {
 	return &ControllableConnector_Disconnect_Call{Call: _e.mock.On("Disconnect", t)}
 }
 

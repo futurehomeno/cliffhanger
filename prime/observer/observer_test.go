@@ -6,6 +6,7 @@ import (
 	"time"
 
 	"github.com/futurehomeno/fimpgo"
+	"github.com/futurehomeno/fimpgo/fimptype"
 	"github.com/sirupsen/logrus"
 	"github.com/sirupsen/logrus/hooks/test"
 	"github.com/stretchr/testify/assert"
@@ -34,9 +35,9 @@ func TestObserver(t *testing.T) { //nolint:paralleltest
 						Name: "Initialize observer on startup",
 						Expectations: []*suite.Expectation{
 							suite.ExpectObject(
-								"pt:j1/mt:cmd/rt:app/rn:vinculum/ad:1", prime.CmdPD7Request, prime.ServiceName,
+								"pt:j1/mt:cmd/rt:app/rn:vinculum/ad:1", prime.CmdPD7Request, fimptype.VinculumService,
 								&prime.Request{Cmd: prime.CmdGet, Param: &prime.RequestParam{Components: []string{prime.ComponentDevice, prime.ComponentThing, prime.ComponentRoom, prime.ComponentArea}}}).ReplyWith(
-								fimpgo.NewObjectMessage(prime.EvtPD7Response, prime.ServiceName, &prime.Response{ParamRaw: map[string]json.RawMessage{
+								fimpgo.NewObjectMessage(prime.EvtPD7Response, fimptype.VinculumService, &prime.Response{ParamRaw: map[string]json.RawMessage{
 									prime.ComponentDevice: json.RawMessage(`[{"id":1}]`),
 									prime.ComponentThing:  json.RawMessage(`[{"id":1}]`),
 									prime.ComponentRoom:   json.RawMessage(`[{"id":1}]`),
@@ -72,7 +73,7 @@ func TestObserver(t *testing.T) { //nolint:paralleltest
 					},
 					{
 						Name: "add new device",
-						Command: suite.ObjectMessage(prime.NotifyTopic, prime.EvtPD7Notify, prime.ServiceName, &prime.Notify{
+						Command: suite.ObjectMessage(prime.NotifyTopic, prime.EvtPD7Notify, fimptype.VinculumService, &prime.Notify{
 							Cmd:       prime.CmdAdd,
 							Component: prime.ComponentDevice,
 							ParamRaw:  json.RawMessage(`{"id":2}`),
@@ -91,7 +92,7 @@ func TestObserver(t *testing.T) { //nolint:paralleltest
 					},
 					{
 						Name: "add existing device",
-						Command: suite.ObjectMessage(prime.NotifyTopic, prime.EvtPD7Notify, prime.ServiceName, &prime.Notify{
+						Command: suite.ObjectMessage(prime.NotifyTopic, prime.EvtPD7Notify, fimptype.VinculumService, &prime.Notify{
 							Cmd:       prime.CmdAdd,
 							Component: prime.ComponentDevice,
 							ParamRaw:  json.RawMessage(`{"id":2}`),
@@ -110,7 +111,7 @@ func TestObserver(t *testing.T) { //nolint:paralleltest
 					},
 					{
 						Name: "Edit existing device",
-						Command: suite.ObjectMessage(prime.NotifyTopic, prime.EvtPD7Notify, prime.ServiceName, &prime.Notify{
+						Command: suite.ObjectMessage(prime.NotifyTopic, prime.EvtPD7Notify, fimptype.VinculumService, &prime.Notify{
 							Cmd:       prime.CmdEdit,
 							Component: prime.ComponentDevice,
 							ParamRaw:  json.RawMessage(`{"id":2}`),
@@ -129,7 +130,7 @@ func TestObserver(t *testing.T) { //nolint:paralleltest
 					},
 					{
 						Name: "Edit new device",
-						Command: suite.ObjectMessage(prime.NotifyTopic, prime.EvtPD7Notify, prime.ServiceName, &prime.Notify{
+						Command: suite.ObjectMessage(prime.NotifyTopic, prime.EvtPD7Notify, fimptype.VinculumService, &prime.Notify{
 							Cmd:       prime.CmdEdit,
 							Component: prime.ComponentDevice,
 							ParamRaw:  json.RawMessage(`{"id":3}`),
@@ -148,7 +149,7 @@ func TestObserver(t *testing.T) { //nolint:paralleltest
 					},
 					{
 						Name: "Delete device",
-						Command: suite.ObjectMessage(prime.NotifyTopic, prime.EvtPD7Notify, prime.ServiceName, &prime.Notify{
+						Command: suite.ObjectMessage(prime.NotifyTopic, prime.EvtPD7Notify, fimptype.VinculumService, &prime.Notify{
 							Cmd:       prime.CmdDelete,
 							Component: prime.ComponentDevice,
 							ID:        3,
@@ -167,7 +168,7 @@ func TestObserver(t *testing.T) { //nolint:paralleltest
 					},
 					{
 						Name: "add new thing",
-						Command: suite.ObjectMessage(prime.NotifyTopic, prime.EvtPD7Notify, prime.ServiceName, &prime.Notify{
+						Command: suite.ObjectMessage(prime.NotifyTopic, prime.EvtPD7Notify, fimptype.VinculumService, &prime.Notify{
 							Cmd:       prime.CmdAdd,
 							Component: prime.ComponentThing,
 							ParamRaw:  json.RawMessage(`{"id":2}`),
@@ -186,7 +187,7 @@ func TestObserver(t *testing.T) { //nolint:paralleltest
 					},
 					{
 						Name: "add existing thing",
-						Command: suite.ObjectMessage(prime.NotifyTopic, prime.EvtPD7Notify, prime.ServiceName, &prime.Notify{
+						Command: suite.ObjectMessage(prime.NotifyTopic, prime.EvtPD7Notify, fimptype.VinculumService, &prime.Notify{
 							Cmd:       prime.CmdAdd,
 							Component: prime.ComponentThing,
 							ParamRaw:  json.RawMessage(`{"id":2}`),
@@ -205,7 +206,7 @@ func TestObserver(t *testing.T) { //nolint:paralleltest
 					},
 					{
 						Name: "Edit existing thing",
-						Command: suite.ObjectMessage(prime.NotifyTopic, prime.EvtPD7Notify, prime.ServiceName, &prime.Notify{
+						Command: suite.ObjectMessage(prime.NotifyTopic, prime.EvtPD7Notify, fimptype.VinculumService, &prime.Notify{
 							Cmd:       prime.CmdEdit,
 							Component: prime.ComponentThing,
 							ParamRaw:  json.RawMessage(`{"id":2}`),
@@ -224,7 +225,7 @@ func TestObserver(t *testing.T) { //nolint:paralleltest
 					},
 					{
 						Name: "Edit new thing",
-						Command: suite.ObjectMessage(prime.NotifyTopic, prime.EvtPD7Notify, prime.ServiceName, &prime.Notify{
+						Command: suite.ObjectMessage(prime.NotifyTopic, prime.EvtPD7Notify, fimptype.VinculumService, &prime.Notify{
 							Cmd:       prime.CmdEdit,
 							Component: prime.ComponentThing,
 							ParamRaw:  json.RawMessage(`{"id":3}`),
@@ -243,7 +244,7 @@ func TestObserver(t *testing.T) { //nolint:paralleltest
 					},
 					{
 						Name: "Delete thing",
-						Command: suite.ObjectMessage(prime.NotifyTopic, prime.EvtPD7Notify, prime.ServiceName, &prime.Notify{
+						Command: suite.ObjectMessage(prime.NotifyTopic, prime.EvtPD7Notify, fimptype.VinculumService, &prime.Notify{
 							Cmd:       prime.CmdDelete,
 							Component: prime.ComponentThing,
 							ID:        3,
@@ -262,7 +263,7 @@ func TestObserver(t *testing.T) { //nolint:paralleltest
 					},
 					{
 						Name: "add new room",
-						Command: suite.ObjectMessage(prime.NotifyTopic, prime.EvtPD7Notify, prime.ServiceName, &prime.Notify{
+						Command: suite.ObjectMessage(prime.NotifyTopic, prime.EvtPD7Notify, fimptype.VinculumService, &prime.Notify{
 							Cmd:       prime.CmdAdd,
 							Component: prime.ComponentRoom,
 							ParamRaw:  json.RawMessage(`{"id":2}`),
@@ -281,7 +282,7 @@ func TestObserver(t *testing.T) { //nolint:paralleltest
 					},
 					{
 						Name: "add existing room",
-						Command: suite.ObjectMessage(prime.NotifyTopic, prime.EvtPD7Notify, prime.ServiceName, &prime.Notify{
+						Command: suite.ObjectMessage(prime.NotifyTopic, prime.EvtPD7Notify, fimptype.VinculumService, &prime.Notify{
 							Cmd:       prime.CmdAdd,
 							Component: prime.ComponentRoom,
 							ParamRaw:  json.RawMessage(`{"id":2}`),
@@ -300,7 +301,7 @@ func TestObserver(t *testing.T) { //nolint:paralleltest
 					},
 					{
 						Name: "Edit existing room",
-						Command: suite.ObjectMessage(prime.NotifyTopic, prime.EvtPD7Notify, prime.ServiceName, &prime.Notify{
+						Command: suite.ObjectMessage(prime.NotifyTopic, prime.EvtPD7Notify, fimptype.VinculumService, &prime.Notify{
 							Cmd:       prime.CmdEdit,
 							Component: prime.ComponentRoom,
 							ParamRaw:  json.RawMessage(`{"id":2}`),
@@ -319,7 +320,7 @@ func TestObserver(t *testing.T) { //nolint:paralleltest
 					},
 					{
 						Name: "Edit new room",
-						Command: suite.ObjectMessage(prime.NotifyTopic, prime.EvtPD7Notify, prime.ServiceName, &prime.Notify{
+						Command: suite.ObjectMessage(prime.NotifyTopic, prime.EvtPD7Notify, fimptype.VinculumService, &prime.Notify{
 							Cmd:       prime.CmdEdit,
 							Component: prime.ComponentRoom,
 							ParamRaw:  json.RawMessage(`{"id":3}`),
@@ -338,7 +339,7 @@ func TestObserver(t *testing.T) { //nolint:paralleltest
 					},
 					{
 						Name: "Delete room",
-						Command: suite.ObjectMessage(prime.NotifyTopic, prime.EvtPD7Notify, prime.ServiceName, &prime.Notify{
+						Command: suite.ObjectMessage(prime.NotifyTopic, prime.EvtPD7Notify, fimptype.VinculumService, &prime.Notify{
 							Cmd:       prime.CmdDelete,
 							Component: prime.ComponentRoom,
 							ID:        3,
@@ -357,7 +358,7 @@ func TestObserver(t *testing.T) { //nolint:paralleltest
 					},
 					{
 						Name: "Added new area",
-						Command: suite.ObjectMessage(prime.NotifyTopic, prime.EvtPD7Notify, prime.ServiceName, &prime.Notify{
+						Command: suite.ObjectMessage(prime.NotifyTopic, prime.EvtPD7Notify, fimptype.VinculumService, &prime.Notify{
 							Cmd:       prime.CmdAdd,
 							Component: prime.ComponentArea,
 							ParamRaw:  json.RawMessage(`{"id":2}`),
@@ -376,7 +377,7 @@ func TestObserver(t *testing.T) { //nolint:paralleltest
 					},
 					{
 						Name: "add existing area",
-						Command: suite.ObjectMessage(prime.NotifyTopic, prime.EvtPD7Notify, prime.ServiceName, &prime.Notify{
+						Command: suite.ObjectMessage(prime.NotifyTopic, prime.EvtPD7Notify, fimptype.VinculumService, &prime.Notify{
 							Cmd:       prime.CmdAdd,
 							Component: prime.ComponentArea,
 							ParamRaw:  json.RawMessage(`{"id":2}`),
@@ -395,7 +396,7 @@ func TestObserver(t *testing.T) { //nolint:paralleltest
 					},
 					{
 						Name: "Edit existing area",
-						Command: suite.ObjectMessage(prime.NotifyTopic, prime.EvtPD7Notify, prime.ServiceName, &prime.Notify{
+						Command: suite.ObjectMessage(prime.NotifyTopic, prime.EvtPD7Notify, fimptype.VinculumService, &prime.Notify{
 							Cmd:       prime.CmdEdit,
 							Component: prime.ComponentArea,
 							ParamRaw:  json.RawMessage(`{"id":2}`),
@@ -414,7 +415,7 @@ func TestObserver(t *testing.T) { //nolint:paralleltest
 					},
 					{
 						Name: "Edit new area",
-						Command: suite.ObjectMessage(prime.NotifyTopic, prime.EvtPD7Notify, prime.ServiceName, &prime.Notify{
+						Command: suite.ObjectMessage(prime.NotifyTopic, prime.EvtPD7Notify, fimptype.VinculumService, &prime.Notify{
 							Cmd:       prime.CmdEdit,
 							Component: prime.ComponentArea,
 							ParamRaw:  json.RawMessage(`{"id":3}`),
@@ -433,7 +434,7 @@ func TestObserver(t *testing.T) { //nolint:paralleltest
 					},
 					{
 						Name: "Delete area",
-						Command: suite.ObjectMessage(prime.NotifyTopic, prime.EvtPD7Notify, prime.ServiceName, &prime.Notify{
+						Command: suite.ObjectMessage(prime.NotifyTopic, prime.EvtPD7Notify, fimptype.VinculumService, &prime.Notify{
 							Cmd:       prime.CmdDelete,
 							Component: prime.ComponentArea,
 							ID:        3,
@@ -452,11 +453,11 @@ func TestObserver(t *testing.T) { //nolint:paralleltest
 					},
 					{
 						Name:    "Corrupted notification",
-						Command: suite.ObjectMessage(prime.NotifyTopic, prime.EvtPD7Notify, prime.ServiceName, json.RawMessage(`{"cmd":1}`)),
+						Command: suite.ObjectMessage(prime.NotifyTopic, prime.EvtPD7Notify, fimptype.VinculumService, json.RawMessage(`{"cmd":1}`)),
 					},
 					{
 						Name: "Unobserved notification",
-						Command: suite.ObjectMessage(prime.NotifyTopic, prime.EvtPD7Notify, prime.ServiceName, &prime.Notify{
+						Command: suite.ObjectMessage(prime.NotifyTopic, prime.EvtPD7Notify, fimptype.VinculumService, &prime.Notify{
 							Cmd:       prime.CmdSet,
 							Component: prime.ComponentState,
 							ID:        1,
@@ -464,7 +465,7 @@ func TestObserver(t *testing.T) { //nolint:paralleltest
 					},
 					{
 						Name: "Failed add new device",
-						Command: suite.ObjectMessage(prime.NotifyTopic, prime.EvtPD7Notify, prime.ServiceName, &prime.Notify{
+						Command: suite.ObjectMessage(prime.NotifyTopic, prime.EvtPD7Notify, fimptype.VinculumService, &prime.Notify{
 							Cmd:       prime.CmdAdd,
 							Component: prime.ComponentDevice,
 							ParamRaw:  json.RawMessage(`{"id":"2"}`),
@@ -472,7 +473,7 @@ func TestObserver(t *testing.T) { //nolint:paralleltest
 					},
 					{
 						Name: "Failed edit device",
-						Command: suite.ObjectMessage(prime.NotifyTopic, prime.EvtPD7Notify, prime.ServiceName, &prime.Notify{
+						Command: suite.ObjectMessage(prime.NotifyTopic, prime.EvtPD7Notify, fimptype.VinculumService, &prime.Notify{
 							Cmd:       prime.CmdEdit,
 							Component: prime.ComponentDevice,
 							ParamRaw:  json.RawMessage(`{"id":"2"}`),
@@ -480,7 +481,7 @@ func TestObserver(t *testing.T) { //nolint:paralleltest
 					},
 					{
 						Name: "Failed delete device",
-						Command: suite.ObjectMessage(prime.NotifyTopic, prime.EvtPD7Notify, prime.ServiceName, &prime.Notify{
+						Command: suite.ObjectMessage(prime.NotifyTopic, prime.EvtPD7Notify, fimptype.VinculumService, &prime.Notify{
 							Cmd:       prime.CmdDelete,
 							Component: prime.ComponentDevice,
 							ID:        "A",
@@ -488,7 +489,7 @@ func TestObserver(t *testing.T) { //nolint:paralleltest
 					},
 					{
 						Name: "Failed add new thing",
-						Command: suite.ObjectMessage(prime.NotifyTopic, prime.EvtPD7Notify, prime.ServiceName, &prime.Notify{
+						Command: suite.ObjectMessage(prime.NotifyTopic, prime.EvtPD7Notify, fimptype.VinculumService, &prime.Notify{
 							Cmd:       prime.CmdAdd,
 							Component: prime.ComponentThing,
 							ParamRaw:  json.RawMessage(`{"id":"2"}`),
@@ -496,7 +497,7 @@ func TestObserver(t *testing.T) { //nolint:paralleltest
 					},
 					{
 						Name: "Failed edit thing",
-						Command: suite.ObjectMessage(prime.NotifyTopic, prime.EvtPD7Notify, prime.ServiceName, &prime.Notify{
+						Command: suite.ObjectMessage(prime.NotifyTopic, prime.EvtPD7Notify, fimptype.VinculumService, &prime.Notify{
 							Cmd:       prime.CmdEdit,
 							Component: prime.ComponentThing,
 							ParamRaw:  json.RawMessage(`{"id":"2"}`),
@@ -504,7 +505,7 @@ func TestObserver(t *testing.T) { //nolint:paralleltest
 					},
 					{
 						Name: "Failed delete thing",
-						Command: suite.ObjectMessage(prime.NotifyTopic, prime.EvtPD7Notify, prime.ServiceName, &prime.Notify{
+						Command: suite.ObjectMessage(prime.NotifyTopic, prime.EvtPD7Notify, fimptype.VinculumService, &prime.Notify{
 							Cmd:       prime.CmdDelete,
 							Component: prime.ComponentThing,
 							ID:        "a",
@@ -512,7 +513,7 @@ func TestObserver(t *testing.T) { //nolint:paralleltest
 					},
 					{
 						Name: "Failed add new room",
-						Command: suite.ObjectMessage(prime.NotifyTopic, prime.EvtPD7Notify, prime.ServiceName, &prime.Notify{
+						Command: suite.ObjectMessage(prime.NotifyTopic, prime.EvtPD7Notify, fimptype.VinculumService, &prime.Notify{
 							Cmd:       prime.CmdAdd,
 							Component: prime.ComponentRoom,
 							ParamRaw:  json.RawMessage(`{"id":"2"}`),
@@ -520,7 +521,7 @@ func TestObserver(t *testing.T) { //nolint:paralleltest
 					},
 					{
 						Name: "Failed edit room",
-						Command: suite.ObjectMessage(prime.NotifyTopic, prime.EvtPD7Notify, prime.ServiceName, &prime.Notify{
+						Command: suite.ObjectMessage(prime.NotifyTopic, prime.EvtPD7Notify, fimptype.VinculumService, &prime.Notify{
 							Cmd:       prime.CmdEdit,
 							Component: prime.ComponentRoom,
 							ParamRaw:  json.RawMessage(`{"id":"2"}`),
@@ -528,7 +529,7 @@ func TestObserver(t *testing.T) { //nolint:paralleltest
 					},
 					{
 						Name: "Failed delete room",
-						Command: suite.ObjectMessage(prime.NotifyTopic, prime.EvtPD7Notify, prime.ServiceName, &prime.Notify{
+						Command: suite.ObjectMessage(prime.NotifyTopic, prime.EvtPD7Notify, fimptype.VinculumService, &prime.Notify{
 							Cmd:       prime.CmdDelete,
 							Component: prime.ComponentRoom,
 							ID:        "A",
@@ -536,7 +537,7 @@ func TestObserver(t *testing.T) { //nolint:paralleltest
 					},
 					{
 						Name: "Failed add new area",
-						Command: suite.ObjectMessage(prime.NotifyTopic, prime.EvtPD7Notify, prime.ServiceName, &prime.Notify{
+						Command: suite.ObjectMessage(prime.NotifyTopic, prime.EvtPD7Notify, fimptype.VinculumService, &prime.Notify{
 							Cmd:       prime.CmdAdd,
 							Component: prime.ComponentArea,
 							ParamRaw:  json.RawMessage(`{"id":"2"}`),
@@ -544,7 +545,7 @@ func TestObserver(t *testing.T) { //nolint:paralleltest
 					},
 					{
 						Name: "Failed edit area",
-						Command: suite.ObjectMessage(prime.NotifyTopic, prime.EvtPD7Notify, prime.ServiceName, &prime.Notify{
+						Command: suite.ObjectMessage(prime.NotifyTopic, prime.EvtPD7Notify, fimptype.VinculumService, &prime.Notify{
 							Cmd:       prime.CmdEdit,
 							Component: prime.ComponentArea,
 							ParamRaw:  json.RawMessage(`{"id":"2"}`),
@@ -552,7 +553,7 @@ func TestObserver(t *testing.T) { //nolint:paralleltest
 					},
 					{
 						Name: "Failed delete area",
-						Command: suite.ObjectMessage(prime.NotifyTopic, prime.EvtPD7Notify, prime.ServiceName, &prime.Notify{
+						Command: suite.ObjectMessage(prime.NotifyTopic, prime.EvtPD7Notify, fimptype.VinculumService, &prime.Notify{
 							Cmd:       prime.CmdDelete,
 							Component: prime.ComponentArea,
 							ID:        "A",
@@ -563,10 +564,10 @@ func TestObserver(t *testing.T) { //nolint:paralleltest
 						Name: "Failed lazy load on getting devices",
 						Expectations: []*suite.Expectation{
 							suite.ExpectObject(
-								"pt:j1/mt:cmd/rt:app/rn:vinculum/ad:1", prime.CmdPD7Request, prime.ServiceName,
+								"pt:j1/mt:cmd/rt:app/rn:vinculum/ad:1", prime.CmdPD7Request, fimptype.VinculumService,
 								&prime.Request{Cmd: prime.CmdGet,
 									Param: &prime.RequestParam{Components: []string{prime.ComponentDevice, prime.ComponentThing, prime.ComponentRoom, prime.ComponentArea}}}).ReplyWith(
-								fimpgo.NewObjectMessage(prime.EvtPD7Response, prime.ServiceName, json.RawMessage(`{"cmd":1}`), nil, nil, nil)),
+								fimpgo.NewObjectMessage(prime.EvtPD7Response, fimptype.VinculumService, json.RawMessage(`{"cmd":1}`), nil, nil, nil)),
 						},
 						Callbacks: []suite.Callback{
 							func(t *testing.T) {
@@ -581,10 +582,10 @@ func TestObserver(t *testing.T) { //nolint:paralleltest
 						Name: "Failed lazy load on getting things",
 						Expectations: []*suite.Expectation{
 							suite.ExpectObject(
-								"pt:j1/mt:cmd/rt:app/rn:vinculum/ad:1", prime.CmdPD7Request, prime.ServiceName,
+								"pt:j1/mt:cmd/rt:app/rn:vinculum/ad:1", prime.CmdPD7Request, fimptype.VinculumService,
 								&prime.Request{Cmd: prime.CmdGet,
 									Param: &prime.RequestParam{Components: []string{prime.ComponentDevice, prime.ComponentThing, prime.ComponentRoom, prime.ComponentArea}}}).ReplyWith(
-								fimpgo.NewObjectMessage(prime.EvtPD7Response, prime.ServiceName, json.RawMessage(`{"cmd":1}`), nil, nil, nil)),
+								fimpgo.NewObjectMessage(prime.EvtPD7Response, fimptype.VinculumService, json.RawMessage(`{"cmd":1}`), nil, nil, nil)),
 						},
 						Callbacks: []suite.Callback{
 							func(t *testing.T) {
@@ -599,10 +600,10 @@ func TestObserver(t *testing.T) { //nolint:paralleltest
 						Name: "Failed lazy load on getting rooms",
 						Expectations: []*suite.Expectation{
 							suite.ExpectObject(
-								"pt:j1/mt:cmd/rt:app/rn:vinculum/ad:1", prime.CmdPD7Request, prime.ServiceName,
+								"pt:j1/mt:cmd/rt:app/rn:vinculum/ad:1", prime.CmdPD7Request, fimptype.VinculumService,
 								&prime.Request{Cmd: prime.CmdGet,
 									Param: &prime.RequestParam{Components: []string{prime.ComponentDevice, prime.ComponentThing, prime.ComponentRoom, prime.ComponentArea}}}).ReplyWith(
-								fimpgo.NewObjectMessage(prime.EvtPD7Response, prime.ServiceName, json.RawMessage(`{"cmd":1}`), nil, nil, nil)),
+								fimpgo.NewObjectMessage(prime.EvtPD7Response, fimptype.VinculumService, json.RawMessage(`{"cmd":1}`), nil, nil, nil)),
 						},
 						Callbacks: []suite.Callback{
 							func(t *testing.T) {
@@ -617,10 +618,10 @@ func TestObserver(t *testing.T) { //nolint:paralleltest
 						Name: "Failed lazy load on getting areas",
 						Expectations: []*suite.Expectation{
 							suite.ExpectObject(
-								"pt:j1/mt:cmd/rt:app/rn:vinculum/ad:1", prime.CmdPD7Request, prime.ServiceName,
+								"pt:j1/mt:cmd/rt:app/rn:vinculum/ad:1", prime.CmdPD7Request, fimptype.VinculumService,
 								&prime.Request{Cmd: prime.CmdGet, Param: &prime.RequestParam{
 									Components: []string{prime.ComponentDevice, prime.ComponentThing, prime.ComponentRoom, prime.ComponentArea}}}).ReplyWith(
-								fimpgo.NewObjectMessage(prime.EvtPD7Response, prime.ServiceName, json.RawMessage(`{"cmd":1}`), nil, nil, nil)),
+								fimpgo.NewObjectMessage(prime.EvtPD7Response, fimptype.VinculumService, json.RawMessage(`{"cmd":1}`), nil, nil, nil)),
 						},
 						Callbacks: []suite.Callback{
 							func(t *testing.T) {
@@ -635,9 +636,9 @@ func TestObserver(t *testing.T) { //nolint:paralleltest
 						Name: "Successful refresh",
 						Expectations: []*suite.Expectation{
 							suite.ExpectObject(
-								"pt:j1/mt:cmd/rt:app/rn:vinculum/ad:1", prime.CmdPD7Request, prime.ServiceName,
+								"pt:j1/mt:cmd/rt:app/rn:vinculum/ad:1", prime.CmdPD7Request, fimptype.VinculumService,
 								&prime.Request{Cmd: prime.CmdGet, Param: &prime.RequestParam{Components: []string{prime.ComponentDevice, prime.ComponentThing, prime.ComponentRoom, prime.ComponentArea}}}).ReplyWith(
-								fimpgo.NewObjectMessage(prime.EvtPD7Response, prime.ServiceName, &prime.Response{ParamRaw: map[string]json.RawMessage{
+								fimpgo.NewObjectMessage(prime.EvtPD7Response, fimptype.VinculumService, &prime.Response{ParamRaw: map[string]json.RawMessage{
 									prime.ComponentDevice: json.RawMessage(`[{"id":1}]`),
 									prime.ComponentThing:  json.RawMessage(`[{"id":1}]`),
 									prime.ComponentRoom:   json.RawMessage(`[{"id":1}]`),
@@ -698,7 +699,7 @@ func TestObserver_AddOrEdit_NoComponentsAtStartup(t *testing.T) { //nolint:paral
 					suite.SleepNode(5 * time.Millisecond),
 					{
 						Name: "add new device",
-						Command: suite.ObjectMessage(prime.NotifyTopic, prime.EvtPD7Notify, prime.ServiceName, &prime.Notify{
+						Command: suite.ObjectMessage(prime.NotifyTopic, prime.EvtPD7Notify, fimptype.VinculumService, &prime.Notify{
 							Cmd:       prime.CmdAdd,
 							Component: prime.ComponentDevice,
 							ParamRaw:  json.RawMessage(`{"id":1}`),
@@ -713,7 +714,7 @@ func TestObserver_AddOrEdit_NoComponentsAtStartup(t *testing.T) { //nolint:paral
 					},
 					{
 						Name: "add new thing",
-						Command: suite.ObjectMessage(prime.NotifyTopic, prime.EvtPD7Notify, prime.ServiceName, &prime.Notify{
+						Command: suite.ObjectMessage(prime.NotifyTopic, prime.EvtPD7Notify, fimptype.VinculumService, &prime.Notify{
 							Cmd:       prime.CmdAdd,
 							Component: prime.ComponentThing,
 							ParamRaw:  json.RawMessage(`{"id":1}`),
@@ -728,7 +729,7 @@ func TestObserver_AddOrEdit_NoComponentsAtStartup(t *testing.T) { //nolint:paral
 					},
 					{
 						Name: "add new room",
-						Command: suite.ObjectMessage(prime.NotifyTopic, prime.EvtPD7Notify, prime.ServiceName, &prime.Notify{
+						Command: suite.ObjectMessage(prime.NotifyTopic, prime.EvtPD7Notify, fimptype.VinculumService, &prime.Notify{
 							Cmd:       prime.CmdAdd,
 							Component: prime.ComponentRoom,
 							ParamRaw:  json.RawMessage(`{"id":1}`),
@@ -743,7 +744,7 @@ func TestObserver_AddOrEdit_NoComponentsAtStartup(t *testing.T) { //nolint:paral
 					},
 					{
 						Name: "add new area",
-						Command: suite.ObjectMessage(prime.NotifyTopic, prime.EvtPD7Notify, prime.ServiceName, &prime.Notify{
+						Command: suite.ObjectMessage(prime.NotifyTopic, prime.EvtPD7Notify, fimptype.VinculumService, &prime.Notify{
 							Cmd:       prime.CmdAdd,
 							Component: prime.ComponentArea,
 							ParamRaw:  json.RawMessage(`{"id":1}`),

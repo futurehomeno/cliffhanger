@@ -3,7 +3,6 @@ package numericsensor
 import (
 	"fmt"
 
-	"github.com/futurehomeno/fimpgo"
 	"github.com/futurehomeno/fimpgo/fimptype"
 
 	"github.com/futurehomeno/cliffhanger/router"
@@ -11,9 +10,9 @@ import (
 
 // Specification creates a service specification.
 func Specification(
-	resourceName,
-	resourceAddress,
-	serviceName,
+	resourceName fimptype.ResourceNameT,
+	resourceAddress string,
+	serviceName fimptype.ServiceNameT,
 	address string,
 	groups,
 	supportedUnits []string,
@@ -23,7 +22,7 @@ func Specification(
 		Name:    serviceName,
 		Groups:  groups,
 		Enabled: true,
-		Props: map[string]interface{}{
+		Props: map[string]any{
 			PropertySupportedUnits: supportedUnits,
 		},
 		Interfaces: requiredInterfaces(),
@@ -36,19 +35,19 @@ func requiredInterfaces() []fimptype.Interface {
 		{
 			Type:      fimptype.TypeIn,
 			MsgType:   CmdSensorGetReport,
-			ValueType: fimpgo.VTypeString,
+			ValueType: fimptype.VTypeString,
 			Version:   "1",
 		},
 		{
 			Type:      fimptype.TypeOut,
 			MsgType:   EvtSensorReport,
-			ValueType: fimpgo.VTypeFloat,
+			ValueType: fimptype.VTypeFloat,
 			Version:   "1",
 		},
 		{
 			Type:      fimptype.TypeOut,
 			MsgType:   router.EvtErrorReport,
-			ValueType: fimpgo.VTypeString,
+			ValueType: fimptype.VTypeString,
 			Version:   "1",
 		},
 	}

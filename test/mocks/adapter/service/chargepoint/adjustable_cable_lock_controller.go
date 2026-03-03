@@ -102,7 +102,7 @@ type AdjustableCableLockController_SetChargepointCableLock_Call struct {
 
 // SetChargepointCableLock is a helper method to define mock.On call
 //   - _a0 bool
-func (_e *AdjustableCableLockController_Expecter) SetChargepointCableLock(_a0 interface{}) *AdjustableCableLockController_SetChargepointCableLock_Call {
+func (_e *AdjustableCableLockController_Expecter) SetChargepointCableLock(_a0 any) *AdjustableCableLockController_SetChargepointCableLock_Call {
 	return &AdjustableCableLockController_SetChargepointCableLock_Call{Call: _e.mock.On("SetChargepointCableLock", _a0)}
 }
 

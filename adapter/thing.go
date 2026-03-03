@@ -62,7 +62,7 @@ func (s ThingSeeds) Without(id string) ThingSeeds {
 // ThingSeed represents a thing seed to be used for creating thing.
 type ThingSeed struct {
 	ID            string
-	Info          interface{}
+	Info          any
 	CustomAddress string
 }
 
@@ -81,7 +81,7 @@ type Thing interface {
 	// Address returns address of the thing.
 	Address() string
 	// Services returns all services from the thing that match the provided name. If empty all services are returned.
-	Services(name string) []Service
+	Services(name fimptype.ServiceNameT) []Service // map[topic][]Service
 	// ServiceByTopic returns a service based on the topic on which is supposed to be listening for commands.
 	ServiceByTopic(topic string) Service
 	// InclusionReport returns an inclusion report of the thing.
@@ -152,7 +152,7 @@ func (t *thing) Address() string {
 }
 
 // Services returns all services from the thing that match the provided name. If empty all services are returned.
-func (t *thing) Services(name string) []Service {
+func (t *thing) Services(name fimptype.ServiceNameT) []Service {
 	t.lock.RLock()
 	defer t.lock.RUnlock()
 

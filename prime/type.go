@@ -9,6 +9,7 @@ import (
 	"time"
 
 	"github.com/futurehomeno/fimpgo"
+	"github.com/futurehomeno/fimpgo/fimptype"
 )
 
 const (
@@ -153,20 +154,20 @@ func (d Devices) FindByTopic(topic string) *Device {
 }
 
 type Device struct {
-	FIMP          DeviceFIMP             `json:"fimp"`
-	Client        ClientType             `json:"client"`
-	Functionality *string                `json:"functionality"`
-	Services      map[string]*Service    `json:"services"`
-	ID            int                    `json:"id"`
-	Lrn           bool                   `json:"lrn"`
-	Model         string                 `json:"model"`
-	ModelAlias    string                 `json:"modelAlias"`
-	Param         map[string]interface{} `json:"param"`
-	Problem       bool                   `json:"problem"`
-	Room          *int                   `json:"room"`
-	Changes       map[string]interface{} `json:"changes"`
-	ThingID       *int                   `json:"thing"`
-	Type          map[string]interface{} `json:"type"`
+	FIMP          DeviceFIMP                         `json:"fimp"`
+	Client        ClientType                         `json:"client"`
+	Functionality *string                            `json:"functionality"`
+	Services      map[fimptype.ServiceNameT]*Service `json:"services"`
+	ID            int                                `json:"id"`
+	Lrn           bool                               `json:"lrn"`
+	Model         string                             `json:"model"`
+	ModelAlias    string                             `json:"modelAlias"`
+	Param         map[string]any                     `json:"param"`
+	Problem       bool                               `json:"problem"`
+	Room          *int                               `json:"room"`
+	Changes       map[string]any                     `json:"changes"`
+	ThingID       *int                               `json:"thing"`
+	Type          map[string]any                     `json:"type"`
 }
 
 func (d *Device) GetName() string {
@@ -231,7 +232,7 @@ func (d *Device) SupportsSubType(mainType, subType string) bool {
 		return false
 	}
 
-	supported, ok := supportedRaw.(map[string]interface{})
+	supported, ok := supportedRaw.(map[string]any)
 	if !ok {
 		return false
 	}
@@ -241,7 +242,7 @@ func (d *Device) SupportsSubType(mainType, subType string) bool {
 		return false
 	}
 
-	subTypes, ok := subTypesRaw.([]interface{})
+	subTypes, ok := subTypesRaw.([]any)
 	if !ok {
 		return false
 	}
@@ -260,11 +261,11 @@ func (d *Device) SupportsSubType(mainType, subType string) bool {
 	return false
 }
 
-func (d *Device) HasService(serviceName string) bool {
+func (d *Device) HasService(serviceName fimptype.ServiceNameT) bool {
 	return d.GetService(serviceName) != nil
 }
 
-func (d *Device) GetService(serviceName string) *Service {
+func (d *Device) GetService(serviceName fimptype.ServiceNameT) *Service {
 	for srvName, srv := range d.Services {
 		if srvName == serviceName {
 			return srv
@@ -274,7 +275,7 @@ func (d *Device) GetService(serviceName string) *Service {
 	return nil
 }
 
-func (d *Device) HasInterfaces(serviceName string, interfaceNames ...string) bool {
+func (d *Device) HasInterfaces(serviceName fimptype.ServiceNameT, interfaceNames ...string) bool {
 	srv := d.GetService(serviceName)
 	if srv == nil {
 		return false
@@ -299,7 +300,7 @@ func (d *Device) containsInterface(interfaceName string, interfaces []string) bo
 	return false
 }
 
-func (d *Device) GetServiceProperty(serviceName string, property string) interface{} {
+func (d *Device) GetServiceProperty(serviceName fimptype.ServiceNameT, property string) any {
 	srv := d.GetService(serviceName)
 	if srv == nil {
 		return nil
@@ -313,7 +314,7 @@ func (d *Device) GetServiceProperty(serviceName string, property string) interfa
 	return value
 }
 
-func (d *Device) GetServicePropertyString(serviceName string, property string) string {
+func (d *Device) GetServicePropertyString(serviceName fimptype.ServiceNameT, property string) string {
 	var val string
 
 	ok := d.GetServicePropertyObject(serviceName, property, &val)
@@ -324,7 +325,7 @@ func (d *Device) GetServicePropertyString(serviceName string, property string) s
 	return val
 }
 
-func (d *Device) GetServicePropertyStrings(serviceName, property string) []string {
+func (d *Device) GetServicePropertyStrings(serviceName fimptype.ServiceNameT, property string) []string {
 	var val []string
 
 	ok := d.GetServicePropertyObject(serviceName, property, &val)
@@ -335,8 +336,8 @@ func (d *Device) GetServicePropertyStrings(serviceName, property string) []strin
 	return val
 }
 
-func (d *Device) GetServicePropertyInteger(serviceName, property string) int64 {
-	var val int64
+func (d *Device) GetServicePropertyInteger(serviceName fimptype.ServiceNameT, property string) int {
+	var val int
 
 	ok := d.GetServicePropertyObject(serviceName, property, &val)
 	if !ok {
@@ -346,7 +347,7 @@ func (d *Device) GetServicePropertyInteger(serviceName, property string) int64 {
 	return val
 }
 
-func (d *Device) GetServicePropertyObject(serviceName, property string, object interface{}) (ok bool) {
+func (d *Device) GetServicePropertyObject(serviceName fimptype.ServiceNameT, property string, object any) (ok bool) {
 	v := d.GetServiceProperty(serviceName, property)
 	if v == nil {
 		return false
@@ -385,18 +386,18 @@ func (d *Device) GetAddresses() []string {
 }
 
 type Service struct {
-	Addr       string                 `json:"addr,omitempty"`
-	Enabled    bool                   `json:"enabled,omitempty"`
-	Interfaces []string               `json:"intf"`
-	Props      map[string]interface{} `json:"props"`
+	Addr       string         `json:"addr,omitempty"`
+	Enabled    bool           `json:"enabled,omitempty"`
+	Interfaces []string       `json:"intf"`
+	Props      map[string]any `json:"props"`
 }
 
 type DeviceFIMP struct {
-	Adapter         string `json:"adapter"`
-	Address         string `json:"address"`
-	AdapterResource string `json:"adapter_resource"`
-	AdapterAddress  string `json:"adapter_address"`
-	Group           string `json:"group"`
+	Adapter         fimptype.ResourceNameT `json:"adapter"`
+	Address         string                 `json:"address"`
+	AdapterResource string                 `json:"adapter_resource"`
+	AdapterAddress  string                 `json:"adapter_address"`
+	Group           string                 `json:"group"`
 }
 
 type ClientType struct {
@@ -417,13 +418,13 @@ func (t Things) FindByID(id int) *Thing {
 }
 
 type Thing struct {
-	ID      int                    `json:"id"`
-	FIMP    ThingFIMP              `json:"fimp"`
-	Address string                 `json:"addr"`
-	Name    string                 `json:"name"`
-	Devices []int                  `json:"devices,omitempty"`
-	Props   map[string]interface{} `json:"props,omitempty"`
-	RoomID  int                    `json:"room"`
+	ID      int            `json:"id"`
+	FIMP    ThingFIMP      `json:"fimp"`
+	Address string         `json:"addr"`
+	Name    string         `json:"name"`
+	Devices []int          `json:"devices,omitempty"`
+	Props   map[string]any `json:"props,omitempty"`
+	RoomID  int            `json:"room"`
 }
 
 type ThingFIMP struct {
@@ -465,11 +466,11 @@ func (d *Room) GetAreaID() int {
 
 type RoomParams struct {
 	Heating  RoomHeating `json:"heating"`
-	Lighting interface{} `json:"lighting"`
-	Security interface{} `json:"security"`
+	Lighting any         `json:"lighting"`
+	Security any         `json:"security"`
 	Sensors  []string    `json:"sensors"`
-	Shading  interface{} `json:"shading"`
-	Triggers interface{} `json:"triggers"`
+	Shading  any         `json:"shading"`
+	Triggers any         `json:"triggers"`
 }
 
 type RoomHeating struct {
@@ -495,9 +496,9 @@ type AreaProps struct {
 }
 
 type House struct {
-	Learning interface{} `json:"learning"`
-	Mode     string      `json:"mode"`
-	Time     time.Time   `json:"time"`
+	Learning any       `json:"learning"`
+	Mode     string    `json:"mode"`
+	Time     time.Time `json:"time"`
 }
 
 type Hub struct {
@@ -531,9 +532,9 @@ type ShortcutAction struct {
 	Room   map[int]ActionRoom   `json:"room"`
 }
 
-type ActionDevice map[string]interface{}
+type ActionDevice map[string]any
 
-type ActionRoom map[string]interface{}
+type ActionRoom map[string]any
 
 type Modes []*Mode
 
@@ -551,10 +552,10 @@ type Timers []*Timer
 
 type Timer struct {
 	Action  TimerAction
-	Client  ClientType             `json:"client"`
-	Enabled bool                   `json:"enabled"`
-	Time    map[string]interface{} `json:"time"`
-	ID      int                    `json:"id"`
+	Client  ClientType     `json:"client"`
+	Enabled bool           `json:"enabled"`
+	Time    map[string]any `json:"time"`
+	ID      int            `json:"id"`
 }
 
 type TimerAction struct {
@@ -565,7 +566,7 @@ type TimerAction struct {
 }
 
 type VinculumServices struct {
-	FireAlarm map[string]interface{} `json:"fireAlarm"`
+	FireAlarm map[string]any `json:"fireAlarm"`
 }
 
 type State struct {
@@ -589,79 +590,79 @@ type StateDevice struct {
 	Services []*StateService `json:"services"`
 }
 
-func (d *StateDevice) GetAttributeStringValue(serviceName, attributeName string, properties map[string]string) (string, time.Time) {
+func (d *StateDevice) GetAttributeStringValue(serviceName fimptype.ServiceNameT, attributeName string, properties map[string]string) (string, time.Time) {
 	var val string
 
 	return val, d.GetAttributeObjectValue(serviceName, attributeName, properties, &val)
 }
 
-func (d *StateDevice) GetAttributeIntValue(serviceName, attributeName string, properties map[string]string) (int64, time.Time) {
-	var val int64
+func (d *StateDevice) GetAttributeIntValue(serviceName fimptype.ServiceNameT, attributeName string, properties map[string]string) (int, time.Time) {
+	var val int
 
 	return val, d.GetAttributeObjectValue(serviceName, attributeName, properties, &val)
 }
 
-func (d *StateDevice) GetAttributeFloatValue(serviceName, attributeName string, properties map[string]string) (float64, time.Time) {
+func (d *StateDevice) GetAttributeFloatValue(serviceName fimptype.ServiceNameT, attributeName string, properties map[string]string) (float64, time.Time) {
 	var val float64
 
 	return val, d.GetAttributeObjectValue(serviceName, attributeName, properties, &val)
 }
 
-func (d *StateDevice) GetAttributeBoolValue(serviceName, attributeName string, properties map[string]string) (bool, time.Time) {
+func (d *StateDevice) GetAttributeBoolValue(serviceName fimptype.ServiceNameT, attributeName string, properties map[string]string) (bool, time.Time) {
 	var val bool
 
 	return val, d.GetAttributeObjectValue(serviceName, attributeName, properties, &val)
 }
 
-func (d *StateDevice) GetAttributeStringArrayValue(serviceName, attributeName string, properties map[string]string) ([]string, time.Time) {
+func (d *StateDevice) GetAttributeStringArrayValue(serviceName fimptype.ServiceNameT, attributeName string, properties map[string]string) ([]string, time.Time) {
 	var val []string
 
 	return val, d.GetAttributeObjectValue(serviceName, attributeName, properties, &val)
 }
 
-func (d *StateDevice) GetAttributeIntArrayValue(serviceName, attributeName string, properties map[string]string) ([]int64, time.Time) {
-	var val []int64
+func (d *StateDevice) GetAttributeIntArrayValue(serviceName fimptype.ServiceNameT, attributeName string, properties map[string]string) ([]int, time.Time) {
+	var val []int
 
 	return val, d.GetAttributeObjectValue(serviceName, attributeName, properties, &val)
 }
 
-func (d *StateDevice) GetAttributeFloatArrayValue(serviceName, attributeName string, properties map[string]string) ([]float64, time.Time) {
+func (d *StateDevice) GetAttributeFloatArrayValue(serviceName fimptype.ServiceNameT, attributeName string, properties map[string]string) ([]float64, time.Time) {
 	var val []float64
 
 	return val, d.GetAttributeObjectValue(serviceName, attributeName, properties, &val)
 }
 
-func (d *StateDevice) GetAttributeBoolArrayValue(serviceName, attributeName string, properties map[string]string) ([]bool, time.Time) {
+func (d *StateDevice) GetAttributeBoolArrayValue(serviceName fimptype.ServiceNameT, attributeName string, properties map[string]string) ([]bool, time.Time) {
 	var val []bool
 
 	return val, d.GetAttributeObjectValue(serviceName, attributeName, properties, &val)
 }
 
-func (d *StateDevice) GetAttributeStringMapValue(serviceName, attributeName string, properties map[string]string) (map[string]string, time.Time) {
+func (d *StateDevice) GetAttributeStringMapValue(serviceName fimptype.ServiceNameT, attributeName string, properties map[string]string) (map[string]string, time.Time) {
 	var val map[string]string
 
 	return val, d.GetAttributeObjectValue(serviceName, attributeName, properties, &val)
 }
 
-func (d *StateDevice) GetAttributeIntMapValue(serviceName, attributeName string, properties map[string]string) (map[string]int64, time.Time) {
-	var val map[string]int64
+func (d *StateDevice) GetAttributeIntMapValue(serviceName fimptype.ServiceNameT, attributeName string, properties map[string]string) (map[string]int, time.Time) {
+	var val map[string]int
 
 	return val, d.GetAttributeObjectValue(serviceName, attributeName, properties, &val)
 }
 
-func (d *StateDevice) GetAttributeFloatMapValue(serviceName, attributeName string, properties map[string]string) (map[string]float64, time.Time) {
+func (d *StateDevice) GetAttributeFloatMapValue(serviceName fimptype.ServiceNameT, attributeName string, properties map[string]string) (map[string]float64, time.Time) {
 	var val map[string]float64
 
 	return val, d.GetAttributeObjectValue(serviceName, attributeName, properties, &val)
 }
 
-func (d *StateDevice) GetAttributeBoolMapValue(serviceName, attributeName string, properties map[string]string) (map[string]bool, time.Time) {
+func (d *StateDevice) GetAttributeBoolMapValue(serviceName fimptype.ServiceNameT, attributeName string, properties map[string]string) (map[string]bool, time.Time) {
 	var val map[string]bool
 
 	return val, d.GetAttributeObjectValue(serviceName, attributeName, properties, &val)
 }
 
-func (d *StateDevice) GetAttributeObjectValue(serviceName, attributeName string, properties map[string]string, object interface{}) time.Time {
+func (d *StateDevice) GetAttributeObjectValue(serviceName fimptype.ServiceNameT, attributeName string, properties map[string]string, object any) time.Time {
 	if d == nil {
 		return time.Time{}
 	}
@@ -684,7 +685,7 @@ func (d *StateDevice) GetAttributeObjectValue(serviceName, attributeName string,
 	return t
 }
 
-func (d *StateDevice) FindAttributeValue(serviceName, attributeName string, properties map[string]string) *StateAttributeValue {
+func (d *StateDevice) FindAttributeValue(serviceName fimptype.ServiceNameT, attributeName string, properties map[string]string) *StateAttributeValue {
 	if d == nil {
 		return nil
 	}
@@ -702,7 +703,7 @@ func (d *StateDevice) FindAttributeValue(serviceName, attributeName string, prop
 	return attribute.FindValue(properties)
 }
 
-func (d *StateDevice) FindService(name string) *StateService {
+func (d *StateDevice) FindService(name fimptype.ServiceNameT) *StateService {
 	if d == nil {
 		return nil
 	}
@@ -717,9 +718,9 @@ func (d *StateDevice) FindService(name string) *StateService {
 }
 
 type StateService struct {
-	Name       string            `json:"name"`
-	Address    string            `json:"addr"`
-	Attributes []*StateAttribute `json:"attributes"`
+	Name       fimptype.ServiceNameT `json:"name"`
+	Address    string                `json:"addr"`
+	Attributes []*StateAttribute     `json:"attributes"`
 }
 
 func (s *StateService) FindAttribute(name string) *StateAttribute {
@@ -763,7 +764,7 @@ func (a *StateAttribute) FindValue(properties map[string]string) *StateAttribute
 type StateAttributeValue struct {
 	Timestamp string            `json:"ts"`
 	ValueType string            `json:"val_t"`
-	Value     interface{}       `json:"val"`
+	Value     any               `json:"val"`
 	Props     map[string]string `json:"props"`
 }
 
@@ -773,8 +774,8 @@ func (v *StateAttributeValue) GetStringValue() (string, error) {
 	return val, v.GetObjectValue(&val)
 }
 
-func (v *StateAttributeValue) GetIntValue() (int64, error) {
-	var val int64
+func (v *StateAttributeValue) GetIntValue() (int, error) {
+	var val int
 
 	return val, v.GetObjectValue(&val)
 }
@@ -797,8 +798,8 @@ func (v *StateAttributeValue) GetStringArrayValue() ([]string, error) {
 	return val, v.GetObjectValue(&val)
 }
 
-func (v *StateAttributeValue) GetIntArrayValue() ([]int64, error) {
-	var val []int64
+func (v *StateAttributeValue) GetIntArrayValue() ([]int, error) {
+	var val []int
 
 	return val, v.GetObjectValue(&val)
 }
@@ -821,8 +822,8 @@ func (v *StateAttributeValue) GetStringMapValue() (map[string]string, error) {
 	return val, v.GetObjectValue(&val)
 }
 
-func (v *StateAttributeValue) GetIntMapValue() (map[string]int64, error) {
-	var val map[string]int64
+func (v *StateAttributeValue) GetIntMapValue() (map[string]int, error) {
+	var val map[string]int
 
 	return val, v.GetObjectValue(&val)
 }
@@ -839,7 +840,7 @@ func (v *StateAttributeValue) GetBoolMapValue() (map[string]bool, error) {
 	return val, v.GetObjectValue(&val)
 }
 
-func (v *StateAttributeValue) GetObjectValue(object interface{}) error {
+func (v *StateAttributeValue) GetObjectValue(object any) error {
 	if v == nil {
 		return nil
 	}
@@ -896,7 +897,7 @@ func (v *StateAttributeValue) GetPropertyString(property string) string {
 	return v.Props[property]
 }
 
-func (v *StateAttributeValue) GetPropertyInteger(property string) int64 {
+func (v *StateAttributeValue) GetPropertyInteger(property string) int {
 	if v == nil {
 		return 0
 	}
@@ -911,7 +912,7 @@ func (v *StateAttributeValue) GetPropertyInteger(property string) int64 {
 		return 0
 	}
 
-	return i
+	return int(i)
 }
 
 func (v *StateAttributeValue) GetPropertyFloat(property string) float64 {

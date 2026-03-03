@@ -76,7 +76,7 @@ func (c *proxyClient) ExchangeRefreshToken(refreshToken string) (*OAuth2TokenRes
 }
 
 // getToken retrieves token from Partners API.
-func (c *proxyClient) getToken(request interface{}, url string) (*OAuth2TokenResponse, error) {
+func (c *proxyClient) getToken(request any, url string) (*OAuth2TokenResponse, error) {
 	requestData, err := json.Marshal(request)
 	if err != nil {
 		return nil, err

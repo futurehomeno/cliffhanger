@@ -10,7 +10,7 @@ type App interface {
 	// GetManifest returns the manifest object based on current application state and configuration.
 	GetManifest() (*manifest.Manifest, error)
 	// Configure performs update of the application state based on the provided configuration.
-	Configure(config interface{}) error
+	Configure(config any) error
 	// Uninstall performs all required clean ups before uninstalling the application.
 	Uninstall() error
 }
