@@ -36,7 +36,7 @@ func LoadInfo(path string) (*Info, error) {
 	body, err := os.ReadFile(path) //nolint:gosec
 	if err != nil {
 		path = "/var/lib/futurehome/hub/hub_v2.json"
-		body, err = os.ReadFile(path)
+		body, err = os.ReadFile(path) //nolint:gosec
 		if err != nil {
 			return nil, fmt.Errorf("info loader: failed to load info file at path %s: %w", path, err)
 		}
