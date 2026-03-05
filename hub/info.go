@@ -6,6 +6,9 @@ import (
 	"os"
 )
 
+var hubV1FilePath = "/var/lib/futurehome/hub/hub.json"
+var hubV2FilePath = "/var/lib/futurehome/hub/hub_v2.json"
+
 // Environment is a type representing environment within which the hub is registered.
 type Environment string
 
@@ -28,14 +31,25 @@ type Info struct {
 // LoadInfo loads info from a well known path on the hub.
 func LoadInfo(path string) (*Info, error) {
 	if path == "" {
-		path = "/var/lib/futurehome/hub/hub.json"
+		path = hubV1FilePath
+	}
+
+	if path == hubV1FilePath {
+		infoV2, err := os.Stat(hubV2FilePath)
+		if err == nil && !infoV2.IsDir() {
+			infoV1, infoV1err := os.Stat(hubV2FilePath)
+			if infoV1err != nil || infoV2.ModTime().After(infoV1.ModTime()) {
+				path = hubV2FilePath
+				// prefer v2 if exists and newer then v1
+			}
+		}
 	}
 
 	info := &Info{}
 
 	body, err := os.ReadFile(path) //nolint:gosec
 	if err != nil {
-		path = "/var/lib/futurehome/hub/hub_v2.json"
+		path = hubV2FilePath          // always check v2
 		body, err = os.ReadFile(path) //nolint:gosec
 		if err != nil {
 			return nil, fmt.Errorf("info loader: failed to load info file at path %s: %w", path, err)
