@@ -48,8 +48,16 @@ type ProxyClient interface {
 func NewProxyClient(cfg *ProxyClientConfig) ProxyClient {
 	cfg.setDefaults()
 
+	headers := make(map[string]string, len(cfg.Headers))
+	for k, v := range cfg.Headers {
+		headers[k] = v
+	}
+
+	cfgCopy := *cfg
+	cfgCopy.Headers = headers
+
 	return &proxyClient{
-		cfg: cfg,
+		cfg: &cfgCopy,
 		client: &http.Client{
 			Timeout: cfg.Timeout,
 		},
@@ -92,6 +100,10 @@ func (c *proxyClient) getToken(request any, url string) (*OAuth2TokenResponse, e
 	r.Header.Add("Authorization", "Bearer "+c.cfg.Token)
 
 	for k, v := range c.cfg.Headers {
+		if http.CanonicalHeaderKey(k) == "Authorization" || http.CanonicalHeaderKey(k) == "Content-Type" {
+			continue
+		}
+
 		r.Header.Add(k, v)
 	}
 
