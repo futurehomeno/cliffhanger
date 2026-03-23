@@ -22,6 +22,7 @@ type ProxyClientConfig struct {
 	Retry       int
 	RetryDelay  time.Duration
 	Timeout     time.Duration
+	Headers     map[string]string
 }
 
 // setDefaults sets default configuration for a authentication proxy client.
@@ -89,6 +90,10 @@ func (c *proxyClient) getToken(request any, url string) (*OAuth2TokenResponse, e
 
 	r.Header.Add("Content-Type", "application/json")
 	r.Header.Add("Authorization", "Bearer "+c.cfg.Token)
+
+	for k, v := range c.cfg.Headers {
+		r.Header.Add(k, v)
+	}
 
 	for i := 0; i <= c.cfg.Retry; i++ {
 		var response *OAuth2TokenResponse
