@@ -22,6 +22,7 @@ type ProxyClientConfig struct {
 	Retry       int
 	RetryDelay  time.Duration
 	Timeout     time.Duration
+	Headers     map[string]string
 }
 
 // setDefaults sets default configuration for a authentication proxy client.
@@ -47,8 +48,16 @@ type ProxyClient interface {
 func NewProxyClient(cfg *ProxyClientConfig) ProxyClient {
 	cfg.setDefaults()
 
+	headers := make(map[string]string, len(cfg.Headers))
+	for k, v := range cfg.Headers {
+		headers[k] = v
+	}
+
+	cfgCopy := *cfg
+	cfgCopy.Headers = headers
+
 	return &proxyClient{
-		cfg: cfg,
+		cfg: &cfgCopy,
 		client: &http.Client{
 			Timeout: cfg.Timeout,
 		},
@@ -89,6 +98,14 @@ func (c *proxyClient) getToken(request any, url string) (*OAuth2TokenResponse, e
 
 	r.Header.Add("Content-Type", "application/json")
 	r.Header.Add("Authorization", "Bearer "+c.cfg.Token)
+
+	for k, v := range c.cfg.Headers {
+		if http.CanonicalHeaderKey(k) == "Authorization" || http.CanonicalHeaderKey(k) == "Content-Type" {
+			continue
+		}
+
+		r.Header.Add(k, v)
+	}
 
 	for i := 0; i <= c.cfg.Retry; i++ {
 		var response *OAuth2TokenResponse
