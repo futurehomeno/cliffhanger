@@ -186,7 +186,7 @@ func (a *app) doStart() error {
 		return fmt.Errorf("start task manager err: %w", err)
 	}
 
-	log.Debug("[cliff] App started")
+	log.Info("[cliff] App started")
 
 	a.running = true
 
