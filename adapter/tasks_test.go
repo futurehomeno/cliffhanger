@@ -18,11 +18,11 @@ import (
 
 const reportingInterval = 100 * time.Millisecond
 
-func TestTaskConnectivityReporting(t *testing.T) { //nolint:paralleltest
+func TestTaskConnectivityReporting_StableDetails(t *testing.T) { //nolint:paralleltest
 	s := &suite.Suite{
 		Cases: []*suite.Case{
 			{
-				Name:     "task emits one node report per thing and caches stable details",
+				Name:     "task emits exactly one node report per thing when details are stable",
 				TearDown: adapterhelper.TearDownAdapter(testAdapterWorkDir),
 				Setup: setupReportingTask(
 					staticConnector(adapter.ConnectionStatusUp),
@@ -39,6 +39,15 @@ func TestTaskConnectivityReporting(t *testing.T) { //nolint:paralleltest
 					},
 				},
 			},
+		},
+	}
+
+	s.Run(t)
+}
+
+func TestTaskConnectivityReporting_DetailsChange(t *testing.T) { //nolint:paralleltest
+	s := &suite.Suite{
+		Cases: []*suite.Case{
 			{
 				Name:     "task re-emits when connectivity details change",
 				TearDown: adapterhelper.TearDownAdapter(testAdapterWorkDir),
@@ -48,7 +57,7 @@ func TestTaskConnectivityReporting(t *testing.T) { //nolint:paralleltest
 				),
 				Nodes: []*suite.Node{
 					{
-						Name:    "changing status triggers new node reports",
+						Name:    "changing status triggers new node reports for both things",
 						Timeout: 800 * time.Millisecond,
 						Expectations: []*suite.Expectation{
 							expectNodeReportWithStatus(testThingAddressB, adapter.ConnectionStatusUp).AtLeastOnce(),
@@ -81,8 +90,6 @@ func expectNodeReportWithStatus(address string, status adapter.ConnectionStatus)
 		}))
 }
 
-// connectorBuilder produces a fresh mocked Connector each time the setup runs. Each suite Case
-// runs setup exactly once, so one builder per thing per Case.
 type connectorBuilder func(t *testing.T) adapter.Connector
 
 func staticConnector(status adapter.ConnectionStatus) connectorBuilder {
