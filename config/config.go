@@ -7,6 +7,7 @@ const Name = "config.json"
 type Default struct {
 	WorkDir            string `json:"-"`
 	ConfigDir          string `json:"-"`
+	ConfigVersion      string `json:"config_version,omitempty"`
 	MQTTServerURI      string `json:"mqtt_server_uri"`
 	MQTTUsername       string `json:"mqtt_server_username"`
 	MQTTPassword       string `json:"mqtt_server_password"`
@@ -15,6 +16,9 @@ type Default struct {
 	LogFile            string `json:"log_file"`
 	LogLevel           string `json:"log_level"`
 	LogFormat          string `json:"log_format"`
+	LogRevertTimeout   string `json:"log_revert_timeout,omitempty"`
+	LogPreviousLevel   string `json:"log_previous_level,omitempty"`
+	LogLevelSetAt      string `json:"log_level_set_at,omitempty"`
 	ConfiguredAt       string `json:"configured_at"`
 }
 
