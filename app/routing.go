@@ -32,6 +32,9 @@ const (
 	CmdAuthLogout              = "cmd.auth.logout"
 	CmdAuthSetTokens           = "cmd.auth.set_tokens" //nolint:gosec
 	EvtAuthStatusReport        = "evt.auth.status_report"
+
+	CmdAppErrorsGetReport = "cmd.app.errors.get_report"
+	EvtAppErrorsReport    = "evt.app.errors.report"
 )
 
 // RouteApp creates routing for an application.
@@ -328,6 +331,42 @@ func HandleConfigActionCommand(
 			), nil
 		}),
 		router.WithExternalLock(locker),
+	)
+}
+
+// LogProvider is a source of recent warn/error log entries for the app error report.
+type LogProvider interface {
+	ErrorsReport() ([]string, error)
+}
+
+// RouteCmdAppErrorsGetReport returns a routing responsible for handling the command.
+func RouteCmdAppErrorsGetReport(serviceName fimptype.ServiceNameT, logProvider LogProvider) *router.Routing {
+	return router.NewRouting(
+		HandleCmdAppErrorsGetReport(serviceName, logProvider),
+		router.ForService(serviceName),
+		router.ForType(CmdAppErrorsGetReport),
+	)
+}
+
+// HandleCmdAppErrorsGetReport returns a handler responsible for handling the command.
+func HandleCmdAppErrorsGetReport(serviceName fimptype.ServiceNameT, logProvider LogProvider) router.MessageHandler {
+	return router.NewMessageHandler(
+		router.MessageProcessorFn(func(message *fimpgo.Message) (*fimpgo.FimpMessage, error) {
+			entries, err := logProvider.ErrorsReport()
+			if err != nil {
+				return nil, fmt.Errorf("failed to retrieve error log entries: %w", err)
+			}
+
+			return fimpgo.NewMessage(
+				EvtAppErrorsReport,
+				serviceName,
+				fimptype.VTypeStrArray,
+				entries,
+				nil,
+				nil,
+				message.Payload,
+			), nil
+		}),
 	)
 }
 

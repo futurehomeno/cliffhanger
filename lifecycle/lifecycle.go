@@ -2,9 +2,16 @@ package lifecycle
 
 import (
 	"sync"
+	"time"
 
 	log "github.com/sirupsen/logrus"
 )
+
+// LogStatsProvider is an optional source of warn/error log counters used to populate AppStates.
+type LogStatsProvider interface {
+	ErrorsCount() int
+	WarningsCount() int
+}
 
 // Constants defining event types and application states.
 const (
@@ -45,12 +52,14 @@ type State string
 
 // AppStates is an object representing current application states.
 type AppStates struct {
-	App           string `json:"app"`
-	Connection    string `json:"connection"`
-	Config        string `json:"config"`
-	Auth          string `json:"auth"`
-	LastErrorText string `json:"last_error_text"`
-	LastErrorCode string `json:"last_error_code"`
+	App          string `json:"app"`
+	Connection   string `json:"connection"`
+	Config       string `json:"config"`
+	Auth         string `json:"auth"`
+	Uptime       int    `json:"uptime"`
+	RestartCount int    `json:"restart_count"`
+	ErrorsCount  int    `json:"errors_count"`
+	WarningsCount int   `json:"warnings_count"`
 }
 
 // SystemEvent is an object representing a particular system event.
@@ -72,6 +81,9 @@ type Lifecycle struct {
 	connectionState State
 	authState       State
 	configState     State
+	startTime       time.Time
+	restartCount    int
+	logStats        LogStatsProvider
 }
 
 // New creates new instance of a lifecycle service.
@@ -84,7 +96,24 @@ func New() *Lifecycle {
 		authState:       AuthStateNA,
 		configState:     ConfigStateNotConfigured,
 		connectionState: ConnStateNA,
+		startTime:       time.Now(),
 	}
+}
+
+// SetRestartCount sets the number of times the application has been restarted.
+func (l *Lifecycle) SetRestartCount(n int) {
+	l.lock.Lock()
+	defer l.lock.Unlock()
+
+	l.restartCount = n
+}
+
+// SetLogStatsProvider sets the provider used to populate ErrorsCount and WarningsCount in AppStates.
+func (l *Lifecycle) SetLogStatsProvider(p LogStatsProvider) {
+	l.lock.Lock()
+	defer l.lock.Unlock()
+
+	l.logStats = p
 }
 
 // GetAllStates returns all application states.
@@ -92,14 +121,21 @@ func (l *Lifecycle) GetAllStates() *AppStates {
 	l.lock.RLock()
 	defer l.lock.RUnlock()
 
-	return &AppStates{
-		App:           string(l.appState),
-		Connection:    string(l.connectionState),
-		Config:        string(l.configState),
-		Auth:          string(l.authState),
-		LastErrorText: "",
-		LastErrorCode: "",
+	states := &AppStates{
+		App:          string(l.appState),
+		Connection:   string(l.connectionState),
+		Config:       string(l.configState),
+		Auth:         string(l.authState),
+		Uptime:       int(time.Since(l.startTime).Seconds()),
+		RestartCount: l.restartCount,
 	}
+
+	if l.logStats != nil {
+		states.ErrorsCount = l.logStats.ErrorsCount()
+		states.WarningsCount = l.logStats.WarningsCount()
+	}
+
+	return states
 }
 
 // GetState returns a current application state of the provided type.
