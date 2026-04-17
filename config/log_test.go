@@ -488,9 +488,9 @@ func TestRouteCmdLog_Managed(t *testing.T) { //nolint:paralleltest
 					},
 					{
 						Name:    "set file",
-						Command: suite.StringMessage("pt:j1/mt:cmd/rt:app/rn:test/ad:1", "cmd.log.set_file", "test_service", "/tmp/other.log"),
+						Command: suite.StringMessage("pt:j1/mt:cmd/rt:app/rn:test/ad:1", "cmd.log.set_file", "test_service", "other.log"),
 						Expectations: []*suite.Expectation{
-							suite.ExpectString("pt:j1/mt:evt/rt:app/rn:test/ad:1", "evt.log.file_report", "test_service", "/tmp/other.log"),
+							suite.ExpectString("pt:j1/mt:evt/rt:app/rn:test/ad:1", "evt.log.file_report", "test_service", "other.log"),
 						},
 					},
 					{

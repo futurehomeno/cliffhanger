@@ -154,7 +154,16 @@ func HandleCmdAppGetManifest[C any](
 ) router.MessageHandler {
 	return router.NewMessageHandler(
 		router.MessageProcessorFn(func(message *fimpgo.Message) (*fimpgo.FimpMessage, error) {
-			mode, _ := message.Payload.GetStringValue()
+			var mode string
+
+			if message.Payload.ValueType != fimptype.VTypeNull {
+				var err error
+
+				mode, err = message.Payload.GetStringValue()
+				if err != nil {
+					return nil, fmt.Errorf("provided value has an incorrect format: %w", err)
+				}
+			}
 
 			m, err := app.GetManifest()
 			if err != nil {

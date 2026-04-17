@@ -121,11 +121,11 @@ func (m *LogManager) SetLevel(level string) error {
 	if lvl < log.DebugLevel {
 		m.cancelTimerLocked()
 
-		if err := m.clearRevertStateLocked(); err != nil {
+		if err := m.store.SetLevel(lvl.String()); err != nil {
 			return err
 		}
 
-		if err := m.store.SetLevel(lvl.String()); err != nil {
+		if err := m.clearRevertStateLocked(); err != nil {
 			return err
 		}
 

@@ -144,6 +144,8 @@ func setupReportingTask(builderB, builderC connectorBuilder) suite.BaseSetup {
 				cfg.Connector = connectorB
 			case testThingAddressC:
 				cfg.Connector = connectorC
+			default:
+				cfg.Connector = mockedadapter.NewDefaultConnector(t)
 			}
 
 			return adapter.NewThing(publisher, thingState, cfg), nil
