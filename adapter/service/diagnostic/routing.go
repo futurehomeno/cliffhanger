@@ -20,59 +20,77 @@ const (
 	EvtRebootReasonReport    = "evt.reboot_reason.report"
 
 	CmdRebootsCountGetReport = "cmd.reboots_count.get_report"
-	EvtRebootCountReport     = "evt.reboot_count.report"
+	EvtRebootCountReport     = "evt.reboots_count.report"
+
+	CmdUptimeGetReport = "cmd.uptime.get_report"
+	EvtUptimeReport    = "evt.uptime.report"
+
+	CmdErrorsGetReport = "cmd.errors.get_report"
+	EvtErrorsReport    = "evt.errors.report"
 
 	Diagnostic = "diagnostic"
 )
 
-// RouteService returns routing for service specific commands.
 func RouteService(serviceRegistry adapter.ServiceRegistry) []*router.Routing {
 	return []*router.Routing{
 		routeCmdLQIGetReport(serviceRegistry),
 		routeCmdRSSIGetReport(serviceRegistry),
 		routeCmdRebootReasonGetReport(serviceRegistry),
 		routeCmdRebootsCountGetReport(serviceRegistry),
+		routeCmdUptimeGetReport(serviceRegistry),
+		routeCmdErrorsGetReport(serviceRegistry),
 	}
 }
 
-// routeCmdLQIGetReport returns a routing responsible for handling the command.
 func routeCmdLQIGetReport(serviceRegistry adapter.ServiceRegistry) *router.Routing {
 	return router.NewRouting(
-		handleSendReport(serviceRegistry, func(s Service) (bool, error) { return s.SendLQIReport(true) }),
+		handleSendReport(serviceRegistry, Service.SendLQIReport),
 		router.ForService(Diagnostic),
 		router.ForType(CmdLQIGetReport),
 	)
 }
 
-// routeCmdRSSIGetReport returns a routing responsible for handling the command.
 func routeCmdRSSIGetReport(serviceRegistry adapter.ServiceRegistry) *router.Routing {
 	return router.NewRouting(
-		handleSendReport(serviceRegistry, func(s Service) (bool, error) { return s.SendRSSIReport(true) }),
+		handleSendReport(serviceRegistry, Service.SendRSSIReport),
 		router.ForService(Diagnostic),
 		router.ForType(CmdRSSIGetReport),
 	)
 }
 
-// routeCmdRebootReasonGetReport returns a routing responsible for handling the command.
 func routeCmdRebootReasonGetReport(serviceRegistry adapter.ServiceRegistry) *router.Routing {
 	return router.NewRouting(
-		handleSendReport(serviceRegistry, func(s Service) (bool, error) { return s.SendRebootReasonReport(true) }),
+		handleSendReport(serviceRegistry, Service.SendRebootReasonReport),
 		router.ForService(Diagnostic),
 		router.ForType(CmdRebootReasonGetReport),
 	)
 }
 
-// routeCmdRebootsCountGetReport returns a routing responsible for handling the command.
 func routeCmdRebootsCountGetReport(serviceRegistry adapter.ServiceRegistry) *router.Routing {
 	return router.NewRouting(
-		handleSendReport(serviceRegistry, func(s Service) (bool, error) { return s.SendRebootsCountReport(true) }),
+		handleSendReport(serviceRegistry, Service.SendRebootsCountReport),
 		router.ForService(Diagnostic),
 		router.ForType(CmdRebootsCountGetReport),
 	)
 }
 
-// handleSendReport returns a handler that sends a diagnostic report using the provided send function.
-func handleSendReport(serviceRegistry adapter.ServiceRegistry, send func(Service) (bool, error)) router.MessageHandler {
+func routeCmdUptimeGetReport(serviceRegistry adapter.ServiceRegistry) *router.Routing {
+	return router.NewRouting(
+		handleSendReport(serviceRegistry, Service.SendUptimeReport),
+		router.ForService(Diagnostic),
+		router.ForType(CmdUptimeGetReport),
+	)
+}
+
+func routeCmdErrorsGetReport(serviceRegistry adapter.ServiceRegistry) *router.Routing {
+	return router.NewRouting(
+		handleSendReport(serviceRegistry, Service.SendErrorsReport),
+		router.ForService(Diagnostic),
+		router.ForType(CmdErrorsGetReport),
+	)
+}
+
+func handleSendReport(serviceRegistry adapter.ServiceRegistry, send func(Service) error) router.MessageHandler {
 	return router.NewMessageHandler(
 		router.MessageProcessorFn(func(message *fimpgo.Message) (*fimpgo.FimpMessage, error) {
 			s, err := getService(serviceRegistry, message)
@@ -80,7 +98,7 @@ func handleSendReport(serviceRegistry adapter.ServiceRegistry, send func(Service
 				return nil, err
 			}
 
-			if _, err := send(s); err != nil {
+			if err := send(s); err != nil {
 				return nil, fmt.Errorf("failed to send diagnostic report: %w", err)
 			}
 
@@ -89,7 +107,6 @@ func handleSendReport(serviceRegistry adapter.ServiceRegistry, send func(Service
 	)
 }
 
-// getService returns a service responsible for handling the message.
 func getService(serviceRegistry adapter.ServiceRegistry, message *fimpgo.Message) (Service, error) {
 	s := serviceRegistry.ServiceByTopic(message.Topic)
 	if s == nil {

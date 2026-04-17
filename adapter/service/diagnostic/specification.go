@@ -8,7 +8,6 @@ import (
 	"github.com/futurehomeno/cliffhanger/router"
 )
 
-// Specification creates a service specification.
 func Specification(
 	resourceName,
 	resourceAddress,
@@ -26,7 +25,6 @@ func Specification(
 	return s
 }
 
-// requiredInterfaces returns required interfaces by the service.
 func requiredInterfaces() []fimptype.Interface {
 	return []fimptype.Interface{
 		{
@@ -38,7 +36,6 @@ func requiredInterfaces() []fimptype.Interface {
 	}
 }
 
-// lqiInterfaces returns interfaces used if service supports Link Quality Indicator reporting.
 func lqiInterfaces() []fimptype.Interface {
 	return []fimptype.Interface{
 		{
@@ -56,7 +53,6 @@ func lqiInterfaces() []fimptype.Interface {
 	}
 }
 
-// rssiInterfaces returns interfaces used if service supports Received Signal Strength Indicator reporting.
 func rssiInterfaces() []fimptype.Interface {
 	return []fimptype.Interface{
 		{
@@ -74,7 +70,6 @@ func rssiInterfaces() []fimptype.Interface {
 	}
 }
 
-// rebootReasonInterfaces returns interfaces used if service supports reboot reason reporting.
 func rebootReasonInterfaces() []fimptype.Interface {
 	return []fimptype.Interface{
 		{
@@ -92,7 +87,6 @@ func rebootReasonInterfaces() []fimptype.Interface {
 	}
 }
 
-// rebootsCountInterfaces returns interfaces used if service supports reboots count reporting.
 func rebootsCountInterfaces() []fimptype.Interface {
 	return []fimptype.Interface{
 		{
@@ -105,6 +99,40 @@ func rebootsCountInterfaces() []fimptype.Interface {
 			Type:      fimptype.TypeOut,
 			MsgType:   EvtRebootCountReport,
 			ValueType: fimptype.VTypeInt,
+			Version:   "1",
+		},
+	}
+}
+
+func uptimeInterfaces() []fimptype.Interface {
+	return []fimptype.Interface{
+		{
+			Type:      fimptype.TypeIn,
+			MsgType:   CmdUptimeGetReport,
+			ValueType: fimptype.VTypeNull,
+			Version:   "1",
+		},
+		{
+			Type:      fimptype.TypeOut,
+			MsgType:   EvtUptimeReport,
+			ValueType: fimptype.VTypeInt,
+			Version:   "1",
+		},
+	}
+}
+
+func errorsInterfaces() []fimptype.Interface {
+	return []fimptype.Interface{
+		{
+			Type:      fimptype.TypeIn,
+			MsgType:   CmdErrorsGetReport,
+			ValueType: fimptype.VTypeNull,
+			Version:   "1",
+		},
+		{
+			Type:      fimptype.TypeOut,
+			MsgType:   EvtErrorsReport,
+			ValueType: fimptype.VTypeStrArray,
 			Version:   "1",
 		},
 	}
