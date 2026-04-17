@@ -20,7 +20,7 @@ const (
 	EvtRebootReasonReport    = "evt.reboot_reason.report"
 
 	CmdRebootsCountGetReport = "cmd.reboots_count.get_report"
-	EvtRebootCountReport     = "evt.reboots_count.report"
+	EvtRebootsCountReport    = "evt.reboots_count.report"
 
 	CmdUptimeGetReport = "cmd.uptime.get_report"
 	EvtUptimeReport    = "evt.uptime.report"

@@ -184,7 +184,7 @@ func (s *service) SendRebootsCountReport() error {
 		return fmt.Errorf("%s: failed to retrieve reboots count report: %w", s.Name(), err)
 	}
 
-	if err := s.SendMessage(fimpgo.NewIntMessage(EvtRebootCountReport, s.Name(), value, nil, nil, nil)); err != nil {
+	if err := s.SendMessage(fimpgo.NewIntMessage(EvtRebootsCountReport, s.Name(), value, nil, nil, nil)); err != nil {
 		return fmt.Errorf("%s: failed to send reboots count report: %w", s.Name(), err)
 	}
 
