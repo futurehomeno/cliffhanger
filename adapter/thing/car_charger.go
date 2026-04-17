@@ -8,6 +8,7 @@ import (
 	"github.com/futurehomeno/cliffhanger/adapter/service/devsys"
 	"github.com/futurehomeno/cliffhanger/adapter/service/diagnostic"
 	"github.com/futurehomeno/cliffhanger/adapter/service/numericmeter"
+	"github.com/futurehomeno/cliffhanger/adapter/service/ota"
 	"github.com/futurehomeno/cliffhanger/adapter/service/parameters"
 	"github.com/futurehomeno/cliffhanger/router"
 	"github.com/futurehomeno/cliffhanger/task"
@@ -20,6 +21,7 @@ type CarChargerConfig struct {
 	DevSysConfig           *devsys.Config       // Optional
 	DiagnosticsConfig      *diagnostic.Config   // Optional
 	MeterElecConfig        *numericmeter.Config // Optional
+	OTAConfig              *ota.Config          // Optional
 	ParameterServiceConfig *parameters.Config   // Optional
 }
 
@@ -46,6 +48,10 @@ func NewCarCharger(
 		services = append(services, numericmeter.NewService(publisher, cfg.MeterElecConfig))
 	}
 
+	if cfg.OTAConfig != nil {
+		services = append(services, ota.NewService(publisher, cfg.OTAConfig))
+	}
+
 	if cfg.ParameterServiceConfig != nil {
 		services = append(services, parameters.NewService(publisher, cfg.ParameterServiceConfig))
 	}
@@ -60,6 +66,7 @@ func RouteCarCharger(adapter adapter.Adapter) []*router.Routing {
 		diagnostic.RouteService(adapter),
 		devsys.RouteService(adapter),
 		numericmeter.RouteService(adapter),
+		ota.RouteService(adapter),
 		parameters.RouteService(adapter),
 	)
 }
