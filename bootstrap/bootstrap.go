@@ -6,11 +6,17 @@ import (
 	"os"
 	"os/signal"
 	"path/filepath"
+	"sync"
 	"syscall"
 
 	"github.com/futurehomeno/cliffhanger/formatters"
 	log "github.com/sirupsen/logrus"
 	"gopkg.in/natefinch/lumberjack.v2"
+)
+
+var (
+	logOutputLock    sync.Mutex
+	currentLogOutput *lumberjack.Logger
 )
 
 // GetConfigurationDirectory returns a configuration directory passed through the -c option with a fallback to a relative path.
@@ -42,18 +48,7 @@ func GetWorkingDirectory() string {
 
 // InitializeLogger initializes logger with an optional log rotation.
 func InitializeLogger(logFile string, level string, logFormat string) error {
-	if logFile == "" {
-		return fmt.Errorf("logfile not set")
-	}
-
-	switch logFormat {
-	case "json":
-		log.SetFormatter(&log.JSONFormatter{TimestampFormat: "2006-01-02 15:04:05.999"})
-	case "budzik":
-		log.SetFormatter(formatters.NewBudzikFormatter())
-	default:
-		log.SetFormatter(&log.TextFormatter{FullTimestamp: true, ForceColors: true, TimestampFormat: "2006-01-02T15:04:05.999"})
-	}
+	SetLogFormat(logFormat)
 
 	logLevel, err := log.ParseLevel(level)
 	if err == nil {
@@ -62,30 +57,58 @@ func InitializeLogger(logFile string, level string, logFormat string) error {
 		log.SetLevel(log.DebugLevel)
 	}
 
-	l := &lumberjack.Logger{
+	return SetLogOutput(logFile)
+}
+
+// SetLogFormat sets the logrus formatter matching the given format name.
+// Unknown formats fall back to the default text formatter.
+func SetLogFormat(logFormat string) {
+	switch logFormat {
+	case "json":
+		log.SetFormatter(&log.JSONFormatter{TimestampFormat: "2006-01-02 15:04:05.999"})
+	case "budzik":
+		log.SetFormatter(formatters.NewBudzikFormatter())
+	default:
+		log.SetFormatter(&log.TextFormatter{FullTimestamp: true, ForceColors: true, TimestampFormat: "2006-01-02T15:04:05.999"})
+	}
+}
+
+// SetLogOutput (re)configures the lumberjack-rotated log output to the given
+// file. It creates the target directory if missing and closes any previously
+// configured output. Safe to call repeatedly at runtime.
+func SetLogOutput(logFile string) error {
+	if logFile == "" {
+		return fmt.Errorf("logfile not set")
+	}
+
+	logOutputLock.Lock()
+	defer logOutputLock.Unlock()
+
+	if err := os.MkdirAll(filepath.Dir(logFile), 0755); err != nil { //nolint:gosec
+		return fmt.Errorf("create log dir=%s err: %w", filepath.Dir(logFile), err)
+	}
+
+	if f, err := os.OpenFile(logFile, os.O_RDONLY|os.O_CREATE, 0644); err != nil { //nolint:gosec
+		return fmt.Errorf("open log file=%s err: %w", logFile, err)
+	} else if cerr := f.Close(); cerr != nil {
+		log.Errorf("close err: %v", cerr)
+	}
+
+	newOutput := &lumberjack.Logger{
 		Filename:   logFile,
 		MaxSize:    5, // MiB
 		MaxBackups: 4,
 	}
 
-	f, err := os.OpenFile(l.Filename, os.O_RDONLY|os.O_CREATE, 0644) //nolint:gosec
+	previous := currentLogOutput
+	currentLogOutput = newOutput
+	log.SetOutput(newOutput)
 
-	if err != nil {
-		if err := os.MkdirAll(filepath.Dir(l.Filename), 0755); err != nil { //nolint:gosec
-			return fmt.Errorf("create log dir=%s err: %w", filepath.Dir(l.Filename), err)
-		}
-
-		if f, err = os.OpenFile(l.Filename, os.O_RDONLY|os.O_CREATE, 0644); err != nil { //nolint:gosec
-			return fmt.Errorf("open log file=%s err: %w", l.Filename, err)
+	if previous != nil && previous != newOutput {
+		if err := previous.Close(); err != nil {
+			log.Errorf("close previous log output err: %v", err)
 		}
 	}
-
-	defer func() {
-		if err := f.Close(); err != nil {
-			log.Errorf("close err: %v", err)
-		}
-	}()
-	log.SetOutput(l)
 
 	return nil
 }

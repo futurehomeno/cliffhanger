@@ -154,17 +154,14 @@ func HandleCmdAppGetManifest[C any](
 ) router.MessageHandler {
 	return router.NewMessageHandler(
 		router.MessageProcessorFn(func(message *fimpgo.Message) (*fimpgo.FimpMessage, error) {
-			mode, err := message.Payload.GetStringValue()
-			if err != nil {
-				return nil, fmt.Errorf("provided value has an incorrect format: %w", err)
-			}
+			mode, _ := message.Payload.GetStringValue()
 
 			m, err := app.GetManifest()
 			if err != nil {
 				return nil, fmt.Errorf("failed to retrieve the manifest: %w", err)
 			}
 
-			if mode == "manifest_state" {
+			if mode == "manifest_state" || mode == "full" {
 				m.AppState = *appLifecycle.GetAllStates()
 				m.ConfigState = configStorage.Model()
 			}

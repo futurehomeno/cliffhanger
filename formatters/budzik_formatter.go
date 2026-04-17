@@ -39,5 +39,5 @@ func (f *BudzikFormatter) Format(entry *log.Entry) ([]byte, error) {
 
 func NewBudzikFormatter() *BudzikFormatter {
 	lvlDesc := []string{"PANIC", "FATAL", "E", "W", "I", "D", "T", "?"}
-	return &BudzikFormatter{TimestampFormat: "01-02 15:04:05", LevelDesc: lvlDesc}
+	return &BudzikFormatter{TimestampFormat: "06 01-02 15:04:05", LevelDesc: lvlDesc}
 }
