@@ -19,7 +19,7 @@ type CarChargerConfig struct {
 	ThingConfig            *adapter.ThingConfig
 	ChargepointConfig      *chargepoint.Config
 	DevSysConfig           *devsys.Config       // Optional
-	DiagnosticsConfig      *diagnostic.Config   // Optional
+	DiagnosticConfig       *diagnostic.Config   // Optional
 	MeterElecConfig        *numericmeter.Config // Optional
 	OTAConfig              *ota.Config          // Optional
 	ParameterServiceConfig *parameters.Config   // Optional
@@ -36,8 +36,8 @@ func NewCarCharger(
 		chargepoint.NewService(publisher, cfg.ChargepointConfig),
 	}
 
-	if cfg.DiagnosticsConfig != nil {
-		services = append(services, diagnostic.NewService(publisher, cfg.DiagnosticsConfig))
+	if cfg.DiagnosticConfig != nil {
+		services = append(services, diagnostic.NewService(publisher, cfg.DiagnosticConfig))
 	}
 
 	if cfg.DevSysConfig != nil {
