@@ -15,7 +15,7 @@ import (
 )
 
 var (
-	logOutputLock    sync.Mutex
+	logConfigLock    sync.Mutex
 	currentLogOutput *lumberjack.Logger
 )
 
@@ -51,10 +51,11 @@ func InitializeLogger(logFile string, level string, logFormat string) error {
 	SetLogFormat(logFormat)
 
 	logLevel, err := log.ParseLevel(level)
-	if err == nil {
-		log.SetLevel(logLevel)
+	if err != nil {
+		log.SetLevel(log.InfoLevel)
+		log.Warnf("[cliff] invalid log level %q, falling back to %s", level, log.InfoLevel)
 	} else {
-		log.SetLevel(log.DebugLevel)
+		log.SetLevel(logLevel)
 	}
 
 	return SetLogOutput(logFile)
@@ -63,6 +64,9 @@ func InitializeLogger(logFile string, level string, logFormat string) error {
 // SetLogFormat sets the logrus formatter matching the given format name.
 // Unknown formats fall back to the default text formatter.
 func SetLogFormat(logFormat string) {
+	logConfigLock.Lock()
+	defer logConfigLock.Unlock()
+
 	switch logFormat {
 	case "json":
 		log.SetFormatter(&log.JSONFormatter{TimestampFormat: "2006-01-02 15:04:05.999"})
@@ -81,8 +85,8 @@ func SetLogOutput(logFile string) error {
 		return fmt.Errorf("logfile not set")
 	}
 
-	logOutputLock.Lock()
-	defer logOutputLock.Unlock()
+	logConfigLock.Lock()
+	defer logConfigLock.Unlock()
 
 	if err := os.MkdirAll(filepath.Dir(logFile), 0755); err != nil { //nolint:gosec
 		return fmt.Errorf("create log dir=%s err: %w", filepath.Dir(logFile), err)

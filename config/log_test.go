@@ -24,7 +24,7 @@ type memLogStore struct {
 	format        string
 	file          string
 	revertTimeout time.Duration
-	previousLevel string
+	previousLevel log.Level
 	levelSetAt    time.Time
 	setLevelErr   error
 }
@@ -94,17 +94,25 @@ func (s *memLogStore) SetRevertTimeout(d time.Duration) error {
 	return nil
 }
 
-func (s *memLogStore) PreviousLevel() string {
+func (s *memLogStore) PreviousLevel() log.Level {
 	s.lock.Lock()
 	defer s.lock.Unlock()
 
 	return s.previousLevel
 }
 
-func (s *memLogStore) SetPreviousLevel(level string) error {
+func (s *memLogStore) SetPreviousLevel(level log.Level) error {
 	s.lock.Lock()
 	defer s.lock.Unlock()
 	s.previousLevel = level
+
+	return nil
+}
+
+func (s *memLogStore) ClearPreviousLevel() error {
+	s.lock.Lock()
+	defer s.lock.Unlock()
+	s.previousLevel = log.InfoLevel
 
 	return nil
 }
@@ -157,7 +165,6 @@ func TestLogManager_SetLevel_InfoOrHigher_HasNoRevertState(t *testing.T) { //nol
 
 	assert.NoError(t, mgr.SetLevel("warning"))
 	assert.Equal(t, "warning", store.Level())
-	assert.Equal(t, "", store.PreviousLevel())
 	assert.True(t, store.LevelSetAt().IsZero())
 	assert.Equal(t, log.WarnLevel, log.GetLevel())
 }
@@ -173,14 +180,14 @@ func TestLogManager_SetLevel_Debug_ArmsRevertAndSnapshotsPrevious(t *testing.T) 
 	assert.NoError(t, mgr.SetLevel("debug"))
 
 	assert.Equal(t, "debug", store.Level())
-	assert.Equal(t, "warning", store.PreviousLevel())
+	assert.Equal(t, log.WarnLevel, store.PreviousLevel())
 	assert.False(t, store.LevelSetAt().IsZero())
 	assert.True(t, !store.LevelSetAt().Before(before))
 	assert.Equal(t, log.DebugLevel, log.GetLevel())
 
 	// Timer should fire and revert to the previous level.
 	reverted := waitUntil(t, 500*time.Millisecond, func() bool {
-		return log.GetLevel() == log.WarnLevel && store.Level() == "warning" && store.PreviousLevel() == ""
+		return log.GetLevel() == log.WarnLevel && store.Level() == "warning" && store.LevelSetAt().IsZero()
 	})
 	assert.True(t, reverted, "expected auto-revert to restore warn level")
 	assert.True(t, store.LevelSetAt().IsZero())
@@ -193,14 +200,14 @@ func TestLogManager_SetLevel_TraceAfterDebug_KeepsOriginalPrevious(t *testing.T)
 	mgr := config.NewLogManager(store)
 
 	assert.NoError(t, mgr.SetLevel("debug"))
-	assert.Equal(t, "error", store.PreviousLevel())
+	assert.Equal(t, log.ErrorLevel, store.PreviousLevel())
 	firstSetAt := store.LevelSetAt()
 
 	time.Sleep(5 * time.Millisecond)
 
 	assert.NoError(t, mgr.SetLevel("trace"))
 	assert.Equal(t, "trace", store.Level())
-	assert.Equal(t, "error", store.PreviousLevel(), "previous must remain the pre-verbose level")
+	assert.Equal(t, log.ErrorLevel, store.PreviousLevel(), "previous must remain the pre-verbose level")
 	assert.True(t, store.LevelSetAt().After(firstSetAt), "setAt should refresh on re-arm")
 }
 
@@ -211,11 +218,10 @@ func TestLogManager_SetLevel_InfoAfterDebug_CancelsRevert(t *testing.T) { //noli
 	mgr := config.NewLogManager(store)
 
 	assert.NoError(t, mgr.SetLevel("debug"))
-	assert.Equal(t, "warning", store.PreviousLevel())
+	assert.Equal(t, log.WarnLevel, store.PreviousLevel())
 
 	assert.NoError(t, mgr.SetLevel("info"))
 	assert.Equal(t, "info", store.Level())
-	assert.Equal(t, "", store.PreviousLevel())
 	assert.True(t, store.LevelSetAt().IsZero())
 	assert.Equal(t, log.InfoLevel, log.GetLevel())
 }
@@ -251,7 +257,6 @@ func TestLogManager_Start_NoPendingRevert_IsNoop(t *testing.T) { //nolint:parall
 	mgr.Start()
 
 	assert.Equal(t, "info", store.Level())
-	assert.Equal(t, "", store.PreviousLevel())
 }
 
 func TestLogManager_Start_PendingButCurrentLevelIsInfo_ClearsStaleState(t *testing.T) { //nolint:paralleltest
@@ -261,13 +266,12 @@ func TestLogManager_Start_PendingButCurrentLevelIsInfo_ClearsStaleState(t *testi
 	// is info. Start should treat this as stale and clear the revert state.
 	store := &memLogStore{
 		level:         "info",
-		previousLevel: "warning",
+		previousLevel: log.WarnLevel,
 		levelSetAt:    time.Now(),
 	}
 	mgr := config.NewLogManager(store)
 	mgr.Start()
 
-	assert.Equal(t, "", store.PreviousLevel())
 	assert.True(t, store.LevelSetAt().IsZero())
 }
 
@@ -277,7 +281,7 @@ func TestLogManager_Start_ElapsedGreaterThanTimeout_RevertsImmediately(t *testin
 
 	store := &memLogStore{
 		level:         "debug",
-		previousLevel: "warning",
+		previousLevel: log.WarnLevel,
 		levelSetAt:    time.Now().Add(-2 * time.Hour),
 		revertTimeout: time.Hour,
 	}
@@ -285,7 +289,6 @@ func TestLogManager_Start_ElapsedGreaterThanTimeout_RevertsImmediately(t *testin
 	mgr.Start()
 
 	assert.Equal(t, "warning", store.Level())
-	assert.Equal(t, "", store.PreviousLevel())
 	assert.True(t, store.LevelSetAt().IsZero())
 	assert.Equal(t, log.WarnLevel, log.GetLevel())
 }
@@ -296,7 +299,7 @@ func TestLogManager_Start_ElapsedLessThanTimeout_ArmsRemainingTimer(t *testing.T
 
 	store := &memLogStore{
 		level:         "debug",
-		previousLevel: "error",
+		previousLevel: log.ErrorLevel,
 		levelSetAt:    time.Now().Add(-40 * time.Millisecond),
 		revertTimeout: 100 * time.Millisecond,
 	}
@@ -305,7 +308,7 @@ func TestLogManager_Start_ElapsedLessThanTimeout_ArmsRemainingTimer(t *testing.T
 
 	// Immediately after Start, state must still be pending.
 	assert.Equal(t, "debug", store.Level())
-	assert.Equal(t, "error", store.PreviousLevel())
+	assert.Equal(t, log.ErrorLevel, store.PreviousLevel())
 
 	// Timer should fire roughly 60ms later.
 	reverted := waitUntil(t, 500*time.Millisecond, func() bool {
@@ -343,7 +346,6 @@ func TestLogManager_SetRevertTimeout_AlreadyElapsedTriggersImmediateRevert(t *te
 	assert.NoError(t, mgr.SetRevertTimeout(time.Second))
 
 	assert.Equal(t, "warning", store.Level())
-	assert.Equal(t, "", store.PreviousLevel())
 	assert.Equal(t, log.WarnLevel, log.GetLevel())
 }
 
@@ -416,7 +418,7 @@ func TestNewDefaultLogStore_RoundTripsAllFields(t *testing.T) { //nolint:paralle
 	assert.NoError(t, store.SetFormat("json"))
 	assert.NoError(t, store.SetFile("/var/log/a.log"))
 	assert.NoError(t, store.SetRevertTimeout(90*time.Minute))
-	assert.NoError(t, store.SetPreviousLevel("info"))
+	assert.NoError(t, store.SetPreviousLevel(log.InfoLevel))
 
 	now := time.Date(2026, 4, 17, 10, 0, 0, 0, time.UTC)
 	assert.NoError(t, store.SetLevelSetAt(now))
@@ -425,13 +427,15 @@ func TestNewDefaultLogStore_RoundTripsAllFields(t *testing.T) { //nolint:paralle
 	assert.Equal(t, "json", store.Format())
 	assert.Equal(t, "/var/log/a.log", store.File())
 	assert.Equal(t, 90*time.Minute, store.RevertTimeout())
-	assert.Equal(t, "info", store.PreviousLevel())
+	assert.Equal(t, log.InfoLevel, store.PreviousLevel())
 	assert.True(t, store.LevelSetAt().Equal(now))
 
 	assert.NoError(t, store.SetLevelSetAt(time.Time{}))
 	assert.True(t, store.LevelSetAt().IsZero())
 
-	assert.Equal(t, int32(7), atomic.LoadInt32(&saveCalls))
+	// Only persisted fields (level, format, file, revert timeout) call save;
+	// revert state (previous level, level-set timestamp) is in-memory only.
+	assert.Equal(t, int32(4), atomic.LoadInt32(&saveCalls))
 }
 
 // TestRouteCmdLog_Managed exercises the new FIMP routing functions end-to-end

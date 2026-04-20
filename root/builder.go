@@ -46,62 +46,53 @@ type Builder struct {
 // WithMQTT sets the MQTT broker.
 func (b *Builder) WithMQTT(mqtt *fimpgo.MqttTransport) *Builder {
 	b.mqtt = mqtt
-
 	return b
 }
 
 // WithServiceDiscovery sets the service discovery resource.
 func (b *Builder) WithServiceDiscovery(resource *discovery.Resource) *Builder {
 	b.resource = resource
-
 	return b
 }
 
 // WithLifecycle sets the lifecycle service. Required only for building edge application.
 func (b *Builder) WithLifecycle(l *lifecycle.Lifecycle) *Builder {
 	b.lifecycle = l
-
 	return b
 }
 
 // WithTopicSubscription sets topic that should be subscribed to.
 func (b *Builder) WithTopicSubscription(topicSubscriptions ...string) *Builder {
 	b.topicSubscriptions = append(b.topicSubscriptions, topicSubscriptions...)
-
 	return b
 }
 
 // WithRouterOptions sets router options.
 func (b *Builder) WithRouterOptions(options ...router.Option) *Builder {
 	b.routerOptions = append(b.routerOptions, options...)
-
 	return b
 }
 
 // WithRouting sets MQTT topic routing.
 func (b *Builder) WithRouting(routing ...*router.Routing) *Builder {
 	b.routing = append(b.routing, routing...)
-
 	return b
 }
 
 // WithTask sets background task to be performed.
 func (b *Builder) WithTask(tasks ...*task.Task) *Builder {
 	b.tasks = append(b.tasks, tasks...)
-
 	return b
 }
 
 // WithServices sets the application services.
 func (b *Builder) WithServices(services ...Service) *Builder {
 	b.services = append(b.services, services...)
-
 	return b
 }
 
 func (b *Builder) WithResetter(resetter ...Resetter) *Builder {
 	b.resetters = append(b.resetters, resetter...)
-
 	return b
 }
 
