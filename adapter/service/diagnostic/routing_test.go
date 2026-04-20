@@ -241,8 +241,8 @@ func TestRouteDiagnostic(t *testing.T) { //nolint:paralleltest
 // It lets a single setup cover error paths for all reports without juggling separate mocks.
 type failingReporter struct{}
 
-func (*failingReporter) LQIReport() (int, error)          { return 0, errTest }
-func (*failingReporter) RSSIReport() (int, error)         { return 0, errTest }
+func (*failingReporter) LQIReport() (int, error)  { return 0, errTest }
+func (*failingReporter) RSSIReport() (int, error) { return 0, errTest }
 func (*failingReporter) RebootReasonReport() (string, error) {
 	return "", errTest
 }

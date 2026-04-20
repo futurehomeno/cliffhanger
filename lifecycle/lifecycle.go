@@ -1,10 +1,26 @@
 package lifecycle
 
 import (
+	"fmt"
 	"sync"
+	"time"
 
 	log "github.com/sirupsen/logrus"
 )
+
+// LogStatsProvider is an optional source of warn/error log counters used to populate AppStates.
+type LogStatsProvider interface {
+	ErrorsCount() int
+	WarningsCount() int
+}
+
+// RestartsStore persists the restart counter across application restarts. A
+// missing value must be reported as (0, nil) so the first startup can begin
+// counting from zero.
+type RestartsStore interface {
+	GetRestartsCount() (int, error)
+	SetRestartsCount(n int) error
+}
 
 // Constants defining event types and application states.
 const (
@@ -49,8 +65,10 @@ type AppStates struct {
 	Connection    string `json:"connection"`
 	Config        string `json:"config"`
 	Auth          string `json:"auth"`
-	LastErrorText string `json:"last_error_text"`
-	LastErrorCode string `json:"last_error_code"`
+	Uptime        int    `json:"uptime"`
+	RestartsCount int    `json:"restarts_count"`
+	ErrorsCount   int    `json:"errors_count"`
+	WarningsCount int    `json:"warnings_count"`
 }
 
 // SystemEvent is an object representing a particular system event.
@@ -65,41 +83,90 @@ type SystemEventChannel chan SystemEvent
 
 // Lifecycle is a service holding central information concerning the state of the edge application.
 type Lifecycle struct {
-	lock            *sync.RWMutex
-	chLock          *sync.RWMutex
-	systemEventBus  map[string]SystemEventChannel
-	appState        State
-	connectionState State
-	authState       State
-	configState     State
+	lock               *sync.RWMutex
+	systemEventBusLock *sync.RWMutex
+	systemEventBus     map[string]SystemEventChannel
+	appState           State
+	connectionState    State
+	authState          State
+	configState        State
+	startTime          time.Time
+	restartsCount      int
+	logStats           LogStatsProvider
 }
 
 // New creates new instance of a lifecycle service.
 func New() *Lifecycle {
 	return &Lifecycle{
-		systemEventBus:  make(map[string]SystemEventChannel),
-		lock:            &sync.RWMutex{},
-		chLock:          &sync.RWMutex{},
-		appState:        AppStateStarting,
-		authState:       AuthStateNA,
-		configState:     ConfigStateNotConfigured,
-		connectionState: ConnStateNA,
+		systemEventBus:     make(map[string]SystemEventChannel),
+		lock:               &sync.RWMutex{},
+		systemEventBusLock: &sync.RWMutex{},
+		appState:           AppStateStarting,
+		authState:          AuthStateNA,
+		configState:        ConfigStateNotConfigured,
+		connectionState:    ConnStateNA,
+		startTime:          time.Now(),
 	}
+}
+
+// SetRestartCount sets the number of times the application has been restarted.
+func (l *Lifecycle) SetRestartCount(n int) {
+	l.lock.Lock()
+	defer l.lock.Unlock()
+
+	l.restartsCount = n
+}
+
+// LoadRestartsCount reads the current restart count from the store, increments
+// it, persists the new value, and caches it in the lifecycle. Intended to be
+// called once during application bootstrap.
+func (l *Lifecycle) LoadRestartsCount(store RestartsStore) error {
+	n, err := store.GetRestartsCount()
+	if err != nil {
+		return fmt.Errorf("lifecycle: failed to read restart count: %w", err)
+	}
+
+	n++
+
+	if err := store.SetRestartsCount(n); err != nil {
+		return fmt.Errorf("lifecycle: failed to persist restart count: %w", err)
+	}
+
+	l.lock.Lock()
+	l.restartsCount = n
+	l.lock.Unlock()
+
+	return nil
+}
+
+// SetLogStatsProvider sets the provider used to populate ErrorsCount and WarningsCount in AppStates.
+func (l *Lifecycle) SetLogStatsProvider(p LogStatsProvider) {
+	l.lock.Lock()
+	defer l.lock.Unlock()
+
+	l.logStats = p
 }
 
 // GetAllStates returns all application states.
 func (l *Lifecycle) GetAllStates() *AppStates {
 	l.lock.RLock()
-	defer l.lock.RUnlock()
-
-	return &AppStates{
+	states := &AppStates{
 		App:           string(l.appState),
 		Connection:    string(l.connectionState),
 		Config:        string(l.configState),
 		Auth:          string(l.authState),
-		LastErrorText: "",
-		LastErrorCode: "",
+		Uptime:        int(time.Since(l.startTime).Seconds()),
+		RestartsCount: l.restartsCount,
 	}
+	logStats := l.logStats
+	l.lock.RUnlock()
+
+	if logStats != nil {
+		states.ErrorsCount = logStats.ErrorsCount()
+		states.WarningsCount = logStats.WarningsCount()
+	}
+
+	return states
 }
 
 // GetState returns a current application state of the provided type.
@@ -211,8 +278,8 @@ func (l *Lifecycle) SetAppState(appState State, params map[string]string) {
 
 // Subscribe subscribes to system events. If subscription already exists previously set channel is being returned.
 func (l *Lifecycle) Subscribe(subID string, bufSize int) SystemEventChannel {
-	l.chLock.Lock()
-	defer l.chLock.Unlock()
+	l.systemEventBusLock.Lock()
+	defer l.systemEventBusLock.Unlock()
 
 	// Returning already existing subscription channel if it exists.
 	if _, ok := l.systemEventBus[subID]; ok {
@@ -228,8 +295,8 @@ func (l *Lifecycle) Subscribe(subID string, bufSize int) SystemEventChannel {
 
 // Unsubscribe removes subscription to system events.
 func (l *Lifecycle) Unsubscribe(subID string) {
-	l.chLock.Lock()
-	defer l.chLock.Unlock()
+	l.systemEventBusLock.Lock()
+	defer l.systemEventBusLock.Unlock()
 
 	if _, ok := l.systemEventBus[subID]; !ok {
 		return
@@ -249,7 +316,6 @@ func (l *Lifecycle) WaitFor(subID string, stateType StateType, targetState State
 	for event := range ch {
 		if event.Type == stateType && event.State == targetState {
 			l.Unsubscribe(subID)
-
 			return
 		}
 	}
@@ -257,8 +323,8 @@ func (l *Lifecycle) WaitFor(subID string, stateType StateType, targetState State
 
 // emitStateChangeEvent emits a state change event.
 func (l *Lifecycle) emitStateChangeEvent(stateType StateType, currentState State, params map[string]string) {
-	l.chLock.RLock()
-	defer l.chLock.RUnlock()
+	l.systemEventBusLock.RLock()
+	defer l.systemEventBusLock.RUnlock()
 
 	for i, ch := range l.systemEventBus {
 		select {

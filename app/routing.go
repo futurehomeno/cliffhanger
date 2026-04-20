@@ -32,6 +32,9 @@ const (
 	CmdAuthLogout              = "cmd.auth.logout"
 	CmdAuthSetTokens           = "cmd.auth.set_tokens" //nolint:gosec
 	EvtAuthStatusReport        = "evt.auth.status_report"
+
+	CmdAppErrorsGetReport = "cmd.app.get_errors"
+	EvtAppErrorsReport    = "evt.app.errors_report"
 )
 
 // RouteApp creates routing for an application.
@@ -154,9 +157,15 @@ func HandleCmdAppGetManifest[C any](
 ) router.MessageHandler {
 	return router.NewMessageHandler(
 		router.MessageProcessorFn(func(message *fimpgo.Message) (*fimpgo.FimpMessage, error) {
-			mode, err := message.Payload.GetStringValue()
-			if err != nil {
-				return nil, fmt.Errorf("provided value has an incorrect format: %w", err)
+			var mode string
+
+			if message.Payload.ValueType != fimptype.VTypeNull {
+				var err error
+
+				mode, err = message.Payload.GetStringValue()
+				if err != nil {
+					return nil, fmt.Errorf("provided value has an incorrect format: %w", err)
+				}
 			}
 
 			m, err := app.GetManifest()
@@ -164,7 +173,7 @@ func HandleCmdAppGetManifest[C any](
 				return nil, fmt.Errorf("failed to retrieve the manifest: %w", err)
 			}
 
-			if mode == "manifest_state" {
+			if mode == "manifest_state" || mode == "full" {
 				m.AppState = *appLifecycle.GetAllStates()
 				m.ConfigState = configStorage.Model()
 			}
@@ -331,6 +340,42 @@ func HandleConfigActionCommand(
 			), nil
 		}),
 		router.WithExternalLock(locker),
+	)
+}
+
+// LogProvider is a source of recent warn/error log entries for the app error report.
+type LogProvider interface {
+	ErrorsReport() ([]string, error)
+}
+
+// RouteCmdAppErrorsGetReport returns a routing responsible for handling the command.
+func RouteCmdAppErrorsGetReport(serviceName fimptype.ServiceNameT, logProvider LogProvider) *router.Routing {
+	return router.NewRouting(
+		HandleCmdAppErrorsGetReport(serviceName, logProvider),
+		router.ForService(serviceName),
+		router.ForType(CmdAppErrorsGetReport),
+	)
+}
+
+// HandleCmdAppErrorsGetReport returns a handler responsible for handling the command.
+func HandleCmdAppErrorsGetReport(serviceName fimptype.ServiceNameT, logProvider LogProvider) router.MessageHandler {
+	return router.NewMessageHandler(
+		router.MessageProcessorFn(func(message *fimpgo.Message) (*fimpgo.FimpMessage, error) {
+			entries, err := logProvider.ErrorsReport()
+			if err != nil {
+				return nil, fmt.Errorf("failed to retrieve error log entries: %w", err)
+			}
+
+			return fimpgo.NewMessage(
+				EvtAppErrorsReport,
+				serviceName,
+				fimptype.VTypeStrArray,
+				entries,
+				nil,
+				nil,
+				message.Payload,
+			), nil
+		}),
 	)
 }
 
