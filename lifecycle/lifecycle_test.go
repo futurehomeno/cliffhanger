@@ -1,6 +1,7 @@
 package lifecycle_test
 
 import (
+	"errors"
 	"testing"
 	"time"
 
@@ -268,3 +269,91 @@ type stubLogStats struct {
 
 func (s *stubLogStats) ErrorsCount() int   { return s.errors }
 func (s *stubLogStats) WarningsCount() int { return s.warnings }
+
+// stubRestartsStore is a test double for lifecycle.RestartsStore.
+type stubRestartsStore struct {
+	count    int
+	getErr   error
+	setErr   error
+	getCalls int
+	setCalls int
+	lastSet  int
+}
+
+func (s *stubRestartsStore) GetRestartsCount() (int, error) {
+	s.getCalls++
+
+	if s.getErr != nil {
+		return 0, s.getErr
+	}
+
+	return s.count, nil
+}
+
+func (s *stubRestartsStore) SetRestartsCount(n int) error {
+	s.setCalls++
+	s.lastSet = n
+
+	if s.setErr != nil {
+		return s.setErr
+	}
+
+	s.count = n
+
+	return nil
+}
+
+func TestLoadRestartsCount_IncrementsAndPersists(t *testing.T) {
+	t.Parallel()
+
+	l := lifecycle.New()
+	store := &stubRestartsStore{count: 4}
+
+	require.NoError(t, l.LoadRestartsCount(store))
+
+	assert.Equal(t, 5, store.lastSet)
+	assert.Equal(t, 5, store.count)
+	assert.Equal(t, 5, l.GetAllStates().RestartsCount)
+}
+
+func TestLoadRestartsCount_FromZero(t *testing.T) {
+	t.Parallel()
+
+	l := lifecycle.New()
+	store := &stubRestartsStore{}
+
+	require.NoError(t, l.LoadRestartsCount(store))
+
+	assert.Equal(t, 1, store.lastSet)
+	assert.Equal(t, 1, l.GetAllStates().RestartsCount)
+}
+
+func TestLoadRestartsCount_GetError(t *testing.T) {
+	t.Parallel()
+
+	l := lifecycle.New()
+	getErr := errors.New("read boom")
+	store := &stubRestartsStore{count: 7, getErr: getErr}
+
+	err := l.LoadRestartsCount(store)
+
+	require.Error(t, err)
+	assert.ErrorIs(t, err, getErr)
+	assert.Equal(t, 0, store.setCalls)
+	assert.Equal(t, 0, l.GetAllStates().RestartsCount)
+}
+
+func TestLoadRestartsCount_SetError(t *testing.T) {
+	t.Parallel()
+
+	l := lifecycle.New()
+	setErr := errors.New("write boom")
+	store := &stubRestartsStore{count: 2, setErr: setErr}
+
+	err := l.LoadRestartsCount(store)
+
+	require.Error(t, err)
+	assert.ErrorIs(t, err, setErr)
+	assert.Equal(t, 3, store.lastSet)
+	assert.Equal(t, 0, l.GetAllStates().RestartsCount)
+}
