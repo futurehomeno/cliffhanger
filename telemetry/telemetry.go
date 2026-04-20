@@ -18,9 +18,11 @@ const (
 	// Topic is the default FIMP topic used by the cloud telemetry pipeline.
 	// Picking mt:rsp is deliberate: it matches the existing CloudBridge
 	// LocalToCloud default route so no bridge change is needed.
-	defaultTelemetryEvtTopic = "pt:j1/mt:rsp/rt:cloud/rn:backend-service/ad:telemetry"
-	evtTelemetryReport       = "evt.telemetry.report"
-	serviceName              = "telemetry"
+	Topic = "pt:j1/mt:rsp/rt:cloud/rn:backend-service/ad:telemetry"
+	// MessageType is the FIMP type used for telemetry events.
+	MessageType = "evt.telemetry.report"
+	// Service is the FIMP serv field used for telemetry events.
+	Service fimptype.ServiceNameT = "telemetry"
 
 	// SettingEnabled is the config parameter name used by the FIMP
 	// cmd.config.set_telemetry_enabled / cmd.config.get_telemetry_enabled
@@ -237,7 +239,7 @@ func New(mqtt *fimpgo.MqttTransport, source string, store Store) (Reporter, erro
 		mqtt:     mqtt,
 		source:   fimptype.ResourceNameT(source),
 		store:    store,
-		topic:    defaultTelemetryEvtTopic,
+		topic:    Topic,
 		enabled:  store.Enabled(),
 		validity: validity,
 	}
@@ -312,7 +314,7 @@ func (r *reporter) Report(event, domain string, data map[string]any) error {
 
 func (r *reporter) SetTargetTopic(topic string) {
 	if topic == "" {
-		topic = defaultTelemetryEvtTopic
+		topic = Topic
 	}
 
 	r.mu.Lock()
