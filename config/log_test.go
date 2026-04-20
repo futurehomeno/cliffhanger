@@ -19,7 +19,7 @@ import (
 
 // memLogStore is an in-memory LogStore for tests.
 type memLogStore struct {
-	mu            sync.Mutex
+	lock          sync.Mutex
 	level         string
 	format        string
 	file          string
@@ -30,15 +30,15 @@ type memLogStore struct {
 }
 
 func (s *memLogStore) Level() string {
-	s.mu.Lock()
-	defer s.mu.Unlock()
+	s.lock.Lock()
+	defer s.lock.Unlock()
 
 	return s.level
 }
 
 func (s *memLogStore) SetLevel(level string) error {
-	s.mu.Lock()
-	defer s.mu.Unlock()
+	s.lock.Lock()
+	defer s.lock.Unlock()
 
 	if s.setLevelErr != nil {
 		return s.setLevelErr
@@ -50,75 +50,75 @@ func (s *memLogStore) SetLevel(level string) error {
 }
 
 func (s *memLogStore) Format() string {
-	s.mu.Lock()
-	defer s.mu.Unlock()
+	s.lock.Lock()
+	defer s.lock.Unlock()
 
 	return s.format
 }
 
 func (s *memLogStore) SetFormat(format string) error {
-	s.mu.Lock()
-	defer s.mu.Unlock()
+	s.lock.Lock()
+	defer s.lock.Unlock()
 	s.format = format
 
 	return nil
 }
 
 func (s *memLogStore) File() string {
-	s.mu.Lock()
-	defer s.mu.Unlock()
+	s.lock.Lock()
+	defer s.lock.Unlock()
 
 	return s.file
 }
 
 func (s *memLogStore) SetFile(file string) error {
-	s.mu.Lock()
-	defer s.mu.Unlock()
+	s.lock.Lock()
+	defer s.lock.Unlock()
 	s.file = file
 
 	return nil
 }
 
 func (s *memLogStore) RevertTimeout() time.Duration {
-	s.mu.Lock()
-	defer s.mu.Unlock()
+	s.lock.Lock()
+	defer s.lock.Unlock()
 
 	return s.revertTimeout
 }
 
 func (s *memLogStore) SetRevertTimeout(d time.Duration) error {
-	s.mu.Lock()
-	defer s.mu.Unlock()
+	s.lock.Lock()
+	defer s.lock.Unlock()
 	s.revertTimeout = d
 
 	return nil
 }
 
 func (s *memLogStore) PreviousLevel() string {
-	s.mu.Lock()
-	defer s.mu.Unlock()
+	s.lock.Lock()
+	defer s.lock.Unlock()
 
 	return s.previousLevel
 }
 
 func (s *memLogStore) SetPreviousLevel(level string) error {
-	s.mu.Lock()
-	defer s.mu.Unlock()
+	s.lock.Lock()
+	defer s.lock.Unlock()
 	s.previousLevel = level
 
 	return nil
 }
 
 func (s *memLogStore) LevelSetAt() time.Time {
-	s.mu.Lock()
-	defer s.mu.Unlock()
+	s.lock.Lock()
+	defer s.lock.Unlock()
 
 	return s.levelSetAt
 }
 
 func (s *memLogStore) SetLevelSetAt(t time.Time) error {
-	s.mu.Lock()
-	defer s.mu.Unlock()
+	s.lock.Lock()
+	defer s.lock.Unlock()
 	s.levelSetAt = t
 
 	return nil
@@ -370,8 +370,9 @@ func TestLogManager_SetFormat_ApplierErrorPropagates(t *testing.T) { //nolint:pa
 	}))
 
 	assert.Error(t, mgr.SetFormat("weird"))
-	// Persistence still happens before the applier runs.
-	assert.Equal(t, "weird", store.Format())
+	// Persistence is skipped when the applier fails so a bad format is not
+	// retained across restarts.
+	assert.Equal(t, "", store.Format())
 }
 
 func TestLogManager_SetFile_CallsApplierAndPersists(t *testing.T) { //nolint:paralleltest

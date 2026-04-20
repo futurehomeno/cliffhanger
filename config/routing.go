@@ -88,9 +88,6 @@ func HandleCmdLogSetLevel(serviceName fimptype.ServiceNameT, logSetter func(stri
 				return nil, err
 			}
 
-			log.SetLevel(logLevel)
-			log.Infof("[cliff] Log level updated to %s", logLevel)
-
 			return fimpgo.NewStringMessage(
 				EvtLogLevelReport,
 				serviceName,
@@ -203,7 +200,7 @@ func HandleCmdLogSetFile(serviceName fimptype.ServiceNameT, setter func(string) 
 				return nil, err
 			}
 
-			if filepath.Base(file) != file {
+			if file == "" || file == "." || file == ".." || file == "/" || filepath.Base(file) != file {
 				return nil, fmt.Errorf("log file must be a plain file name, not a path: %s", file)
 			}
 
