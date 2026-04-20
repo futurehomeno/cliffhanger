@@ -52,7 +52,7 @@ func (h *ErrorHook) Fire(entry *logrus.Entry) error {
 	e := logEntry{
 		level: entry.Level,
 		msg:   strings.TrimRight(string(b), "\n"),
-		time:  time.Now(),
+		time:  entry.Time,
 	}
 
 	h.mu.Lock()
@@ -74,12 +74,12 @@ func (h *ErrorHook) ErrorsReport() ([]string, error) {
 	h.mu.Lock()
 	defer h.mu.Unlock()
 
+	h.purgeExpired(time.Now())
+
 	result := make([]string, h.count)
 	for i := 0; i < h.count; i++ {
 		result[i] = h.entries[(h.head+i)%MaxLogEntries].msg
 	}
-
-	h.purgeExpired(time.Now())
 
 	return result, nil
 }
@@ -89,14 +89,14 @@ func (h *ErrorHook) ErrorsCount() int {
 	h.mu.Lock()
 	defer h.mu.Unlock()
 
+	h.purgeExpired(time.Now())
+
 	count := 0
 	for i := 0; i < h.count; i++ {
 		if h.entries[(h.head+i)%MaxLogEntries].level == logrus.ErrorLevel {
 			count++
 		}
 	}
-
-	h.purgeExpired(time.Now())
 
 	return count
 }
@@ -106,14 +106,14 @@ func (h *ErrorHook) WarningsCount() int {
 	h.mu.Lock()
 	defer h.mu.Unlock()
 
+	h.purgeExpired(time.Now())
+
 	count := 0
 	for i := 0; i < h.count; i++ {
 		if h.entries[(h.head+i)%MaxLogEntries].level == logrus.WarnLevel {
 			count++
 		}
 	}
-
-	h.purgeExpired(time.Now())
 
 	return count
 }

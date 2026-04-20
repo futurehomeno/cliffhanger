@@ -183,6 +183,9 @@ func (m *LogManager) SetFormat(format string) error {
 		}
 	}
 
+	m.lock.Lock()
+	defer m.lock.Unlock()
+
 	return m.store.SetFormat(format)
 }
 
@@ -200,6 +203,9 @@ func (m *LogManager) SetFile(file string) error {
 			return err
 		}
 	}
+
+	m.lock.Lock()
+	defer m.lock.Unlock()
 
 	return m.store.SetFile(file)
 }
