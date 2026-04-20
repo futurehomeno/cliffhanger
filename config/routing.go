@@ -3,6 +3,7 @@ package config
 import (
 	"encoding/json"
 	"fmt"
+	"path/filepath"
 	"time"
 
 	"github.com/futurehomeno/fimpgo"
@@ -86,9 +87,6 @@ func HandleCmdLogSetLevel(serviceName fimptype.ServiceNameT, logSetter func(stri
 			if err != nil {
 				return nil, err
 			}
-
-			log.SetLevel(logLevel)
-			log.Infof("[cliff] Log level updated to %s", logLevel)
 
 			return fimpgo.NewStringMessage(
 				EvtLogLevelReport,
@@ -200,6 +198,10 @@ func HandleCmdLogSetFile(serviceName fimptype.ServiceNameT, setter func(string) 
 			file, err := message.Payload.GetStringValue()
 			if err != nil {
 				return nil, err
+			}
+
+			if file == "" || file == "." || file == ".." || file == "/" || filepath.Base(file) != file {
+				return nil, fmt.Errorf("log file must be a plain file name, not a path: %s", file)
 			}
 
 			if err := setter(file); err != nil {

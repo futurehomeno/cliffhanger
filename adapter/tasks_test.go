@@ -25,8 +25,8 @@ func TestTaskConnectivityReporting_StableDetails(t *testing.T) { //nolint:parall
 				Name:     "task emits exactly one node report per thing when details are stable",
 				TearDown: adapterhelper.TearDownAdapter(testAdapterWorkDir),
 				Setup: setupReportingTask(
-					staticConnector(adapter.ConnectionStatusUp),
-					staticConnector(adapter.ConnectionStatusUp),
+					staticConnector(adapter.ConnStatusUp),
+					staticConnector(adapter.ConnStatusUp),
 				),
 				Nodes: []*suite.Node{
 					{
@@ -60,10 +60,10 @@ func TestTaskConnectivityReporting_DetailsChange(t *testing.T) { //nolint:parall
 						Name:    "changing status triggers new node reports for both things",
 						Timeout: 800 * time.Millisecond,
 						Expectations: []*suite.Expectation{
-							expectNodeReportWithStatus(testThingAddressB, adapter.ConnectionStatusUp).AtLeastOnce(),
-							expectNodeReportWithStatus(testThingAddressB, adapter.ConnectionStatusDown).AtLeastOnce(),
-							expectNodeReportWithStatus(testThingAddressC, adapter.ConnectionStatusUp).AtLeastOnce(),
-							expectNodeReportWithStatus(testThingAddressC, adapter.ConnectionStatusDown).AtLeastOnce(),
+							expectNodeReportWithStatus(testThingAddressB, adapter.ConnStatusUp).AtLeastOnce(),
+							expectNodeReportWithStatus(testThingAddressB, adapter.ConnStatusDown).AtLeastOnce(),
+							expectNodeReportWithStatus(testThingAddressC, adapter.ConnStatusUp).AtLeastOnce(),
+							expectNodeReportWithStatus(testThingAddressC, adapter.ConnStatusDown).AtLeastOnce(),
 						},
 					},
 				},
@@ -74,7 +74,7 @@ func TestTaskConnectivityReporting_DetailsChange(t *testing.T) { //nolint:parall
 	s.Run(t)
 }
 
-func expectNodeReportWithStatus(address string, status adapter.ConnectionStatus) *suite.Expectation {
+func expectNodeReportWithStatus(address string, status adapter.ConnStatusT) *suite.Expectation {
 	return suite.NewExpectation().
 		ExpectTopic(testAdapterEvtTopic).
 		ExpectType(adapter.EvtNetworkNodeReport).
@@ -86,18 +86,18 @@ func expectNodeReportWithStatus(address string, status adapter.ConnectionStatus)
 				return false
 			}
 
-			return report.Address == address && report.ConnectionStatus == status
+			return report.Address == address && report.ConnStatus == status
 		}))
 }
 
 type connectorBuilder func(t *testing.T) adapter.Connector
 
-func staticConnector(status adapter.ConnectionStatus) connectorBuilder {
+func staticConnector(status adapter.ConnStatusT) connectorBuilder {
 	return func(t *testing.T) adapter.Connector {
 		t.Helper()
 
 		c := mockedadapter.NewConnector(t)
-		c.On("Connectivity").Return(&adapter.ConnectivityDetails{ConnectionStatus: status}).Maybe()
+		c.On("Connectivity").Return(&adapter.ConnectivityDetails{ConnStatus: status}).Maybe()
 
 		return c
 	}
@@ -115,12 +115,12 @@ func togglingConnector(flipEvery int32) connectorBuilder {
 		c.On("Connectivity").Return(func() *adapter.ConnectivityDetails {
 			n := calls.Add(1)
 
-			status := adapter.ConnectionStatusUp
+			status := adapter.ConnStatusUp
 			if (n-1)/flipEvery%2 == 1 {
-				status = adapter.ConnectionStatusDown
+				status = adapter.ConnStatusDown
 			}
 
-			return &adapter.ConnectivityDetails{ConnectionStatus: status}
+			return &adapter.ConnectivityDetails{ConnStatus: status}
 		}).Maybe()
 
 		return c
@@ -144,6 +144,8 @@ func setupReportingTask(builderB, builderC connectorBuilder) suite.BaseSetup {
 				cfg.Connector = connectorB
 			case testThingAddressC:
 				cfg.Connector = connectorC
+			default:
+				cfg.Connector = mockedadapter.NewDefaultConnector(t)
 			}
 
 			return adapter.NewThing(publisher, thingState, cfg), nil

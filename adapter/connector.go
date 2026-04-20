@@ -25,50 +25,55 @@ type ControllableConnector interface {
 	Disconnect(t Thing)
 }
 
-// ConnectionStatus represents a connection status of a thing.
-type ConnectionStatus string
+type ConnStatusT string
 
-// Constants representing available connection statuses.
 const (
-	ConnectionStatusUp   ConnectionStatus = "UP"
-	ConnectionStatusDown ConnectionStatus = "DOWN"
+	ConnStatusUp   ConnStatusT = "UP"
+	ConnStatusDown ConnStatusT = "DOWN"
 )
 
-// Operationability represents a current operationability status of a thing.
-type Operationability string
+type OperationabilityT string
 
-// Constants representing available operationability statuses.
 const (
-	OperationabilitySleep     Operationability = "sleep"
-	OperationabilityDiscovery Operationability = "discovery"
-	OperationabilityUpdate    Operationability = "update"
+	OperationabilitySleep     OperationabilityT = "sleep"
+	OperationabilityDiscovery OperationabilityT = "discovery"
+	OperationabilityBroken    OperationabilityT = "broken"
+	OperationabilityNotReady  OperationabilityT = "not_ready"
+	OperationabilityReady     OperationabilityT = "ready"
+	OperationabilityRemoved   OperationabilityT = "removed"
+	OperationabilityLeft      OperationabilityT = "left"
+	OperationabilityUpdate    OperationabilityT = "update"
+	OperationabilityFailed    OperationabilityT = "failed"
 )
 
-// ConnectionQuality represents a connection quality of a thing.
-type ConnectionQuality string
+type ConnQualityT string
 
-// Constants representing available connection qualities.
 const (
-	ConnectionQualityHigh      ConnectionQuality = "high"
-	ConnectionQualityMedium    ConnectionQuality = "medium"
-	ConnectionQualityLow       ConnectionQuality = "low"
-	ConnectionQualityUndefined ConnectionQuality = "undefined"
+	ConnQualityHigh      ConnQualityT = "high"
+	ConnQualityMedium    ConnQualityT = "medium"
+	ConnQualityLow       ConnQualityT = "low"
+	ConnQualityUndefined ConnQualityT = "undefined"
+
+	ConnQualityVeryStrong ConnQualityT = "very_strong"
+	ConnQualityStrong     ConnQualityT = "strong"
+	ConnQualityGood       ConnQualityT = "good"
+	ConnQualityOK         ConnQualityT = "ok"
+	ConnQualityPoor       ConnQualityT = "poor"
+	ConnQualityVeryPoor   ConnQualityT = "very_poor"
+	ConnQualityNoSignal   ConnQualityT = "no_signal"
 )
 
-// ConnectionType represents a connection type between an adapter and a thing.
-type ConnectionType string
+type ConnTypeT string
 
 // Constants representing available connection types.
 const (
-	ConnectionTypeDirect   ConnectionType = "direct"
-	ConnectionTypeIndirect ConnectionType = "indirect"
-	ConnectionTypeUnknown  ConnectionType = "unknown"
+	ConnTypeDirect   ConnTypeT = "direct"
+	ConnTypeIndirect ConnTypeT = "indirect"
+	ConnTypeUnknown  ConnTypeT = "unknown"
 )
 
-// ConnectivityReports represents a set of connectivity reports of multiple things.
 type ConnectivityReports []*ConnectivityReport
 
-// ConnectivityReport represents a connectivity report of a thing.
 type ConnectivityReport struct {
 	Address        string `json:"address"`
 	Hash           string `json:"hash"`
@@ -80,27 +85,26 @@ type ConnectivityReport struct {
 	*ConnectivityDetails
 }
 
-// sanitize sanitizes the connectivity report.
 func (c *ConnectivityReport) sanitize() {
-	if c.ConnectionQuality == "" {
-		c.ConnectionQuality = ConnectionQualityUndefined
+	if c.ConnQuality == "" {
+		c.ConnQuality = ConnQualityUndefined
 	}
 
-	if c.ConnectionType == "" {
-		c.ConnectionType = ConnectionTypeUnknown
+	if c.ConnType == "" {
+		c.ConnType = ConnTypeUnknown
 	}
 
 	if c.Operationability == nil {
-		c.Operationability = make([]Operationability, 0)
+		c.Operationability = make([]OperationabilityT, 0)
 	}
 }
 
 // ConnectivityDetails represents connectivity details of a thing.
 type ConnectivityDetails struct {
-	ConnectionStatus  ConnectionStatus   `json:"status"`
-	Operationability  []Operationability `json:"operationability"`
-	ConnectionQuality ConnectionQuality  `json:"conn_quality"`
-	ConnectionType    ConnectionType     `json:"conn_type"`
+	ConnStatus       ConnStatusT         `json:"status"`
+	Operationability []OperationabilityT `json:"operationability"`
+	ConnQuality      ConnQualityT        `json:"conn_quality"`
+	ConnType         ConnTypeT           `json:"conn_type"`
 }
 
 // PingResult represents a result of a ping.

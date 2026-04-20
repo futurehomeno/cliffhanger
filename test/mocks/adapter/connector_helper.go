@@ -9,10 +9,10 @@ import (
 func NewDefaultConnector(t *testing.T) *Connector {
 	t.Helper()
 	return NewConnector(t).MockConnectivity(&adapter.ConnectivityDetails{
-		ConnectionStatus:  adapter.ConnectionStatusUp,
-		Operationability:  nil,
-		ConnectionQuality: adapter.ConnectionQualityUndefined,
-		ConnectionType:    adapter.ConnectionTypeIndirect,
+		ConnStatus:       adapter.ConnStatusUp,
+		Operationability: nil,
+		ConnQuality:      adapter.ConnQualityUndefined,
+		ConnType:         adapter.ConnTypeIndirect,
 	}, false)
 }
 

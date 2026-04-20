@@ -46,7 +46,7 @@ type AppAuth struct {
 	CodeGrantLoginPageURL string `json:"code_grant_login_page_url"`
 	RedirectURL           string `json:"redirect_url"`
 	ClientID              string `json:"client_id"`
-	Secret                string `json:"secret"` //nolint:gosec
+	Secret                string `json:"secret"`
 	PartnerID             string `json:"partner_id"`
 	AuthEndpoint          string `json:"auth_endpoint"`
 }

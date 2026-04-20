@@ -29,6 +29,7 @@ type Migration struct {
 // caller's responsibility (typically via storage.Save after the call).
 func (d *Default) Migrate(migrations ...Migration) (int, error) {
 	applied := 0
+	seen := make(map[string]bool)
 
 	for {
 		current := d.ConfigVersion
@@ -51,6 +52,12 @@ func (d *Default) Migrate(migrations ...Migration) (int, error) {
 		if m.To == m.From {
 			return applied, fmt.Errorf("config: migration %q->%q does not advance version", m.From, m.To)
 		}
+
+		if seen[m.To] {
+			return applied, fmt.Errorf("config: migration cycle detected at version %q", m.To)
+		}
+
+		seen[current] = true
 
 		log.Infof("[cliff] migrating config from %q to %q", m.From, m.To)
 

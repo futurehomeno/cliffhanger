@@ -97,7 +97,7 @@ func rebootsCountInterfaces() []fimptype.Interface {
 		},
 		{
 			Type:      fimptype.TypeOut,
-			MsgType:   EvtRebootCountReport,
+			MsgType:   EvtRebootsCountReport,
 			ValueType: fimptype.VTypeInt,
 			Version:   "1",
 		},

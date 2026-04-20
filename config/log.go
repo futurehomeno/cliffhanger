@@ -57,7 +57,7 @@ type LogManager struct {
 	formatApplier func(string) error
 	outputApplier func(string) error
 
-	mu    sync.Mutex
+	lock  sync.Mutex
 	timer *time.Timer
 }
 
@@ -75,8 +75,8 @@ func NewLogManager(store LogStore, opts ...LogManagerOption) *LogManager {
 // called after the logger has been initialised and the store has been
 // loaded. Safe to call when no revert is pending.
 func (m *LogManager) Start() {
-	m.mu.Lock()
-	defer m.mu.Unlock()
+	m.lock.Lock()
+	defer m.lock.Unlock()
 
 	prev := m.store.PreviousLevel()
 	setAt := m.store.LevelSetAt()
@@ -115,19 +115,19 @@ func (m *LogManager) SetLevel(level string) error {
 		return fmt.Errorf("log: invalid level %q: %w", level, err)
 	}
 
-	m.mu.Lock()
-	defer m.mu.Unlock()
+	m.lock.Lock()
+	defer m.lock.Unlock()
 
 	if lvl < log.DebugLevel {
-		m.cancelTimerLocked()
+		if err := m.store.SetLevel(lvl.String()); err != nil {
+			return err
+		}
 
 		if err := m.clearRevertStateLocked(); err != nil {
 			return err
 		}
 
-		if err := m.store.SetLevel(lvl.String()); err != nil {
-			return err
-		}
+		m.cancelTimerLocked()
 
 		log.SetLevel(lvl)
 		log.Infof("[cliff] Log level updated to %s", lvl)
@@ -173,18 +173,17 @@ func (m *LogManager) Format() string {
 	return m.store.Format()
 }
 
-// SetFormat persists the given log format and applies it via the format
-// applier hook if one is configured.
+// SetFormat applies the given log format via the format applier hook (if
+// configured) and persists it on success. Persistence is skipped when the
+// applier fails so a bad format is not retained across restarts.
 func (m *LogManager) SetFormat(format string) error {
-	if err := m.store.SetFormat(format); err != nil {
-		return err
-	}
-
 	if m.formatApplier != nil {
-		return m.formatApplier(format)
+		if err := m.formatApplier(format); err != nil {
+			return err
+		}
 	}
 
-	return nil
+	return m.store.SetFormat(format)
 }
 
 // File returns the currently persisted log file path.
@@ -192,25 +191,24 @@ func (m *LogManager) File() string {
 	return m.store.File()
 }
 
-// SetFile persists the given log file path and applies it via the output
-// applier hook if one is configured.
+// SetFile applies the given log file path via the output applier hook (if
+// configured) and persists it on success. Persistence is skipped when the
+// applier fails so a bad path is not retained across restarts.
 func (m *LogManager) SetFile(file string) error {
-	if err := m.store.SetFile(file); err != nil {
-		return err
-	}
-
 	if m.outputApplier != nil {
-		return m.outputApplier(file)
+		if err := m.outputApplier(file); err != nil {
+			return err
+		}
 	}
 
-	return nil
+	return m.store.SetFile(file)
 }
 
 // RevertTimeout returns the currently persisted revert timeout, or the
 // default when no value has been persisted.
 func (m *LogManager) RevertTimeout() time.Duration {
-	m.mu.Lock()
-	defer m.mu.Unlock()
+	m.lock.Lock()
+	defer m.lock.Unlock()
 
 	return m.revertTimeoutLocked()
 }
@@ -223,12 +221,12 @@ func (m *LogManager) SetRevertTimeout(timeout time.Duration) error {
 		return errors.New("log: revert timeout must be positive")
 	}
 
+	m.lock.Lock()
+	defer m.lock.Unlock()
+
 	if err := m.store.SetRevertTimeout(timeout); err != nil {
 		return err
 	}
-
-	m.mu.Lock()
-	defer m.mu.Unlock()
 
 	if m.timer == nil {
 		return nil
@@ -264,8 +262,8 @@ func (m *LogManager) revertTimeoutLocked() time.Duration {
 
 func (m *LogManager) armTimerLocked(d time.Duration) {
 	m.timer = time.AfterFunc(d, func() {
-		m.mu.Lock()
-		defer m.mu.Unlock()
+		m.lock.Lock()
+		defer m.lock.Unlock()
 		m.revertLocked("auto-revert timer fired")
 	})
 }
