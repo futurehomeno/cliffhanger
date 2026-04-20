@@ -32,7 +32,7 @@ func TestGetAllStates_DefaultFields(t *testing.T) {
 	assert.Equal(t, string(lifecycle.ConfigStateNotConfigured), states.Config)
 	assert.Equal(t, string(lifecycle.ConnStateNA), states.Connection)
 	assert.GreaterOrEqual(t, states.Uptime, 0)
-	assert.Equal(t, 0, states.RestartCount)
+	assert.Equal(t, 0, states.RestartsCount)
 	assert.Equal(t, 0, states.ErrorsCount)
 	assert.Equal(t, 0, states.WarningsCount)
 }
@@ -53,7 +53,7 @@ func TestSetRestartCount(t *testing.T) {
 	l := lifecycle.New()
 	l.SetRestartCount(7)
 
-	assert.Equal(t, 7, l.GetAllStates().RestartCount)
+	assert.Equal(t, 7, l.GetAllStates().RestartsCount)
 }
 
 func TestSetLogStatsProvider(t *testing.T) {

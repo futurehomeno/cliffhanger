@@ -569,7 +569,7 @@ func Test_Router_StatsCallback(t *testing.T) { //nolint:paralleltest
 }
 
 type statsTestHelper struct {
-	mu     sync.RWMutex
+	lock   sync.RWMutex
 	called bool
 	stats  router.Stats
 }
@@ -581,23 +581,23 @@ func newStatsTestHelper(t *testing.T) *statsTestHelper {
 }
 
 func (h *statsTestHelper) callbackCalled() bool {
-	h.mu.RLock()
-	defer h.mu.RUnlock()
+	h.lock.RLock()
+	defer h.lock.RUnlock()
 
 	return h.called
 }
 
 func (h *statsTestHelper) getStats() router.Stats {
-	h.mu.RLock()
-	defer h.mu.RUnlock()
+	h.lock.RLock()
+	defer h.lock.RUnlock()
 
 	return h.stats
 }
 
 func (h *statsTestHelper) statsCallback() func(router.Stats) {
 	return func(s router.Stats) {
-		h.mu.Lock()
-		defer h.mu.Unlock()
+		h.lock.Lock()
+		defer h.lock.Unlock()
 
 		h.called = true
 		h.stats = s
@@ -608,8 +608,8 @@ func (h *statsTestHelper) tearDownFn() func(t *testing.T) {
 	return func(t *testing.T) {
 		t.Helper()
 
-		h.mu.Lock()
-		defer h.mu.Unlock()
+		h.lock.Lock()
+		defer h.lock.Unlock()
 
 		h.called = false
 		h.stats = router.Stats{}

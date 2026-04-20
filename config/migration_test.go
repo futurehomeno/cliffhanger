@@ -157,6 +157,21 @@ func TestDefault_Migrate(t *testing.T) {
 		assert.Equal(t, "1", cfg.ConfigVersion)
 	})
 
+	t.Run("multi-step migration cycle is detected and returns error", func(t *testing.T) {
+		t.Parallel()
+
+		cfg := &config.Default{}
+
+		applied, err := cfg.Migrate(
+			config.Migration{From: "", To: "a"},
+			config.Migration{From: "a", To: "b"},
+			config.Migration{From: "b", To: ""},
+		)
+
+		assert.Error(t, err)
+		assert.Equal(t, 2, applied)
+	})
+
 	t.Run("picks the first matching migration when duplicates exist", func(t *testing.T) {
 		t.Parallel()
 

@@ -3,6 +3,7 @@ package formatters
 import (
 	"strings"
 	"sync"
+	"time"
 
 	"github.com/sirupsen/logrus"
 )
@@ -10,9 +11,15 @@ import (
 // MaxLogEntries is the capacity of the ErrorHook ring buffer.
 const MaxLogEntries = 64
 
+// LogRetention is the maximum age of an entry kept in the ErrorHook ring buffer.
+const LogRetention = 30 * 24 * time.Hour
+
+var errorHookFormatter = &logrus.TextFormatter{DisableColors: true}
+
 type logEntry struct {
 	level logrus.Level
 	msg   string
+	time  time.Time
 }
 
 // ErrorHook is a logrus hook that captures Warn and Error level entries into a
@@ -20,7 +27,9 @@ type logEntry struct {
 // diagnostic.ErrorsReporter so it can be wired directly to both.
 type ErrorHook struct {
 	mu      sync.Mutex
-	entries []logEntry
+	entries [MaxLogEntries]logEntry
+	head    int
+	count   int
 }
 
 // NewErrorHook creates a new ErrorHook with MaxLogEntries capacity.
@@ -35,9 +44,7 @@ func (h *ErrorHook) Levels() []logrus.Level {
 
 // Fire implements logrus.Hook.
 func (h *ErrorHook) Fire(entry *logrus.Entry) error {
-	f := &logrus.TextFormatter{DisableColors: true}
-
-	b, err := f.Format(entry)
+	b, err := errorHookFormatter.Format(entry)
 	if err != nil {
 		return err
 	}
@@ -45,16 +52,19 @@ func (h *ErrorHook) Fire(entry *logrus.Entry) error {
 	e := logEntry{
 		level: entry.Level,
 		msg:   strings.TrimRight(string(b), "\n"),
+		time:  time.Now(),
 	}
 
 	h.mu.Lock()
 	defer h.mu.Unlock()
 
-	if len(h.entries) >= MaxLogEntries {
-		h.entries = h.entries[1:]
+	if h.count < MaxLogEntries {
+		h.entries[(h.head+h.count)%MaxLogEntries] = e
+		h.count++
+	} else {
+		h.entries[h.head] = e
+		h.head = (h.head + 1) % MaxLogEntries
 	}
-
-	h.entries = append(h.entries, e)
 
 	return nil
 }
@@ -64,10 +74,12 @@ func (h *ErrorHook) ErrorsReport() ([]string, error) {
 	h.mu.Lock()
 	defer h.mu.Unlock()
 
-	result := make([]string, len(h.entries))
-	for i, e := range h.entries {
-		result[i] = e.msg
+	result := make([]string, h.count)
+	for i := 0; i < h.count; i++ {
+		result[i] = h.entries[(h.head+i)%MaxLogEntries].msg
 	}
+
+	h.purgeExpired(time.Now())
 
 	return result, nil
 }
@@ -78,11 +90,13 @@ func (h *ErrorHook) ErrorsCount() int {
 	defer h.mu.Unlock()
 
 	count := 0
-	for _, e := range h.entries {
-		if e.level == logrus.ErrorLevel {
+	for i := 0; i < h.count; i++ {
+		if h.entries[(h.head+i)%MaxLogEntries].level == logrus.ErrorLevel {
 			count++
 		}
 	}
+
+	h.purgeExpired(time.Now())
 
 	return count
 }
@@ -93,11 +107,25 @@ func (h *ErrorHook) WarningsCount() int {
 	defer h.mu.Unlock()
 
 	count := 0
-	for _, e := range h.entries {
-		if e.level == logrus.WarnLevel {
+	for i := 0; i < h.count; i++ {
+		if h.entries[(h.head+i)%MaxLogEntries].level == logrus.WarnLevel {
 			count++
 		}
 	}
 
+	h.purgeExpired(time.Now())
+
 	return count
+}
+
+// purgeExpired drops entries older than LogRetention from the head of the ring
+// buffer. Callers must hold h.mu. Entries are inserted chronologically, so any
+// expired entries are contiguous at the head.
+func (h *ErrorHook) purgeExpired(now time.Time) {
+	cutoff := now.Add(-LogRetention)
+	for h.count > 0 && h.entries[h.head].time.Before(cutoff) {
+		h.entries[h.head] = logEntry{}
+		h.head = (h.head + 1) % MaxLogEntries
+		h.count--
+	}
 }

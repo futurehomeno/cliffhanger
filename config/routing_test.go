@@ -39,8 +39,17 @@ func TestHandleCmdLogGetLevel(t *testing.T) { //nolint:paralleltest
 		wantLogLvl log.Level
 	}{
 		{
-			name:       "happy path",
-			logSetter:  func(s string) error { return nil },
+			name: "happy path",
+			logSetter: func(s string) error {
+				lvl, err := log.ParseLevel(s)
+				if err != nil {
+					return err
+				}
+
+				log.SetLevel(lvl)
+
+				return nil
+			},
 			msg:        makeCommand("string", "error"),
 			wantLogLvl: log.ErrorLevel,
 		},

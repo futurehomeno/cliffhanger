@@ -146,7 +146,7 @@ func TestHandlerConnectivityEvent(t *testing.T) { //nolint:paralleltest
 			thing: mockedadapter.NewThing(t).WithServices("", true, []adapter.Service{outLvlSwitchService}),
 			connectivityEvent: &adapter.ConnectivityEvent{
 				ThingEvent:   adapter.NewThingEvent("ad1", nil),
-				Connectivity: &adapter.ConnectivityDetails{ConnectionStatus: adapter.ConnectionStatusUp},
+				Connectivity: &adapter.ConnectivityDetails{ConnStatus: adapter.ConnStatusUp},
 			},
 			expectedDevice: &Device{
 				Modes:  make(map[string]float64),

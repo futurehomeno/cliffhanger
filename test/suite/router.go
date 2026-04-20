@@ -23,7 +23,7 @@ type Router struct {
 	mqtt   *fimpgo.MqttTransport
 	router rt.Router
 
-	mu           sync.RWMutex
+	lock         sync.RWMutex
 	expectations []*Expectation
 
 	registryMu      sync.RWMutex
@@ -69,8 +69,8 @@ func (r *Router) Stop() {
 func (r *Router) Expect(e ...*Expectation) {
 	r.t.Helper()
 
-	r.mu.Lock()
-	defer r.mu.Unlock()
+	r.lock.Lock()
+	defer r.lock.Unlock()
 
 	r.expectations = append(r.expectations, e...)
 }
@@ -111,8 +111,8 @@ func (r *Router) AssertExpectations(timeout time.Duration) {
 func (r *Router) expectationsMet() bool {
 	r.t.Helper()
 
-	r.mu.RLock()
-	defer r.mu.RUnlock()
+	r.lock.RLock()
+	defer r.lock.RUnlock()
 
 	for _, e := range r.expectations {
 		if !e.assert() {
@@ -124,8 +124,8 @@ func (r *Router) expectationsMet() bool {
 }
 
 func (r *Router) shouldWaitUntilTimeout() bool {
-	r.mu.RLock()
-	defer r.mu.RUnlock()
+	r.lock.RLock()
+	defer r.lock.RUnlock()
 
 	for _, e := range r.expectations {
 		if e.Occurrence == Never {
@@ -141,8 +141,8 @@ func (r *Router) failedExpectationsMessage() string {
 
 	fmt.Fprintf(&sb, "Test router: some expectations have not been met:\n")
 
-	r.mu.RLock()
-	defer r.mu.RUnlock()
+	r.lock.RLock()
+	defer r.lock.RUnlock()
 
 	for i, e := range r.expectations {
 		if e.assert() {
@@ -191,8 +191,8 @@ func (r *Router) failedExpectationsMessage() string {
 func (r *Router) cleanUpExpectations() {
 	r.t.Helper()
 
-	r.mu.Lock()
-	defer r.mu.Unlock()
+	r.lock.Lock()
+	defer r.lock.Unlock()
 
 	r.expectations = nil
 
@@ -215,9 +215,9 @@ func (r *Router) expectationsRouting() *rt.Routing {
 func (r *Router) processMessage(message *fimpgo.Message) (*fimpgo.FimpMessage, error) {
 	r.t.Helper()
 
-	r.mu.RLock()
+	r.lock.RLock()
 	expectations := r.expectations
-	r.mu.RUnlock()
+	r.lock.RUnlock()
 
 	log.
 		WithField("topic", message.Topic).
@@ -234,9 +234,9 @@ func (r *Router) processMessage(message *fimpgo.Message) (*fimpgo.FimpMessage, e
 			continue
 		}
 
-		r.mu.Lock()
+		r.lock.Lock()
 		e.called++
-		r.mu.Unlock()
+		r.lock.Unlock()
 
 		if e.PublishFn != nil {
 			e.Publish = e.PublishFn()
