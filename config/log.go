@@ -177,14 +177,14 @@ func (m *LogManager) Format() string {
 // configured) and persists it on success. Persistence is skipped when the
 // applier fails so a bad format is not retained across restarts.
 func (m *LogManager) SetFormat(format string) error {
+	m.lock.Lock()
+	defer m.lock.Unlock()
+
 	if m.formatApplier != nil {
 		if err := m.formatApplier(format); err != nil {
 			return err
 		}
 	}
-
-	m.lock.Lock()
-	defer m.lock.Unlock()
 
 	return m.store.SetFormat(format)
 }
@@ -198,14 +198,14 @@ func (m *LogManager) File() string {
 // configured) and persists it on success. Persistence is skipped when the
 // applier fails so a bad path is not retained across restarts.
 func (m *LogManager) SetFile(file string) error {
+	m.lock.Lock()
+	defer m.lock.Unlock()
+
 	if m.outputApplier != nil {
 		if err := m.outputApplier(file); err != nil {
 			return err
 		}
 	}
-
-	m.lock.Lock()
-	defer m.lock.Unlock()
 
 	return m.store.SetFile(file)
 }
