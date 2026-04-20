@@ -2,6 +2,7 @@ package telemetry_test
 
 import (
 	"testing"
+	"time"
 
 	"github.com/futurehomeno/fimpgo"
 	"github.com/stretchr/testify/assert"
@@ -14,15 +15,18 @@ import (
 )
 
 const (
-	testTopic         = "pt:j1/mt:rsp/rt:cloud/rn:backend-service/ad:telemetry"
-	testServiceName   = "telemetry"
-	testMessageType   = "evt.telemetry.report"
-	testSource        = "core-energy-guard"
-	appTopic          = "pt:j1/mt:cmd/rt:app/rn:" + testServiceName + "/ad:1"
-	appReportTopic    = "pt:j1/mt:evt/rt:app/rn:" + testServiceName + "/ad:1"
-	cmdSetEnabledType = "cmd.config.set_" + telemetry.SettingEnabled
-	cmdGetEnabledType = "cmd.config.get_" + telemetry.SettingEnabled
-	evtEnabledReport  = "evt.config." + telemetry.SettingEnabled + "_report"
+	testTopic          = "pt:j1/mt:rsp/rt:cloud/rn:backend-service/ad:telemetry"
+	testServiceName    = "telemetry"
+	testMessageType    = "evt.telemetry.report"
+	testSource         = "core-energy-guard"
+	appTopic           = "pt:j1/mt:cmd/rt:app/rn:" + testServiceName + "/ad:1"
+	appReportTopic     = "pt:j1/mt:evt/rt:app/rn:" + testServiceName + "/ad:1"
+	cmdSetEnabledType  = "cmd.config.set_" + telemetry.SettingEnabled
+	cmdGetEnabledType  = "cmd.config.get_" + telemetry.SettingEnabled
+	evtEnabledReport   = "evt.config." + telemetry.SettingEnabled + "_report"
+	cmdSetValidityType = "cmd.config.set_" + telemetry.SettingValidity
+	cmdGetValidityType = "cmd.config.get_" + telemetry.SettingValidity
+	evtValidityReport  = "evt.config." + telemetry.SettingValidity + "_report"
 )
 
 func TestNew_RejectsInvalidInput(t *testing.T) {
@@ -208,6 +212,85 @@ func TestReporter(t *testing.T) { //nolint:paralleltest
 						Expectations: []*suite.Expectation{
 							suite.ExpectBool(appReportTopic, evtEnabledReport, testServiceName, true),
 						},
+					},
+					{
+						Name: "Validity defaults to 30 days",
+						Callbacks: []suite.Callback{
+							func(t *testing.T) {
+								t.Helper()
+
+								assert.Equal(t, telemetry.DefaultValidity, reporter.Validity())
+							},
+						},
+					},
+					{
+						Name: "SetValidity rejects non-positive values",
+						Callbacks: []suite.Callback{
+							func(t *testing.T) {
+								t.Helper()
+
+								assert.Error(t, reporter.SetValidity(0))
+								assert.Error(t, reporter.SetValidity(-time.Second))
+							},
+						},
+					},
+					{
+						Name:    "cmd.config.set_telemetry_validity updates the window",
+						Command: suite.StringMessage(appTopic, cmdSetValidityType, testServiceName, "1h"),
+						Expectations: []*suite.Expectation{
+							suite.ExpectString(appReportTopic, evtValidityReport, testServiceName, "1h"),
+						},
+					},
+					{
+						Name:    "cmd.config.get_telemetry_validity reports current window",
+						Command: suite.NullMessage(appTopic, cmdGetValidityType, testServiceName),
+						Expectations: []*suite.Expectation{
+							suite.ExpectString(appReportTopic, evtValidityReport, testServiceName, "1h0m0s"),
+						},
+						Callbacks: []suite.Callback{
+							func(t *testing.T) {
+								t.Helper()
+
+								assert.Equal(t, time.Hour, reporter.Validity())
+							},
+						},
+					},
+					{
+						Name: "SetValidity below elapsed auto-disables immediately",
+						Callbacks: []suite.Callback{
+							func(t *testing.T) {
+								t.Helper()
+
+								require.NoError(t, reporter.Enable(true))
+								time.Sleep(20 * time.Millisecond)
+
+								require.NoError(t, reporter.SetValidity(time.Millisecond))
+								assert.False(t, reporter.IsEnabled())
+
+								err := reporter.Report("should_not_publish", "", nil)
+								assert.NoError(t, err)
+							},
+						},
+						// No Expectations: reporter is disabled.
+					},
+					{
+						Name: "Validity window expires and auto-disables",
+						Callbacks: []suite.Callback{
+							func(t *testing.T) {
+								t.Helper()
+
+								require.NoError(t, reporter.SetValidity(50*time.Millisecond))
+								require.NoError(t, reporter.Enable(true))
+
+								time.Sleep(150 * time.Millisecond)
+
+								assert.False(t, reporter.IsEnabled())
+
+								err := reporter.Report("should_not_publish", "", nil)
+								assert.NoError(t, err)
+							},
+						},
+						// No Expectations: timer disables the reporter.
 					},
 				},
 			},

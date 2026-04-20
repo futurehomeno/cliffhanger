@@ -4,9 +4,11 @@ import (
 	"errors"
 	"fmt"
 	"sync"
+	"time"
 
 	"github.com/futurehomeno/fimpgo"
 	"github.com/futurehomeno/fimpgo/fimptype"
+	log "github.com/sirupsen/logrus"
 
 	"github.com/futurehomeno/cliffhanger/config"
 	"github.com/futurehomeno/cliffhanger/router"
@@ -24,6 +26,15 @@ const (
 	// cmd.config.set_telemetry_enabled / cmd.config.get_telemetry_enabled
 	// commands produced by RoutingForReporter.
 	SettingEnabled = "telemetry_enabled"
+	// SettingValidity is the config parameter name used by the FIMP
+	// cmd.config.set_telemetry_validity / cmd.config.get_telemetry_validity
+	// commands. Once the window elapses since the last Enable(true),
+	// the reporter auto-disables.
+	SettingValidity = "telemetry_validity"
+
+	// DefaultValidity is the default window telemetry stays enabled after
+	// Enable(true). After that it auto-disables on the next Report call.
+	DefaultValidity = 30 * 24 * time.Hour
 )
 
 // Event is the payload carried in the FIMP val field.
@@ -41,11 +52,17 @@ type Reporter interface {
 	// SetTargetTopic overrides the default target topic.
 	// Passing an empty string restores the default.
 	SetTargetTopic(topic string)
-	// Enable toggles reporting. When false, subsequent Report calls become
-	// silent no-ops and return nil.
+	// Enable toggles reporting. When true, resets the validity window
+	// starting from now. When false, subsequent Report calls become silent
+	// no-ops and return nil.
 	Enable(enabled bool) error
 	// IsEnabled reports whether telemetry is currently publishing.
 	IsEnabled() bool
+	// Validity returns the window telemetry stays enabled after Enable(true)
+	// before it auto-disables.
+	Validity() time.Duration
+	// SetValidity updates the validity window. Must be positive.
+	SetValidity(validity time.Duration) error
 }
 
 // New returns a Reporter that publishes telemetry events as the given source.
@@ -60,21 +77,30 @@ func New(mqtt *fimpgo.MqttTransport, source string) (Reporter, error) {
 		return nil, errors.New("source is not set")
 	}
 
-	return &reporter{
-		mqtt:    mqtt,
-		source:  fimptype.ResourceNameT(source),
-		topic:   defaultTelemetryEvtTopic,
-		enabled: true,
-	}, nil
+	r := &reporter{
+		mqtt:      mqtt,
+		source:    fimptype.ResourceNameT(source),
+		topic:     defaultTelemetryEvtTopic,
+		enabled:   true,
+		validity:  DefaultValidity,
+		enabledAt: time.Now(),
+	}
+
+	r.startTimerLocked(DefaultValidity)
+
+	return r, nil
 }
 
 type reporter struct {
 	mqtt   *fimpgo.MqttTransport
 	source fimptype.ResourceNameT
 
-	mu      sync.RWMutex
-	topic   string
-	enabled bool
+	mu        sync.Mutex
+	topic     string
+	enabled   bool
+	validity  time.Duration
+	enabledAt time.Time
+	timer     *time.Timer
 }
 
 func (r *reporter) Report(event, domain string, data map[string]any) error {
@@ -82,10 +108,10 @@ func (r *reporter) Report(event, domain string, data map[string]any) error {
 		return errors.New("telemetry event name is required")
 	}
 
-	r.mu.RLock()
+	r.mu.Lock()
 	topic := r.topic
 	enabled := r.enabled
-	r.mu.RUnlock()
+	r.mu.Unlock()
 
 	if !enabled {
 		return nil
@@ -113,17 +139,91 @@ func (r *reporter) SetTargetTopic(topic string) {
 
 func (r *reporter) Enable(enabled bool) error {
 	r.mu.Lock()
+	defer r.mu.Unlock()
+
 	r.enabled = enabled
-	r.mu.Unlock()
+	r.stopTimerLocked()
+
+	if enabled {
+		r.enabledAt = time.Now()
+		r.startTimerLocked(r.validity)
+	} else {
+		r.enabledAt = time.Time{}
+	}
 
 	return nil
 }
 
 func (r *reporter) IsEnabled() bool {
-	r.mu.RLock()
-	defer r.mu.RUnlock()
+	r.mu.Lock()
+	defer r.mu.Unlock()
 
 	return r.enabled
+}
+
+func (r *reporter) Validity() time.Duration {
+	r.mu.Lock()
+	defer r.mu.Unlock()
+
+	return r.validity
+}
+
+func (r *reporter) SetValidity(validity time.Duration) error {
+	if validity <= 0 {
+		return errors.New("telemetry: validity must be positive")
+	}
+
+	r.mu.Lock()
+	defer r.mu.Unlock()
+
+	r.validity = validity
+
+	if r.timer == nil || r.enabledAt.IsZero() {
+		return nil
+	}
+
+	elapsed := time.Since(r.enabledAt)
+	r.stopTimerLocked()
+
+	if elapsed >= validity {
+		r.disableLocked("validity reduced below elapsed time")
+
+		return nil
+	}
+
+	r.startTimerLocked(validity - elapsed)
+
+	return nil
+}
+
+func (r *reporter) startTimerLocked(d time.Duration) {
+	var t *time.Timer
+	t = time.AfterFunc(d, func() {
+		r.mu.Lock()
+		defer r.mu.Unlock()
+
+		if r.timer != t {
+			return
+		}
+
+		r.disableLocked("validity expired")
+	})
+	r.timer = t
+}
+
+func (r *reporter) stopTimerLocked() {
+	if r.timer != nil {
+		r.timer.Stop()
+		r.timer = nil
+	}
+}
+
+func (r *reporter) disableLocked(reason string) {
+	r.enabled = false
+	r.enabledAt = time.Time{}
+	r.timer = nil
+
+	log.Infof("[cliff] Telemetry disabled: %s", reason)
 }
 
 // RouteCmdGetEnabled returns a routing for cmd.config.get_telemetry_enabled
@@ -138,11 +238,25 @@ func RouteCmdSetEnabled(serviceName fimptype.ServiceNameT, reporter Reporter, op
 	return config.RouteCmdConfigSetBool(serviceName, SettingEnabled, reporter.Enable, options...)
 }
 
-// RoutingForReporter returns the get/set routings for the telemetry enabled
-// config parameter bound to the given Reporter.
+// RouteCmdGetValidity returns a routing for cmd.config.get_telemetry_validity
+// that replies with the current validity window.
+func RouteCmdGetValidity(serviceName fimptype.ServiceNameT, reporter Reporter, options ...config.RoutingOption) *router.Routing {
+	return config.RouteCmdConfigGetDuration(serviceName, SettingValidity, reporter.Validity, options...)
+}
+
+// RouteCmdSetValidity returns a routing for cmd.config.set_telemetry_validity
+// that updates the validity window.
+func RouteCmdSetValidity(serviceName fimptype.ServiceNameT, reporter Reporter, options ...config.RoutingOption) *router.Routing {
+	return config.RouteCmdConfigSetDuration(serviceName, SettingValidity, reporter.SetValidity, options...)
+}
+
+// RoutingForReporter returns the get/set routings for the telemetry config
+// parameters (enabled, validity) bound to the given Reporter.
 func RoutingForReporter(serviceName fimptype.ServiceNameT, reporter Reporter, options ...config.RoutingOption) []*router.Routing {
 	return []*router.Routing{
 		RouteCmdGetEnabled(serviceName, reporter, options...),
 		RouteCmdSetEnabled(serviceName, reporter, options...),
+		RouteCmdGetValidity(serviceName, reporter, options...),
+		RouteCmdSetValidity(serviceName, reporter, options...),
 	}
 }
