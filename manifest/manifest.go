@@ -25,10 +25,14 @@ type Manifest struct {
 }
 
 type AppConfig struct {
-	ID     string      `json:"id"`
-	UI     AppConfigUI `json:"ui"`
-	Val    Value       `json:"val"`
-	Hidden bool        `json:"hidden"`
+	ID          string            `json:"id"`
+	Label       MultilingualLabel `json:"label"`
+	ValT        string            `json:"val_t"`
+	UI          AppConfigUI       `json:"ui"`
+	Val         Value             `json:"val"`
+	IsRequired  bool              `json:"is_required"`
+	ConfigPoint string            `json:"config_point"`
+	Hidden      bool              `json:"hidden"`
 }
 
 func (b *AppConfig) Hide() {
