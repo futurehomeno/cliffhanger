@@ -33,8 +33,8 @@ const (
 	CmdAuthSetTokens           = "cmd.auth.set_tokens" //nolint:gosec
 	EvtAuthStatusReport        = "evt.auth.status_report"
 
-	CmdAppErrorsGetReport = "cmd.app.errors.get_report"
-	EvtAppErrorsReport    = "evt.app.errors.report"
+	CmdAppErrorsGetReport = "cmd.app.get_errors"
+	EvtAppErrorsReport    = "evt.app.errors_report"
 )
 
 // RouteApp creates routing for an application.
