@@ -124,7 +124,7 @@ func (m *LogManager) SetLevel(level string) error {
 		}
 
 		if err := m.clearRevertStateLocked(); err != nil {
-			return err
+			log.WithError(err).Warnf("[cliff] failed to clear log revert state; startup recovery will retry")
 		}
 
 		m.cancelTimerLocked()
@@ -293,7 +293,10 @@ func (m *LogManager) revertLocked(reason string) {
 	}
 
 	if err := m.store.SetLevel(lvl.String()); err != nil {
-		log.WithError(err).Errorf("[cliff] failed to persist reverted log level")
+		log.WithError(err).Errorf("[cliff] failed to persist reverted log level, keeping revert state for restart retry")
+		m.timer = nil
+
+		return
 	}
 
 	log.SetLevel(lvl)
