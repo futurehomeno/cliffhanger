@@ -8,12 +8,12 @@ import (
 
 	"github.com/stretchr/testify/assert"
 
-	"github.com/futurehomeno/cliffhanger/config"
 	"github.com/futurehomeno/cliffhanger/storage"
 )
 
 const (
 	backupExtension = ".bak"
+	configFileName  = "config.json"
 )
 
 type testConfig struct {
@@ -33,7 +33,7 @@ func TestStorage_Load(t *testing.T) { //nolint:paralleltest
 		{
 			name:       "base case",
 			path:       "../testdata/storage/load/",
-			configName: config.Name,
+			configName: configFileName,
 			want: &testConfig{
 				SettingA: "A",
 				SettingB: "B",
@@ -43,7 +43,7 @@ func TestStorage_Load(t *testing.T) { //nolint:paralleltest
 		{
 			name:       "model based on defaults only",
 			path:       "../testdata/storage/load_defaults_only/",
-			configName: config.Name,
+			configName: configFileName,
 			want: &testConfig{
 				SettingA: "X",
 				SettingB: "Y",
@@ -63,7 +63,7 @@ func TestStorage_Load(t *testing.T) { //nolint:paralleltest
 		{
 			name:       "reaching for backup on unmarshalling error",
 			path:       "../testdata/storage/load_backup_unmarshalling_error/",
-			configName: config.Name,
+			configName: configFileName,
 			want: &testConfig{
 				SettingA: "A",
 				SettingB: "B",
@@ -73,13 +73,13 @@ func TestStorage_Load(t *testing.T) { //nolint:paralleltest
 		{
 			name:       "no data to read",
 			path:       "../testdata/storage/empty_dir/",
-			configName: config.Name,
+			configName: configFileName,
 			wantErr:    true,
 		},
 		{
 			name:       "invalid data only",
 			path:       "../testdata/storage/load_invalid_data_only/",
-			configName: config.Name,
+			configName: configFileName,
 			wantErr:    true,
 		},
 	}
@@ -115,7 +115,7 @@ func TestStorage_Save(t *testing.T) { //nolint:paralleltest
 		SettingC: "C",
 	}
 
-	store := storage.New(cfg, p, config.Name)
+	store := storage.New(cfg, p, configFileName)
 
 	// initial save: no configs and backups persisted on disk yet
 	err = store.Save()
@@ -124,7 +124,7 @@ func TestStorage_Save(t *testing.T) { //nolint:paralleltest
 	marshalledCfg, err := json.MarshalIndent(cfg, "", "\t")
 	assert.NoError(t, err)
 
-	cfgFile, err := os.ReadFile(path.Join(p, "data", config.Name))
+	cfgFile, err := os.ReadFile(path.Join(p, "data", configFileName))
 	assert.NoError(t, err)
 
 	// model.json properly persisted on disk
@@ -150,13 +150,13 @@ func TestStorage_Save(t *testing.T) { //nolint:paralleltest
 	marshalledNewCfg, err := json.MarshalIndent(newCfg, "", "\t")
 	assert.NoError(t, err)
 
-	cfgFile, err = os.ReadFile(path.Join(p, "data", config.Name))
+	cfgFile, err = os.ReadFile(path.Join(p, "data", configFileName))
 	assert.NoError(t, err)
 
 	// model.json properly persisted on disk
 	assert.Equal(t, marshalledNewCfg, cfgFile)
 
-	backupCfgFile, err := os.ReadFile(path.Join(p, "data", config.Name+backupExtension))
+	backupCfgFile, err := os.ReadFile(path.Join(p, "data", configFileName+backupExtension))
 	assert.NoError(t, err)
 
 	// backup should store the previous version of model.
@@ -174,13 +174,13 @@ func TestStorage_Reset(t *testing.T) { //nolint:paralleltest
 	err := os.MkdirAll(path.Join(p, "data"), 0755) //nolint:gofumpt,gosec
 	assert.NoError(t, err)
 
-	err = os.WriteFile(path.Join(p, "data", config.Name+backupExtension), configData, 0664) //nolint:gofumpt,gosec
+	err = os.WriteFile(path.Join(p, "data", configFileName+backupExtension), configData, 0664) //nolint:gofumpt,gosec
 	assert.NoError(t, err)
 
-	err = os.WriteFile(path.Join(p, "data", config.Name), configData, 0664) //nolint:gofumpt,gosec
+	err = os.WriteFile(path.Join(p, "data", configFileName), configData, 0664) //nolint:gofumpt,gosec
 	assert.NoError(t, err)
 
-	store := storage.New(&testConfig{}, p, config.Name)
+	store := storage.New(&testConfig{}, p, configFileName)
 
 	err = store.Load()
 	assert.NoError(t, err)
@@ -190,9 +190,9 @@ func TestStorage_Reset(t *testing.T) { //nolint:paralleltest
 	assert.NoError(t, err)
 	assert.Equal(t, &testConfig{"X", "X", "X"}, store.Model())
 
-	_, err = os.Stat(path.Join(p, "data", config.Name+backupExtension))
+	_, err = os.Stat(path.Join(p, "data", configFileName+backupExtension))
 	assert.True(t, os.IsNotExist(err))
 
-	_, err = os.Stat(path.Join(p, "data", config.Name))
+	_, err = os.Stat(path.Join(p, "data", configFileName))
 	assert.True(t, os.IsNotExist(err))
 }

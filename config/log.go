@@ -25,8 +25,9 @@ type LogStore interface {
 	SetFile(file string) error
 	RevertTimeout() time.Duration
 	SetRevertTimeout(timeout time.Duration) error
-	PreviousLevel() string
-	SetPreviousLevel(level string) error
+	PreviousLevel() log.Level
+	SetPreviousLevel(level log.Level) error
+	ClearPreviousLevel() error
 	LevelSetAt() time.Time
 	SetLevelSetAt(t time.Time) error
 }
@@ -78,9 +79,8 @@ func (m *LogManager) Start() {
 	m.lock.Lock()
 	defer m.lock.Unlock()
 
-	prev := m.store.PreviousLevel()
 	setAt := m.store.LevelSetAt()
-	if prev == "" || setAt.IsZero() {
+	if setAt.IsZero() {
 		return
 	}
 
@@ -90,15 +90,15 @@ func (m *LogManager) Start() {
 		return
 	}
 
-	timeout := m.revertTimeoutLocked()
+	timeout := m.revertTimeout()
 	elapsed := time.Since(setAt)
 	if elapsed >= timeout {
-		m.revertLocked("startup: timeout already elapsed")
+		m.revertLog("startup: timeout already elapsed")
 
 		return
 	}
 
-	m.armTimerLocked(timeout - elapsed)
+	m.startTimer(timeout - elapsed)
 }
 
 // Level returns the currently persisted log level.
@@ -124,10 +124,10 @@ func (m *LogManager) SetLevel(level string) error {
 		}
 
 		if err := m.clearRevertStateLocked(); err != nil {
-			return err
+			log.WithError(err).Warnf("[cliff] failed to clear log revert state; startup recovery will retry")
 		}
 
-		m.cancelTimerLocked()
+		m.stopTimer()
 
 		log.SetLevel(lvl)
 		log.Infof("[cliff] Log level updated to %s", lvl)
@@ -137,14 +137,8 @@ func (m *LogManager) SetLevel(level string) error {
 
 	previous := m.store.PreviousLevel()
 
-	currentStr := m.store.Level()
-	currentLvl, currentErr := log.ParseLevel(currentStr)
-
-	switch {
-	case currentErr == nil && currentLvl < log.DebugLevel:
-		previous = currentStr
-	case previous == "":
-		previous = log.InfoLevel.String()
+	if currentLvl, err := log.ParseLevel(m.store.Level()); err == nil && currentLvl < log.DebugLevel {
+		previous = currentLvl
 	}
 
 	if err := m.store.SetPreviousLevel(previous); err != nil {
@@ -160,10 +154,10 @@ func (m *LogManager) SetLevel(level string) error {
 	}
 
 	log.SetLevel(lvl)
-	log.Infof("[cliff] Log level updated to %s; auto-revert to %s after %s", lvl, previous, m.revertTimeoutLocked())
+	log.Infof("[cliff] Log level updated to %s; auto-revert to %s after %s", lvl, previous, m.revertTimeout())
 
-	m.cancelTimerLocked()
-	m.armTimerLocked(m.revertTimeoutLocked())
+	m.stopTimer()
+	m.startTimer(m.revertTimeout())
 
 	return nil
 }
@@ -177,6 +171,9 @@ func (m *LogManager) Format() string {
 // configured) and persists it on success. Persistence is skipped when the
 // applier fails so a bad format is not retained across restarts.
 func (m *LogManager) SetFormat(format string) error {
+	m.lock.Lock()
+	defer m.lock.Unlock()
+
 	if m.formatApplier != nil {
 		if err := m.formatApplier(format); err != nil {
 			return err
@@ -195,6 +192,9 @@ func (m *LogManager) File() string {
 // configured) and persists it on success. Persistence is skipped when the
 // applier fails so a bad path is not retained across restarts.
 func (m *LogManager) SetFile(file string) error {
+	m.lock.Lock()
+	defer m.lock.Unlock()
+
 	if m.outputApplier != nil {
 		if err := m.outputApplier(file); err != nil {
 			return err
@@ -210,7 +210,7 @@ func (m *LogManager) RevertTimeout() time.Duration {
 	m.lock.Lock()
 	defer m.lock.Unlock()
 
-	return m.revertTimeoutLocked()
+	return m.revertTimeout()
 }
 
 // SetRevertTimeout persists a new revert timeout. When a revert is currently
@@ -238,20 +238,20 @@ func (m *LogManager) SetRevertTimeout(timeout time.Duration) error {
 	}
 
 	elapsed := time.Since(setAt)
-	m.cancelTimerLocked()
+	m.stopTimer()
 
 	if elapsed >= timeout {
-		m.revertLocked("revert timeout reduced below elapsed time")
+		m.revertLog("revert timeout reduced below elapsed time")
 
 		return nil
 	}
 
-	m.armTimerLocked(timeout - elapsed)
+	m.startTimer(timeout - elapsed)
 
 	return nil
 }
 
-func (m *LogManager) revertTimeoutLocked() time.Duration {
+func (m *LogManager) revertTimeout() time.Duration {
 	timeout := m.store.RevertTimeout()
 	if timeout <= 0 {
 		return DefaultLogRevertTimeout
@@ -260,34 +260,34 @@ func (m *LogManager) revertTimeoutLocked() time.Duration {
 	return timeout
 }
 
-func (m *LogManager) armTimerLocked(d time.Duration) {
-	m.timer = time.AfterFunc(d, func() {
+func (m *LogManager) startTimer(d time.Duration) {
+	var t *time.Timer
+	t = time.AfterFunc(d, func() {
 		m.lock.Lock()
 		defer m.lock.Unlock()
-		m.revertLocked("auto-revert timer fired")
+		if m.timer != t {
+			return
+		}
+		m.revertLog("auto-revert timer fired")
 	})
+	m.timer = t
 }
 
-func (m *LogManager) cancelTimerLocked() {
+func (m *LogManager) stopTimer() {
 	if m.timer != nil {
 		m.timer.Stop()
 		m.timer = nil
 	}
 }
 
-func (m *LogManager) revertLocked(reason string) {
-	previous := m.store.PreviousLevel()
-	if previous == "" {
-		previous = log.InfoLevel.String()
-	}
-
-	lvl, err := log.ParseLevel(previous)
-	if err != nil {
-		lvl = log.InfoLevel
-	}
+func (m *LogManager) revertLog(reason string) {
+	lvl := m.store.PreviousLevel()
 
 	if err := m.store.SetLevel(lvl.String()); err != nil {
-		log.WithError(err).Errorf("[cliff] failed to persist reverted log level")
+		log.WithError(err).Errorf("[cliff] failed to persist reverted log level, keeping revert state for restart retry")
+		m.timer = nil
+
+		return
 	}
 
 	log.SetLevel(lvl)
@@ -301,7 +301,7 @@ func (m *LogManager) revertLocked(reason string) {
 }
 
 func (m *LogManager) clearRevertStateLocked() error {
-	if err := m.store.SetPreviousLevel(""); err != nil {
+	if err := m.store.ClearPreviousLevel(); err != nil {
 		return err
 	}
 
@@ -310,14 +310,18 @@ func (m *LogManager) clearRevertStateLocked() error {
 
 // NewDefaultLogStore adapts a config.Default-backed persistence layer to the
 // LogStore interface. The accessor must return a pointer to the embedded
-// Default block; save persists any field mutation to disk.
+// Default block; save persists any field mutation to disk. Revert state
+// (previous level, level-set timestamp) is held in memory only and does not
+// survive a restart.
 func NewDefaultLogStore(accessor func() *Default, save func() error) LogStore {
-	return &defaultLogStore{accessor: accessor, save: save}
+	return &defaultLogStore{accessor: accessor, save: save, previousLevel: log.InfoLevel}
 }
 
 type defaultLogStore struct {
-	accessor func() *Default
-	save     func() error
+	accessor      func() *Default
+	save          func() error
+	previousLevel log.Level
+	levelSetAt    time.Time
 }
 
 func (s *defaultLogStore) Level() string { return s.accessor().LogLevel }
@@ -364,34 +368,24 @@ func (s *defaultLogStore) SetRevertTimeout(timeout time.Duration) error {
 	return s.save()
 }
 
-func (s *defaultLogStore) PreviousLevel() string { return s.accessor().LogPreviousLevel }
+func (s *defaultLogStore) PreviousLevel() log.Level { return s.previousLevel }
 
-func (s *defaultLogStore) SetPreviousLevel(level string) error {
-	s.accessor().LogPreviousLevel = level
+func (s *defaultLogStore) SetPreviousLevel(level log.Level) error {
+	s.previousLevel = level
 
-	return s.save()
+	return nil
 }
 
-func (s *defaultLogStore) LevelSetAt() time.Time {
-	raw := s.accessor().LogLevelSetAt
-	if raw == "" {
-		return time.Time{}
-	}
+func (s *defaultLogStore) ClearPreviousLevel() error {
+	s.previousLevel = log.InfoLevel
 
-	t, err := time.Parse(time.RFC3339Nano, raw)
-	if err != nil {
-		return time.Time{}
-	}
-
-	return t
+	return nil
 }
+
+func (s *defaultLogStore) LevelSetAt() time.Time { return s.levelSetAt }
 
 func (s *defaultLogStore) SetLevelSetAt(t time.Time) error {
-	if t.IsZero() {
-		s.accessor().LogLevelSetAt = ""
-	} else {
-		s.accessor().LogLevelSetAt = t.Format(time.RFC3339Nano)
-	}
+	s.levelSetAt = t
 
-	return s.save()
+	return nil
 }
