@@ -249,7 +249,6 @@ func (l *Lifecycle) WaitFor(subID string, stateType StateType, targetState State
 	for event := range ch {
 		if event.Type == stateType && event.State == targetState {
 			l.Unsubscribe(subID)
-
 			return
 		}
 	}
