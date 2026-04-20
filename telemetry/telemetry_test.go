@@ -35,7 +35,7 @@ func TestNew_RejectsInvalidInput(t *testing.T) {
 	t.Run("nil mqtt", func(t *testing.T) {
 		t.Parallel()
 
-		reporter, err := telemetry.New(nil, testSource)
+		reporter, err := telemetry.New(nil, testSource, telemetry.NewMemoryStore())
 
 		require.Error(t, err)
 		assert.Nil(t, reporter)
@@ -44,7 +44,16 @@ func TestNew_RejectsInvalidInput(t *testing.T) {
 	t.Run("empty source", func(t *testing.T) {
 		t.Parallel()
 
-		reporter, err := telemetry.New(&fimpgo.MqttTransport{}, "")
+		reporter, err := telemetry.New(&fimpgo.MqttTransport{}, "", telemetry.NewMemoryStore())
+
+		require.Error(t, err)
+		assert.Nil(t, reporter)
+	})
+
+	t.Run("nil store", func(t *testing.T) {
+		t.Parallel()
+
+		reporter, err := telemetry.New(&fimpgo.MqttTransport{}, testSource, nil)
 
 		require.Error(t, err)
 		assert.Nil(t, reporter)
@@ -63,7 +72,7 @@ func TestReporter(t *testing.T) { //nolint:paralleltest
 
 					var err error
 
-					reporter, err = telemetry.New(mqtt, testSource)
+					reporter, err = telemetry.New(mqtt, testSource, telemetry.NewMemoryStore())
 					require.NoError(t, err)
 
 					return telemetry.RoutingForReporter(testServiceName, reporter), nil, nil
