@@ -1,6 +1,7 @@
 package telemetry_test
 
 import (
+	"reflect"
 	"testing"
 	"time"
 
@@ -8,6 +9,7 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
+	"github.com/futurehomeno/cliffhanger/config"
 	"github.com/futurehomeno/cliffhanger/router"
 	"github.com/futurehomeno/cliffhanger/task"
 	"github.com/futurehomeno/cliffhanger/telemetry"
@@ -15,12 +17,9 @@ import (
 )
 
 const (
-	testTopic          = "pt:j1/mt:rsp/rt:cloud/rn:backend-service/ad:telemetry"
-	testServiceName    = "telemetry"
-	testMessageType    = "evt.telemetry.report"
 	testSource         = "core-energy-guard"
-	appTopic           = "pt:j1/mt:cmd/rt:app/rn:" + testServiceName + "/ad:1"
-	appReportTopic     = "pt:j1/mt:evt/rt:app/rn:" + testServiceName + "/ad:1"
+	appTopic           = "pt:j1/mt:cmd/rt:app/rn:" + string(telemetry.Service) + "/ad:1"
+	appReportTopic     = "pt:j1/mt:evt/rt:app/rn:" + string(telemetry.Service) + "/ad:1"
 	cmdSetEnabledType  = "cmd.config.set_" + telemetry.SettingEnabled
 	cmdGetEnabledType  = "cmd.config.get_" + telemetry.SettingEnabled
 	evtEnabledReport   = "evt.config." + telemetry.SettingEnabled + "_report"
@@ -35,33 +34,42 @@ func TestNew_RejectsInvalidInput(t *testing.T) {
 	t.Run("nil mqtt", func(t *testing.T) {
 		t.Parallel()
 
-		reporter, err := telemetry.New(nil, testSource, telemetry.NewMemoryStore())
+		telemetry, err := telemetry.New(nil, testSource, telemetry.NewMemoryStore(true))
 
 		require.Error(t, err)
-		assert.Nil(t, reporter)
+		assert.Nil(t, telemetry)
 	})
 
 	t.Run("empty source", func(t *testing.T) {
 		t.Parallel()
 
-		reporter, err := telemetry.New(&fimpgo.MqttTransport{}, "", telemetry.NewMemoryStore())
+		tel, err := telemetry.New(&fimpgo.MqttTransport{}, "", telemetry.NewMemoryStore(true))
 
 		require.Error(t, err)
-		assert.Nil(t, reporter)
+		assert.Nil(t, tel)
 	})
 
 	t.Run("nil store", func(t *testing.T) {
 		t.Parallel()
 
-		reporter, err := telemetry.New(&fimpgo.MqttTransport{}, testSource, nil)
+		tel, err := telemetry.New(&fimpgo.MqttTransport{}, testSource, nil)
 
 		require.Error(t, err)
-		assert.Nil(t, reporter)
+		assert.Nil(t, tel)
+	})
+
+	t.Run("memory store with enabled=false boots disabled", func(t *testing.T) {
+		t.Parallel()
+
+		tel, err := telemetry.New(&fimpgo.MqttTransport{}, testSource, telemetry.NewMemoryStore(false))
+
+		require.NoError(t, err)
+		assert.False(t, tel.IsEnabled())
 	})
 }
 
 func TestReporter(t *testing.T) { //nolint:paralleltest
-	var reporter telemetry.Reporter
+	var tel telemetry.Telemetry
 
 	s := &suite.Suite{
 		Cases: []*suite.Case{
@@ -72,10 +80,10 @@ func TestReporter(t *testing.T) { //nolint:paralleltest
 
 					var err error
 
-					reporter, err = telemetry.New(mqtt, testSource, telemetry.NewMemoryStore())
+					tel, err = telemetry.New(mqtt, testSource, telemetry.NewMemoryStore(true))
 					require.NoError(t, err)
 
-					return telemetry.RoutingForReporter(testServiceName, reporter), nil, nil
+					return telemetry.RoutingForTelemetry(telemetry.Service, tel), nil, nil
 				}),
 				Nodes: []*suite.Node{
 					{
@@ -84,7 +92,7 @@ func TestReporter(t *testing.T) { //nolint:paralleltest
 							func(t *testing.T) {
 								t.Helper()
 
-								err := reporter.Report("energy_limit_exceeded", "max_guard", map[string]any{
+								err := tel.Report("energy_limit_exceeded", "max_guard", map[string]any{
 									"hourly_energy_limit": 15.0,
 								})
 
@@ -93,15 +101,28 @@ func TestReporter(t *testing.T) { //nolint:paralleltest
 						},
 						Expectations: []*suite.Expectation{
 							suite.NewExpectation(
-								router.ForTopic(testTopic),
-								router.ForType(testMessageType),
-								router.ForService(testServiceName),
+								router.ForTopic(telemetry.Topic),
+								router.ForType(telemetry.MessageType),
+								router.ForService(telemetry.Service),
 								router.MessageVoterFn(func(msg *fimpgo.Message) bool {
 									if string(msg.Payload.Source) != testSource {
 										return false
 									}
 
-									return string(msg.Payload.ValueObj) == "energy_limit_exceeded"
+									var got telemetry.Event
+									if err := msg.Payload.GetObjectValue(&got); err != nil {
+										return false
+									}
+
+									want := telemetry.Event{
+										Event:  "energy_limit_exceeded",
+										Domain: "max_guard",
+										Data: map[string]any{
+											"hourly_energy_limit": 15.0,
+										},
+									}
+
+									return reflect.DeepEqual(got, want)
 								}),
 							),
 						},
@@ -112,7 +133,7 @@ func TestReporter(t *testing.T) { //nolint:paralleltest
 							func(t *testing.T) {
 								t.Helper()
 
-								err := reporter.Report("", "auth", map[string]any{"x": 1})
+								err := tel.Report("", "auth", map[string]any{"x": 1})
 
 								assert.Error(t, err)
 							},
@@ -124,16 +145,16 @@ func TestReporter(t *testing.T) { //nolint:paralleltest
 							func(t *testing.T) {
 								t.Helper()
 
-								reporter.SetTargetTopic("pt:j1/mt:evt/rt:app/rn:custom/ad:1")
+								tel.SetTargetTopic("pt:j1/mt:evt/rt:app/rn:custom/ad:1")
 
-								err := reporter.Report("app_started", "", nil)
+								err := tel.Report("app_started", "", nil)
 								assert.NoError(t, err)
 							},
 						},
 						Expectations: []*suite.Expectation{
 							suite.NewExpectation(
 								router.ForTopic("pt:j1/mt:evt/rt:app/rn:custom/ad:1"),
-								router.ForType(testMessageType),
+								router.ForType(telemetry.MessageType),
 							),
 						},
 					},
@@ -143,16 +164,16 @@ func TestReporter(t *testing.T) { //nolint:paralleltest
 							func(t *testing.T) {
 								t.Helper()
 
-								reporter.SetTargetTopic("")
+								tel.SetTargetTopic("")
 
-								err := reporter.Report("app_started", "", nil)
+								err := tel.Report("app_started", "", nil)
 								assert.NoError(t, err)
 							},
 						},
 						Expectations: []*suite.Expectation{
 							suite.NewExpectation(
-								router.ForTopic(testTopic),
-								router.ForType(testMessageType),
+								router.ForTopic(telemetry.Topic),
+								router.ForType(telemetry.MessageType),
 							),
 						},
 					},
@@ -162,10 +183,10 @@ func TestReporter(t *testing.T) { //nolint:paralleltest
 							func(t *testing.T) {
 								t.Helper()
 
-								require.NoError(t, reporter.Enable(false))
-								assert.False(t, reporter.IsEnabled())
+								require.NoError(t, tel.Enable(false))
+								assert.False(t, tel.IsEnabled())
 
-								err := reporter.Report("should_not_publish", "", nil)
+								err := tel.Report("should_not_publish", "", nil)
 								assert.NoError(t, err)
 							},
 						},
@@ -177,49 +198,54 @@ func TestReporter(t *testing.T) { //nolint:paralleltest
 							func(t *testing.T) {
 								t.Helper()
 
-								require.NoError(t, reporter.Enable(true))
-								assert.True(t, reporter.IsEnabled())
+								require.NoError(t, tel.Enable(true))
+								assert.True(t, tel.IsEnabled())
 
-								err := reporter.Report("after_enable", "", nil)
+								err := tel.Report("after_enable", "", nil)
 								assert.NoError(t, err)
 							},
 						},
 						Expectations: []*suite.Expectation{
 							suite.NewExpectation(
-								router.ForTopic(testTopic),
-								router.ForType(testMessageType),
+								router.ForTopic(telemetry.Topic),
+								router.ForType(telemetry.MessageType),
 								router.MessageVoterFn(func(msg *fimpgo.Message) bool {
-									return string(msg.Payload.ValueObj) == "after_enable"
+									var got telemetry.Event
+									if err := msg.Payload.GetObjectValue(&got); err != nil {
+										return false
+									}
+
+									return got.Event == "after_enable"
 								}),
 							),
 						},
 					},
 					{
-						Name:    "cmd.config.set_telemetry_enabled = false disables the reporter",
-						Command: suite.BoolMessage(appTopic, cmdSetEnabledType, testServiceName, false),
+						Name:    "cmd.config.set_telemetry_enabled = false disables the telemetry",
+						Command: suite.BoolMessage(appTopic, cmdSetEnabledType, telemetry.Service, false),
 						Expectations: []*suite.Expectation{
-							suite.ExpectBool(appReportTopic, evtEnabledReport, testServiceName, false),
+							suite.ExpectBool(appReportTopic, evtEnabledReport, telemetry.Service, false),
 						},
 					},
 					{
 						Name:    "cmd.config.get_telemetry_enabled reports current state",
-						Command: suite.NullMessage(appTopic, cmdGetEnabledType, testServiceName),
+						Command: suite.NullMessage(appTopic, cmdGetEnabledType, telemetry.Service),
 						Expectations: []*suite.Expectation{
-							suite.ExpectBool(appReportTopic, evtEnabledReport, testServiceName, false),
+							suite.ExpectBool(appReportTopic, evtEnabledReport, telemetry.Service, false),
 						},
 						Callbacks: []suite.Callback{
 							func(t *testing.T) {
 								t.Helper()
 
-								assert.False(t, reporter.IsEnabled())
+								assert.False(t, tel.IsEnabled())
 							},
 						},
 					},
 					{
-						Name:    "cmd.config.set_telemetry_enabled = true re-enables the reporter",
-						Command: suite.BoolMessage(appTopic, cmdSetEnabledType, testServiceName, true),
+						Name:    "cmd.config.set_telemetry_enabled = true re-enables the telemetry",
+						Command: suite.BoolMessage(appTopic, cmdSetEnabledType, telemetry.Service, true),
 						Expectations: []*suite.Expectation{
-							suite.ExpectBool(appReportTopic, evtEnabledReport, testServiceName, true),
+							suite.ExpectBool(appReportTopic, evtEnabledReport, telemetry.Service, true),
 						},
 					},
 					{
@@ -228,7 +254,7 @@ func TestReporter(t *testing.T) { //nolint:paralleltest
 							func(t *testing.T) {
 								t.Helper()
 
-								assert.Equal(t, telemetry.DefaultValidity, reporter.Validity())
+								assert.Equal(t, telemetry.DefaultValidity, tel.Validity())
 							},
 						},
 					},
@@ -238,29 +264,29 @@ func TestReporter(t *testing.T) { //nolint:paralleltest
 							func(t *testing.T) {
 								t.Helper()
 
-								assert.Error(t, reporter.SetValidity(0))
-								assert.Error(t, reporter.SetValidity(-time.Second))
+								assert.Error(t, tel.SetValidity(0))
+								assert.Error(t, tel.SetValidity(-time.Second))
 							},
 						},
 					},
 					{
 						Name:    "cmd.config.set_telemetry_validity updates the window",
-						Command: suite.StringMessage(appTopic, cmdSetValidityType, testServiceName, "1h"),
+						Command: suite.StringMessage(appTopic, cmdSetValidityType, telemetry.Service, "1h"),
 						Expectations: []*suite.Expectation{
-							suite.ExpectString(appReportTopic, evtValidityReport, testServiceName, "1h"),
+							suite.ExpectString(appReportTopic, evtValidityReport, telemetry.Service, "1h"),
 						},
 					},
 					{
 						Name:    "cmd.config.get_telemetry_validity reports current window",
-						Command: suite.NullMessage(appTopic, cmdGetValidityType, testServiceName),
+						Command: suite.NullMessage(appTopic, cmdGetValidityType, telemetry.Service),
 						Expectations: []*suite.Expectation{
-							suite.ExpectString(appReportTopic, evtValidityReport, testServiceName, "1h0m0s"),
+							suite.ExpectString(appReportTopic, evtValidityReport, telemetry.Service, "1h0m0s"),
 						},
 						Callbacks: []suite.Callback{
 							func(t *testing.T) {
 								t.Helper()
 
-								assert.Equal(t, time.Hour, reporter.Validity())
+								assert.Equal(t, time.Hour, tel.Validity())
 							},
 						},
 					},
@@ -270,17 +296,17 @@ func TestReporter(t *testing.T) { //nolint:paralleltest
 							func(t *testing.T) {
 								t.Helper()
 
-								require.NoError(t, reporter.Enable(true))
+								require.NoError(t, tel.Enable(true))
 								time.Sleep(20 * time.Millisecond)
 
-								require.NoError(t, reporter.SetValidity(time.Millisecond))
-								assert.False(t, reporter.IsEnabled())
+								require.NoError(t, tel.SetValidity(time.Millisecond))
+								assert.False(t, tel.IsEnabled())
 
-								err := reporter.Report("should_not_publish", "", nil)
+								err := tel.Report("should_not_publish", "", nil)
 								assert.NoError(t, err)
 							},
 						},
-						// No Expectations: reporter is disabled.
+						// No Expectations: telemetry is disabled.
 					},
 					{
 						Name: "Validity window expires and auto-disables",
@@ -288,18 +314,18 @@ func TestReporter(t *testing.T) { //nolint:paralleltest
 							func(t *testing.T) {
 								t.Helper()
 
-								require.NoError(t, reporter.SetValidity(50*time.Millisecond))
-								require.NoError(t, reporter.Enable(true))
+								require.NoError(t, tel.SetValidity(50*time.Millisecond))
+								require.NoError(t, tel.Enable(true))
 
 								time.Sleep(150 * time.Millisecond)
 
-								assert.False(t, reporter.IsEnabled())
+								assert.False(t, tel.IsEnabled())
 
-								err := reporter.Report("should_not_publish", "", nil)
+								err := tel.Report("should_not_publish", "", nil)
 								assert.NoError(t, err)
 							},
 						},
-						// No Expectations: timer disables the reporter.
+						// No Expectations: timer disables the tel.
 					},
 				},
 			},
@@ -307,4 +333,129 @@ func TestReporter(t *testing.T) { //nolint:paralleltest
 	}
 
 	s.Run(t)
+}
+
+// stubStore exposes raw fields for white-box testing of New's restart-resume
+// logic. Unlike NewMemoryStore, it lets tests seed non-zero enabledAt values.
+type stubStore struct {
+	enabled   bool
+	enabledAt time.Time
+	validity  time.Duration
+
+	setEnabledCalls   int
+	setEnabledAtCalls int
+}
+
+func (s *stubStore) Enabled() bool                     { return s.enabled }
+func (s *stubStore) EnabledAt() time.Time              { return s.enabledAt }
+func (s *stubStore) Validity() time.Duration           { return s.validity }
+func (s *stubStore) SetValidity(v time.Duration) error { s.validity = v; return nil }
+
+func (s *stubStore) SetEnabled(enabled bool) error {
+	s.enabled = enabled
+	s.setEnabledCalls++
+
+	return nil
+}
+
+func (s *stubStore) SetEnabledAt(t time.Time) error {
+	s.enabledAt = t
+	s.setEnabledAtCalls++
+
+	return nil
+}
+
+func TestNew_ResumesValidityWindowAcrossRestart(t *testing.T) {
+	t.Parallel()
+
+	t.Run("mid-window: resumes with remaining time", func(t *testing.T) {
+		t.Parallel()
+
+		store := &stubStore{
+			enabled:   true,
+			enabledAt: time.Now().Add(-10 * time.Minute),
+			validity:  time.Hour,
+		}
+
+		tel, err := telemetry.New(&fimpgo.MqttTransport{}, testSource, store)
+		require.NoError(t, err)
+
+		assert.True(t, tel.IsEnabled())
+		assert.Equal(t, time.Hour, tel.Validity())
+		assert.Equal(t, 0, store.setEnabledCalls, "must not re-persist enabled on resume")
+		assert.Equal(t, 0, store.setEnabledAtCalls, "must not re-stamp enabledAt on resume")
+	})
+
+	t.Run("already expired: auto-disables and persists", func(t *testing.T) {
+		t.Parallel()
+
+		store := &stubStore{
+			enabled:   true,
+			enabledAt: time.Now().Add(-40 * 24 * time.Hour),
+			validity:  30 * 24 * time.Hour,
+		}
+
+		tel, err := telemetry.New(&fimpgo.MqttTransport{}, testSource, store)
+		require.NoError(t, err)
+
+		assert.False(t, tel.IsEnabled())
+		assert.False(t, store.enabled)
+		assert.True(t, store.enabledAt.IsZero())
+	})
+
+	t.Run("enabled with zero enabledAt: stamps fresh window", func(t *testing.T) {
+		t.Parallel()
+
+		store := &stubStore{
+			enabled:  true,
+			validity: time.Hour,
+		}
+
+		before := time.Now()
+
+		tel, err := telemetry.New(&fimpgo.MqttTransport{}, testSource, store)
+		require.NoError(t, err)
+
+		assert.True(t, tel.IsEnabled())
+		assert.False(t, store.enabledAt.IsZero())
+		assert.True(t, !store.enabledAt.Before(before))
+	})
+}
+
+func TestNewDefaultStore_RoundTrip(t *testing.T) {
+	t.Parallel()
+
+	d := &config.Default{}
+	saves := 0
+	store := telemetry.NewDefaultStore(func() *config.Default { return d }, func() error { saves++; return nil })
+
+	// Defaults when nothing is persisted.
+	assert.True(t, store.Enabled(), "unset enabled should default to true")
+	assert.True(t, store.EnabledAt().IsZero())
+	assert.Equal(t, telemetry.DefaultValidity, store.Validity())
+
+	require.NoError(t, store.SetEnabled(false))
+	require.NoError(t, store.SetValidity(2*time.Hour))
+
+	stamp := time.Date(2026, 4, 20, 12, 0, 0, 123_000_000, time.UTC)
+	require.NoError(t, store.SetEnabledAt(stamp))
+
+	// In-memory side reflects the writes.
+	assert.False(t, store.Enabled())
+	assert.Equal(t, 2*time.Hour, store.Validity())
+	assert.True(t, store.EnabledAt().Equal(stamp))
+
+	// Raw fields serialize the way the format contract says they should.
+	assert.NotNil(t, d.TelemetryEnabled)
+	assert.False(t, *d.TelemetryEnabled)
+	assert.Equal(t, "2h0m0s", d.TelemetryValidity)
+	assert.Equal(t, "2026-04-20T12:00:00.123Z", d.TelemetryEnabledAt)
+
+	// Clearing enabledAt writes an empty string, not "0001-01-01..." —
+	// a malformed RFC3339Nano in the file must round-trip to zero time.
+	require.NoError(t, store.SetEnabledAt(time.Time{}))
+	assert.Equal(t, "", d.TelemetryEnabledAt)
+	assert.True(t, store.EnabledAt().IsZero())
+
+	assert.Greater(t, saves, 0, "every Set* must call save")
 }
