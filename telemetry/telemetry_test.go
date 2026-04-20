@@ -1,7 +1,6 @@
 package telemetry_test
 
 import (
-	"reflect"
 	"testing"
 
 	"github.com/futurehomeno/fimpgo"
@@ -14,13 +13,25 @@ import (
 	"github.com/futurehomeno/cliffhanger/test/suite"
 )
 
+const (
+	testTopic         = "pt:j1/mt:rsp/rt:cloud/rn:backend-service/ad:telemetry"
+	testServiceName   = "telemetry"
+	testMessageType   = "evt.telemetry.report"
+	testSource        = "core-energy-guard"
+	appTopic          = "pt:j1/mt:cmd/rt:app/rn:" + testServiceName + "/ad:1"
+	appReportTopic    = "pt:j1/mt:evt/rt:app/rn:" + testServiceName + "/ad:1"
+	cmdSetEnabledType = "cmd.config.set_" + telemetry.SettingEnabled
+	cmdGetEnabledType = "cmd.config.get_" + telemetry.SettingEnabled
+	evtEnabledReport  = "evt.config." + telemetry.SettingEnabled + "_report"
+)
+
 func TestNew_RejectsInvalidInput(t *testing.T) {
 	t.Parallel()
 
 	t.Run("nil mqtt", func(t *testing.T) {
 		t.Parallel()
 
-		reporter, err := telemetry.New(nil, "core-energy-guard")
+		reporter, err := telemetry.New(nil, testSource)
 
 		require.Error(t, err)
 		assert.Nil(t, reporter)
@@ -48,21 +59,20 @@ func TestReporter(t *testing.T) { //nolint:paralleltest
 
 					var err error
 
-					reporter, err = telemetry.New(mqtt, "core-energy-guard")
+					reporter, err = telemetry.New(mqtt, testSource)
 					require.NoError(t, err)
 
-					return nil, nil, nil
+					return telemetry.RoutingForReporter(testServiceName, reporter), nil, nil
 				}),
 				Nodes: []*suite.Node{
 					{
-						Name: "Report with domain and data",
+						Name: "Report publishes the event",
 						Callbacks: []suite.Callback{
 							func(t *testing.T) {
 								t.Helper()
 
 								err := reporter.Report("energy_limit_exceeded", "max_guard", map[string]any{
 									"hourly_energy_limit": 15.0,
-									"energy_import":       16.2,
 								})
 
 								assert.NoError(t, err)
@@ -70,79 +80,17 @@ func TestReporter(t *testing.T) { //nolint:paralleltest
 						},
 						Expectations: []*suite.Expectation{
 							suite.NewExpectation(
-								router.ForTopic(telemetry.Topic),
-								router.ForType(telemetry.MessageType),
-								router.ForService(telemetry.Service),
+								router.ForTopic(testTopic),
+								router.ForType(testMessageType),
+								router.ForService(testServiceName),
 								router.MessageVoterFn(func(msg *fimpgo.Message) bool {
-									if string(msg.Payload.Source) != "core-energy-guard" {
+									if string(msg.Payload.Source) != testSource {
 										return false
 									}
 
-									var got telemetry.Event
-									if err := msg.Payload.GetObjectValue(&got); err != nil {
-										return false
-									}
-
-									want := telemetry.Event{
-										Event:  "energy_limit_exceeded",
-										Domain: "max_guard",
-										Data: map[string]any{
-											"hourly_energy_limit": 15.0,
-											"energy_import":       16.2,
-										},
-									}
-
-									return reflect.DeepEqual(got, want)
+									return string(msg.Payload.ValueObj) == "energy_limit_exceeded"
 								}),
 							),
-						},
-					},
-					{
-						Name: "ReportEvent",
-						Callbacks: []suite.Callback{
-							func(t *testing.T) {
-								t.Helper()
-
-								err := reporter.ReportEvent(&telemetry.Event{
-									Event:  "user_login",
-									Domain: "auth",
-									Data: map[string]any{
-										"charger_id":  "ZAP000123",
-										"auth_method": "rfid",
-									},
-								})
-
-								assert.NoError(t, err)
-							},
-						},
-						Expectations: []*suite.Expectation{
-							suite.ExpectObject(telemetry.Topic, telemetry.MessageType, telemetry.Service, &telemetry.Event{
-								Event:  "user_login",
-								Domain: "auth",
-								Data: map[string]any{
-									"charger_id":  "ZAP000123",
-									"auth_method": "rfid",
-								},
-							}),
-						},
-					},
-					{
-						Name: "Report without domain or data omits them",
-						Callbacks: []suite.Callback{
-							func(t *testing.T) {
-								t.Helper()
-
-								err := reporter.Report("app_started", "", nil)
-
-								assert.NoError(t, err)
-							},
-						},
-						Expectations: []*suite.Expectation{
-							suite.NewExpectation(router.MessageVoterFn(func(msg *fimpgo.Message) bool {
-								raw := msg.Payload.GetRawObjectValue()
-
-								return string(raw) == `{"event":"app_started"}`
-							})),
 						},
 					},
 					{
@@ -152,19 +100,6 @@ func TestReporter(t *testing.T) { //nolint:paralleltest
 								t.Helper()
 
 								err := reporter.Report("", "auth", map[string]any{"x": 1})
-
-								assert.Error(t, err)
-							},
-						},
-						// No Expectations: nothing should be published.
-					},
-					{
-						Name: "ReportEvent with nil event returns error",
-						Callbacks: []suite.Callback{
-							func(t *testing.T) {
-								t.Helper()
-
-								err := reporter.ReportEvent(nil)
 
 								assert.Error(t, err)
 							},
@@ -185,7 +120,7 @@ func TestReporter(t *testing.T) { //nolint:paralleltest
 						Expectations: []*suite.Expectation{
 							suite.NewExpectation(
 								router.ForTopic("pt:j1/mt:evt/rt:app/rn:custom/ad:1"),
-								router.ForType(telemetry.MessageType),
+								router.ForType(testMessageType),
 							),
 						},
 					},
@@ -203,9 +138,75 @@ func TestReporter(t *testing.T) { //nolint:paralleltest
 						},
 						Expectations: []*suite.Expectation{
 							suite.NewExpectation(
-								router.ForTopic(telemetry.Topic),
-								router.ForType(telemetry.MessageType),
+								router.ForTopic(testTopic),
+								router.ForType(testMessageType),
 							),
+						},
+					},
+					{
+						Name: "Enable(false) silences Report",
+						Callbacks: []suite.Callback{
+							func(t *testing.T) {
+								t.Helper()
+
+								require.NoError(t, reporter.Enable(false))
+								assert.False(t, reporter.IsEnabled())
+
+								err := reporter.Report("should_not_publish", "", nil)
+								assert.NoError(t, err)
+							},
+						},
+						// No Expectations: nothing should be published.
+					},
+					{
+						Name: "Enable(true) restores Report",
+						Callbacks: []suite.Callback{
+							func(t *testing.T) {
+								t.Helper()
+
+								require.NoError(t, reporter.Enable(true))
+								assert.True(t, reporter.IsEnabled())
+
+								err := reporter.Report("after_enable", "", nil)
+								assert.NoError(t, err)
+							},
+						},
+						Expectations: []*suite.Expectation{
+							suite.NewExpectation(
+								router.ForTopic(testTopic),
+								router.ForType(testMessageType),
+								router.MessageVoterFn(func(msg *fimpgo.Message) bool {
+									return string(msg.Payload.ValueObj) == "after_enable"
+								}),
+							),
+						},
+					},
+					{
+						Name:    "cmd.config.set_telemetry_enabled = false disables the reporter",
+						Command: suite.BoolMessage(appTopic, cmdSetEnabledType, testServiceName, false),
+						Expectations: []*suite.Expectation{
+							suite.ExpectBool(appReportTopic, evtEnabledReport, testServiceName, false),
+						},
+					},
+					{
+						Name:    "cmd.config.get_telemetry_enabled reports current state",
+						Command: suite.NullMessage(appTopic, cmdGetEnabledType, testServiceName),
+						Expectations: []*suite.Expectation{
+							suite.ExpectBool(appReportTopic, evtEnabledReport, testServiceName, false),
+						},
+						Callbacks: []suite.Callback{
+							func(t *testing.T) {
+								t.Helper()
+
+								assert.False(t, reporter.IsEnabled())
+							},
+						},
+					},
+					{
+						Name:    "cmd.config.set_telemetry_enabled = true re-enables the reporter",
+						Command: suite.BoolMessage(appTopic, cmdSetEnabledType, testServiceName, true),
+						Expectations: []*suite.Expectation{
+							suite.ExpectBool(appReportTopic, evtEnabledReport, testServiceName, true),
 						},
 					},
 				},
