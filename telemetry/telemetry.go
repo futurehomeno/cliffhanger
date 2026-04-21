@@ -53,9 +53,9 @@ func New(mqtt *fimpgo.MqttTransport, source string, store Store) (Telemetry, err
 		return nil, errors.New("store is required")
 	}
 
-	validity := store.Validity()
-	if validity <= 0 {
-		validity = DefaultValidity
+	st := store.Load()
+	if st.Validity <= 0 {
+		st.Validity = DefaultValidity
 	}
 
 	r := &telemetryT{
@@ -63,15 +63,17 @@ func New(mqtt *fimpgo.MqttTransport, source string, store Store) (Telemetry, err
 		source:   fimptype.ResourceNameT(source),
 		store:    store,
 		topic:    Topic,
-		enabled:  store.Enabled(),
-		validity: validity,
+		enabled:  st.Enabled,
+		validity: st.Validity,
 	}
 
 	if r.enabled { //nolint:nestif
-		enabledAt := store.EnabledAt()
+		enabledAt := st.EnabledAt
 		if enabledAt.IsZero() {
 			enabledAt = time.Now()
-			if err := store.SetEnabledAt(enabledAt); err != nil {
+
+			st.EnabledAt = enabledAt
+			if err := store.Save(st); err != nil {
 				return nil, fmt.Errorf("telemetry: persist enabled_at: %w", err)
 			}
 		}
@@ -83,26 +85,26 @@ func New(mqtt *fimpgo.MqttTransport, source string, store Store) (Telemetry, err
 			enabledAt = time.Now()
 			elapsed = 0
 
-			if err := store.SetEnabledAt(enabledAt); err != nil {
+			st.EnabledAt = enabledAt
+			if err := store.Save(st); err != nil {
 				return nil, fmt.Errorf("telemetry: persist normalized enabled_at: %w", err)
 			}
 		}
 
-		if elapsed >= validity {
+		if elapsed >= st.Validity {
 			r.enabled = false
 
-			if err := store.SetEnabled(false); err != nil {
-				return nil, fmt.Errorf("telemetry: persist enabled: %w", err)
-			}
+			st.Enabled = false
+			st.EnabledAt = time.Time{}
 
-			if err := store.SetEnabledAt(time.Time{}); err != nil {
-				return nil, fmt.Errorf("telemetry: clear enabled_at: %w", err)
+			if err := store.Save(st); err != nil {
+				return nil, fmt.Errorf("telemetry: persist disabled state: %w", err)
 			}
 
 			log.Infof("[cliff] Telemetry disabled: validity expired before startup")
 		} else {
 			r.enabledAt = enabledAt
-			r.startTimerLocked(validity - elapsed)
+			r.startTimerLocked(st.Validity - elapsed)
 		}
 	}
 
@@ -119,7 +121,7 @@ func New(mqtt *fimpgo.MqttTransport, source string, store Store) (Telemetry, err
 // held. That keeps the in-memory state and the on-disk state consistent under
 // concurrent callers, at the cost of blocking Report / IsEnabled / Validity
 // while the store persists. A slow or blocking store will back up those
-// callers — acceptable for the file-backed config.Default store, but worth
+// callers - acceptable for the file-backed config.Default store, but worth
 // revisiting for stores with higher write latency.
 type telemetryT struct {
 	mqtt   *fimpgo.MqttTransport
@@ -176,38 +178,25 @@ func (r *telemetryT) Enable(enabled bool) error {
 	r.lock.Lock()
 	defer r.lock.Unlock()
 
+	st := State{
+		Enabled:  enabled,
+		Validity: r.validity,
+	}
+
 	if enabled {
-		enabledAt := time.Now()
-		wasEnabled := r.enabled
+		st.EnabledAt = time.Now()
+	}
 
-		if err := r.store.SetEnabled(true); err != nil {
-			return fmt.Errorf("telemetry: persist enabled: %w", err)
-		}
+	if err := r.store.Save(st); err != nil {
+		return fmt.Errorf("telemetry: persist state: %w", err)
+	}
 
-		if err := r.store.SetEnabledAt(enabledAt); err != nil {
-			if !wasEnabled {
-				_ = r.store.SetEnabled(false) // best-effort rollback only if we changed state
-			}
+	r.stopTimerLocked()
+	r.enabled = enabled
+	r.enabledAt = st.EnabledAt
 
-			return fmt.Errorf("telemetry: persist enabled_at: %w", err)
-		}
-
-		r.stopTimerLocked()
-		r.enabled = true
-		r.enabledAt = enabledAt
+	if enabled {
 		r.startTimerLocked(r.validity)
-	} else {
-		if err := r.store.SetEnabled(false); err != nil {
-			return fmt.Errorf("telemetry: persist enabled: %w", err)
-		}
-
-		if err := r.store.SetEnabledAt(time.Time{}); err != nil {
-			return fmt.Errorf("telemetry: clear enabled_at: %w", err)
-		}
-
-		r.stopTimerLocked()
-		r.enabled = false
-		r.enabledAt = time.Time{}
 	}
 
 	return nil
@@ -235,30 +224,48 @@ func (r *telemetryT) SetValidity(validity time.Duration) error {
 	r.lock.Lock()
 	defer r.lock.Unlock()
 
-	if err := r.store.SetValidity(validity); err != nil {
+	// Compute elapsed once and use it for both the Save decision and the
+	// post-Save timer scheduling, avoiding a TOCTOU gap during slow saves.
+	var elapsed time.Duration
+
+	newEnabled := r.enabled
+	newEnabledAt := r.enabledAt
+	shouldDisable := false
+
+	if r.enabled && !r.enabledAt.IsZero() {
+		elapsed = time.Since(r.enabledAt)
+		if elapsed < 0 {
+			elapsed = 0 // clock skew: treat future timestamps as "just enabled"
+		}
+
+		if elapsed >= validity {
+			newEnabled = false
+			newEnabledAt = time.Time{}
+			shouldDisable = true
+		}
+	}
+
+	st := State{
+		Enabled:   newEnabled,
+		EnabledAt: newEnabledAt,
+		Validity:  validity,
+	}
+
+	if err := r.store.Save(st); err != nil {
 		return fmt.Errorf("telemetry: persist validity: %w", err)
 	}
 
 	r.validity = validity
-
-	if r.timer == nil || r.enabledAt.IsZero() {
-		return nil
-	}
-
-	elapsed := time.Since(r.enabledAt)
-	if elapsed < 0 {
-		elapsed = 0 // clock skew: treat future timestamps as "just enabled"
-	}
-
 	r.stopTimerLocked()
 
-	if elapsed >= validity {
-		r.disableLocked("validity reduced below elapsed time")
+	if shouldDisable {
+		r.enabled = false
+		r.enabledAt = time.Time{}
 
-		return nil
+		log.Infof("[cliff] Telemetry disabled: validity reduced below elapsed time")
+	} else if r.enabled && !r.enabledAt.IsZero() {
+		r.startTimerLocked(validity - elapsed)
 	}
-
-	r.startTimerLocked(validity - elapsed)
 
 	return nil
 }
@@ -271,6 +278,8 @@ func (r *telemetryT) startTimerLocked(d time.Duration) {
 		r.lock.Lock()
 		defer r.lock.Unlock()
 
+		// Guard against a stale callback: if stopTimerLocked replaced
+		// r.timer since this AfterFunc was scheduled, bail out.
 		if r.timer != t {
 			return
 		}
@@ -298,12 +307,10 @@ func (r *telemetryT) disableLocked(reason string) {
 	r.enabledAt = time.Time{}
 	r.timer = nil
 
-	if err := r.store.SetEnabled(false); err != nil {
-		log.WithError(err).Errorf("[cliff] Telemetry: failed to persist disabled state")
-	}
+	st := State{Validity: r.validity}
 
-	if err := r.store.SetEnabledAt(time.Time{}); err != nil {
-		log.WithError(err).Errorf("[cliff] Telemetry: failed to clear enabled_at")
+	if err := r.store.Save(st); err != nil {
+		log.WithError(err).Errorf("[cliff] Telemetry: failed to persist disabled state")
 	}
 
 	log.Infof("[cliff] Telemetry disabled: %s", reason)

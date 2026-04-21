@@ -7,22 +7,31 @@ import (
 	"github.com/futurehomeno/cliffhanger/config"
 )
 
+// State is the persisted telemetry configuration. All fields are written
+// atomically by Store.Save so partial-update failures cannot occur.
+type State struct {
+	Enabled   bool
+	EnabledAt time.Time
+	Validity  time.Duration
+}
+
 // Store persists telemetry configuration so the enabled flag, the timestamp
 // the reporter was last enabled at, and the validity window all survive
 // application restarts. Consumer applications implement this against their
 // own configuration storage.
+//
+// Implementations do not need to be thread-safe: the telemetry reporter
+// serializes all Load/Save calls under its own mutex.
 type Store interface {
-	Enabled() bool
-	SetEnabled(enabled bool) error
-	EnabledAt() time.Time
-	SetEnabledAt(t time.Time) error
-	Validity() time.Duration
-	SetValidity(validity time.Duration) error
+	// Load returns the current persisted state.
+	Load() State
+	// Save atomically persists the full state.
+	Save(State) error
 }
 
 // NewDefaultStore adapts a config.Default-backed persistence layer to the
 // Store interface. The accessor must return a pointer to the embedded Default
-// block; save persists any field mutation to disk.
+// block; save persists the entire config to disk.
 func NewDefaultStore(accessor func() *config.Default, save func() error) Store {
 	return &defaultStore{accessor: accessor, save: save}
 }
@@ -32,125 +41,94 @@ type defaultStore struct {
 	save     func() error
 }
 
-func (s *defaultStore) Enabled() bool {
-	v := s.accessor().TelemetryEnabled
-	if v == nil {
-		return true
-	}
+func (s *defaultStore) Load() State {
+	cfg := s.accessor()
 
-	return *v
-}
+	var st State
 
-func (s *defaultStore) SetEnabled(enabled bool) error {
-	v := enabled
-	s.accessor().TelemetryEnabled = &v
-
-	return s.save()
-}
-
-func (s *defaultStore) EnabledAt() time.Time {
-	raw := s.accessor().TelemetryEnabledAt
-	if raw == "" {
-		return time.Time{}
-	}
-
-	t, err := time.Parse(time.RFC3339Nano, raw)
-	if err != nil {
-		return time.Time{}
-	}
-
-	return t
-}
-
-func (s *defaultStore) SetEnabledAt(t time.Time) error {
-	if t.IsZero() {
-		s.accessor().TelemetryEnabledAt = ""
+	if cfg.TelemetryEnabled == nil {
+		st.Enabled = true
 	} else {
-		s.accessor().TelemetryEnabledAt = t.UTC().Format(time.RFC3339Nano)
+		st.Enabled = *cfg.TelemetryEnabled
 	}
 
-	return s.save()
+	if cfg.TelemetryEnabledAt != "" {
+		if t, err := time.Parse(time.RFC3339Nano, cfg.TelemetryEnabledAt); err == nil {
+			st.EnabledAt = t
+		}
+	}
+
+	if cfg.TelemetryValidity != "" {
+		if d, err := time.ParseDuration(cfg.TelemetryValidity); err == nil && d > 0 {
+			st.Validity = d
+		}
+	}
+
+	if st.Validity <= 0 {
+		st.Validity = DefaultValidity
+	}
+
+	return st
 }
 
-func (s *defaultStore) Validity() time.Duration {
-	raw := s.accessor().TelemetryValidity
-	if raw == "" {
-		return DefaultValidity
+func (s *defaultStore) Save(st State) error {
+	cfg := s.accessor()
+
+	// Snapshot so we can restore on save failure. The shared config.Default
+	// must not carry unsaved telemetry mutations that a later unrelated
+	// save() could flush to disk.
+	prevEnabled := cfg.TelemetryEnabled
+	prevEnabledAt := cfg.TelemetryEnabledAt
+	prevValidity := cfg.TelemetryValidity
+
+	v := st.Enabled
+	cfg.TelemetryEnabled = &v
+
+	if st.EnabledAt.IsZero() {
+		cfg.TelemetryEnabledAt = ""
+	} else {
+		cfg.TelemetryEnabledAt = st.EnabledAt.UTC().Format(time.RFC3339Nano)
 	}
 
-	d, err := time.ParseDuration(raw)
-	if err != nil || d <= 0 {
-		return DefaultValidity
+	cfg.TelemetryValidity = st.Validity.String()
+
+	if err := s.save(); err != nil {
+		cfg.TelemetryEnabled = prevEnabled
+		cfg.TelemetryEnabledAt = prevEnabledAt
+		cfg.TelemetryValidity = prevValidity
+
+		return err
 	}
 
-	return d
-}
-
-func (s *defaultStore) SetValidity(validity time.Duration) error {
-	s.accessor().TelemetryValidity = validity.String()
-
-	return s.save()
+	return nil
 }
 
 // NewMemoryStore returns an in-memory Store suitable for tests or
 // applications that do not need telemetry state to survive restarts.
-// The initial validity is DefaultValidity; with an empty enabledAt, New
-// will stamp a fresh window on every restart.
 func NewMemoryStore(enabled bool) Store {
-	return &memoryStore{enabled: enabled, validity: DefaultValidity}
+	return &memoryStore{state: State{
+		Enabled:  enabled,
+		Validity: DefaultValidity,
+	}}
 }
 
 type memoryStore struct {
-	lock      sync.Mutex
-	enabled   bool
-	enabledAt time.Time
-	validity  time.Duration
+	lock  sync.Mutex
+	state State
 }
 
-func (s *memoryStore) Enabled() bool {
+func (s *memoryStore) Load() State {
 	s.lock.Lock()
 	defer s.lock.Unlock()
 
-	return s.enabled
+	return s.state
 }
 
-func (s *memoryStore) SetEnabled(enabled bool) error {
+func (s *memoryStore) Save(st State) error {
 	s.lock.Lock()
 	defer s.lock.Unlock()
 
-	s.enabled = enabled
-
-	return nil
-}
-
-func (s *memoryStore) EnabledAt() time.Time {
-	s.lock.Lock()
-	defer s.lock.Unlock()
-
-	return s.enabledAt
-}
-
-func (s *memoryStore) SetEnabledAt(t time.Time) error {
-	s.lock.Lock()
-	defer s.lock.Unlock()
-
-	s.enabledAt = t
-
-	return nil
-}
-
-func (s *memoryStore) Validity() time.Duration {
-	s.lock.Lock()
-	defer s.lock.Unlock()
-
-	return s.validity
-}
-
-func (s *memoryStore) SetValidity(validity time.Duration) error {
-	s.lock.Lock()
-	defer s.lock.Unlock()
-
-	s.validity = validity
+	s.state = st
 
 	return nil
 }
