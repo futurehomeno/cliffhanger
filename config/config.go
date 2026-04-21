@@ -17,9 +17,6 @@ type Default struct {
 	LogLevel           string `json:"log_level"`
 	LogFormat          string `json:"log_format"`
 	LogRevertTimeout   string `json:"log_revert_timeout,omitempty"`
-	TelemetryEnabled   *bool  `json:"telemetry_enabled,omitempty"`
-	TelemetryEnabledAt string `json:"telemetry_enabled_at,omitempty"`
-	TelemetryValidity  string `json:"telemetry_validity,omitempty"`
 	RestartsCount      int    `json:"restarts_count,omitempty"`
 	ConfiguredAt       string `json:"configured_at"`
 }
