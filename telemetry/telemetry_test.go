@@ -336,31 +336,17 @@ func TestReporter(t *testing.T) { //nolint:paralleltest
 }
 
 // stubStore exposes raw fields for white-box testing of New's restart-resume
-// logic. Unlike NewMemoryStore, it lets tests seed non-zero enabledAt values.
+// logic. Unlike NewMemoryStore, it lets tests seed non-zero state values.
 type stubStore struct {
-	enabled   bool
-	enabledAt time.Time
-	validity  time.Duration
-
-	setEnabledCalls   int
-	setEnabledAtCalls int
+	state     telemetry.State
+	saveCalls int
 }
 
-func (s *stubStore) Enabled() bool                     { return s.enabled }
-func (s *stubStore) EnabledAt() time.Time              { return s.enabledAt }
-func (s *stubStore) Validity() time.Duration           { return s.validity }
-func (s *stubStore) SetValidity(v time.Duration) error { s.validity = v; return nil }
+func (s *stubStore) Load() telemetry.State { return s.state }
 
-func (s *stubStore) SetEnabled(enabled bool) error {
-	s.enabled = enabled
-	s.setEnabledCalls++
-
-	return nil
-}
-
-func (s *stubStore) SetEnabledAt(t time.Time) error {
-	s.enabledAt = t
-	s.setEnabledAtCalls++
+func (s *stubStore) Save(st telemetry.State) error {
+	s.state = st
+	s.saveCalls++
 
 	return nil
 }
@@ -371,45 +357,44 @@ func TestNew_ResumesValidityWindowAcrossRestart(t *testing.T) {
 	t.Run("mid-window: resumes with remaining time", func(t *testing.T) {
 		t.Parallel()
 
-		store := &stubStore{
-			enabled:   true,
-			enabledAt: time.Now().Add(-10 * time.Minute),
-			validity:  time.Hour,
-		}
+		store := &stubStore{state: telemetry.State{
+			Enabled:   true,
+			EnabledAt: time.Now().Add(-10 * time.Minute),
+			Validity:  time.Hour,
+		}}
 
 		tel, err := telemetry.New(&fimpgo.MqttTransport{}, testSource, store)
 		require.NoError(t, err)
 
 		assert.True(t, tel.IsEnabled())
 		assert.Equal(t, time.Hour, tel.Validity())
-		assert.Equal(t, 0, store.setEnabledCalls, "must not re-persist enabled on resume")
-		assert.Equal(t, 0, store.setEnabledAtCalls, "must not re-stamp enabledAt on resume")
+		assert.Equal(t, 0, store.saveCalls, "must not re-persist on resume")
 	})
 
 	t.Run("already expired: auto-disables and persists", func(t *testing.T) {
 		t.Parallel()
 
-		store := &stubStore{
-			enabled:   true,
-			enabledAt: time.Now().Add(-40 * 24 * time.Hour),
-			validity:  30 * 24 * time.Hour,
-		}
+		store := &stubStore{state: telemetry.State{
+			Enabled:   true,
+			EnabledAt: time.Now().Add(-40 * 24 * time.Hour),
+			Validity:  30 * 24 * time.Hour,
+		}}
 
 		tel, err := telemetry.New(&fimpgo.MqttTransport{}, testSource, store)
 		require.NoError(t, err)
 
 		assert.False(t, tel.IsEnabled())
-		assert.False(t, store.enabled)
-		assert.True(t, store.enabledAt.IsZero())
+		assert.False(t, store.state.Enabled)
+		assert.True(t, store.state.EnabledAt.IsZero())
 	})
 
 	t.Run("enabled with zero enabledAt: stamps fresh window", func(t *testing.T) {
 		t.Parallel()
 
-		store := &stubStore{
-			enabled:  true,
-			validity: time.Hour,
-		}
+		store := &stubStore{state: telemetry.State{
+			Enabled:  true,
+			Validity: time.Hour,
+		}}
 
 		before := time.Now()
 
@@ -417,8 +402,8 @@ func TestNew_ResumesValidityWindowAcrossRestart(t *testing.T) {
 		require.NoError(t, err)
 
 		assert.True(t, tel.IsEnabled())
-		assert.False(t, store.enabledAt.IsZero())
-		assert.True(t, !store.enabledAt.Before(before))
+		assert.False(t, store.state.EnabledAt.IsZero())
+		assert.True(t, !store.state.EnabledAt.Before(before))
 	})
 }
 
@@ -430,20 +415,24 @@ func TestNewDefaultStore_RoundTrip(t *testing.T) {
 	store := telemetry.NewDefaultStore(func() *config.Default { return d }, func() error { saves++; return nil })
 
 	// Defaults when nothing is persisted.
-	assert.True(t, store.Enabled(), "unset enabled should default to true")
-	assert.True(t, store.EnabledAt().IsZero())
-	assert.Equal(t, telemetry.DefaultValidity, store.Validity())
-
-	require.NoError(t, store.SetEnabled(false))
-	require.NoError(t, store.SetValidity(2*time.Hour))
+	st := store.Load()
+	assert.True(t, st.Enabled, "unset enabled should default to true")
+	assert.True(t, st.EnabledAt.IsZero())
+	assert.Equal(t, telemetry.DefaultValidity, st.Validity)
 
 	stamp := time.Date(2026, 4, 20, 12, 0, 0, 123_000_000, time.UTC)
-	require.NoError(t, store.SetEnabledAt(stamp))
 
-	// In-memory side reflects the writes.
-	assert.False(t, store.Enabled())
-	assert.Equal(t, 2*time.Hour, store.Validity())
-	assert.True(t, store.EnabledAt().Equal(stamp))
+	require.NoError(t, store.Save(telemetry.State{
+		Enabled:   false,
+		EnabledAt: stamp,
+		Validity:  2 * time.Hour,
+	}))
+
+	// Load reflects the writes.
+	st = store.Load()
+	assert.False(t, st.Enabled)
+	assert.Equal(t, 2*time.Hour, st.Validity)
+	assert.True(t, st.EnabledAt.Equal(stamp))
 
 	// Raw fields serialize the way the format contract says they should.
 	assert.NotNil(t, d.TelemetryEnabled)
@@ -451,11 +440,16 @@ func TestNewDefaultStore_RoundTrip(t *testing.T) {
 	assert.Equal(t, "2h0m0s", d.TelemetryValidity)
 	assert.Equal(t, "2026-04-20T12:00:00.123Z", d.TelemetryEnabledAt)
 
-	// Clearing enabledAt writes an empty string, not "0001-01-01..." —
+	// Clearing enabledAt writes an empty string, not "0001-01-01..." -
 	// a malformed RFC3339Nano in the file must round-trip to zero time.
-	require.NoError(t, store.SetEnabledAt(time.Time{}))
+	require.NoError(t, store.Save(telemetry.State{
+		Enabled:  false,
+		Validity: 2 * time.Hour,
+	}))
 	assert.Equal(t, "", d.TelemetryEnabledAt)
-	assert.True(t, store.EnabledAt().IsZero())
 
-	assert.Greater(t, saves, 0, "every Set* must call save")
+	st = store.Load()
+	assert.True(t, st.EnabledAt.IsZero())
+
+	assert.Equal(t, 2, saves, "each Save must call save exactly once")
 }
