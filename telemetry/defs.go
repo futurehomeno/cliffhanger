@@ -30,7 +30,7 @@ const (
 	SettingValidity = "telemetry_validity"
 
 	// DefaultValidity is the default window telemetry stays enabled after
-	// Enable(true). After that it auto-disables on the next Report call.
+	// Enable(true). After that it auto-disables via a background timer.
 	DefaultValidity = 30 * 24 * time.Hour
 )
 

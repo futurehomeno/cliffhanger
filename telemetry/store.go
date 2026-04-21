@@ -1,8 +1,9 @@
 package telemetry
 
 import (
-	"sync"
 	"time"
+
+	log "github.com/sirupsen/logrus"
 
 	"github.com/futurehomeno/cliffhanger/config"
 )
@@ -31,8 +32,16 @@ type Store interface {
 
 // NewDefaultStore adapts a config.Default-backed persistence layer to the
 // Store interface. The accessor must return a pointer to the embedded Default
-// block; save persists the entire config to disk.
+// block; save persists the entire config to disk. Both callbacks must be non-nil.
 func NewDefaultStore(accessor func() *config.Default, save func() error) Store {
+	if accessor == nil {
+		panic("telemetry: NewDefaultStore: accessor must not be nil")
+	}
+
+	if save == nil {
+		panic("telemetry: NewDefaultStore: save must not be nil")
+	}
+
 	return &defaultStore{accessor: accessor, save: save}
 }
 
@@ -55,12 +64,16 @@ func (s *defaultStore) Load() State {
 	if cfg.TelemetryEnabledAt != "" {
 		if t, err := time.Parse(time.RFC3339Nano, cfg.TelemetryEnabledAt); err == nil {
 			st.EnabledAt = t
+		} else {
+			log.WithError(err).Warnf("[cliff] Telemetry: ignoring malformed enabled_at %q", cfg.TelemetryEnabledAt)
 		}
 	}
 
 	if cfg.TelemetryValidity != "" {
 		if d, err := time.ParseDuration(cfg.TelemetryValidity); err == nil && d > 0 {
 			st.Validity = d
+		} else {
+			log.WithError(err).Warnf("[cliff] Telemetry: ignoring invalid validity %q", cfg.TelemetryValidity)
 		}
 	}
 
@@ -113,21 +126,14 @@ func NewMemoryStore(enabled bool) Store {
 }
 
 type memoryStore struct {
-	lock  sync.Mutex
 	state State
 }
 
 func (s *memoryStore) Load() State {
-	s.lock.Lock()
-	defer s.lock.Unlock()
-
 	return s.state
 }
 
 func (s *memoryStore) Save(st State) error {
-	s.lock.Lock()
-	defer s.lock.Unlock()
-
 	s.state = st
 
 	return nil
