@@ -224,13 +224,16 @@ func (r *telemetryT) SetValidity(validity time.Duration) error {
 	r.lock.Lock()
 	defer r.lock.Unlock()
 
-	// Compute the final state in one pass so we need only a single Save.
+	// Compute elapsed once and use it for both the Save decision and the
+	// post-Save timer scheduling, avoiding a TOCTOU gap during slow saves.
+	var elapsed time.Duration
+
 	newEnabled := r.enabled
 	newEnabledAt := r.enabledAt
 	shouldDisable := false
 
 	if r.enabled && !r.enabledAt.IsZero() {
-		elapsed := time.Since(r.enabledAt)
+		elapsed = time.Since(r.enabledAt)
 		if elapsed < 0 {
 			elapsed = 0 // clock skew: treat future timestamps as "just enabled"
 		}
@@ -258,15 +261,9 @@ func (r *telemetryT) SetValidity(validity time.Duration) error {
 	if shouldDisable {
 		r.enabled = false
 		r.enabledAt = time.Time{}
-		r.timer = nil
 
 		log.Infof("[cliff] Telemetry disabled: validity reduced below elapsed time")
 	} else if r.enabled && !r.enabledAt.IsZero() {
-		elapsed := time.Since(r.enabledAt)
-		if elapsed < 0 {
-			elapsed = 0
-		}
-
 		r.startTimerLocked(validity - elapsed)
 	}
 

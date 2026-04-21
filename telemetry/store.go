@@ -19,6 +19,9 @@ type State struct {
 // the reporter was last enabled at, and the validity window all survive
 // application restarts. Consumer applications implement this against their
 // own configuration storage.
+//
+// Implementations do not need to be thread-safe: the telemetry reporter
+// serializes all Load/Save calls under its own mutex.
 type Store interface {
 	// Load returns the current persisted state.
 	Load() State
