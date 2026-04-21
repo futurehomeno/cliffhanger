@@ -1,50 +1,12 @@
 package lifecycle
 
 import (
-	"fmt"
 	"sync"
 	"time"
 
+	"github.com/futurehomeno/cliffhanger/lifecycle/restartsstore"
 	log "github.com/sirupsen/logrus"
-
-	"github.com/futurehomeno/cliffhanger/config"
 )
-
-// LogStatsProvider is an optional source of warn/error log counters used to populate AppStates.
-type LogStatsProvider interface {
-	ErrorsCount() int
-	WarningsCount() int
-}
-
-// RestartsStore persists the restart counter across application restarts. A
-// missing value must be reported as (0, nil) so the first startup can begin
-// counting from zero.
-type RestartsStore interface {
-	GetRestartsCount() (int, error)
-	SetRestartsCount(n int) error
-}
-
-// NewDefaultRestartsStore adapts a config.Default-backed persistence layer to
-// the RestartsStore interface. The accessor must return a pointer to the
-// embedded Default block; save persists any field mutation to disk.
-func NewDefaultRestartsStore(accessor func() *config.Default, save func() error) RestartsStore {
-	return &defaultRestartsStore{accessor: accessor, save: save}
-}
-
-type defaultRestartsStore struct {
-	accessor func() *config.Default
-	save     func() error
-}
-
-func (s *defaultRestartsStore) GetRestartsCount() (int, error) {
-	return s.accessor().RestartsCount, nil
-}
-
-func (s *defaultRestartsStore) SetRestartsCount(n int) error {
-	s.accessor().RestartsCount = n
-
-	return s.save()
-}
 
 // Constants defining event types and application states.
 const (
@@ -89,10 +51,6 @@ type AppStates struct {
 	Connection string `json:"connection"`
 	Config     string `json:"config"`
 	Auth       string `json:"auth"`
-	/*Uptime        int    `json:"uptime"`
-	RestartsCount int    `json:"restarts_count"`
-	ErrorsCount   int    `json:"errors_count"`
-	WarningsCount int    `json:"warnings_count"`*/
 }
 
 // SystemEvent is an object representing a particular system event.
@@ -116,15 +74,9 @@ type Lifecycle struct {
 	configState        State
 	startTime          time.Time
 	restartsCount      int
-	logStats           LogStatsProvider
 }
 
-// New creates new instance of a lifecycle service. If store is non-nil, the
-// restart counter is loaded, incremented, and persisted synchronously; any
-// error is logged but does not prevent construction — the cached count just
-// stays at zero. Pass nil when restart counting is not needed (e.g. tests,
-// core apps).
-func New(store RestartsStore) *Lifecycle {
+func New(store restartsstore.RestartsStore) *Lifecycle {
 	l := &Lifecycle{
 		systemEventBus:     make(map[string]SystemEventChannel),
 		lock:               &sync.RWMutex{},
@@ -137,8 +89,10 @@ func New(store RestartsStore) *Lifecycle {
 	}
 
 	if store != nil {
-		if err := l.LoadRestartsCount(store); err != nil {
-			log.WithError(err).Warn("lifecycle: failed to load restart count")
+		var err error
+		l.restartsCount, err = store.IncrementRestartsCount()
+		if err != nil {
+			log.Errorf("Increment restart count err: %v", err)
 		}
 	}
 
@@ -153,37 +107,6 @@ func (l *Lifecycle) SetRestartCount(n int) {
 	l.restartsCount = n
 }
 
-// LoadRestartsCount reads the current restart count from the store, increments
-// it, persists the new value, and caches it in the lifecycle. Intended to be
-// called once during application bootstrap.
-func (l *Lifecycle) LoadRestartsCount(store RestartsStore) error {
-	n, err := store.GetRestartsCount()
-	if err != nil {
-		return fmt.Errorf("lifecycle: failed to read restart count: %w", err)
-	}
-
-	n++
-
-	if err := store.SetRestartsCount(n); err != nil {
-		return fmt.Errorf("lifecycle: failed to persist restart count: %w", err)
-	}
-
-	l.lock.Lock()
-	l.restartsCount = n
-	l.lock.Unlock()
-
-	return nil
-}
-
-// SetLogStatsProvider sets the provider used to populate ErrorsCount and WarningsCount in AppStates.
-func (l *Lifecycle) SetLogStatsProvider(p LogStatsProvider) {
-	l.lock.Lock()
-	defer l.lock.Unlock()
-
-	l.logStats = p
-}
-
-// Uptime returns the number of whole seconds since the lifecycle was created.
 func (l *Lifecycle) Uptime() int {
 	l.lock.RLock()
 	start := l.startTime
@@ -192,8 +115,6 @@ func (l *Lifecycle) Uptime() int {
 	return int(time.Since(start).Seconds())
 }
 
-// RestartsCount returns the cached restart counter. Populated by
-// LoadRestartsCount or SetRestartCount; zero if neither has been called.
 func (l *Lifecycle) RestartsCount() int {
 	l.lock.RLock()
 	defer l.lock.RUnlock()
@@ -201,7 +122,6 @@ func (l *Lifecycle) RestartsCount() int {
 	return l.restartsCount
 }
 
-// GetAllStates returns all application states.
 func (l *Lifecycle) GetAllStates() *AppStates {
 	l.lock.RLock()
 	states := &AppStates{
