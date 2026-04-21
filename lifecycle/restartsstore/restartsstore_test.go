@@ -86,12 +86,12 @@ func TestStore_LoadRestartsCount_IntegratesWithLifecycle(t *testing.T) {
 	store := restartsstore.New(db)
 
 	// First boot: count goes 0 -> 1.
-	l1 := lifecycle.New()
+	l1 := lifecycle.New(nil)
 	require.NoError(t, l1.LoadRestartsCount(store))
 	assert.Equal(t, 1, l1.RestartsCount())
 
 	// Simulated second boot against the same store: 1 -> 2.
-	l2 := lifecycle.New()
+	l2 := lifecycle.New(nil)
 	require.NoError(t, l2.LoadRestartsCount(store))
 	assert.Equal(t, 2, l2.RestartsCount())
 }

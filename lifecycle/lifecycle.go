@@ -119,9 +119,13 @@ type Lifecycle struct {
 	logStats           LogStatsProvider
 }
 
-// New creates new instance of a lifecycle service.
-func New() *Lifecycle {
-	return &Lifecycle{
+// New creates new instance of a lifecycle service. If store is non-nil, the
+// restart counter is loaded, incremented, and persisted synchronously; any
+// error is logged but does not prevent construction — the cached count just
+// stays at zero. Pass nil when restart counting is not needed (e.g. tests,
+// core apps).
+func New(store RestartsStore) *Lifecycle {
+	l := &Lifecycle{
 		systemEventBus:     make(map[string]SystemEventChannel),
 		lock:               &sync.RWMutex{},
 		systemEventBusLock: &sync.RWMutex{},
@@ -131,6 +135,14 @@ func New() *Lifecycle {
 		connectionState:    ConnStateNA,
 		startTime:          time.Now(),
 	}
+
+	if store != nil {
+		if err := l.LoadRestartsCount(store); err != nil {
+			log.WithError(err).Warn("lifecycle: failed to load restart count")
+		}
+	}
+
+	return l
 }
 
 // SetRestartCount sets the number of times the application has been restarted.

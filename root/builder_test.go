@@ -59,7 +59,7 @@ func TestBuilder_Build(t *testing.T) {
 			builder: root.NewCoreAppBuilder().
 				WithMQTT(mqtt).
 				WithServiceDiscovery(&discovery.Resource{}).
-				WithLifecycle(lifecycle.New()),
+				WithLifecycle(lifecycle.New(nil)),
 			wantErr: true,
 		},
 		{

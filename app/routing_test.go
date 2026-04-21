@@ -40,7 +40,7 @@ func newDiagRequest(t *testing.T) *fimpgo.Message {
 func TestHandleCmdAppDiagGetReport_EmitsFullReport(t *testing.T) {
 	t.Parallel()
 
-	l := lifecycle.New()
+	l := lifecycle.New(nil)
 	l.SetRestartCount(3)
 
 	logs := &stubLogProvider{entries: []string{"ERR one", "WARN two"}}
@@ -68,7 +68,7 @@ func TestHandleCmdAppDiagGetReport_EmitsFullReport(t *testing.T) {
 func TestHandleCmdAppDiagGetReport_PropagatesLogProviderError(t *testing.T) {
 	t.Parallel()
 
-	l := lifecycle.New()
+	l := lifecycle.New(nil)
 	boom := errors.New("log read boom")
 	logs := &stubLogProvider{err: boom}
 

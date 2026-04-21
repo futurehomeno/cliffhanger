@@ -15,7 +15,7 @@ import (
 func TestNew_DefaultStates(t *testing.T) {
 	t.Parallel()
 
-	l := lifecycle.New()
+	l := lifecycle.New(nil)
 
 	assert.Equal(t, lifecycle.AppStateStarting, l.AppState())
 	assert.Equal(t, lifecycle.AuthStateNA, l.AuthState())
@@ -26,7 +26,7 @@ func TestNew_DefaultStates(t *testing.T) {
 func TestGetAllStates_DefaultFields(t *testing.T) {
 	t.Parallel()
 
-	l := lifecycle.New()
+	l := lifecycle.New(nil)
 	states := l.GetAllStates()
 
 	assert.Equal(t, string(lifecycle.AppStateStarting), states.App)
@@ -40,7 +40,7 @@ func TestGetAllStates_DefaultFields(t *testing.T) {
 func TestUptime_IncreasesOverTime(t *testing.T) {
 	t.Parallel()
 
-	l := lifecycle.New()
+	l := lifecycle.New(nil)
 
 	time.Sleep(1100 * time.Millisecond)
 
@@ -50,7 +50,7 @@ func TestUptime_IncreasesOverTime(t *testing.T) {
 func TestSetRestartCount(t *testing.T) {
 	t.Parallel()
 
-	l := lifecycle.New()
+	l := lifecycle.New(nil)
 	l.SetRestartCount(7)
 
 	assert.Equal(t, 7, l.RestartsCount())
@@ -59,7 +59,7 @@ func TestSetRestartCount(t *testing.T) {
 func TestGetState_ByType(t *testing.T) {
 	t.Parallel()
 
-	l := lifecycle.New()
+	l := lifecycle.New(nil)
 	l.SetAppState(lifecycle.AppStateRunning, nil)
 	l.SetConfigState(lifecycle.ConfigStateConfigured)
 	l.SetAuthState(lifecycle.AuthStateAuthenticated)
@@ -90,7 +90,7 @@ func TestGetState_ByType(t *testing.T) {
 func TestSetAppState_EmitsEvent(t *testing.T) {
 	t.Parallel()
 
-	l := lifecycle.New()
+	l := lifecycle.New(nil)
 	ch := l.Subscribe("test", 1)
 
 	l.SetAppState(lifecycle.AppStateRunning, nil)
@@ -105,7 +105,7 @@ func TestSetAppState_EmitsEvent(t *testing.T) {
 func TestSetAppState_NoDuplicateEvent(t *testing.T) {
 	t.Parallel()
 
-	l := lifecycle.New()
+	l := lifecycle.New(nil)
 	ch := l.Subscribe("test", 5)
 
 	l.SetAppState(lifecycle.AppStateRunning, nil)
@@ -119,7 +119,7 @@ func TestSetAppState_NoDuplicateEvent(t *testing.T) {
 func TestSetConfigState_EmitsEvent(t *testing.T) {
 	t.Parallel()
 
-	l := lifecycle.New()
+	l := lifecycle.New(nil)
 	ch := l.Subscribe("test", 1)
 
 	l.SetConfigState(lifecycle.ConfigStateConfigured)
@@ -134,7 +134,7 @@ func TestSetConfigState_EmitsEvent(t *testing.T) {
 func TestSetAuthState_EmitsEvent(t *testing.T) {
 	t.Parallel()
 
-	l := lifecycle.New()
+	l := lifecycle.New(nil)
 	ch := l.Subscribe("test", 1)
 
 	l.SetAuthState(lifecycle.AuthStateAuthenticated)
@@ -149,7 +149,7 @@ func TestSetAuthState_EmitsEvent(t *testing.T) {
 func TestSetConnectionState_EmitsEvent(t *testing.T) {
 	t.Parallel()
 
-	l := lifecycle.New()
+	l := lifecycle.New(nil)
 	ch := l.Subscribe("test", 1)
 
 	l.SetConnectionState(lifecycle.ConnStateConnected)
@@ -164,7 +164,7 @@ func TestSetConnectionState_EmitsEvent(t *testing.T) {
 func TestSubscribe_ReturnsExistingChannel(t *testing.T) {
 	t.Parallel()
 
-	l := lifecycle.New()
+	l := lifecycle.New(nil)
 
 	ch1 := l.Subscribe("sub", 1)
 	ch2 := l.Subscribe("sub", 1)
@@ -175,7 +175,7 @@ func TestSubscribe_ReturnsExistingChannel(t *testing.T) {
 func TestUnsubscribe_StopsEvents(t *testing.T) {
 	t.Parallel()
 
-	l := lifecycle.New()
+	l := lifecycle.New(nil)
 	l.Subscribe("sub", 5)
 	l.Unsubscribe("sub")
 
@@ -190,7 +190,7 @@ func TestUnsubscribe_StopsEvents(t *testing.T) {
 func TestWaitFor_ReturnsImmediatelyIfAlreadyInState(t *testing.T) {
 	t.Parallel()
 
-	l := lifecycle.New()
+	l := lifecycle.New(nil)
 	l.SetAppState(lifecycle.AppStateRunning, nil)
 
 	done := make(chan struct{})
@@ -210,7 +210,7 @@ func TestWaitFor_ReturnsImmediatelyIfAlreadyInState(t *testing.T) {
 func TestWaitFor_BlocksUntilStateReached(t *testing.T) {
 	t.Parallel()
 
-	l := lifecycle.New()
+	l := lifecycle.New(nil)
 
 	done := make(chan struct{})
 
@@ -281,7 +281,7 @@ func (s *stubRestartsStore) SetRestartsCount(n int) error {
 func TestLoadRestartsCount_IncrementsAndPersists(t *testing.T) {
 	t.Parallel()
 
-	l := lifecycle.New()
+	l := lifecycle.New(nil)
 	store := &stubRestartsStore{count: 4}
 
 	require.NoError(t, l.LoadRestartsCount(store))
@@ -294,7 +294,7 @@ func TestLoadRestartsCount_IncrementsAndPersists(t *testing.T) {
 func TestLoadRestartsCount_FromZero(t *testing.T) {
 	t.Parallel()
 
-	l := lifecycle.New()
+	l := lifecycle.New(nil)
 	store := &stubRestartsStore{}
 
 	require.NoError(t, l.LoadRestartsCount(store))
@@ -306,7 +306,7 @@ func TestLoadRestartsCount_FromZero(t *testing.T) {
 func TestLoadRestartsCount_GetError(t *testing.T) {
 	t.Parallel()
 
-	l := lifecycle.New()
+	l := lifecycle.New(nil)
 	getErr := errors.New("read boom")
 	store := &stubRestartsStore{count: 7, getErr: getErr}
 
@@ -321,7 +321,7 @@ func TestLoadRestartsCount_GetError(t *testing.T) {
 func TestLoadRestartsCount_SetError(t *testing.T) {
 	t.Parallel()
 
-	l := lifecycle.New()
+	l := lifecycle.New(nil)
 	setErr := errors.New("write boom")
 	store := &stubRestartsStore{count: 2, setErr: setErr}
 
@@ -376,13 +376,13 @@ func TestLoadRestartsCount_WithDefaultStore(t *testing.T) {
 	d := &config.Default{}
 	store := lifecycle.NewDefaultRestartsStore(func() *config.Default { return d }, func() error { return nil })
 
-	l1 := lifecycle.New()
+	l1 := lifecycle.New(nil)
 	require.NoError(t, l1.LoadRestartsCount(store))
 	assert.Equal(t, 1, l1.RestartsCount())
 	assert.Equal(t, 1, d.RestartsCount)
 
 	// Second process (same config) sees the incremented count.
-	l2 := lifecycle.New()
+	l2 := lifecycle.New(nil)
 	require.NoError(t, l2.LoadRestartsCount(store))
 	assert.Equal(t, 2, l2.RestartsCount())
 	assert.Equal(t, 2, d.RestartsCount)
