@@ -8,13 +8,13 @@ import (
 )
 
 // RouteCmdGetEnabled returns a routing for cmd.config.get_telemetry_enabled
-// that replies with the current Reporter enabled state.
+// that replies with the current telemetry enabled state.
 func RouteCmdGetEnabled(svc fimptype.ServiceNameT, reporter Telemetry, options ...config.RoutingOption) *router.Routing {
 	return config.RouteCmdConfigGetBool(svc, SettingEnabled, reporter.IsEnabled, options...)
 }
 
 // RouteCmdSetEnabled returns a routing for cmd.config.set_telemetry_enabled
-// that toggles the Reporter enabled state.
+// that toggles the telemetry enabled state.
 func RouteCmdSetEnabled(svc fimptype.ServiceNameT, reporter Telemetry, options ...config.RoutingOption) *router.Routing {
 	return config.RouteCmdConfigSetBool(svc, SettingEnabled, reporter.Enable, options...)
 }
@@ -31,8 +31,8 @@ func RouteCmdSetValidity(svc fimptype.ServiceNameT, reporter Telemetry, options 
 	return config.RouteCmdConfigSetDuration(svc, SettingValidity, reporter.SetValidity, options...)
 }
 
-// RoutingForReporter returns the get/set routings for the telemetry config
-// parameters (enabled, validity) bound to the given Reporter.
+// RoutingForTelemetry returns the get/set routings for the telemetry config
+// parameters (enabled, validity) bound to the given Telemetry instance.
 func RoutingForTelemetry(svc fimptype.ServiceNameT, reporter Telemetry, options ...config.RoutingOption) []*router.Routing {
 	return []*router.Routing{
 		RouteCmdGetEnabled(svc, reporter, options...),

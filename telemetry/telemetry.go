@@ -76,6 +76,10 @@ func New(mqtt *fimpgo.MqttTransport, source string, store Store) (Telemetry, err
 		}
 
 		elapsed := time.Since(enabledAt)
+		if elapsed < 0 {
+			elapsed = 0 // clock skew: treat future timestamps as "just enabled"
+		}
+
 		if elapsed >= validity {
 			r.enabled = false
 
@@ -160,27 +164,34 @@ func (r *telemetryT) Enable(enabled bool) error {
 	r.lock.Lock()
 	defer r.lock.Unlock()
 
-	if err := r.store.SetEnabled(enabled); err != nil {
-		return fmt.Errorf("telemetryT: persist enabled: %w", err)
-	}
-
-	r.enabled = enabled
-	r.stopTimerLocked()
-
 	if enabled {
-		r.enabledAt = time.Now()
+		enabledAt := time.Now()
 
-		if err := r.store.SetEnabledAt(r.enabledAt); err != nil {
+		if err := r.store.SetEnabled(true); err != nil {
+			return fmt.Errorf("telemetryT: persist enabled: %w", err)
+		}
+
+		if err := r.store.SetEnabledAt(enabledAt); err != nil {
+			_ = r.store.SetEnabled(false) // best-effort rollback
 			return fmt.Errorf("telemetryT: persist enabled_at: %w", err)
 		}
 
+		r.stopTimerLocked()
+		r.enabled = true
+		r.enabledAt = enabledAt
 		r.startTimerLocked(r.validity)
 	} else {
-		r.enabledAt = time.Time{}
+		if err := r.store.SetEnabled(false); err != nil {
+			return fmt.Errorf("telemetryT: persist enabled: %w", err)
+		}
 
 		if err := r.store.SetEnabledAt(time.Time{}); err != nil {
 			return fmt.Errorf("telemetryT: clear enabled_at: %w", err)
 		}
+
+		r.stopTimerLocked()
+		r.enabled = false
+		r.enabledAt = time.Time{}
 	}
 
 	return nil

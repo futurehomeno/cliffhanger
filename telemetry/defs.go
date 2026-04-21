@@ -1,5 +1,6 @@
 // Package telemetry publishes FIMP telemetry events from cliffhanger apps to
-// the cloud backend-service. See Reporter for the main entry point.
+// the cloud backend-service. See Telemetry for the main interface and New for
+// the constructor.
 package telemetry
 
 import (
@@ -20,7 +21,7 @@ const (
 
 	// SettingEnabled is the config parameter name used by the FIMP
 	// cmd.config.set_telemetry_enabled / cmd.config.get_telemetry_enabled
-	// commands produced by RoutingForReporter.
+	// commands produced by RoutingForTelemetry.
 	SettingEnabled = "telemetry_enabled"
 	// SettingValidity is the config parameter name used by the FIMP
 	// cmd.config.set_telemetry_validity / cmd.config.get_telemetry_validity
