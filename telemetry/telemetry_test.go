@@ -35,10 +35,10 @@ func TestNew_RejectsInvalidInput(t *testing.T) {
 	t.Run("nil mqtt", func(t *testing.T) {
 		t.Parallel()
 
-		telemetry, err := telemetry.New(nil, testSource, telemetry.NewMemoryStore(true))
+		tel, err := telemetry.New(nil, testSource, telemetry.NewMemoryStore(true))
 
 		require.Error(t, err)
-		assert.Nil(t, telemetry)
+		assert.Nil(t, tel)
 	})
 
 	t.Run("empty source", func(t *testing.T) {

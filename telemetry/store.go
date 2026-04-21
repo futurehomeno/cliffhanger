@@ -70,10 +70,15 @@ func (s *defaultStore) Load() State {
 	}
 
 	if cfg.TelemetryValidity != "" {
-		if d, err := time.ParseDuration(cfg.TelemetryValidity); err == nil && d > 0 {
+		d, err := time.ParseDuration(cfg.TelemetryValidity)
+
+		switch {
+		case err != nil:
+			log.WithError(err).Warnf("[cliff] Telemetry: ignoring malformed validity %q", cfg.TelemetryValidity)
+		case d <= 0:
+			log.Warnf("[cliff] Telemetry: ignoring non-positive validity %q", cfg.TelemetryValidity)
+		default:
 			st.Validity = d
-		} else {
-			log.WithError(err).Warnf("[cliff] Telemetry: ignoring invalid validity %q", cfg.TelemetryValidity)
 		}
 	}
 

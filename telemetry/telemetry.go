@@ -42,15 +42,15 @@ type Telemetry interface {
 // store is required and persists enabled / validity across restarts.
 func New(mqtt *fimpgo.MqttTransport, source string, store Store) (Telemetry, error) {
 	if mqtt == nil {
-		return nil, errors.New("mqtt transport is nil")
+		return nil, errors.New("telemetry: mqtt transport is nil")
 	}
 
 	if source == "" {
-		return nil, errors.New("source is not set")
+		return nil, errors.New("telemetry: source is not set")
 	}
 
 	if store == nil {
-		return nil, errors.New("store is required")
+		return nil, errors.New("telemetry: store is required")
 	}
 
 	st := store.Load()
@@ -104,7 +104,12 @@ func New(mqtt *fimpgo.MqttTransport, source string, store Store) (Telemetry, err
 			log.Infof("[cliff] Telemetry disabled: validity expired before startup")
 		} else {
 			r.enabledAt = enabledAt
+
+			// Hold the lock so r.timer is assigned before the AfterFunc
+			// callback can acquire it - prevents a race on tiny durations.
+			r.lock.Lock()
 			r.startTimerLocked(st.Validity - elapsed)
+			r.lock.Unlock()
 		}
 	}
 
