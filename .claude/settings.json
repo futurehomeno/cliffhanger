@@ -1,0 +1,8 @@
+{
+  "permissions": {
+    "allow": [
+      "Read(//home/budzik/proj/go/**)",
+      "Bash(awk '{print $NF}')"
+    ]
+  }
+}

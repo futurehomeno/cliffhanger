@@ -6,6 +6,8 @@ import (
 	"time"
 
 	log "github.com/sirupsen/logrus"
+
+	"github.com/futurehomeno/cliffhanger/config"
 )
 
 // LogStatsProvider is an optional source of warn/error log counters used to populate AppStates.
@@ -20,6 +22,28 @@ type LogStatsProvider interface {
 type RestartsStore interface {
 	GetRestartsCount() (int, error)
 	SetRestartsCount(n int) error
+}
+
+// NewDefaultRestartsStore adapts a config.Default-backed persistence layer to
+// the RestartsStore interface. The accessor must return a pointer to the
+// embedded Default block; save persists any field mutation to disk.
+func NewDefaultRestartsStore(accessor func() *config.Default, save func() error) RestartsStore {
+	return &defaultRestartsStore{accessor: accessor, save: save}
+}
+
+type defaultRestartsStore struct {
+	accessor func() *config.Default
+	save     func() error
+}
+
+func (s *defaultRestartsStore) GetRestartsCount() (int, error) {
+	return s.accessor().RestartsCount, nil
+}
+
+func (s *defaultRestartsStore) SetRestartsCount(n int) error {
+	s.accessor().RestartsCount = n
+
+	return s.save()
 }
 
 // Constants defining event types and application states.
@@ -61,14 +85,14 @@ type State string
 
 // AppStates is an object representing current application states.
 type AppStates struct {
-	App           string `json:"app"`
-	Connection    string `json:"connection"`
-	Config        string `json:"config"`
-	Auth          string `json:"auth"`
-	Uptime        int    `json:"uptime"`
+	App        string `json:"app"`
+	Connection string `json:"connection"`
+	Config     string `json:"config"`
+	Auth       string `json:"auth"`
+	/*Uptime        int    `json:"uptime"`
 	RestartsCount int    `json:"restarts_count"`
 	ErrorsCount   int    `json:"errors_count"`
-	WarningsCount int    `json:"warnings_count"`
+	WarningsCount int    `json:"warnings_count"`*/
 }
 
 // SystemEvent is an object representing a particular system event.
@@ -147,25 +171,34 @@ func (l *Lifecycle) SetLogStatsProvider(p LogStatsProvider) {
 	l.logStats = p
 }
 
+// Uptime returns the number of whole seconds since the lifecycle was created.
+func (l *Lifecycle) Uptime() int {
+	l.lock.RLock()
+	start := l.startTime
+	l.lock.RUnlock()
+
+	return int(time.Since(start).Seconds())
+}
+
+// RestartsCount returns the cached restart counter. Populated by
+// LoadRestartsCount or SetRestartCount; zero if neither has been called.
+func (l *Lifecycle) RestartsCount() int {
+	l.lock.RLock()
+	defer l.lock.RUnlock()
+
+	return l.restartsCount
+}
+
 // GetAllStates returns all application states.
 func (l *Lifecycle) GetAllStates() *AppStates {
 	l.lock.RLock()
 	states := &AppStates{
-		App:           string(l.appState),
-		Connection:    string(l.connectionState),
-		Config:        string(l.configState),
-		Auth:          string(l.authState),
-		Uptime:        int(time.Since(l.startTime).Seconds()),
-		RestartsCount: l.restartsCount,
+		App:        string(l.appState),
+		Connection: string(l.connectionState),
+		Config:     string(l.configState),
+		Auth:       string(l.authState),
 	}
-	logStats := l.logStats
 	l.lock.RUnlock()
-
-	if logStats != nil {
-		states.ErrorsCount = logStats.ErrorsCount()
-		states.WarningsCount = logStats.WarningsCount()
-	}
-
 	return states
 }
 

@@ -20,6 +20,7 @@ type Default struct {
 	TelemetryEnabled   *bool  `json:"telemetry_enabled,omitempty"`
 	TelemetryEnabledAt string `json:"telemetry_enabled_at,omitempty"`
 	TelemetryValidity  string `json:"telemetry_validity,omitempty"`
+	RestartsCount      int    `json:"restarts_count,omitempty"`
 	ConfiguredAt       string `json:"configured_at"`
 }
 

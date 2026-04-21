@@ -8,6 +8,7 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
+	"github.com/futurehomeno/cliffhanger/config"
 	"github.com/futurehomeno/cliffhanger/lifecycle"
 )
 
@@ -32,20 +33,18 @@ func TestGetAllStates_DefaultFields(t *testing.T) {
 	assert.Equal(t, string(lifecycle.AuthStateNA), states.Auth)
 	assert.Equal(t, string(lifecycle.ConfigStateNotConfigured), states.Config)
 	assert.Equal(t, string(lifecycle.ConnStateNA), states.Connection)
-	assert.GreaterOrEqual(t, states.Uptime, 0)
-	assert.Equal(t, 0, states.RestartsCount)
-	assert.Equal(t, 0, states.ErrorsCount)
-	assert.Equal(t, 0, states.WarningsCount)
+	assert.GreaterOrEqual(t, l.Uptime(), 0)
+	assert.Equal(t, 0, l.RestartsCount())
 }
 
-func TestGetAllStates_UptimeIncreases(t *testing.T) {
+func TestUptime_IncreasesOverTime(t *testing.T) {
 	t.Parallel()
 
 	l := lifecycle.New()
 
 	time.Sleep(1100 * time.Millisecond)
 
-	assert.GreaterOrEqual(t, l.GetAllStates().Uptime, 1)
+	assert.GreaterOrEqual(t, l.Uptime(), 1)
 }
 
 func TestSetRestartCount(t *testing.T) {
@@ -54,31 +53,7 @@ func TestSetRestartCount(t *testing.T) {
 	l := lifecycle.New()
 	l.SetRestartCount(7)
 
-	assert.Equal(t, 7, l.GetAllStates().RestartsCount)
-}
-
-func TestSetLogStatsProvider(t *testing.T) {
-	t.Parallel()
-
-	l := lifecycle.New()
-	l.SetLogStatsProvider(&stubLogStats{errors: 3, warnings: 5})
-
-	states := l.GetAllStates()
-
-	assert.Equal(t, 3, states.ErrorsCount)
-	assert.Equal(t, 5, states.WarningsCount)
-}
-
-func TestSetLogStatsProvider_NilProviderLeavesZero(t *testing.T) {
-	t.Parallel()
-
-	l := lifecycle.New()
-	// default: no provider set
-
-	states := l.GetAllStates()
-
-	assert.Equal(t, 0, states.ErrorsCount)
-	assert.Equal(t, 0, states.WarningsCount)
+	assert.Equal(t, 7, l.RestartsCount())
 }
 
 func TestGetState_ByType(t *testing.T) {
@@ -313,7 +288,7 @@ func TestLoadRestartsCount_IncrementsAndPersists(t *testing.T) {
 
 	assert.Equal(t, 5, store.lastSet)
 	assert.Equal(t, 5, store.count)
-	assert.Equal(t, 5, l.GetAllStates().RestartsCount)
+	assert.Equal(t, 5, l.RestartsCount())
 }
 
 func TestLoadRestartsCount_FromZero(t *testing.T) {
@@ -325,7 +300,7 @@ func TestLoadRestartsCount_FromZero(t *testing.T) {
 	require.NoError(t, l.LoadRestartsCount(store))
 
 	assert.Equal(t, 1, store.lastSet)
-	assert.Equal(t, 1, l.GetAllStates().RestartsCount)
+	assert.Equal(t, 1, l.RestartsCount())
 }
 
 func TestLoadRestartsCount_GetError(t *testing.T) {
@@ -340,7 +315,7 @@ func TestLoadRestartsCount_GetError(t *testing.T) {
 	require.Error(t, err)
 	assert.ErrorIs(t, err, getErr)
 	assert.Equal(t, 0, store.setCalls)
-	assert.Equal(t, 0, l.GetAllStates().RestartsCount)
+	assert.Equal(t, 0, l.RestartsCount())
 }
 
 func TestLoadRestartsCount_SetError(t *testing.T) {
@@ -355,5 +330,60 @@ func TestLoadRestartsCount_SetError(t *testing.T) {
 	require.Error(t, err)
 	assert.ErrorIs(t, err, setErr)
 	assert.Equal(t, 3, store.lastSet)
-	assert.Equal(t, 0, l.GetAllStates().RestartsCount)
+	assert.Equal(t, 0, l.RestartsCount())
+}
+
+func TestNewDefaultRestartsStore_RoundTrip(t *testing.T) {
+	t.Parallel()
+
+	d := &config.Default{}
+	saves := 0
+	store := lifecycle.NewDefaultRestartsStore(func() *config.Default { return d }, func() error { saves++; return nil })
+
+	// Missing value: first startup reads zero without error.
+	n, err := store.GetRestartsCount()
+	require.NoError(t, err)
+	assert.Equal(t, 0, n)
+	assert.Equal(t, 0, saves)
+
+	// Persisted value round-trips through the embedded Default.
+	require.NoError(t, store.SetRestartsCount(4))
+	assert.Equal(t, 4, d.RestartsCount)
+	assert.Equal(t, 1, saves)
+
+	got, err := store.GetRestartsCount()
+	require.NoError(t, err)
+	assert.Equal(t, 4, got)
+}
+
+func TestNewDefaultRestartsStore_PropagatesSaveError(t *testing.T) {
+	t.Parallel()
+
+	d := &config.Default{}
+	saveErr := errors.New("disk boom")
+	store := lifecycle.NewDefaultRestartsStore(func() *config.Default { return d }, func() error { return saveErr })
+
+	err := store.SetRestartsCount(9)
+
+	require.Error(t, err)
+	assert.ErrorIs(t, err, saveErr)
+}
+
+func TestLoadRestartsCount_WithDefaultStore(t *testing.T) {
+	t.Parallel()
+
+	// End-to-end: config-backed store + Lifecycle, across a simulated restart.
+	d := &config.Default{}
+	store := lifecycle.NewDefaultRestartsStore(func() *config.Default { return d }, func() error { return nil })
+
+	l1 := lifecycle.New()
+	require.NoError(t, l1.LoadRestartsCount(store))
+	assert.Equal(t, 1, l1.RestartsCount())
+	assert.Equal(t, 1, d.RestartsCount)
+
+	// Second process (same config) sees the incremented count.
+	l2 := lifecycle.New()
+	require.NoError(t, l2.LoadRestartsCount(store))
+	assert.Equal(t, 2, l2.RestartsCount())
+	assert.Equal(t, 2, d.RestartsCount)
 }
