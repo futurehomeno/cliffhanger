@@ -11,31 +11,32 @@ import (
 	log "github.com/sirupsen/logrus"
 )
 
-// Telemetry emits telemetryT events over MQTT to the cloud backend-service.
+// Telemetry emits telemetry events over MQTT to the cloud backend-service.
 type Telemetry interface {
 	// Report publishes an event with the given name, optional domain, and
 	// free-form data payload. Returns nil without publishing when disabled.
 	Report(event, domain string, data map[string]any) error
 	// SetTargetTopic overrides the default target topic.
-	// Passing an empty string restores the default.
+	// Passing an empty string restores the default. The override is
+	// not persisted and resets to the default on restart.
 	SetTargetTopic(topic string)
 	// Enable toggles reporting. Enable(true) always re-stamps the
-	// enabled-at timestamp and restarts the validity window — including
-	// when the telemetryT is already enabled — which incurs a store write on
+	// enabled-at timestamp and restarts the validity window - including
+	// when telemetry is already enabled - which incurs a store write on
 	// every call. Enable(false) makes subsequent Report calls silent
 	// no-ops. Callers that want idempotent behavior should gate on
 	// IsEnabled first.
 	Enable(enabled bool) error
-	// IsEnabled reports whether telemetryT is currently publishing.
+	// IsEnabled reports whether telemetry is currently publishing.
 	IsEnabled() bool
-	// Validity returns the window telemetryT stays enabled after Enable(true)
+	// Validity returns the window telemetry stays enabled after Enable(true)
 	// before it auto-disables.
 	Validity() time.Duration
 	// SetValidity updates the validity window. Must be positive.
 	SetValidity(validity time.Duration) error
 }
 
-// New returns a Telemetry that publishes telemetryT events as the given source.
+// New returns a Telemetry that publishes telemetry events as the given source.
 // The source becomes the FIMP src field and is used by the consumer to populate
 // the app column, so it must uniquely identify the emitting application. The
 // store is required and persists enabled / validity across restarts.
@@ -66,29 +67,36 @@ func New(mqtt *fimpgo.MqttTransport, source string, store Store) (Telemetry, err
 		validity: validity,
 	}
 
-	if r.enabled {
+	if r.enabled { //nolint:nestif
 		enabledAt := store.EnabledAt()
 		if enabledAt.IsZero() {
 			enabledAt = time.Now()
 			if err := store.SetEnabledAt(enabledAt); err != nil {
-				return nil, fmt.Errorf("telemetryT: persist enabled_at: %w", err)
+				return nil, fmt.Errorf("telemetry: persist enabled_at: %w", err)
 			}
 		}
 
 		elapsed := time.Since(enabledAt)
 		if elapsed < 0 {
-			elapsed = 0 // clock skew: treat future timestamps as "just enabled"
+			// Clock skew: persisted timestamp is in the future.
+			// Normalize to now so SetValidity doesn't overshoot.
+			enabledAt = time.Now()
+			elapsed = 0
+
+			if err := store.SetEnabledAt(enabledAt); err != nil {
+				return nil, fmt.Errorf("telemetry: persist normalized enabled_at: %w", err)
+			}
 		}
 
 		if elapsed >= validity {
 			r.enabled = false
 
 			if err := store.SetEnabled(false); err != nil {
-				return nil, fmt.Errorf("telemetryT: persist enabled: %w", err)
+				return nil, fmt.Errorf("telemetry: persist enabled: %w", err)
 			}
 
 			if err := store.SetEnabledAt(time.Time{}); err != nil {
-				return nil, fmt.Errorf("telemetryT: clear enabled_at: %w", err)
+				return nil, fmt.Errorf("telemetry: clear enabled_at: %w", err)
 			}
 
 			log.Infof("[cliff] Telemetry disabled: validity expired before startup")
@@ -98,10 +106,14 @@ func New(mqtt *fimpgo.MqttTransport, source string, store Store) (Telemetry, err
 		}
 	}
 
+	if r.enabled {
+		log.Infof("[cliff] Telemetry enabled (source=%s, validity=%s)", source, r.validity)
+	}
+
 	return r, nil
 }
 
-// telemetryT holds the telemetryT's mutable state under a single mutex.
+// telemetryT holds the reporter's mutable state under a single mutex.
 //
 // Store writes (Enable, SetValidity, disableLocked) happen while the lock is
 // held. That keeps the in-memory state and the on-disk state consistent under
@@ -124,7 +136,7 @@ type telemetryT struct {
 
 func (r *telemetryT) Report(event, domain string, data map[string]any) error {
 	if event == "" {
-		return errors.New("telemetryT event name is required")
+		return errors.New("telemetry: event name is required")
 	}
 
 	r.lock.Lock()
@@ -144,7 +156,7 @@ func (r *telemetryT) Report(event, domain string, data map[string]any) error {
 	msg.Source = r.source
 
 	if err := r.mqtt.PublishToTopic(topic, msg); err != nil {
-		return fmt.Errorf("publish telemetryT event err: %w", err)
+		return fmt.Errorf("telemetry: publish event: %w", err)
 	}
 
 	return nil
@@ -166,14 +178,18 @@ func (r *telemetryT) Enable(enabled bool) error {
 
 	if enabled {
 		enabledAt := time.Now()
+		wasEnabled := r.enabled
 
 		if err := r.store.SetEnabled(true); err != nil {
-			return fmt.Errorf("telemetryT: persist enabled: %w", err)
+			return fmt.Errorf("telemetry: persist enabled: %w", err)
 		}
 
 		if err := r.store.SetEnabledAt(enabledAt); err != nil {
-			_ = r.store.SetEnabled(false) // best-effort rollback
-			return fmt.Errorf("telemetryT: persist enabled_at: %w", err)
+			if !wasEnabled {
+				_ = r.store.SetEnabled(false) // best-effort rollback only if we changed state
+			}
+
+			return fmt.Errorf("telemetry: persist enabled_at: %w", err)
 		}
 
 		r.stopTimerLocked()
@@ -182,11 +198,11 @@ func (r *telemetryT) Enable(enabled bool) error {
 		r.startTimerLocked(r.validity)
 	} else {
 		if err := r.store.SetEnabled(false); err != nil {
-			return fmt.Errorf("telemetryT: persist enabled: %w", err)
+			return fmt.Errorf("telemetry: persist enabled: %w", err)
 		}
 
 		if err := r.store.SetEnabledAt(time.Time{}); err != nil {
-			return fmt.Errorf("telemetryT: clear enabled_at: %w", err)
+			return fmt.Errorf("telemetry: clear enabled_at: %w", err)
 		}
 
 		r.stopTimerLocked()
@@ -213,14 +229,14 @@ func (r *telemetryT) Validity() time.Duration {
 
 func (r *telemetryT) SetValidity(validity time.Duration) error {
 	if validity <= 0 {
-		return errors.New("telemetryT: validity must be positive")
+		return errors.New("telemetry: validity must be positive")
 	}
 
 	r.lock.Lock()
 	defer r.lock.Unlock()
 
 	if err := r.store.SetValidity(validity); err != nil {
-		return fmt.Errorf("telemetryT: persist validity: %w", err)
+		return fmt.Errorf("telemetry: persist validity: %w", err)
 	}
 
 	r.validity = validity
@@ -230,6 +246,10 @@ func (r *telemetryT) SetValidity(validity time.Duration) error {
 	}
 
 	elapsed := time.Since(r.enabledAt)
+	if elapsed < 0 {
+		elapsed = 0 // clock skew: treat future timestamps as "just enabled"
+	}
+
 	r.stopTimerLocked()
 
 	if elapsed >= validity {
@@ -243,7 +263,7 @@ func (r *telemetryT) SetValidity(validity time.Duration) error {
 	return nil
 }
 
-// startTimerLocked must be called with r.lock held, or before the telemetryT
+// startTimerLocked must be called with r.lock held, or before the reporter
 // has been published to other goroutines (e.g. from inside New).
 func (r *telemetryT) startTimerLocked(d time.Duration) {
 	var t *time.Timer
@@ -267,12 +287,12 @@ func (r *telemetryT) stopTimerLocked() {
 	}
 }
 
-// disableLocked disables the telemetryT in memory and persists the change.
+// disableLocked disables telemetry in memory and persists the change.
 // Store errors are logged and swallowed rather than propagated: this path is
 // also reached from the timer goroutine where there is no caller to surface
 // the error to. In the worst case on-disk enabled stays true while in-memory
 // is false; New handles the "already-expired" case on next startup, so a
-// failed persist leaks at most one reboot's worth of telemetryT.
+// failed persist leaks at most one reboot's worth of telemetry.
 func (r *telemetryT) disableLocked(reason string) {
 	r.enabled = false
 	r.enabledAt = time.Time{}
