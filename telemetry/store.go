@@ -71,6 +71,13 @@ func (s *defaultStore) Load() State {
 func (s *defaultStore) Save(st State) error {
 	cfg := s.accessor()
 
+	// Snapshot so we can restore on save failure. The shared config.Default
+	// must not carry unsaved telemetry mutations that a later unrelated
+	// save() could flush to disk.
+	prevEnabled := cfg.TelemetryEnabled
+	prevEnabledAt := cfg.TelemetryEnabledAt
+	prevValidity := cfg.TelemetryValidity
+
 	v := st.Enabled
 	cfg.TelemetryEnabled = &v
 
@@ -82,7 +89,15 @@ func (s *defaultStore) Save(st State) error {
 
 	cfg.TelemetryValidity = st.Validity.String()
 
-	return s.save()
+	if err := s.save(); err != nil {
+		cfg.TelemetryEnabled = prevEnabled
+		cfg.TelemetryEnabledAt = prevEnabledAt
+		cfg.TelemetryValidity = prevValidity
+
+		return err
+	}
+
+	return nil
 }
 
 // NewMemoryStore returns an in-memory Store suitable for tests or

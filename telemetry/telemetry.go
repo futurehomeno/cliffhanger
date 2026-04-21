@@ -91,7 +91,7 @@ func New(mqtt *fimpgo.MqttTransport, source string, store Store) (Telemetry, err
 			}
 		}
 
-		if elapsed >= validity(st) {
+		if elapsed >= st.Validity {
 			r.enabled = false
 
 			st.Enabled = false
@@ -224,9 +224,27 @@ func (r *telemetryT) SetValidity(validity time.Duration) error {
 	r.lock.Lock()
 	defer r.lock.Unlock()
 
+	// Compute the final state in one pass so we need only a single Save.
+	newEnabled := r.enabled
+	newEnabledAt := r.enabledAt
+	shouldDisable := false
+
+	if r.enabled && !r.enabledAt.IsZero() {
+		elapsed := time.Since(r.enabledAt)
+		if elapsed < 0 {
+			elapsed = 0 // clock skew: treat future timestamps as "just enabled"
+		}
+
+		if elapsed >= validity {
+			newEnabled = false
+			newEnabledAt = time.Time{}
+			shouldDisable = true
+		}
+	}
+
 	st := State{
-		Enabled:   r.enabled,
-		EnabledAt: r.enabledAt,
+		Enabled:   newEnabled,
+		EnabledAt: newEnabledAt,
 		Validity:  validity,
 	}
 
@@ -235,25 +253,22 @@ func (r *telemetryT) SetValidity(validity time.Duration) error {
 	}
 
 	r.validity = validity
-
-	if r.timer == nil || r.enabledAt.IsZero() {
-		return nil
-	}
-
-	elapsed := time.Since(r.enabledAt)
-	if elapsed < 0 {
-		elapsed = 0 // clock skew: treat future timestamps as "just enabled"
-	}
-
 	r.stopTimerLocked()
 
-	if elapsed >= validity {
-		r.disableLocked("validity reduced below elapsed time")
+	if shouldDisable {
+		r.enabled = false
+		r.enabledAt = time.Time{}
+		r.timer = nil
 
-		return nil
+		log.Infof("[cliff] Telemetry disabled: validity reduced below elapsed time")
+	} else if r.enabled && !r.enabledAt.IsZero() {
+		elapsed := time.Since(r.enabledAt)
+		if elapsed < 0 {
+			elapsed = 0
+		}
+
+		r.startTimerLocked(validity - elapsed)
 	}
-
-	r.startTimerLocked(validity - elapsed)
 
 	return nil
 }
@@ -302,14 +317,4 @@ func (r *telemetryT) disableLocked(reason string) {
 	}
 
 	log.Infof("[cliff] Telemetry disabled: %s", reason)
-}
-
-// validity is a helper that returns the state's validity, falling back to
-// DefaultValidity when zero or negative.
-func validity(st State) time.Duration {
-	if st.Validity <= 0 {
-		return DefaultValidity
-	}
-
-	return st.Validity
 }

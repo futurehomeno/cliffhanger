@@ -1,6 +1,7 @@
 package telemetry_test
 
 import (
+	"errors"
 	"reflect"
 	"testing"
 	"time"
@@ -452,4 +453,124 @@ func TestNewDefaultStore_RoundTrip(t *testing.T) {
 	assert.True(t, st.EnabledAt.IsZero())
 
 	assert.Equal(t, 2, saves, "each Save must call save exactly once")
+}
+
+// failStore lets tests inject Save failures.
+type failStore struct {
+	state   telemetry.State
+	saveErr error
+}
+
+func (s *failStore) Load() telemetry.State { return s.state }
+
+func (s *failStore) Save(st telemetry.State) error {
+	if s.saveErr != nil {
+		return s.saveErr
+	}
+
+	s.state = st
+
+	return nil
+}
+
+func TestEnable_SaveFailure_LeavesStateUnchanged(t *testing.T) {
+	t.Parallel()
+
+	store := &failStore{state: telemetry.State{
+		Enabled:  false,
+		Validity: telemetry.DefaultValidity,
+	}}
+
+	tel, err := telemetry.New(&fimpgo.MqttTransport{}, testSource, store)
+	require.NoError(t, err)
+	assert.False(t, tel.IsEnabled())
+
+	// Inject failure and try to enable.
+	store.saveErr = errors.New("disk full")
+	err = tel.Enable(true)
+	require.Error(t, err)
+
+	// In-memory state must remain disabled.
+	assert.False(t, tel.IsEnabled(), "Enable must not change in-memory state on Save failure")
+	assert.False(t, store.state.Enabled, "Store must not be mutated on Save failure")
+}
+
+func TestSetValidity_SaveFailure_LeavesStateUnchanged(t *testing.T) {
+	t.Parallel()
+
+	store := &failStore{state: telemetry.State{
+		Enabled:  true,
+		Validity: telemetry.DefaultValidity,
+	}}
+
+	tel, err := telemetry.New(&fimpgo.MqttTransport{}, testSource, store)
+	require.NoError(t, err)
+
+	store.saveErr = errors.New("disk full")
+	err = tel.SetValidity(time.Hour)
+	require.Error(t, err)
+
+	assert.Equal(t, telemetry.DefaultValidity, tel.Validity(), "SetValidity must not change in-memory state on Save failure")
+}
+
+func TestSetValidity_BelowElapsed_SingleSave(t *testing.T) {
+	t.Parallel()
+
+	store := &stubStore{state: telemetry.State{
+		Enabled:   true,
+		EnabledAt: time.Now().Add(-10 * time.Minute),
+		Validity:  time.Hour,
+	}}
+
+	tel, err := telemetry.New(&fimpgo.MqttTransport{}, testSource, store)
+	require.NoError(t, err)
+	assert.True(t, tel.IsEnabled())
+
+	store.saveCalls = 0
+
+	require.NoError(t, tel.SetValidity(time.Millisecond))
+
+	assert.False(t, tel.IsEnabled(), "should auto-disable")
+	assert.Equal(t, 1, store.saveCalls, "SetValidity must perform exactly one Save")
+	assert.False(t, store.state.Enabled, "persisted state must be disabled")
+	assert.True(t, store.state.EnabledAt.IsZero(), "persisted enabledAt must be cleared")
+}
+
+func TestDefaultStore_SaveFailure_RestoresConfig(t *testing.T) {
+	t.Parallel()
+
+	enabled := true
+	d := &config.Default{
+		TelemetryEnabled:   &enabled,
+		TelemetryEnabledAt: "2026-04-20T12:00:00Z",
+		TelemetryValidity:  "1h0m0s",
+	}
+
+	fail := true
+	store := telemetry.NewDefaultStore(
+		func() *config.Default { return d },
+		func() error {
+			if fail {
+				return errors.New("disk full")
+			}
+
+			return nil
+		},
+	)
+
+	err := store.Save(telemetry.State{
+		Enabled:  false,
+		Validity: 2 * time.Hour,
+	})
+	require.Error(t, err)
+
+	// Config must be rolled back to pre-Save state.
+	assert.NotNil(t, d.TelemetryEnabled)
+	assert.True(t, *d.TelemetryEnabled, "TelemetryEnabled must be restored")
+	assert.Equal(t, "2026-04-20T12:00:00Z", d.TelemetryEnabledAt, "TelemetryEnabledAt must be restored")
+	assert.Equal(t, "1h0m0s", d.TelemetryValidity, "TelemetryValidity must be restored")
+
+	// Load must still return the original state.
+	st := store.Load()
+	assert.True(t, st.Enabled)
 }
