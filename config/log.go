@@ -23,9 +23,6 @@ type LogStore interface {
 	SetFormat(format string) error
 	File() string
 	SetFile(file string) error
-	PreviousLevel() log.Level
-	SetPreviousLevel(level log.Level) error
-	ClearPreviousLevel() error
 	RevertAt() time.Time
 	SetRevertAt(t time.Time) error
 }
@@ -124,16 +121,6 @@ func (m *LogManager) SetLevel(level string) error {
 		return nil
 	}
 
-	previous := m.store.PreviousLevel()
-
-	if currentLvl, err := log.ParseLevel(m.store.Level()); err == nil && currentLvl < log.DebugLevel {
-		previous = currentLvl
-	}
-
-	if err := m.store.SetPreviousLevel(previous); err != nil {
-		return err
-	}
-
 	if err := m.store.SetRevertAt(time.Now().Add(DefaultLogRevertTimeout)); err != nil {
 		return err
 	}
@@ -143,7 +130,7 @@ func (m *LogManager) SetLevel(level string) error {
 	}
 
 	log.SetLevel(lvl)
-	log.Infof("[cliff] Log level updated to %s; will revert to %s on next startup after %s", lvl, previous, DefaultLogRevertTimeout)
+	log.Infof("[cliff] Log level updated to %s; will revert to info on next startup after %s", lvl, DefaultLogRevertTimeout)
 
 	return nil
 }
@@ -191,16 +178,14 @@ func (m *LogManager) SetFile(file string) error {
 }
 
 func (m *LogManager) revertLog(reason string) {
-	lvl := m.store.PreviousLevel()
-
-	if err := m.store.SetLevel(lvl.String()); err != nil {
+	if err := m.store.SetLevel(log.InfoLevel.String()); err != nil {
 		log.WithError(err).Errorf("[cliff] failed to persist reverted log level, keeping revert state for next startup retry")
 
 		return
 	}
 
-	log.SetLevel(lvl)
-	log.Infof("[cliff] Log level reverted to %s (%s)", lvl, reason)
+	log.SetLevel(log.InfoLevel)
+	log.Infof("[cliff] Log level reverted to %s (%s)", log.InfoLevel, reason)
 
 	if err := m.clearRevertStateLocked(); err != nil {
 		log.WithError(err).Errorf("[cliff] failed to clear log revert state")
@@ -208,25 +193,19 @@ func (m *LogManager) revertLog(reason string) {
 }
 
 func (m *LogManager) clearRevertStateLocked() error {
-	if err := m.store.ClearPreviousLevel(); err != nil {
-		return err
-	}
-
 	return m.store.SetRevertAt(time.Time{})
 }
 
 // NewDefaultLogStore adapts a config.Default-backed persistence layer to the
 // LogStore interface. The accessor must return a pointer to the embedded
-// Default block; save persists any field mutation to disk. PreviousLevel is
-// held in memory and resets to InfoLevel on restart.
+// Default block; save persists any field mutation to disk.
 func NewDefaultLogStore(accessor func() *Default, save func() error) LogStore {
-	return &defaultLogStore{accessor: accessor, save: save, previousLevel: log.InfoLevel}
+	return &defaultLogStore{accessor: accessor, save: save}
 }
 
 type defaultLogStore struct {
-	accessor      func() *Default
-	save          func() error
-	previousLevel log.Level
+	accessor func() *Default
+	save     func() error
 }
 
 func (s *defaultLogStore) Level() string { return s.accessor().LogLevel }
@@ -251,20 +230,6 @@ func (s *defaultLogStore) SetFile(file string) error {
 	s.accessor().LogFile = file
 
 	return s.save()
-}
-
-func (s *defaultLogStore) PreviousLevel() log.Level { return s.previousLevel }
-
-func (s *defaultLogStore) SetPreviousLevel(level log.Level) error {
-	s.previousLevel = level
-
-	return nil
-}
-
-func (s *defaultLogStore) ClearPreviousLevel() error {
-	s.previousLevel = log.InfoLevel
-
-	return nil
 }
 
 func (s *defaultLogStore) RevertAt() time.Time { return s.accessor().LogRevertAt }

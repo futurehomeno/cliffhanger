@@ -15,5 +15,5 @@ type resourceT struct {
 	PackageName  string               `json:"package_name"`
 	InstanceID   string               `json:"instance_id"`
 	Version      string               `json:"version"`
-	States       *lifecycle.AppStates `json:"app_states,omitempty"`
+	States       *lifecycle.AppStates `json:"states"`
 }

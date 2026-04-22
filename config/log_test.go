@@ -19,13 +19,12 @@ import (
 
 // memLogStore is an in-memory LogStore for tests.
 type memLogStore struct {
-	lock          sync.Mutex
-	level         string
-	format        string
-	file          string
-	previousLevel log.Level
-	revertAt      time.Time
-	setLevelErr   error
+	lock        sync.Mutex
+	level       string
+	format      string
+	file        string
+	revertAt    time.Time
+	setLevelErr error
 }
 
 func (s *memLogStore) Level() string {
@@ -78,29 +77,6 @@ func (s *memLogStore) SetFile(file string) error {
 	return nil
 }
 
-func (s *memLogStore) PreviousLevel() log.Level {
-	s.lock.Lock()
-	defer s.lock.Unlock()
-
-	return s.previousLevel
-}
-
-func (s *memLogStore) SetPreviousLevel(level log.Level) error {
-	s.lock.Lock()
-	defer s.lock.Unlock()
-	s.previousLevel = level
-
-	return nil
-}
-
-func (s *memLogStore) ClearPreviousLevel() error {
-	s.lock.Lock()
-	defer s.lock.Unlock()
-	s.previousLevel = log.InfoLevel
-
-	return nil
-}
-
 func (s *memLogStore) RevertAt() time.Time {
 	s.lock.Lock()
 	defer s.lock.Unlock()
@@ -137,7 +113,7 @@ func TestLogManager_SetLevel_InfoOrHigher_HasNoRevertState(t *testing.T) { //nol
 	assert.Equal(t, log.WarnLevel, log.GetLevel())
 }
 
-func TestLogManager_SetLevel_Debug_ArmsRevertAndSnapshotsPrevious(t *testing.T) { //nolint:paralleltest
+func TestLogManager_SetLevel_Debug_ArmsRevert(t *testing.T) { //nolint:paralleltest
 	restoreGlobalLogLevel(t)
 
 	store := &memLogStore{level: "warning"}
@@ -147,27 +123,24 @@ func TestLogManager_SetLevel_Debug_ArmsRevertAndSnapshotsPrevious(t *testing.T) 
 	assert.NoError(t, mgr.SetLevel("debug"))
 
 	assert.Equal(t, "debug", store.Level())
-	assert.Equal(t, log.WarnLevel, store.PreviousLevel())
 	assert.False(t, store.RevertAt().IsZero())
 	assert.True(t, !store.RevertAt().Before(before.Add(config.DefaultLogRevertTimeout)))
 	assert.Equal(t, log.DebugLevel, log.GetLevel())
 }
 
-func TestLogManager_SetLevel_TraceAfterDebug_KeepsOriginalPrevious(t *testing.T) { //nolint:paralleltest
+func TestLogManager_SetLevel_TraceAfterDebug_RefreshesRevertAt(t *testing.T) { //nolint:paralleltest
 	restoreGlobalLogLevel(t)
 
 	store := &memLogStore{level: "error"}
 	mgr := config.NewLogManager(store)
 
 	assert.NoError(t, mgr.SetLevel("debug"))
-	assert.Equal(t, log.ErrorLevel, store.PreviousLevel())
 	firstRevertAt := store.RevertAt()
 
 	time.Sleep(5 * time.Millisecond)
 
 	assert.NoError(t, mgr.SetLevel("trace"))
 	assert.Equal(t, "trace", store.Level())
-	assert.Equal(t, log.ErrorLevel, store.PreviousLevel(), "previous must remain the pre-verbose level")
 	assert.True(t, store.RevertAt().After(firstRevertAt), "revertAt should refresh on re-arm")
 }
 
@@ -178,7 +151,6 @@ func TestLogManager_SetLevel_InfoAfterDebug_CancelsRevert(t *testing.T) { //noli
 	mgr := config.NewLogManager(store)
 
 	assert.NoError(t, mgr.SetLevel("debug"))
-	assert.Equal(t, log.WarnLevel, store.PreviousLevel())
 
 	assert.NoError(t, mgr.SetLevel("info"))
 	assert.Equal(t, "info", store.Level())
@@ -222,12 +194,11 @@ func TestLogManager_Start_NoPendingRevert_IsNoop(t *testing.T) { //nolint:parall
 func TestLogManager_Start_PendingButCurrentLevelIsInfo_ClearsStaleState(t *testing.T) { //nolint:paralleltest
 	restoreGlobalLogLevel(t)
 
-	// Persisted state says "was debug, revert to warn" but the current level
-	// is info. Start should treat this as stale and clear the revert state.
+	// Persisted state says a revert is pending but the current level is info.
+	// Start should treat this as stale and clear the revert state.
 	store := &memLogStore{
-		level:         "info",
-		previousLevel: log.WarnLevel,
-		revertAt:      time.Now().Add(time.Hour),
+		level:    "info",
+		revertAt: time.Now().Add(time.Hour),
 	}
 	mgr := config.NewLogManager(store)
 	mgr.Start()
@@ -240,16 +211,15 @@ func TestLogManager_Start_RevertAtElapsed_RevertsImmediately(t *testing.T) { //n
 	log.SetLevel(log.DebugLevel)
 
 	store := &memLogStore{
-		level:         "debug",
-		previousLevel: log.WarnLevel,
-		revertAt:      time.Now().Add(-time.Minute),
+		level:    "debug",
+		revertAt: time.Now().Add(-time.Minute),
 	}
 	mgr := config.NewLogManager(store)
 	mgr.Start()
 
-	assert.Equal(t, "warning", store.Level())
+	assert.Equal(t, "info", store.Level())
 	assert.True(t, store.RevertAt().IsZero())
-	assert.Equal(t, log.WarnLevel, log.GetLevel())
+	assert.Equal(t, log.InfoLevel, log.GetLevel())
 }
 
 func TestLogManager_Start_RevertAtInFuture_LeavesLevelAlone(t *testing.T) { //nolint:paralleltest
@@ -257,15 +227,13 @@ func TestLogManager_Start_RevertAtInFuture_LeavesLevelAlone(t *testing.T) { //no
 	log.SetLevel(log.DebugLevel)
 
 	store := &memLogStore{
-		level:         "debug",
-		previousLevel: log.ErrorLevel,
-		revertAt:      time.Now().Add(time.Hour),
+		level:    "debug",
+		revertAt: time.Now().Add(time.Hour),
 	}
 	mgr := config.NewLogManager(store)
 	mgr.Start()
 
 	assert.Equal(t, "debug", store.Level())
-	assert.Equal(t, log.ErrorLevel, store.PreviousLevel())
 	assert.False(t, store.RevertAt().IsZero())
 }
 
@@ -337,7 +305,6 @@ func TestNewDefaultLogStore_RoundTripsAllFields(t *testing.T) { //nolint:paralle
 	assert.NoError(t, store.SetLevel("debug"))
 	assert.NoError(t, store.SetFormat("json"))
 	assert.NoError(t, store.SetFile("/var/log/a.log"))
-	assert.NoError(t, store.SetPreviousLevel(log.InfoLevel))
 
 	revertAt := time.Date(2026, 4, 17, 10, 0, 0, 0, time.UTC)
 	assert.NoError(t, store.SetRevertAt(revertAt))
@@ -345,13 +312,11 @@ func TestNewDefaultLogStore_RoundTripsAllFields(t *testing.T) { //nolint:paralle
 	assert.Equal(t, "debug", store.Level())
 	assert.Equal(t, "json", store.Format())
 	assert.Equal(t, "/var/log/a.log", store.File())
-	assert.Equal(t, log.InfoLevel, store.PreviousLevel())
 	assert.True(t, store.RevertAt().Equal(revertAt))
 
 	assert.NoError(t, store.SetRevertAt(time.Time{}))
 	assert.True(t, store.RevertAt().IsZero())
 
-	// level, format, file, revert-at each persist; previous level is in-memory only.
 	assert.Equal(t, int32(5), atomic.LoadInt32(&saveCalls))
 }
 
