@@ -107,6 +107,32 @@ func TestConfigPull_AppliesConfig(t *testing.T) {
 	require.NoError(t, cp.Stop())
 }
 
+func TestConfigPull_DisablesTelemetry(t *testing.T) {
+	t.Parallel()
+
+	mock := &mockSyncRequester{
+		response: configResponse(t, false, nil, ""),
+	}
+
+	store := telemetry.NewMemoryStore(true)
+	tel, err := telemetry.New(&fimpgo.MqttTransport{}, testSource, store)
+	require.NoError(t, err)
+	assert.True(t, tel.IsEnabled())
+
+	cp, err := telemetry.NewConfigPull(&fimpgo.MqttTransport{}, testSource, tel,
+		telemetry.WithSyncRequester(mock),
+	)
+	require.NoError(t, err)
+
+	require.NoError(t, cp.Start())
+
+	time.Sleep(100 * time.Millisecond)
+
+	assert.False(t, tel.IsEnabled(), "config should disable telemetry")
+
+	require.NoError(t, cp.Stop())
+}
+
 func TestConfigPull_SuppressesMatchingSource(t *testing.T) {
 	t.Parallel()
 
