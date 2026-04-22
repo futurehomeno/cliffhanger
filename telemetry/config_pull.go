@@ -7,6 +7,7 @@ import (
 	"time"
 
 	"github.com/futurehomeno/fimpgo"
+	"github.com/futurehomeno/fimpgo/fimptype"
 	log "github.com/sirupsen/logrus"
 )
 
@@ -107,6 +108,10 @@ func NewConfigPull(mqtt *fimpgo.MqttTransport, source string, reporter Telemetry
 		return nil, fmt.Errorf("telemetry: config pull: request timeout must be positive")
 	}
 
+	if cp.requestTopic == "" {
+		return nil, fmt.Errorf("telemetry: config pull: request topic must not be empty")
+	}
+
 	return cp, nil
 }
 
@@ -121,13 +126,21 @@ func (cp *ConfigPull) Start() error {
 		return nil // already running
 	}
 
+	createdClient := false
+
 	if cp.client == nil {
 		cp.client = fimpgo.NewSyncClient(cp.mqtt)
+		createdClient = true
 	}
 
 	responseTopic := fmt.Sprintf("pt:j1/mt:cmd/rt:app/rn:%s/ad:1", cp.source)
 
 	if err := cp.client.AddSubscription(responseTopic); err != nil {
+		if createdClient {
+			cp.client.Stop()
+			cp.client = nil
+		}
+
 		return fmt.Errorf("telemetry: config pull: subscribe: %w", err)
 	}
 
@@ -161,6 +174,12 @@ func (cp *ConfigPull) Stop() error {
 	return nil
 }
 
+// pollResult holds the outcome of a single config poll.
+type pollResult struct {
+	delay time.Duration
+	cfg   *ConfigResponse // nil when the request or parse failed
+}
+
 // scheduleLocked schedules the next poll after the given delay.
 // Must be called with cp.lock held.
 func (cp *ConfigPull) scheduleLocked(delay time.Duration) {
@@ -180,50 +199,74 @@ func (cp *ConfigPull) scheduleLocked(delay time.Duration) {
 		client := cp.client
 		cp.lock.Unlock()
 
-		nextDelay := cp.poll(client)
+		result := cp.poll(client)
 
 		cp.lock.Lock()
 		defer cp.lock.Unlock()
 
-		if cp.stopped {
+		// Re-check both flags: stopped gates shutdown, timer identity
+		// gates Stop+Start races where a new timer replaced this one.
+		if cp.stopped || cp.timer != t {
 			return
 		}
 
-		cp.scheduleLocked(nextDelay)
+		if result.cfg != nil {
+			cp.applyConfig(result.cfg)
+		}
+
+		cp.scheduleLocked(result.delay)
 	})
 
 	cp.timer = t
 }
 
-// poll sends a config request and applies the response. Returns the
-// delay until the next poll.
-func (cp *ConfigPull) poll(client SyncRequester) time.Duration {
+// poll sends a config request and parses the response. Returns the
+// delay until the next poll and the parsed config (nil on failure).
+// Does not apply config - the caller decides based on stop/timer state.
+func (cp *ConfigPull) poll(client SyncRequester) pollResult {
 	msg := fimpgo.NewNullMessage(CmdGetConfig, Service, nil, nil, nil)
+	msg.Source = fimptype.ResourceNameT(cp.source)
 	msg.ResponseToTopic = fmt.Sprintf("pt:j1/mt:cmd/rt:app/rn:%s/ad:1", cp.source)
 
 	resp, err := client.SendFimp(cp.requestTopic, msg, cp.timeout)
 	if err != nil {
 		log.WithError(err).Warnf("[cliff] Telemetry config pull failed, retrying in %s", cp.fallbackPoll)
 
-		return cp.fallbackPoll
+		return pollResult{delay: cp.fallbackPoll}
 	}
 
 	if resp.Interface != EvtConfigReport {
 		log.Warnf("[cliff] Telemetry config pull: unexpected response type %q, retrying in %s", resp.Interface, cp.fallbackPoll)
 
-		return cp.fallbackPoll
+		return pollResult{delay: cp.fallbackPoll}
 	}
 
 	var cfg ConfigResponse
 	if err := resp.GetObjectValue(&cfg); err != nil {
 		log.WithError(err).Warnf("[cliff] Telemetry config pull: failed to parse response, retrying in %s", cp.fallbackPoll)
 
-		return cp.fallbackPoll
+		return pollResult{delay: cp.fallbackPoll}
 	}
 
-	// Enable and SetSuppressed are applied independently: a failure in
-	// one should not prevent the other from being applied. The next poll
-	// will reconcile any partial state.
+	delay := cp.fallbackPoll
+
+	if cfg.NextUpdate != "" {
+		nextUpdate, err := time.Parse(time.RFC3339, cfg.NextUpdate)
+		if err != nil {
+			log.WithError(err).Warnf("[cliff] Telemetry config pull: failed to parse next_update %q", cfg.NextUpdate)
+		} else if d := time.Until(nextUpdate); d > 0 {
+			delay = d
+		}
+	}
+
+	return pollResult{delay: delay, cfg: &cfg}
+}
+
+// applyConfig applies the parsed cloud config to the reporter.
+// Enable and SetSuppressed are applied independently: a failure in
+// one does not prevent the other. The next poll reconciles any
+// partial state.
+func (cp *ConfigPull) applyConfig(cfg *ConfigResponse) {
 	if err := cp.reporter.Enable(cfg.Enabled); err != nil {
 		log.WithError(err).Errorf("[cliff] Telemetry config pull: failed to apply enabled=%v", cfg.Enabled)
 	}
@@ -235,22 +278,4 @@ func (cp *ConfigPull) poll(client SyncRequester) time.Duration {
 	}
 
 	log.Infof("[cliff] Telemetry config applied (enabled=%v, suppressed=%v)", cfg.Enabled, suppressed)
-
-	if cfg.NextUpdate == "" {
-		return cp.fallbackPoll
-	}
-
-	nextUpdate, err := time.Parse(time.RFC3339, cfg.NextUpdate)
-	if err != nil {
-		log.WithError(err).Warnf("[cliff] Telemetry config pull: failed to parse next_update %q", cfg.NextUpdate)
-
-		return cp.fallbackPoll
-	}
-
-	delay := time.Until(nextUpdate)
-	if delay <= 0 {
-		return cp.fallbackPoll
-	}
-
-	return delay
 }

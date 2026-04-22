@@ -78,6 +78,19 @@ func TestNewConfigPull_Validation(t *testing.T) {
 		_, err := telemetry.NewConfigPull(&fimpgo.MqttTransport{}, "source", nil)
 		assert.Error(t, err)
 	})
+
+	t.Run("empty request topic", func(t *testing.T) {
+		t.Parallel()
+
+		store := telemetry.NewMemoryStore(false)
+		tel, err := telemetry.New(&fimpgo.MqttTransport{}, "source", store)
+		require.NoError(t, err)
+
+		_, err = telemetry.NewConfigPull(&fimpgo.MqttTransport{}, "source", tel,
+			telemetry.WithRequestTopic(""),
+		)
+		assert.Error(t, err)
+	})
 }
 
 func TestConfigPull_AppliesConfig(t *testing.T) {
