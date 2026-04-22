@@ -14,8 +14,13 @@ import (
 // Telemetry emits telemetry events over MQTT to the cloud backend-service.
 type Telemetry interface {
 	// Report publishes an event with the given name, optional domain, and
-	// free-form data payload. Returns nil without publishing when disabled.
+	// free-form data payload. Returns nil without publishing when telemetry
+	// is disabled or the source is suppressed.
 	Report(event, domain string, data map[string]any) error
+	// ReportRequired publishes an event that always flows regardless of the
+	// enabled flag or suppressed state. Use for critical events such as
+	// device health transitions that must not be silenced.
+	ReportRequired(event, domain string, data map[string]any) error
 	// SetTargetTopic overrides the default target topic.
 	// Passing an empty string restores the default. The override is
 	// not persisted and resets to the default on restart.
@@ -34,6 +39,11 @@ type Telemetry interface {
 	Validity() time.Duration
 	// SetValidity updates the validity window. Must be positive.
 	SetValidity(validity time.Duration) error
+	// SetSuppressed marks this source as suppressed (true) or active (false).
+	// When suppressed, Report returns nil but ReportRequired still publishes.
+	SetSuppressed(suppressed bool) error
+	// IsSuppressed reports whether this source is currently suppressed.
+	IsSuppressed() bool
 }
 
 // New returns a Telemetry that publishes telemetry events as the given source.
@@ -59,12 +69,13 @@ func New(mqtt *fimpgo.MqttTransport, source string, store Store) (Telemetry, err
 	}
 
 	r := &telemetryT{
-		mqtt:     mqtt,
-		source:   fimptype.ResourceNameT(source),
-		store:    store,
-		topic:    Topic,
-		enabled:  st.Enabled,
-		validity: st.Validity,
+		mqtt:       mqtt,
+		source:     fimptype.ResourceNameT(source),
+		store:      store,
+		topic:      Topic,
+		enabled:    st.Enabled,
+		suppressed: st.Suppressed,
+		validity:   st.Validity,
 	}
 
 	if r.enabled { //nolint:nestif
@@ -133,12 +144,13 @@ type telemetryT struct {
 	source fimptype.ResourceNameT
 	store  Store
 
-	lock      sync.Mutex
-	topic     string
-	enabled   bool
-	validity  time.Duration
-	enabledAt time.Time
-	timer     *time.Timer
+	lock       sync.Mutex
+	topic      string
+	enabled    bool
+	suppressed bool
+	validity   time.Duration
+	enabledAt  time.Time
+	timer      *time.Timer
 }
 
 func (r *telemetryT) Report(event, domain string, data map[string]any) error {
@@ -149,12 +161,29 @@ func (r *telemetryT) Report(event, domain string, data map[string]any) error {
 	r.lock.Lock()
 	topic := r.topic
 	enabled := r.enabled
+	suppressed := r.suppressed
 	r.lock.Unlock()
 
-	if !enabled {
+	if !enabled || suppressed {
 		return nil
 	}
 
+	return r.publish(topic, event, domain, data)
+}
+
+func (r *telemetryT) ReportRequired(event, domain string, data map[string]any) error {
+	if event == "" {
+		return errors.New("telemetry: event name is required")
+	}
+
+	r.lock.Lock()
+	topic := r.topic
+	r.lock.Unlock()
+
+	return r.publish(topic, event, domain, data)
+}
+
+func (r *telemetryT) publish(topic, event, domain string, data map[string]any) error {
 	msg := fimpgo.NewObjectMessage(MessageType, Service, &Event{
 		Event:  event,
 		Domain: domain,
@@ -184,8 +213,9 @@ func (r *telemetryT) Enable(enabled bool) error {
 	defer r.lock.Unlock()
 
 	st := State{
-		Enabled:  enabled,
-		Validity: r.validity,
+		Enabled:    enabled,
+		Validity:   r.validity,
+		Suppressed: r.suppressed,
 	}
 
 	if enabled {
@@ -212,6 +242,33 @@ func (r *telemetryT) IsEnabled() bool {
 	defer r.lock.Unlock()
 
 	return r.enabled
+}
+
+func (r *telemetryT) SetSuppressed(suppressed bool) error {
+	r.lock.Lock()
+	defer r.lock.Unlock()
+
+	st := State{
+		Enabled:    r.enabled,
+		EnabledAt:  r.enabledAt,
+		Validity:   r.validity,
+		Suppressed: suppressed,
+	}
+
+	if err := r.store.Save(st); err != nil {
+		return fmt.Errorf("telemetry: persist suppressed: %w", err)
+	}
+
+	r.suppressed = suppressed
+
+	return nil
+}
+
+func (r *telemetryT) IsSuppressed() bool {
+	r.lock.Lock()
+	defer r.lock.Unlock()
+
+	return r.suppressed
 }
 
 func (r *telemetryT) Validity() time.Duration {
@@ -251,9 +308,10 @@ func (r *telemetryT) SetValidity(validity time.Duration) error {
 	}
 
 	st := State{
-		Enabled:   newEnabled,
-		EnabledAt: newEnabledAt,
-		Validity:  validity,
+		Enabled:    newEnabled,
+		EnabledAt:  newEnabledAt,
+		Validity:   validity,
+		Suppressed: r.suppressed,
 	}
 
 	if err := r.store.Save(st); err != nil {
@@ -312,7 +370,7 @@ func (r *telemetryT) disableLocked(reason string) {
 	r.enabledAt = time.Time{}
 	r.timer = nil
 
-	st := State{Validity: r.validity}
+	st := State{Validity: r.validity, Suppressed: r.suppressed}
 
 	if err := r.store.Save(st); err != nil {
 		log.WithError(err).Errorf("[cliff] Telemetry: failed to persist disabled state")

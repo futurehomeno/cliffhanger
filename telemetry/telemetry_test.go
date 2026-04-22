@@ -18,15 +18,18 @@ import (
 )
 
 const (
-	testSource         = "core-energy-guard"
-	appTopic           = "pt:j1/mt:cmd/rt:app/rn:" + string(telemetry.Service) + "/ad:1"
-	appReportTopic     = "pt:j1/mt:evt/rt:app/rn:" + string(telemetry.Service) + "/ad:1"
-	cmdSetEnabledType  = "cmd.config.set_" + telemetry.SettingEnabled
-	cmdGetEnabledType  = "cmd.config.get_" + telemetry.SettingEnabled
-	evtEnabledReport   = "evt.config." + telemetry.SettingEnabled + "_report"
-	cmdSetValidityType = "cmd.config.set_" + telemetry.SettingValidity
-	cmdGetValidityType = "cmd.config.get_" + telemetry.SettingValidity
-	evtValidityReport  = "evt.config." + telemetry.SettingValidity + "_report"
+	testSource            = "core-energy-guard"
+	appTopic              = "pt:j1/mt:cmd/rt:app/rn:" + string(telemetry.Service) + "/ad:1"
+	appReportTopic        = "pt:j1/mt:evt/rt:app/rn:" + string(telemetry.Service) + "/ad:1"
+	cmdSetEnabledType     = "cmd.config.set_" + telemetry.SettingEnabled
+	cmdGetEnabledType     = "cmd.config.get_" + telemetry.SettingEnabled
+	evtEnabledReport      = "evt.config." + telemetry.SettingEnabled + "_report"
+	cmdSetValidityType    = "cmd.config.set_" + telemetry.SettingValidity
+	cmdGetValidityType    = "cmd.config.get_" + telemetry.SettingValidity
+	evtValidityReport     = "evt.config." + telemetry.SettingValidity + "_report"
+	cmdSetSuppressedType  = "cmd.config.set_" + telemetry.SettingSuppressed
+	cmdGetSuppressedType  = "cmd.config.get_" + telemetry.SettingSuppressed
+	evtSuppressedReport   = "evt.config." + telemetry.SettingSuppressed + "_report"
 )
 
 func TestNew_RejectsInvalidInput(t *testing.T) {
@@ -328,6 +331,163 @@ func TestReporter(t *testing.T) { //nolint:paralleltest
 						},
 						// No Expectations: timer disables the tel.
 					},
+					{
+						Name: "Re-enable for suppressed tests",
+						Callbacks: []suite.Callback{
+							func(t *testing.T) {
+								t.Helper()
+
+								require.NoError(t, tel.SetValidity(telemetry.DefaultValidity))
+								require.NoError(t, tel.Enable(true))
+							},
+						},
+					},
+					{
+						Name: "SetSuppressed(true) silences Report",
+						Callbacks: []suite.Callback{
+							func(t *testing.T) {
+								t.Helper()
+
+								require.NoError(t, tel.SetSuppressed(true))
+								assert.True(t, tel.IsSuppressed())
+
+								err := tel.Report("should_not_publish", "", nil)
+								assert.NoError(t, err)
+							},
+						},
+						// No Expectations: suppressed.
+					},
+					{
+						Name: "ReportRequired publishes when suppressed",
+						Callbacks: []suite.Callback{
+							func(t *testing.T) {
+								t.Helper()
+
+								assert.True(t, tel.IsSuppressed())
+
+								err := tel.ReportRequired("critical_event", "health", nil)
+								assert.NoError(t, err)
+							},
+						},
+						Expectations: []*suite.Expectation{
+							suite.NewExpectation(
+								router.ForTopic(telemetry.Topic),
+								router.ForType(telemetry.MessageType),
+								router.MessageVoterFn(func(msg *fimpgo.Message) bool {
+									var got telemetry.Event
+									if err := msg.Payload.GetObjectValue(&got); err != nil {
+										return false
+									}
+
+									return got.Event == "critical_event"
+								}),
+							),
+						},
+					},
+					{
+						Name: "ReportRequired with empty event name returns error",
+						Callbacks: []suite.Callback{
+							func(t *testing.T) {
+								t.Helper()
+
+								err := tel.ReportRequired("", "health", nil)
+								assert.Error(t, err)
+							},
+						},
+					},
+					{
+						Name: "SetSuppressed(false) restores Report",
+						Callbacks: []suite.Callback{
+							func(t *testing.T) {
+								t.Helper()
+
+								require.NoError(t, tel.SetSuppressed(false))
+								assert.False(t, tel.IsSuppressed())
+
+								err := tel.Report("after_unsuppress", "", nil)
+								assert.NoError(t, err)
+							},
+						},
+						Expectations: []*suite.Expectation{
+							suite.NewExpectation(
+								router.ForTopic(telemetry.Topic),
+								router.ForType(telemetry.MessageType),
+								router.MessageVoterFn(func(msg *fimpgo.Message) bool {
+									var got telemetry.Event
+									if err := msg.Payload.GetObjectValue(&got); err != nil {
+										return false
+									}
+
+									return got.Event == "after_unsuppress"
+								}),
+							),
+						},
+					},
+					{
+						Name: "ReportRequired publishes when disabled",
+						Callbacks: []suite.Callback{
+							func(t *testing.T) {
+								t.Helper()
+
+								require.NoError(t, tel.Enable(false))
+
+								err := tel.ReportRequired("critical_while_disabled", "", nil)
+								assert.NoError(t, err)
+							},
+						},
+						Expectations: []*suite.Expectation{
+							suite.NewExpectation(
+								router.ForTopic(telemetry.Topic),
+								router.ForType(telemetry.MessageType),
+								router.MessageVoterFn(func(msg *fimpgo.Message) bool {
+									var got telemetry.Event
+									if err := msg.Payload.GetObjectValue(&got); err != nil {
+										return false
+									}
+
+									return got.Event == "critical_while_disabled"
+								}),
+							),
+						},
+					},
+					{
+						Name: "Re-enable after ReportRequired disabled test",
+						Callbacks: []suite.Callback{
+							func(t *testing.T) {
+								t.Helper()
+
+								require.NoError(t, tel.Enable(true))
+							},
+						},
+					},
+					{
+						Name:    "cmd.config.set_telemetry_suppressed = true suppresses the source",
+						Command: suite.BoolMessage(appTopic, cmdSetSuppressedType, telemetry.Service, true),
+						Expectations: []*suite.Expectation{
+							suite.ExpectBool(appReportTopic, evtSuppressedReport, telemetry.Service, true),
+						},
+					},
+					{
+						Name:    "cmd.config.get_telemetry_suppressed reports current state",
+						Command: suite.NullMessage(appTopic, cmdGetSuppressedType, telemetry.Service),
+						Expectations: []*suite.Expectation{
+							suite.ExpectBool(appReportTopic, evtSuppressedReport, telemetry.Service, true),
+						},
+						Callbacks: []suite.Callback{
+							func(t *testing.T) {
+								t.Helper()
+
+								assert.True(t, tel.IsSuppressed())
+							},
+						},
+					},
+					{
+						Name:    "cmd.config.set_telemetry_suppressed = false restores the source",
+						Command: suite.BoolMessage(appTopic, cmdSetSuppressedType, telemetry.Service, false),
+						Expectations: []*suite.Expectation{
+							suite.ExpectBool(appReportTopic, evtSuppressedReport, telemetry.Service, false),
+						},
+					},
 				},
 			},
 		},
@@ -573,4 +733,75 @@ func TestDefaultStore_SaveFailure_RestoresConfig(t *testing.T) {
 	// Load must still return the original state.
 	st := store.Load()
 	assert.True(t, st.Enabled)
+}
+
+func TestSetSuppressed_SaveFailure_LeavesStateUnchanged(t *testing.T) {
+	t.Parallel()
+
+	store := &failStore{state: telemetry.State{
+		Enabled:  true,
+		Validity: telemetry.DefaultValidity,
+	}}
+
+	tel, err := telemetry.New(&fimpgo.MqttTransport{}, testSource, store)
+	require.NoError(t, err)
+	assert.False(t, tel.IsSuppressed())
+
+	store.saveErr = errors.New("disk full")
+	err = tel.SetSuppressed(true)
+	require.Error(t, err)
+
+	assert.False(t, tel.IsSuppressed(), "SetSuppressed must not change in-memory state on Save failure")
+}
+
+func TestEnable_PreservesSuppressedInStore(t *testing.T) {
+	t.Parallel()
+
+	store := &stubStore{state: telemetry.State{
+		Enabled:    true,
+		Suppressed: true,
+		Validity:   telemetry.DefaultValidity,
+	}}
+
+	tel, err := telemetry.New(&fimpgo.MqttTransport{}, testSource, store)
+	require.NoError(t, err)
+	assert.True(t, tel.IsSuppressed())
+
+	// Enable(true) must preserve the suppressed flag in the saved state.
+	store.saveCalls = 0
+
+	require.NoError(t, tel.Enable(true))
+	assert.True(t, store.state.Suppressed, "Enable must preserve Suppressed in persisted state")
+}
+
+func TestNewDefaultStore_SuppressedRoundTrip(t *testing.T) {
+	t.Parallel()
+
+	d := &config.Default{}
+	store := telemetry.NewDefaultStore(func() *config.Default { return d }, func() error { return nil })
+
+	// Default: not suppressed.
+	st := store.Load()
+	assert.False(t, st.Suppressed, "unset suppressed should default to false")
+
+	// Save with suppressed=true.
+	require.NoError(t, store.Save(telemetry.State{
+		Enabled:    true,
+		Suppressed: true,
+		Validity:   telemetry.DefaultValidity,
+	}))
+
+	st = store.Load()
+	assert.True(t, st.Suppressed)
+	assert.NotNil(t, d.TelemetrySuppressed)
+	assert.True(t, *d.TelemetrySuppressed)
+
+	// Save with suppressed=false.
+	require.NoError(t, store.Save(telemetry.State{
+		Enabled:  true,
+		Validity: telemetry.DefaultValidity,
+	}))
+
+	st = store.Load()
+	assert.False(t, st.Suppressed)
 }
