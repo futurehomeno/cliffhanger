@@ -11,9 +11,10 @@ import (
 // State is the persisted telemetry configuration. All fields are written
 // atomically by Store.Save so partial-update failures cannot occur.
 type State struct {
-	Enabled   bool
-	EnabledAt time.Time
-	Validity  time.Duration
+	Enabled    bool
+	EnabledAt  time.Time
+	Validity   time.Duration
+	Suppressed bool
 }
 
 // Store persists telemetry configuration so the enabled flag, the timestamp
@@ -86,6 +87,10 @@ func (s *defaultStore) Load() State {
 		st.Validity = DefaultValidity
 	}
 
+	if cfg.TelemetrySuppressed != nil {
+		st.Suppressed = *cfg.TelemetrySuppressed
+	}
+
 	return st
 }
 
@@ -98,6 +103,7 @@ func (s *defaultStore) Save(st State) error {
 	prevEnabled := cfg.TelemetryEnabled
 	prevEnabledAt := cfg.TelemetryEnabledAt
 	prevValidity := cfg.TelemetryValidity
+	prevSuppressed := cfg.TelemetrySuppressed
 
 	v := st.Enabled
 	cfg.TelemetryEnabled = &v
@@ -110,10 +116,14 @@ func (s *defaultStore) Save(st State) error {
 
 	cfg.TelemetryValidity = st.Validity.String()
 
+	sup := st.Suppressed
+	cfg.TelemetrySuppressed = &sup
+
 	if err := s.save(); err != nil {
 		cfg.TelemetryEnabled = prevEnabled
 		cfg.TelemetryEnabledAt = prevEnabledAt
 		cfg.TelemetryValidity = prevValidity
+		cfg.TelemetrySuppressed = prevSuppressed
 
 		return err
 	}

@@ -31,13 +31,27 @@ func RouteCmdSetValidity(svc fimptype.ServiceNameT, reporter Telemetry, options 
 	return config.RouteCmdConfigSetDuration(svc, SettingValidity, reporter.SetValidity, options...)
 }
 
+// RouteCmdGetSuppressed returns a routing for cmd.config.get_telemetry_suppressed
+// that replies with the current telemetry suppressed state.
+func RouteCmdGetSuppressed(svc fimptype.ServiceNameT, reporter Telemetry, options ...config.RoutingOption) *router.Routing {
+	return config.RouteCmdConfigGetBool(svc, SettingSuppressed, reporter.IsSuppressed, options...)
+}
+
+// RouteCmdSetSuppressed returns a routing for cmd.config.set_telemetry_suppressed
+// that toggles the telemetry suppressed state.
+func RouteCmdSetSuppressed(svc fimptype.ServiceNameT, reporter Telemetry, options ...config.RoutingOption) *router.Routing {
+	return config.RouteCmdConfigSetBool(svc, SettingSuppressed, reporter.SetSuppressed, options...)
+}
+
 // RoutingForTelemetry returns the get/set routings for the telemetry config
-// parameters (enabled, validity) bound to the given Telemetry instance.
+// parameters (enabled, validity, suppressed) bound to the given Telemetry instance.
 func RoutingForTelemetry(svc fimptype.ServiceNameT, reporter Telemetry, options ...config.RoutingOption) []*router.Routing {
 	return []*router.Routing{
 		RouteCmdGetEnabled(svc, reporter, options...),
 		RouteCmdSetEnabled(svc, reporter, options...),
 		RouteCmdGetValidity(svc, reporter, options...),
 		RouteCmdSetValidity(svc, reporter, options...),
+		RouteCmdGetSuppressed(svc, reporter, options...),
+		RouteCmdSetSuppressed(svc, reporter, options...),
 	}
 }
