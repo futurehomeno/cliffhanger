@@ -94,7 +94,11 @@ func (l *listener) startHandler(h *Handler) {
 
 	for {
 		select {
-		case event := <-h.eventCh:
+		case event, ok := <-h.eventCh:
+			if !ok {
+				return
+			}
+
 			l.doProcess(h.processor, event)
 
 		case <-l.closeCh:
