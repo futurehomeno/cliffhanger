@@ -47,7 +47,7 @@ func TestHandle_WithoutLifecycle_EmitsReportWithoutStates(t *testing.T) {
 	assert.Equal(t, "my_app", report["package_name"])
 	assert.Equal(t, "1", report["instance_id"])
 	assert.Equal(t, "1.0.0", report["version"])
-	assert.Empty(t, report["app_states"])
+	assert.Empty(t, report["states"])
 }
 
 func TestHandle_WithLifecycle_EmitsFreshStatesOnEachRequest(t *testing.T) {
@@ -74,8 +74,8 @@ func TestHandle_WithLifecycle_EmitsFreshStatesOnEachRequest(t *testing.T) {
 		var report map[string]any
 		require.NoError(t, json.Unmarshal(raw, &report))
 
-		states, ok := report["app_states"].(map[string]any)
-		require.True(t, ok, "app_states missing or wrong type")
+		states, ok := report["states"].(map[string]any)
+		require.True(t, ok, "states missing or wrong type")
 
 		return states
 	}
