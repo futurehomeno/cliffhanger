@@ -26,26 +26,26 @@ func TestBuilder_Build(t *testing.T) {
 			name: "Build core without errors",
 			builder: root.NewCoreAppBuilder().
 				WithMQTT(mqtt).
-				WithServiceDiscovery(&discovery.Resource{}).
+				WithServiceDiscovery("test_app", discovery.ResourceTypeApp, "test_app", "1", "1.0.0").
 				WithTopicSubscription("test").
 				WithRouting(&router.Routing{}).
 				WithRouterOptions(router.WithAsyncProcessing(3)),
 			wantErr: false,
 		},
 		{
-			name: "If the app version is missing, we don't raise an error",
+			name: "Missing app version raises an error",
 			builder: root.NewCoreAppBuilder().
 				WithMQTT(mqtt).
-				WithServiceDiscovery(&discovery.Resource{}).
+				WithServiceDiscovery("test_app", discovery.ResourceTypeApp, "test_app", "1", "").
 				WithTopicSubscription("test").
 				WithRouting(&router.Routing{}).
 				WithRouterOptions(router.WithAsyncProcessing(3)),
-			wantErr: false,
+			wantErr: true,
 		},
 		{
 			name: "Missing mqtt client",
 			builder: root.NewCoreAppBuilder().
-				WithServiceDiscovery(&discovery.Resource{}),
+				WithServiceDiscovery("test_app", discovery.ResourceTypeApp, "test_app", "1", "1.0.0"),
 			wantErr: true,
 		},
 		{
@@ -58,7 +58,7 @@ func TestBuilder_Build(t *testing.T) {
 			name: "Core with lifecycle service",
 			builder: root.NewCoreAppBuilder().
 				WithMQTT(mqtt).
-				WithServiceDiscovery(&discovery.Resource{}).
+				WithServiceDiscovery("test_app", discovery.ResourceTypeApp, "test_app", "1", "1.0.0").
 				WithLifecycle(lifecycle.New(nil)),
 			wantErr: true,
 		},
@@ -66,7 +66,7 @@ func TestBuilder_Build(t *testing.T) {
 			name: "Edge without lifecycle service",
 			builder: root.NewEdgeAppBuilder().
 				WithMQTT(mqtt).
-				WithServiceDiscovery(&discovery.Resource{}),
+				WithServiceDiscovery("test_app", discovery.ResourceTypeApp, "test_app", "1", "1.0.0"),
 			wantErr: true,
 		},
 	}

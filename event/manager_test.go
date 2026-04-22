@@ -81,8 +81,6 @@ func TestManager_Publish(t *testing.T) {
 
 			manager.Unsubscribe(tc.subID)
 
-			close(subscription)
-
 			var got []event.Event
 
 			for e := range subscription {

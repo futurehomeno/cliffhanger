@@ -97,7 +97,7 @@ func HandleCmdAppGetState(serviceName fimptype.ServiceNameT, appLifecycle *lifec
 				EvtAppStateReport,
 				serviceName,
 				fimptype.VTypeObject,
-				appLifecycle.GetAllStates(),
+				appLifecycle.AllStates(),
 				nil,
 				nil,
 				message.Payload,
@@ -174,7 +174,7 @@ func HandleCmdAppGetManifest[C any](
 			}
 
 			if mode == "manifest_state" || mode == "full" {
-				m.AppState = *appLifecycle.GetAllStates()
+				m.AppState = *appLifecycle.AllStates()
 				m.ConfigState = configStorage.Model()
 			}
 
@@ -412,7 +412,7 @@ func makeConfigurationReply(
 		configReport.OpError = fmt.Sprintf("configure the app err: %s", err)
 	}
 
-	configReport.AppState = *appLifecycle.GetAllStates()
+	configReport.AppState = *appLifecycle.AllStates()
 
 	return fimpgo.NewMessage(
 		messageType,

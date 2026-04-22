@@ -198,7 +198,7 @@ func (r *Response) GetVinculumServices() (*VinculumServices, error) {
 	return result, nil
 }
 
-func (r *Response) GetState() (*State, error) {
+func (r *Response) State() (*State, error) {
 	param, ok := r.ParamRaw[ComponentState]
 	if !ok {
 		return nil, nil
@@ -265,7 +265,7 @@ func (r *Response) GetAll() (*ComponentSet, error) {
 		return nil, err
 	}
 
-	state, err := r.GetState()
+	state, err := r.State()
 	if err != nil {
 		return nil, err
 	}

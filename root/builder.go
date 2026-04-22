@@ -8,21 +8,19 @@ import (
 
 	"github.com/futurehomeno/cliffhanger/discovery"
 	"github.com/futurehomeno/cliffhanger/lifecycle"
+
 	"github.com/futurehomeno/cliffhanger/router"
 	"github.com/futurehomeno/cliffhanger/task"
 )
 
-// NewEdgeAppBuilder creates new instance of an edge app builder.
 func NewEdgeAppBuilder() *Builder {
 	return newBuilder(true)
 }
 
-// NewCoreAppBuilder creates new instance of an core app builder.
 func NewCoreAppBuilder() *Builder {
 	return newBuilder(false)
 }
 
-// newBuilder creates new root app builder instance.
 func newBuilder(edge bool) *Builder {
 	return &Builder{
 		edge: edge,
@@ -33,7 +31,11 @@ func newBuilder(edge bool) *Builder {
 type Builder struct {
 	edge               bool
 	mqtt               *fimpgo.MqttTransport
-	resource           *discovery.Resource
+	resourceName       string
+	resourceType       string
+	resourcePkg        string
+	resourceInstance   string
+	resourceVersion    string
 	lifecycle          *lifecycle.Lifecycle
 	topicSubscriptions []string
 	routing            []*router.Routing
@@ -43,15 +45,17 @@ type Builder struct {
 	resetters          []Resetter
 }
 
-// WithMQTT sets the MQTT broker.
 func (b *Builder) WithMQTT(mqtt *fimpgo.MqttTransport) *Builder {
 	b.mqtt = mqtt
 	return b
 }
 
-// WithServiceDiscovery sets the service discovery resource.
-func (b *Builder) WithServiceDiscovery(resource *discovery.Resource) *Builder {
-	b.resource = resource
+func (b *Builder) WithServiceDiscovery(resourceName, resourceType, packageName, instanceID, version string) *Builder {
+	b.resourceName = resourceName
+	b.resourceType = resourceType
+	b.resourcePkg = packageName
+	b.resourceInstance = instanceID
+	b.resourceVersion = version
 	return b
 }
 
@@ -126,7 +130,17 @@ func (b *Builder) doBuild() App {
 // prepareRouting prepares routing for the root application.
 func (b *Builder) prepareRouting(rootApp *app) {
 	topicSubscriptions := append(b.topicSubscriptions, discovery.Topic) //nolint:gocritic
-	routing := append(b.routing, discovery.Route(b.resource))           //nolint:gocritic
+	routing := append(                                                  //nolint:gocritic
+		b.routing,
+		discovery.Route(
+			b.resourceName,
+			b.resourceType,
+			b.resourcePkg,
+			b.resourceInstance,
+			b.resourceVersion,
+			b.lifecycle,
+		),
+	)
 
 	// Include application factory reset routing only if resetters are provided.
 	if len(rootApp.resetters) > 0 {
@@ -144,8 +158,24 @@ func (b *Builder) check() error {
 		return errors.New("builder: it is required to provide MQTT broker instance")
 	}
 
-	if b.resource == nil {
+	if b.resourceName == "" {
+		return errors.New("builder: it is required to provide service discovery resource name")
+	}
+
+	if b.resourceType == "" {
+		return errors.New("builder: it is required to provide service discovery resource type")
+	}
+
+	if b.resourcePkg == "" {
+		return errors.New("builder: it is required to provide service discovery resource package")
+	}
+
+	if b.resourceInstance == "" {
 		return errors.New("builder: it is required to provide service discovery resource instance")
+	}
+
+	if b.resourceVersion == "" {
+		return errors.New("builder: it is required to provide service discovery resource version")
 	}
 
 	if b.edge && b.lifecycle == nil {

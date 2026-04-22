@@ -22,11 +22,11 @@ func TestNew_DefaultStates(t *testing.T) {
 	assert.Equal(t, lifecycle.ConnStateNA, l.ConnectionState())
 }
 
-func TestGetAllStates_DefaultFields(t *testing.T) {
+func TestGetAppState_DefaultFields(t *testing.T) {
 	t.Parallel()
 
 	l := lifecycle.New(nil)
-	states := l.GetAllStates()
+	states := l.AllStates()
 
 	assert.Equal(t, string(lifecycle.AppStateStarting), states.App)
 	assert.Equal(t, string(lifecycle.AuthStateNA), states.Auth)
@@ -44,15 +44,6 @@ func TestUptime_IncreasesOverTime(t *testing.T) {
 	time.Sleep(1100 * time.Millisecond)
 
 	assert.GreaterOrEqual(t, l.Uptime(), 1)
-}
-
-func TestSetRestartCount(t *testing.T) {
-	t.Parallel()
-
-	l := lifecycle.New(nil)
-	l.SetRestartCount(7)
-
-	assert.Equal(t, 7, l.RestartsCount())
 }
 
 func TestGetState_ByType(t *testing.T) {
@@ -81,7 +72,7 @@ func TestGetState_ByType(t *testing.T) {
 		t.Run(string(tc.stateType), func(t *testing.T) {
 			t.Parallel()
 
-			assert.Equal(t, tc.want, l.GetState(tc.stateType))
+			assert.Equal(t, tc.want, l.State(tc.stateType))
 		})
 	}
 }

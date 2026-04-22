@@ -114,7 +114,7 @@ func TestDefault_Migrate(t *testing.T) {
 		applied, err := cfg.Migrate(
 			config.Migration{From: "", To: "1", Do: func() error {
 				cfg.LogLevel = "info"
-				cfg.LogRevertTimeout = "72h"
+				cfg.LogFile = "/tmp/app.log"
 
 				return nil
 			}},
@@ -123,7 +123,7 @@ func TestDefault_Migrate(t *testing.T) {
 		assert.NoError(t, err)
 		assert.Equal(t, 1, applied)
 		assert.Equal(t, "info", cfg.LogLevel)
-		assert.Equal(t, "72h", cfg.LogRevertTimeout)
+		assert.Equal(t, "/tmp/app.log", cfg.LogFile)
 	})
 
 	t.Run("Do error aborts the chain and preserves applied count", func(t *testing.T) {
