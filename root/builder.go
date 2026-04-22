@@ -159,7 +159,23 @@ func (b *Builder) check() error {
 	}
 
 	if b.resourceName == "" {
+		return errors.New("builder: it is required to provide service discovery resource name")
+	}
+
+	if b.resourceType == "" {
+		return errors.New("builder: it is required to provide service discovery resource type")
+	}
+
+	if b.resourcePkg == "" {
+		return errors.New("builder: it is required to provide service discovery resource package")
+	}
+
+	if b.resourceInstance == "" {
 		return errors.New("builder: it is required to provide service discovery resource instance")
+	}
+
+	if b.resourceVersion == "" {
+		return errors.New("builder: it is required to provide service discovery resource version")
 	}
 
 	if b.edge && b.lifecycle == nil {

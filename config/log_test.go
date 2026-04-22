@@ -19,12 +19,13 @@ import (
 
 // memLogStore is an in-memory LogStore for tests.
 type memLogStore struct {
-	lock        sync.Mutex
-	level       string
-	format      string
-	file        string
-	revertAt    time.Time
-	setLevelErr error
+	lock          sync.Mutex
+	level         string
+	format        string
+	file          string
+	revertTimeout time.Duration
+	revertAt      time.Time
+	setLevelErr   error
 }
 
 func (s *memLogStore) Level() string {
@@ -73,6 +74,21 @@ func (s *memLogStore) SetFile(file string) error {
 	s.lock.Lock()
 	defer s.lock.Unlock()
 	s.file = file
+
+	return nil
+}
+
+func (s *memLogStore) RevertTimeout() time.Duration {
+	s.lock.Lock()
+	defer s.lock.Unlock()
+
+	return s.revertTimeout
+}
+
+func (s *memLogStore) SetRevertTimeout(d time.Duration) error {
+	s.lock.Lock()
+	defer s.lock.Unlock()
+	s.revertTimeout = d
 
 	return nil
 }

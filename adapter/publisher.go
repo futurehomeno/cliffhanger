@@ -15,7 +15,6 @@ type Publisher interface {
 	PublishAdapterMessage(message *fimpgo.FimpMessage) error
 }
 
-// ThingPublisher is an interface representing a FIMP thing publisher.
 type ThingPublisher interface {
 	ServicePublisher
 
@@ -23,7 +22,6 @@ type ThingPublisher interface {
 	PublishThingEvent(thingEvent ThingEvent)
 }
 
-// ServicePublisher is an interface representing a FIMP service publisher.
 type ServicePublisher interface {
 	PublishServiceMessage(service Service, message *fimpgo.FimpMessage) error
 	PublishServiceEvent(service Service, payload ServiceEvent)
@@ -81,7 +79,6 @@ func (p *publisher) PublishThingMessage(thing Thing, message *fimpgo.FimpMessage
 	return nil
 }
 
-// PublishServiceEvent publishes an event to the local event manager.
 func (p *publisher) PublishServiceEvent(service Service, serviceEvent ServiceEvent) {
 	serviceEvent.setEvent(event.New(EventDomainAdapterService, service.Name().Str()))
 	serviceEvent.setAddress(service.Topic())
@@ -90,7 +87,6 @@ func (p *publisher) PublishServiceEvent(service Service, serviceEvent ServiceEve
 	p.eventManager.Publish(serviceEvent)
 }
 
-// PublishThingEvent publishes an event to the local event manager.
 func (p *publisher) PublishThingEvent(thingEvent ThingEvent) {
 	p.eventManager.Publish(thingEvent)
 }

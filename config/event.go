@@ -5,7 +5,6 @@ import (
 	"github.com/futurehomeno/fimpgo/fimptype"
 )
 
-// Constants defining event domain and classes.
 const (
 	eventDomain                   = "config"
 	eventClassConfigurationChange = "configuration_change"

@@ -24,6 +24,9 @@ const (
 	CmdLogSetFile             = "cmd.log.set_file"
 	CmdLogGetFile             = "cmd.log.get_file"
 	EvtLogFileReport          = "evt.log.file_report"
+	CmdLogSetRevertTimeout    = "cmd.log.set_revert_timeout"
+	CmdLogGetRevertTimeout    = "cmd.log.get_revert_timeout"
+	EvtLogRevertTimeoutReport = "evt.log.revert_timeout_report"
 	CmdConfigGetReport        = "cmd.config.get_report"
 	EvtConfigReport           = "evt.config.report"
 
@@ -176,7 +179,6 @@ func RouteCmdLogSetFile(serviceName fimptype.ServiceNameT, setter func(string) e
 	)
 }
 
-// HandleCmdLogSetFile returns a handler responsible for handling the command.
 func HandleCmdLogSetFile(serviceName fimptype.ServiceNameT, setter func(string) error, _ ...RoutingOption) router.MessageHandler {
 	return router.NewMessageHandler(
 		router.MessageProcessorFn(func(message *fimpgo.Message) (reply *fimpgo.FimpMessage, err error) {
@@ -206,6 +208,64 @@ func HandleCmdLogSetFile(serviceName fimptype.ServiceNameT, setter func(string) 
 		}))
 }
 
+func RouteCmdLogGetRevertTimeout(serviceName fimptype.ServiceNameT, getter func() time.Duration, options ...RoutingOption) *router.Routing {
+	return router.NewRouting(
+		HandleCmdLogGetRevertTimeout(serviceName, getter, options...),
+		router.ForService(serviceName),
+		router.ForType(CmdLogGetRevertTimeout),
+	)
+}
+
+func HandleCmdLogGetRevertTimeout(serviceName fimptype.ServiceNameT, getter func() time.Duration, _ ...RoutingOption) router.MessageHandler {
+	return router.NewMessageHandler(
+		router.MessageProcessorFn(func(message *fimpgo.Message) (reply *fimpgo.FimpMessage, err error) {
+			return fimpgo.NewStringMessage(
+				EvtLogRevertTimeoutReport,
+				serviceName,
+				getter().String(),
+				nil,
+				nil,
+				message.Payload,
+			), nil
+		}))
+}
+
+func RouteCmdLogSetRevertTimeout(serviceName fimptype.ServiceNameT, setter func(time.Duration) error, options ...RoutingOption) *router.Routing {
+	return router.NewRouting(
+		HandleCmdLogSetRevertTimeout(serviceName, setter, options...),
+		router.ForService(serviceName),
+		router.ForType(CmdLogSetRevertTimeout),
+	)
+}
+
+func HandleCmdLogSetRevertTimeout(serviceName fimptype.ServiceNameT, setter func(time.Duration) error, _ ...RoutingOption) router.MessageHandler {
+	return router.NewMessageHandler(
+		router.MessageProcessorFn(func(message *fimpgo.Message) (reply *fimpgo.FimpMessage, err error) {
+			raw, err := message.Payload.GetStringValue()
+			if err != nil {
+				return nil, err
+			}
+
+			d, err := time.ParseDuration(raw)
+			if err != nil {
+				return nil, fmt.Errorf("log: failed to parse revert timeout %q: %w", raw, err)
+			}
+
+			if err := setter(d); err != nil {
+				return nil, err
+			}
+
+			return fimpgo.NewStringMessage(
+				EvtLogRevertTimeoutReport,
+				serviceName,
+				d.String(),
+				nil,
+				nil,
+				message.Payload,
+			), nil
+		}))
+}
+
 func RoutingForLogManager(serviceName fimptype.ServiceNameT, mgr *LogManager, options ...RoutingOption) []*router.Routing {
 	return []*router.Routing{
 		RouteCmdLogGetLevel(serviceName, mgr.Level, options...),
@@ -214,6 +274,8 @@ func RoutingForLogManager(serviceName fimptype.ServiceNameT, mgr *LogManager, op
 		RouteCmdLogSetFormat(serviceName, mgr.SetFormat, options...),
 		RouteCmdLogGetFile(serviceName, mgr.File, options...),
 		RouteCmdLogSetFile(serviceName, mgr.SetFile, options...),
+		RouteCmdLogGetRevertTimeout(serviceName, mgr.RevertTimeout, options...),
+		RouteCmdLogSetRevertTimeout(serviceName, mgr.SetRevertTimeout, options...),
 	}
 }
 

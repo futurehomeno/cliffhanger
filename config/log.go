@@ -12,7 +12,7 @@ import (
 // (debug/trace) is automatically reverted to the previous level. The revert
 // is evaluated on application start; a long-running process therefore keeps
 // verbose logging until its next restart at or after the deadline.
-const DefaultLogRevertTimeout = 72 * time.Hour
+const DefaultLogRevertTimeout = 7 * 24 * time.Hour
 
 // LogStore persists log configuration so an armed auto-revert survives
 // application restarts.
@@ -23,6 +23,8 @@ type LogStore interface {
 	SetFormat(format string) error
 	File() string
 	SetFile(file string) error
+	RevertTimeout() time.Duration
+	SetRevertTimeout(d time.Duration) error
 	RevertAt() time.Time
 	SetRevertAt(t time.Time) error
 }
@@ -95,8 +97,9 @@ func (m *LogManager) Level() string {
 }
 
 // SetLevel applies and persists the given log level. When the level is
-// lowered to debug or trace, a revert deadline of DefaultLogRevertTimeout
-// from now is persisted; any level of info or higher clears it.
+// lowered to debug or trace, a revert deadline is persisted using the
+// configured revert timeout (defaulting to DefaultLogRevertTimeout); any
+// level of info or higher clears it.
 func (m *LogManager) SetLevel(level string) error {
 	lvl, err := log.ParseLevel(level)
 	if err != nil {
@@ -121,7 +124,9 @@ func (m *LogManager) SetLevel(level string) error {
 		return nil
 	}
 
-	if err := m.store.SetRevertAt(time.Now().Add(DefaultLogRevertTimeout)); err != nil {
+	timeout := m.revertTimeoutLocked()
+
+	if err := m.store.SetRevertAt(time.Now().Add(timeout)); err != nil {
 		return err
 	}
 
@@ -130,9 +135,39 @@ func (m *LogManager) SetLevel(level string) error {
 	}
 
 	log.SetLevel(lvl)
-	log.Infof("[cliff] Log level updated to %s; will revert to info on next startup after %s", lvl, DefaultLogRevertTimeout)
+	log.Infof("[cliff] Log level updated to %s; will revert to info on next startup after %s", lvl, timeout)
 
 	return nil
+}
+
+// RevertTimeout returns the configured revert timeout, falling back to
+// DefaultLogRevertTimeout when none has been set.
+func (m *LogManager) RevertTimeout() time.Duration {
+	m.lock.Lock()
+	defer m.lock.Unlock()
+
+	return m.revertTimeoutLocked()
+}
+
+// SetRevertTimeout persists the revert timeout used when arming a revert
+// deadline on the next debug/trace level change.
+func (m *LogManager) SetRevertTimeout(d time.Duration) error {
+	if d <= 0 {
+		return fmt.Errorf("log: revert timeout must be positive")
+	}
+
+	m.lock.Lock()
+	defer m.lock.Unlock()
+
+	return m.store.SetRevertTimeout(d)
+}
+
+func (m *LogManager) revertTimeoutLocked() time.Duration {
+	if t := m.store.RevertTimeout(); t > 0 {
+		return t
+	}
+
+	return DefaultLogRevertTimeout
 }
 
 // Format returns the currently persisted log format.
@@ -228,6 +263,14 @@ func (s *defaultLogStore) File() string { return s.accessor().LogFile }
 
 func (s *defaultLogStore) SetFile(file string) error {
 	s.accessor().LogFile = file
+
+	return s.save()
+}
+
+func (s *defaultLogStore) RevertTimeout() time.Duration { return s.accessor().LogRevertTimeout }
+
+func (s *defaultLogStore) SetRevertTimeout(d time.Duration) error {
+	s.accessor().LogRevertTimeout = d
 
 	return s.save()
 }

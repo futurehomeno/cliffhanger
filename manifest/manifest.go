@@ -20,7 +20,7 @@ type Manifest struct {
 	UIButtons   []UIButton          `json:"ui_buttons"`
 	Auth        AppAuth             `json:"auth"`
 	Services    []AppService        `json:"services"`
-	AppState    lifecycle.AppStates `json:"app_state"`
+	AppState    lifecycle.AppStateT `json:"app_state"`
 	ConfigState any                 `json:"config_state"`
 }
 

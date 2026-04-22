@@ -62,7 +62,7 @@ func TestApp_Run(t *testing.T) { //nolint:paralleltest
 			app, err := root.NewEdgeAppBuilder().
 				WithMQTT(mqtt).
 				WithLifecycle(lifecycle.New(nil)).
-				WithServiceDiscovery("test_app", discovery.ResourceTypeApp, "test_app", "1", "").
+				WithServiceDiscovery("test_app", discovery.ResourceTypeApp, "test_app", "1", "1.0.0").
 				WithServices(tc.service).
 				WithResetter(tc.resetter).
 				Build()
@@ -108,7 +108,7 @@ func TestApp_Reset(t *testing.T) { //nolint:paralleltest
 
 					app, err := root.NewCoreAppBuilder().
 						WithMQTT(mqtt).
-						WithServiceDiscovery("test_app", discovery.ResourceTypeApp, "test_app", "1", "").
+						WithServiceDiscovery("test_app", discovery.ResourceTypeApp, "test_app", "1", "1.0.0").
 						WithResetter(resetter).
 						Build()
 

@@ -22,7 +22,7 @@ func TestNew_DefaultStates(t *testing.T) {
 	assert.Equal(t, lifecycle.ConnStateNA, l.ConnectionState())
 }
 
-func TestGetAllStates_DefaultFields(t *testing.T) {
+func TestGetAppState_DefaultFields(t *testing.T) {
 	t.Parallel()
 
 	l := lifecycle.New(nil)

@@ -43,7 +43,7 @@ type StateType string
 
 type State string
 
-type AppStates struct {
+type AppStateT struct {
 	App        string `json:"app"`
 	Connection string `json:"connection"`
 	Config     string `json:"config"`
@@ -108,9 +108,9 @@ func (l *Lifecycle) RestartsCount() int {
 	return l.restartsCount
 }
 
-func (l *Lifecycle) AllStates() *AppStates {
+func (l *Lifecycle) AllStates() *AppStateT {
 	l.lock.RLock()
-	states := &AppStates{
+	states := &AppStateT{
 		App:        string(l.appState),
 		Connection: string(l.connectionState),
 		Config:     string(l.configState),

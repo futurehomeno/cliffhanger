@@ -14,7 +14,7 @@ const (
 type ConfigurationReport struct {
 	OpStatus string              `json:"op_status"`
 	OpError  string              `json:"op_error"`
-	AppState lifecycle.AppStates `json:"app_state"`
+	AppState lifecycle.AppStateT `json:"app_state"`
 }
 
 // AuthenticationReport is an object holding information about authentication operation status.
