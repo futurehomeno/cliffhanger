@@ -242,6 +242,7 @@ func (l *Lifecycle) Unsubscribe(subID string) {
 		return
 	}
 
+	close(l.systemEventBus[subID])
 	delete(l.systemEventBus, subID)
 }
 

@@ -174,6 +174,36 @@ func TestLogManager_SetLevel_InfoAfterDebug_CancelsRevert(t *testing.T) { //noli
 	assert.Equal(t, log.InfoLevel, log.GetLevel())
 }
 
+func TestLogManager_SetRevertTimeout_WhileArmed_UpdatesDeadline(t *testing.T) { //nolint:paralleltest
+	restoreGlobalLogLevel(t)
+
+	store := &memLogStore{level: "info"}
+	mgr := config.NewLogManager(store)
+
+	assert.NoError(t, mgr.SetLevel("debug"))
+	originalRevertAt := store.RevertAt()
+	assert.False(t, originalRevertAt.IsZero())
+
+	time.Sleep(5 * time.Millisecond)
+
+	newTimeout := 2 * time.Hour
+	assert.NoError(t, mgr.SetRevertTimeout(newTimeout))
+
+	updatedRevertAt := store.RevertAt()
+	assert.False(t, updatedRevertAt.IsZero())
+	assert.NotEqual(t, originalRevertAt, updatedRevertAt, "deadline should be updated")
+	assert.True(t, updatedRevertAt.After(time.Now().Add(newTimeout-time.Minute)), "deadline should reflect new timeout")
+}
+
+func TestLogManager_SetRevertTimeout_NoArmedRevert_OnlyPersistsTimeout(t *testing.T) { //nolint:paralleltest
+	store := &memLogStore{level: "info"}
+	mgr := config.NewLogManager(store)
+
+	assert.NoError(t, mgr.SetRevertTimeout(3*time.Hour))
+	assert.Equal(t, 3*time.Hour, store.RevertTimeout())
+	assert.True(t, store.RevertAt().IsZero(), "should not arm a revert when none was pending")
+}
+
 func TestLogManager_SetLevel_InvalidLevel_Errors(t *testing.T) { //nolint:paralleltest
 	restoreGlobalLogLevel(t)
 
