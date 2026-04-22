@@ -149,8 +149,8 @@ func (m *LogManager) RevertTimeout() time.Duration {
 	return m.revertTimeoutLocked()
 }
 
-// SetRevertTimeout persists the revert timeout used when arming a revert
-// deadline on the next debug/trace level change.
+// SetRevertTimeout persists the revert timeout. If a revert is currently
+// armed, the deadline is recalculated from now.
 func (m *LogManager) SetRevertTimeout(d time.Duration) error {
 	if d <= 0 {
 		return fmt.Errorf("log: revert timeout must be positive")
@@ -159,7 +159,15 @@ func (m *LogManager) SetRevertTimeout(d time.Duration) error {
 	m.lock.Lock()
 	defer m.lock.Unlock()
 
-	return m.store.SetRevertTimeout(d)
+	if err := m.store.SetRevertTimeout(d); err != nil {
+		return err
+	}
+
+	if !m.store.RevertAt().IsZero() {
+		return m.store.SetRevertAt(time.Now().Add(d))
+	}
+
+	return nil
 }
 
 func (m *LogManager) revertTimeoutLocked() time.Duration {
