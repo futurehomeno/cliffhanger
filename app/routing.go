@@ -33,8 +33,8 @@ const (
 	CmdAuthSetTokens           = "cmd.auth.set_tokens" //nolint:gosec
 	EvtAuthStatusReport        = "evt.auth.status_report"
 
-	CmdAppErrorsGetReport = "cmd.app.get_errors"
-	EvtAppErrorsReport    = "evt.app.errors_report"
+	CmdAppDiagGetReport = "cmd.app.get_diag"
+	EvtAppDiagReport    = "evt.app.diag_report"
 )
 
 // RouteApp creates routing for an application.
@@ -348,17 +348,23 @@ type LogProvider interface {
 	ErrorsReport() ([]string, error)
 }
 
-// RouteCmdAppErrorsGetReport returns a routing responsible for handling the command.
-func RouteCmdAppErrorsGetReport(serviceName fimptype.ServiceNameT, logProvider LogProvider) *router.Routing {
+// DiagReport is the payload carried by evt.app.diag_report.
+type DiagReport struct {
+	Uptime        int      `json:"uptime"`
+	RestartsCount int      `json:"restarts_count"`
+	Errors        []string `json:"errors"`
+}
+
+func RouteCmdAppDiagGetReport(serviceName fimptype.ServiceNameT, appLifecycle *lifecycle.Lifecycle, logProvider LogProvider) *router.Routing {
 	return router.NewRouting(
-		HandleCmdAppErrorsGetReport(serviceName, logProvider),
+		HandleCmdAppDiagGetReport(serviceName, appLifecycle, logProvider),
 		router.ForService(serviceName),
-		router.ForType(CmdAppErrorsGetReport),
+		router.ForType(CmdAppDiagGetReport),
 	)
 }
 
-// HandleCmdAppErrorsGetReport returns a handler responsible for handling the command.
-func HandleCmdAppErrorsGetReport(serviceName fimptype.ServiceNameT, logProvider LogProvider) router.MessageHandler {
+// HandleCmdAppDiagGetReport returns a handler responsible for handling the command.
+func HandleCmdAppDiagGetReport(serviceName fimptype.ServiceNameT, appLifecycle *lifecycle.Lifecycle, logProvider LogProvider) router.MessageHandler {
 	return router.NewMessageHandler(
 		router.MessageProcessorFn(func(message *fimpgo.Message) (*fimpgo.FimpMessage, error) {
 			entries, err := logProvider.ErrorsReport()
@@ -367,10 +373,14 @@ func HandleCmdAppErrorsGetReport(serviceName fimptype.ServiceNameT, logProvider 
 			}
 
 			return fimpgo.NewMessage(
-				EvtAppErrorsReport,
+				EvtAppDiagReport,
 				serviceName,
-				fimptype.VTypeStrArray,
-				entries,
+				fimptype.VTypeObject,
+				&DiagReport{
+					Uptime:        appLifecycle.Uptime(),
+					RestartsCount: appLifecycle.RestartsCount(),
+					Errors:        entries,
+				},
 				nil,
 				nil,
 				message.Payload,

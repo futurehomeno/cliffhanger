@@ -1,26 +1,12 @@
 package lifecycle
 
 import (
-	"fmt"
 	"sync"
 	"time"
 
+	"github.com/futurehomeno/cliffhanger/lifecycle/restartsstore"
 	log "github.com/sirupsen/logrus"
 )
-
-// LogStatsProvider is an optional source of warn/error log counters used to populate AppStates.
-type LogStatsProvider interface {
-	ErrorsCount() int
-	WarningsCount() int
-}
-
-// RestartsStore persists the restart counter across application restarts. A
-// missing value must be reported as (0, nil) so the first startup can begin
-// counting from zero.
-type RestartsStore interface {
-	GetRestartsCount() (int, error)
-	SetRestartsCount(n int) error
-}
 
 // Constants defining event types and application states.
 const (
@@ -61,14 +47,10 @@ type State string
 
 // AppStates is an object representing current application states.
 type AppStates struct {
-	App           string `json:"app"`
-	Connection    string `json:"connection"`
-	Config        string `json:"config"`
-	Auth          string `json:"auth"`
-	Uptime        int    `json:"uptime"`
-	RestartsCount int    `json:"restarts_count"`
-	ErrorsCount   int    `json:"errors_count"`
-	WarningsCount int    `json:"warnings_count"`
+	App        string `json:"app"`
+	Connection string `json:"connection"`
+	Config     string `json:"config"`
+	Auth       string `json:"auth"`
 }
 
 // SystemEvent is an object representing a particular system event.
@@ -92,12 +74,10 @@ type Lifecycle struct {
 	configState        State
 	startTime          time.Time
 	restartsCount      int
-	logStats           LogStatsProvider
 }
 
-// New creates new instance of a lifecycle service.
-func New() *Lifecycle {
-	return &Lifecycle{
+func New(store restartsstore.RestartsStore) *Lifecycle {
+	l := &Lifecycle{
 		systemEventBus:     make(map[string]SystemEventChannel),
 		lock:               &sync.RWMutex{},
 		systemEventBusLock: &sync.RWMutex{},
@@ -107,6 +87,16 @@ func New() *Lifecycle {
 		connectionState:    ConnStateNA,
 		startTime:          time.Now(),
 	}
+
+	if store != nil {
+		var err error
+		l.restartsCount, err = store.IncrementRestartsCount()
+		if err != nil {
+			log.Errorf("Increment restart count err: %v", err)
+		}
+	}
+
+	return l
 }
 
 // SetRestartCount sets the number of times the application has been restarted.
@@ -117,55 +107,30 @@ func (l *Lifecycle) SetRestartCount(n int) {
 	l.restartsCount = n
 }
 
-// LoadRestartsCount reads the current restart count from the store, increments
-// it, persists the new value, and caches it in the lifecycle. Intended to be
-// called once during application bootstrap.
-func (l *Lifecycle) LoadRestartsCount(store RestartsStore) error {
-	n, err := store.GetRestartsCount()
-	if err != nil {
-		return fmt.Errorf("lifecycle: failed to read restart count: %w", err)
-	}
+func (l *Lifecycle) Uptime() int {
+	l.lock.RLock()
+	start := l.startTime
+	l.lock.RUnlock()
 
-	n++
-
-	if err := store.SetRestartsCount(n); err != nil {
-		return fmt.Errorf("lifecycle: failed to persist restart count: %w", err)
-	}
-
-	l.lock.Lock()
-	l.restartsCount = n
-	l.lock.Unlock()
-
-	return nil
+	return int(time.Since(start).Seconds())
 }
 
-// SetLogStatsProvider sets the provider used to populate ErrorsCount and WarningsCount in AppStates.
-func (l *Lifecycle) SetLogStatsProvider(p LogStatsProvider) {
-	l.lock.Lock()
-	defer l.lock.Unlock()
+func (l *Lifecycle) RestartsCount() int {
+	l.lock.RLock()
+	defer l.lock.RUnlock()
 
-	l.logStats = p
+	return l.restartsCount
 }
 
-// GetAllStates returns all application states.
 func (l *Lifecycle) GetAllStates() *AppStates {
 	l.lock.RLock()
 	states := &AppStates{
-		App:           string(l.appState),
-		Connection:    string(l.connectionState),
-		Config:        string(l.configState),
-		Auth:          string(l.authState),
-		Uptime:        int(time.Since(l.startTime).Seconds()),
-		RestartsCount: l.restartsCount,
+		App:        string(l.appState),
+		Connection: string(l.connectionState),
+		Config:     string(l.configState),
+		Auth:       string(l.authState),
 	}
-	logStats := l.logStats
 	l.lock.RUnlock()
-
-	if logStats != nil {
-		states.ErrorsCount = logStats.ErrorsCount()
-		states.WarningsCount = logStats.WarningsCount()
-	}
-
 	return states
 }
 

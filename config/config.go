@@ -17,6 +17,7 @@ type Default struct {
 	LogLevel           string `json:"log_level"`
 	LogFormat          string `json:"log_format"`
 	LogRevertTimeout   string `json:"log_revert_timeout,omitempty"`
+	RestartsCount      int    `json:"restarts_count,omitempty"`
 	ConfiguredAt       string `json:"configured_at"`
 }
 
