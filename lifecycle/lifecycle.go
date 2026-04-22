@@ -8,7 +8,6 @@ import (
 	log "github.com/sirupsen/logrus"
 )
 
-// Constants defining event types and application states.
 const (
 	StateTypeAppState    StateType = "APP_STATE"
 	StateTypeConfigState StateType = "CONFIG_STATE"
@@ -39,13 +38,10 @@ const (
 	ConnStateNA           State = "NA"
 )
 
-// StateType is a type representing a type of an application state.
 type StateType string
 
-// State represents one of the application states.
 type State string
 
-// AppStates is an object representing current application states.
 type AppStates struct {
 	App        string `json:"app"`
 	Connection string `json:"connection"`
@@ -53,17 +49,14 @@ type AppStates struct {
 	Auth       string `json:"auth"`
 }
 
-// SystemEvent is an object representing a particular system event.
 type SystemEvent struct {
 	Type   StateType
 	State  State
 	Params map[string]string
 }
 
-// SystemEventChannel is a channel used to subscribe to system events.
 type SystemEventChannel chan SystemEvent
 
-// Lifecycle is a service holding central information concerning the state of the edge application.
 type Lifecycle struct {
 	lock               *sync.RWMutex
 	systemEventBusLock *sync.RWMutex
@@ -99,14 +92,6 @@ func New(store restartsstore.RestartsStore) *Lifecycle {
 	return l
 }
 
-// SetRestartCount sets the number of times the application has been restarted.
-func (l *Lifecycle) SetRestartCount(n int) {
-	l.lock.Lock()
-	defer l.lock.Unlock()
-
-	l.restartsCount = n
-}
-
 func (l *Lifecycle) Uptime() int {
 	l.lock.RLock()
 	start := l.startTime
@@ -122,7 +107,7 @@ func (l *Lifecycle) RestartsCount() int {
 	return l.restartsCount
 }
 
-func (l *Lifecycle) GetAllStates() *AppStates {
+func (l *Lifecycle) AllStates() *AppStates {
 	l.lock.RLock()
 	states := &AppStates{
 		App:        string(l.appState),
@@ -134,8 +119,7 @@ func (l *Lifecycle) GetAllStates() *AppStates {
 	return states
 }
 
-// GetState returns a current application state of the provided type.
-func (l *Lifecycle) GetState(stateType StateType) State {
+func (l *Lifecycle) State(stateType StateType) State {
 	l.lock.RLock()
 	defer l.lock.RUnlock()
 
@@ -153,7 +137,6 @@ func (l *Lifecycle) GetState(stateType StateType) State {
 	return ""
 }
 
-// ConfigState returns current configuration state.
 func (l *Lifecycle) ConfigState() State {
 	l.lock.RLock()
 	defer l.lock.RUnlock()
@@ -161,7 +144,6 @@ func (l *Lifecycle) ConfigState() State {
 	return l.configState
 }
 
-// SetConfigState sets configuration state.
 func (l *Lifecycle) SetConfigState(configState State) {
 	l.lock.Lock()
 	defer l.lock.Unlock()
@@ -175,7 +157,6 @@ func (l *Lifecycle) SetConfigState(configState State) {
 	l.emitStateChangeEvent(StateTypeConfigState, configState, nil)
 }
 
-// AuthState returns current authorization state.
 func (l *Lifecycle) AuthState() State {
 	l.lock.RLock()
 	defer l.lock.RUnlock()
@@ -183,7 +164,6 @@ func (l *Lifecycle) AuthState() State {
 	return l.authState
 }
 
-// SetAuthState sets authorization state.
 func (l *Lifecycle) SetAuthState(authState State) {
 	l.lock.Lock()
 	defer l.lock.Unlock()
@@ -197,7 +177,6 @@ func (l *Lifecycle) SetAuthState(authState State) {
 	l.emitStateChangeEvent(StateTypeAuthState, authState, nil)
 }
 
-// ConnectionState returns current connection state.
 func (l *Lifecycle) ConnectionState() State {
 	l.lock.RLock()
 	defer l.lock.RUnlock()
@@ -205,7 +184,6 @@ func (l *Lifecycle) ConnectionState() State {
 	return l.connectionState
 }
 
-// SetConnectionState sets connection state.
 func (l *Lifecycle) SetConnectionState(connectionState State) {
 	l.lock.Lock()
 	defer l.lock.Unlock()
@@ -219,7 +197,6 @@ func (l *Lifecycle) SetConnectionState(connectionState State) {
 	l.emitStateChangeEvent(StateTypeConnState, connectionState, nil)
 }
 
-// AppState returns current application state.
 func (l *Lifecycle) AppState() State {
 	l.lock.RLock()
 	defer l.lock.RUnlock()
@@ -227,7 +204,6 @@ func (l *Lifecycle) AppState() State {
 	return l.appState
 }
 
-// SetAppState sets application state.
 func (l *Lifecycle) SetAppState(appState State, params map[string]string) {
 	l.lock.Lock()
 	defer l.lock.Unlock()
@@ -241,7 +217,6 @@ func (l *Lifecycle) SetAppState(appState State, params map[string]string) {
 	l.emitStateChangeEvent(StateTypeAppState, appState, params)
 }
 
-// Subscribe subscribes to system events. If subscription already exists previously set channel is being returned.
 func (l *Lifecycle) Subscribe(subID string, bufSize int) SystemEventChannel {
 	l.systemEventBusLock.Lock()
 	defer l.systemEventBusLock.Unlock()
@@ -258,7 +233,6 @@ func (l *Lifecycle) Subscribe(subID string, bufSize int) SystemEventChannel {
 	return msgChan
 }
 
-// Unsubscribe removes subscription to system events.
 func (l *Lifecycle) Unsubscribe(subID string) {
 	l.systemEventBusLock.Lock()
 	defer l.systemEventBusLock.Unlock()
@@ -270,9 +244,8 @@ func (l *Lifecycle) Unsubscribe(subID string) {
 	delete(l.systemEventBus, subID)
 }
 
-// WaitFor blocks until application lifecycle state is reached.
 func (l *Lifecycle) WaitFor(subID string, stateType StateType, targetState State) {
-	if l.GetState(stateType) == targetState {
+	if l.State(stateType) == targetState {
 		return
 	}
 
@@ -286,7 +259,6 @@ func (l *Lifecycle) WaitFor(subID string, stateType StateType, targetState State
 	}
 }
 
-// emitStateChangeEvent emits a state change event.
 func (l *Lifecycle) emitStateChangeEvent(stateType StateType, currentState State, params map[string]string) {
 	l.systemEventBusLock.RLock()
 	defer l.systemEventBusLock.RUnlock()

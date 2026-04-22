@@ -111,7 +111,7 @@ func prepareAdapter(
 func build(mqtt *fimpgo.MqttTransport, listener event.Listener, ad adapter.Adapter) (root.App, error) {
 	return root.NewEdgeAppBuilder().
 		WithMQTT(mqtt).
-		WithServiceDiscovery(&discovery.Resource{}).
+		WithServiceDiscovery("test_app", discovery.ResourceTypeApp, "test_app", "1", "").
 		WithLifecycle(lifecycle.New(nil)).
 		WithTopicSubscription(
 			router.TopicPatternAdapter(testServiceName),

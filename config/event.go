@@ -11,7 +11,6 @@ const (
 	eventClassConfigurationChange = "configuration_change"
 )
 
-// NewConfigurationChangeEvent creates a new schedule update event.
 func NewConfigurationChangeEvent(service fimptype.ServiceNameT, setting string) event.Event {
 	return event.NewWithPayload(eventDomain, eventClassConfigurationChange, &configurationChange{
 		Service: service,
@@ -19,13 +18,11 @@ func NewConfigurationChangeEvent(service fimptype.ServiceNameT, setting string) 
 	})
 }
 
-// configurationChange represents a configuration change event.
 type configurationChange struct {
 	Service fimptype.ServiceNameT
 	Setting string
 }
 
-// WaitForConfigurationUpdate creates a filter for configuration change events.
 func WaitForConfigurationUpdate(service fimptype.ServiceNameT, setting string) event.Filter {
 	return event.And(
 		event.WaitForDomain(eventDomain),

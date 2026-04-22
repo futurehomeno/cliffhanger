@@ -24,7 +24,7 @@ type Client interface {
 	GetModes() (Modes, error)
 	GetTimers() (Timers, error)
 	GetVinculumServices() (*VinculumServices, error)
-	GetState() (*State, error)
+	State() (*State, error)
 	GetComponents(components ...string) (*ComponentSet, error)
 	GetAll() (*ComponentSet, error)
 	RunShortcut(shortcutID int) (*Response, error)
@@ -183,13 +183,13 @@ func (c *client) GetVinculumServices() (*VinculumServices, error) {
 	return response.GetVinculumServices()
 }
 
-func (c *client) GetState() (*State, error) {
+func (c *client) State() (*State, error) {
 	response, err := c.sendGetRequest([]string{ComponentState})
 	if err != nil {
 		return nil, err
 	}
 
-	return response.GetState()
+	return response.State()
 }
 
 func (c *client) GetComponents(components ...string) (*ComponentSet, error) {

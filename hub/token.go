@@ -9,7 +9,6 @@ import (
 	log "github.com/sirupsen/logrus"
 )
 
-// LoadToken loads the hub token from Cloud Bridge.
 func LoadToken(resourceName fimptype.ResourceNameT) (string, error) {
 	loader := NewTokenLoader(&TokenLoaderConfig{
 		ResourceName: resourceName,
@@ -18,7 +17,6 @@ func LoadToken(resourceName fimptype.ResourceNameT) (string, error) {
 	return loader.LoadToken()
 }
 
-// TokenLoaderConfig is a configuration object for a token loader service.
 type TokenLoaderConfig struct {
 	ResourceName       fimptype.ResourceNameT
 	MQTTServerURI      string
@@ -29,7 +27,6 @@ type TokenLoaderConfig struct {
 	RetryDelay         time.Duration
 }
 
-// setDefaults sets default configuration for a token loader service.
 func (cfg *TokenLoaderConfig) setDefaults() {
 	if cfg.MQTTServerURI == "" {
 		cfg.MQTTServerURI = "tcp://localhost:1883"

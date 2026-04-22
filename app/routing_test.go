@@ -41,7 +41,6 @@ func TestHandleCmdAppDiagGetReport_EmitsFullReport(t *testing.T) {
 	t.Parallel()
 
 	l := lifecycle.New(nil)
-	l.SetRestartCount(3)
 
 	logs := &stubLogProvider{entries: []string{"ERR one", "WARN two"}}
 

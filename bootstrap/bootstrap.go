@@ -36,7 +36,6 @@ func GetConfigurationDirectory() string {
 	return "./"
 }
 
-// GetWorkingDirectory returns a working directory with a fallback to a relative path.
 func GetWorkingDirectory() string {
 	dir, err := os.Getwd()
 	if err != nil {
@@ -46,7 +45,6 @@ func GetWorkingDirectory() string {
 	return dir
 }
 
-// InitializeLogger initializes logger with an optional log rotation.
 func InitializeLogger(logFile string, level string, logFormat string) error {
 	SetLogFormat(logFormat)
 
@@ -61,8 +59,6 @@ func InitializeLogger(logFile string, level string, logFormat string) error {
 	return SetLogOutput(logFile)
 }
 
-// SetLogFormat sets the logrus formatter matching the given format name.
-// Unknown formats fall back to the default text formatter.
 func SetLogFormat(logFormat string) {
 	logConfigLock.Lock()
 	defer logConfigLock.Unlock()
@@ -117,7 +113,6 @@ func SetLogOutput(logFile string) error {
 	return nil
 }
 
-// WaitForShutdown blocks code execution until a shutdown signal occurs.
 func WaitForShutdown() {
 	signals := make(chan os.Signal, 1)
 
