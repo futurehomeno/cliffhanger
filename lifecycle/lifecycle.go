@@ -30,6 +30,7 @@ const (
 	AuthStateNotAuthenticated State = "NOT_AUTHENTICATED"
 	AuthStateAuthenticated    State = "AUTHENTICATED"
 	AuthStateInProgress       State = "IN_PROGRESS"
+	AuthStateError            State = "ERROR"
 	AuthStateNA               State = "NA"
 
 	ConnStateConnecting   State = "CONNECTING"
