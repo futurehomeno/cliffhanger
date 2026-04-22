@@ -21,7 +21,7 @@ type Default struct {
 	TelemetryEnabledAt  string `json:"telemetry_enabled_at,omitempty"`
 	TelemetryValidity   string `json:"telemetry_validity,omitempty"`
 	TelemetrySuppressed *bool  `json:"telemetry_suppressed,omitempty"`
-	ConfiguredAt       string `json:"configured_at"`
+	ConfiguredAt        string `json:"configured_at"`
 }
 
 // NewDefault creates a new instance of a default configuration.

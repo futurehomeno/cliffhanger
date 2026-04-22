@@ -99,14 +99,27 @@ func NewConfigPull(mqtt *fimpgo.MqttTransport, source string, reporter Telemetry
 		opt(cp)
 	}
 
+	if cp.fallbackPoll <= 0 {
+		return nil, fmt.Errorf("telemetry: config pull: fallback poll interval must be positive")
+	}
+
+	if cp.timeout <= 0 {
+		return nil, fmt.Errorf("telemetry: config pull: request timeout must be positive")
+	}
+
 	return cp, nil
 }
 
 // Start begins the config pull loop. The first poll fires immediately
-// and is non-blocking (runs in a background goroutine).
+// and is non-blocking (runs in a background goroutine). Calling Start
+// on an already-running service is a no-op.
 func (cp *ConfigPull) Start() error {
 	cp.lock.Lock()
 	defer cp.lock.Unlock()
+
+	if cp.timer != nil {
+		return nil // already running
+	}
 
 	if cp.client == nil {
 		cp.client = fimpgo.NewSyncClient(cp.mqtt)
@@ -161,7 +174,9 @@ func (cp *ConfigPull) scheduleLocked(delay time.Duration) {
 			return
 		}
 
-		// Release lock during network I/O.
+		// Release lock during network I/O. If Stop() is called
+		// concurrently, it cancels the SyncClient's transport which
+		// causes SendFimp to return an error promptly.
 		client := cp.client
 		cp.lock.Unlock()
 
@@ -193,6 +208,12 @@ func (cp *ConfigPull) poll(client SyncRequester) time.Duration {
 		return cp.fallbackPoll
 	}
 
+	if resp.Interface != EvtConfigReport {
+		log.Warnf("[cliff] Telemetry config pull: unexpected response type %q, retrying in %s", resp.Interface, cp.fallbackPoll)
+
+		return cp.fallbackPoll
+	}
+
 	var cfg ConfigResponse
 	if err := resp.GetObjectValue(&cfg); err != nil {
 		log.WithError(err).Warnf("[cliff] Telemetry config pull: failed to parse response, retrying in %s", cp.fallbackPoll)
@@ -200,6 +221,9 @@ func (cp *ConfigPull) poll(client SyncRequester) time.Duration {
 		return cp.fallbackPoll
 	}
 
+	// Enable and SetSuppressed are applied independently: a failure in
+	// one should not prevent the other from being applied. The next poll
+	// will reconcile any partial state.
 	if err := cp.reporter.Enable(cfg.Enabled); err != nil {
 		log.WithError(err).Errorf("[cliff] Telemetry config pull: failed to apply enabled=%v", cfg.Enabled)
 	}

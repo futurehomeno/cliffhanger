@@ -2,6 +2,7 @@ package telemetry_test
 
 import (
 	"errors"
+	"sync/atomic"
 	"testing"
 	"time"
 
@@ -16,11 +17,11 @@ import (
 type mockSyncRequester struct {
 	response *fimpgo.FimpMessage
 	err      error
-	calls    int
+	calls    atomic.Int32
 }
 
 func (m *mockSyncRequester) SendFimp(_ string, _ *fimpgo.FimpMessage, _ int) (*fimpgo.FimpMessage, error) {
-	m.calls++
+	m.calls.Add(1)
 
 	if m.err != nil {
 		return nil, m.err
@@ -102,7 +103,7 @@ func TestConfigPull_AppliesConfig(t *testing.T) {
 
 	assert.True(t, tel.IsEnabled(), "config should enable telemetry")
 	assert.False(t, tel.IsSuppressed(), "source not in suppressed list")
-	assert.GreaterOrEqual(t, mock.calls, 1)
+	assert.GreaterOrEqual(t, mock.calls.Load(), int32(1))
 
 	require.NoError(t, cp.Stop())
 }
@@ -180,7 +181,7 @@ func TestConfigPull_ErrorUsesFallback(t *testing.T) {
 	// Wait for initial poll + one retry.
 	time.Sleep(150 * time.Millisecond)
 
-	assert.GreaterOrEqual(t, mock.calls, 2, "should retry after fallback interval")
+	assert.GreaterOrEqual(t, mock.calls.Load(), int32(2), "should retry after fallback interval")
 
 	require.NoError(t, cp.Stop())
 }
@@ -205,12 +206,12 @@ func TestConfigPull_StopCancelsPending(t *testing.T) {
 
 	time.Sleep(100 * time.Millisecond)
 
-	callsBefore := mock.calls
+	callsBefore := mock.calls.Load()
 	require.NoError(t, cp.Stop())
 
 	// After stop, no more polls should fire.
 	time.Sleep(100 * time.Millisecond)
-	assert.Equal(t, callsBefore, mock.calls, "no more polls after Stop")
+	assert.Equal(t, callsBefore, mock.calls.Load(), "no more polls after Stop")
 }
 
 func TestConfigPull_PastNextUpdateUsesFallback(t *testing.T) {
@@ -236,7 +237,7 @@ func TestConfigPull_PastNextUpdateUsesFallback(t *testing.T) {
 	// Wait for initial poll + fallback retry.
 	time.Sleep(150 * time.Millisecond)
 
-	assert.GreaterOrEqual(t, mock.calls, 2, "past next_update should use fallback interval")
+	assert.GreaterOrEqual(t, mock.calls.Load(), int32(2), "past next_update should use fallback interval")
 
 	require.NoError(t, cp.Stop())
 }

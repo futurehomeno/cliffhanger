@@ -154,10 +154,6 @@ type telemetryT struct {
 }
 
 func (r *telemetryT) Report(event, domain string, data map[string]any) error {
-	if event == "" {
-		return errors.New("telemetry: event name is required")
-	}
-
 	r.lock.Lock()
 	topic := r.topic
 	enabled := r.enabled
@@ -172,10 +168,6 @@ func (r *telemetryT) Report(event, domain string, data map[string]any) error {
 }
 
 func (r *telemetryT) ReportRequired(event, domain string, data map[string]any) error {
-	if event == "" {
-		return errors.New("telemetry: event name is required")
-	}
-
 	r.lock.Lock()
 	topic := r.topic
 	r.lock.Unlock()
@@ -184,6 +176,10 @@ func (r *telemetryT) ReportRequired(event, domain string, data map[string]any) e
 }
 
 func (r *telemetryT) publish(topic, event, domain string, data map[string]any) error {
+	if event == "" {
+		return errors.New("telemetry: event name is required")
+	}
+
 	msg := fimpgo.NewObjectMessage(MessageType, Service, &Event{
 		Event:  event,
 		Domain: domain,
