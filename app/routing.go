@@ -258,8 +258,10 @@ func HandleCmdAppUninstall(
 ) router.MessageHandler {
 	return router.NewMessageHandler(
 		router.MessageProcessorFn(func(message *fimpgo.Message) (*fimpgo.FimpMessage, error) {
-			if err := excludeAllThings(); err != nil {
-				log.Errorf("Exclude all things err: %v", err)
+			if excludeAllThings != nil {
+				if err := excludeAllThings(); err != nil {
+					log.Errorf("Exclude all things err: %v", err)
+				}
 			}
 
 			if err := app.Uninstall(); err != nil {
