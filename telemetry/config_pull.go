@@ -133,7 +133,7 @@ func (cp *ConfigPull) Start() error {
 		createdClient = true
 	}
 
-	responseTopic := fmt.Sprintf("pt:j1/mt:cmd/rt:app/rn:%s/ad:1", cp.source)
+	responseTopic := fmt.Sprintf("pt:j1/mt:rsp/rt:app/rn:%s/ad:1", cp.source)
 
 	if err := cp.client.AddSubscription(responseTopic); err != nil {
 		if createdClient {
@@ -226,7 +226,7 @@ func (cp *ConfigPull) scheduleLocked(delay time.Duration) {
 func (cp *ConfigPull) poll(client SyncRequester) pollResult {
 	msg := fimpgo.NewNullMessage(CmdGetConfig, Service, nil, nil, nil)
 	msg.Source = fimptype.ResourceNameT(cp.source)
-	msg.ResponseToTopic = fmt.Sprintf("pt:j1/mt:cmd/rt:app/rn:%s/ad:1", cp.source)
+	msg.ResponseToTopic = fmt.Sprintf("pt:j1/mt:rsp/rt:app/rn:%s/ad:1", cp.source)
 
 	resp, err := client.SendFimp(cp.requestTopic, msg, cp.timeout)
 	if err != nil {
@@ -267,15 +267,23 @@ func (cp *ConfigPull) poll(client SyncRequester) pollResult {
 // one does not prevent the other. The next poll reconciles any
 // partial state.
 func (cp *ConfigPull) applyConfig(cfg *ConfigResponse) {
+	var failed bool
+
 	if err := cp.reporter.Enable(cfg.Enabled); err != nil {
 		log.WithError(err).Errorf("[cliff] Telemetry config pull: failed to apply enabled=%v", cfg.Enabled)
+
+		failed = true
 	}
 
 	suppressed := slices.Contains(cfg.Suppressed, cp.source)
 
 	if err := cp.reporter.SetSuppressed(suppressed); err != nil {
 		log.WithError(err).Errorf("[cliff] Telemetry config pull: failed to apply suppressed=%v", suppressed)
+
+		failed = true
 	}
 
-	log.Infof("[cliff] Telemetry config applied (enabled=%v, suppressed=%v)", cfg.Enabled, suppressed)
+	if !failed {
+		log.Infof("[cliff] Telemetry config applied (enabled=%v, suppressed=%v)", cfg.Enabled, suppressed)
+	}
 }
