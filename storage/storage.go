@@ -96,11 +96,18 @@ func (s *storage[T]) IncrementRestartsCount() (int, error) {
 		IncrementRestartsCount() int
 	}
 
-	if r, ok := any(s.model).(restartable); ok {
-		return r.IncrementRestartsCount(), nil
+	r, ok := any(s.model).(restartable)
+	if !ok {
+		return 0, fmt.Errorf("storage: the model does not support restart counting")
 	}
 
-	return 0, fmt.Errorf("storage: the model does not support restart counting")
+	count := r.IncrementRestartsCount()
+
+	if err := s.save(); err != nil {
+		return 0, fmt.Errorf("storage: failed to persist restart count: %w", err)
+	}
+
+	return count, nil
 }
 
 // First a default configuration is loaded if present and then an actual configuration is used to override the defaults.
@@ -193,6 +200,11 @@ func (s *storage[T]) Save() error {
 	s.lock.Lock()
 	defer s.lock.Unlock()
 
+	return s.save()
+}
+
+// saveLocked persists the configuration to disk. The caller must hold s.lock.
+func (s *storage[T]) save() error {
 	err := os.MkdirAll(path.Dir(s.dataPath), 0774) //nolint:gofumpt,gosec
 	if err != nil {
 		return fmt.Errorf("storage: cannot create a configuration directory at path %s: %w", path.Dir(s.dataPath), err)
