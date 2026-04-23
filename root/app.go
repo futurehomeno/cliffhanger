@@ -225,10 +225,6 @@ func (a *app) startAuthLossWatcher() {
 			}
 		}
 
-		for len(ch) > 0 {
-			<-ch
-		}
-
 		for {
 			select {
 			case event, ok := <-ch:
