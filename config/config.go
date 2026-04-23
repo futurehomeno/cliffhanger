@@ -17,7 +17,11 @@ type Default struct {
 	LogLevel           string `json:"log_level"`
 	LogFormat          string `json:"log_format"`
 	LogRevertTimeout   string `json:"log_revert_timeout,omitempty"`
-	ConfiguredAt       string `json:"configured_at"`
+	TelemetryEnabled    *bool  `json:"telemetry_enabled,omitempty"`
+	TelemetryEnabledAt  string `json:"telemetry_enabled_at,omitempty"`
+	TelemetryValidity   string `json:"telemetry_validity,omitempty"`
+	TelemetrySuppressed *bool  `json:"telemetry_suppressed,omitempty"`
+	ConfiguredAt        string `json:"configured_at"`
 }
 
 // NewDefault creates a new instance of a default configuration.
