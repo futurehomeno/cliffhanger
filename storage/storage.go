@@ -84,26 +84,26 @@ type storage[T any] struct {
 	model        T
 }
 
-// Model returns a configuration model object.
 func (s *storage[T]) Model() T {
 	return s.model
 }
 
-// IncrementRestartsCount increments the restart counter and saves. The model must embed config.Default.
 func (s *storage[T]) IncrementRestartsCount() (int, error) {
+	s.lock.Lock()
+	defer s.lock.Unlock()
+
 	type restartable interface {
-		IncrementRestarts() int
+		IncrementRestartsCount() int
 	}
 
-	r, ok := any(s.model).(restartable)
-	if !ok {
-		return 0, fmt.Errorf("storage: model does not embed config.Default")
+	if r, ok := any(s.model).(restartable); ok {
+		return r.IncrementRestartsCount(), nil
 	}
 
-	return r.IncrementRestarts(), s.Save()
+	return 0, fmt.Errorf("storage: the model does not support restart counting")
 }
 
-// Load loads the configuration. First a default configuration is loaded if present and then an actual configuration is used to override the defaults.
+// First a default configuration is loaded if present and then an actual configuration is used to override the defaults.
 func (s *storage[T]) Load() error {
 	s.lock.Lock()
 	defer s.lock.Unlock()
