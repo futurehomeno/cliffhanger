@@ -5,6 +5,7 @@ import (
 	"sync"
 
 	"github.com/futurehomeno/fimpgo"
+	"github.com/futurehomeno/fimpgo/fimptype"
 
 	"github.com/futurehomeno/cliffhanger/discovery"
 	"github.com/futurehomeno/cliffhanger/lifecycle"
@@ -31,11 +32,11 @@ func newBuilder(edge bool) *Builder {
 type Builder struct {
 	edge               bool
 	mqtt               *fimpgo.MqttTransport
-	resourceName       string
-	resourceType       string
-	resourcePkg        string
-	resourceInstance   string
-	resourceVersion    string
+	resourceName       fimptype.ResourceNameT
+	resourceType       fimptype.ResourceTypeT
+	packageName        string
+	instanceID         string
+	version            string
 	lifecycle          *lifecycle.Lifecycle
 	topicSubscriptions []string
 	routing            []*router.Routing
@@ -50,12 +51,13 @@ func (b *Builder) WithMQTT(mqtt *fimpgo.MqttTransport) *Builder {
 	return b
 }
 
-func (b *Builder) WithServiceDiscovery(resourceName, resourceType, packageName, instanceID, version string) *Builder {
+func (b *Builder) WithServiceDiscovery(resourceName fimptype.ResourceNameT, resourceType fimptype.ResourceTypeT,
+	packageName, instanceID, version string) *Builder {
 	b.resourceName = resourceName
 	b.resourceType = resourceType
-	b.resourcePkg = packageName
-	b.resourceInstance = instanceID
-	b.resourceVersion = version
+	b.packageName = packageName
+	b.instanceID = instanceID
+	b.version = version
 	return b
 }
 
@@ -135,9 +137,9 @@ func (b *Builder) prepareRouting(rootApp *app) {
 		discovery.Route(
 			b.resourceName,
 			b.resourceType,
-			b.resourcePkg,
-			b.resourceInstance,
-			b.resourceVersion,
+			b.packageName,
+			b.instanceID,
+			b.version,
 			b.lifecycle,
 		),
 	)
@@ -166,15 +168,15 @@ func (b *Builder) check() error {
 		return errors.New("builder: it is required to provide service discovery resource type")
 	}
 
-	if b.resourcePkg == "" {
+	if b.packageName == "" {
 		return errors.New("builder: it is required to provide service discovery resource package")
 	}
 
-	if b.resourceInstance == "" {
+	if b.instanceID == "" {
 		return errors.New("builder: it is required to provide service discovery resource instance")
 	}
 
-	if b.resourceVersion == "" {
+	if b.version == "" {
 		return errors.New("builder: it is required to provide service discovery resource version")
 	}
 

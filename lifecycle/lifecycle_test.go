@@ -53,7 +53,7 @@ func TestGetState_ByType(t *testing.T) {
 	l.SetAppState(lifecycle.AppStateRunning, nil)
 	l.SetConfigState(lifecycle.ConfigStateConfigured)
 	l.SetAuthState(lifecycle.AuthStateAuthenticated)
-	l.SetConnectionState(lifecycle.ConnStateConnected)
+	l.SetConnState(lifecycle.ConnStateConnected)
 
 	testCases := []struct {
 		stateType lifecycle.StateType
@@ -142,7 +142,7 @@ func TestSetConnectionState_EmitsEvent(t *testing.T) {
 	l := lifecycle.New(nil)
 	ch := l.Subscribe("test", 1)
 
-	l.SetConnectionState(lifecycle.ConnStateConnected)
+	l.SetConnState(lifecycle.ConnStateConnected)
 
 	require.Eventually(t, func() bool { return len(ch) == 1 }, time.Second, 10*time.Millisecond)
 

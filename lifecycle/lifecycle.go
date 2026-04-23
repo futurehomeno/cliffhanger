@@ -185,7 +185,7 @@ func (l *Lifecycle) ConnectionState() State {
 	return l.connectionState
 }
 
-func (l *Lifecycle) SetConnectionState(connectionState State) {
+func (l *Lifecycle) SetConnState(connectionState State) {
 	l.lock.Lock()
 	defer l.lock.Unlock()
 
