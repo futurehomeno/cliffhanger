@@ -32,10 +32,11 @@ type ConfigPull struct {
 	requestTopic string
 	timeout      int
 
-	lock    sync.Mutex
-	timer   *time.Timer
-	stopped bool
-	client  SyncRequester
+	lock        sync.Mutex
+	timer       *time.Timer
+	stopped     bool
+	client      SyncRequester
+	clientOwned bool // true when we created the client (not injected)
 }
 
 // ConfigPullOption configures optional parameters for NewConfigPull.
@@ -126,19 +127,18 @@ func (cp *ConfigPull) Start() error {
 		return nil // already running
 	}
 
-	createdClient := false
-
 	if cp.client == nil {
 		cp.client = fimpgo.NewSyncClient(cp.mqtt)
-		createdClient = true
+		cp.clientOwned = true
 	}
 
 	responseTopic := fmt.Sprintf("pt:j1/mt:rsp/rt:app/rn:%s/ad:1", cp.source)
 
 	if err := cp.client.AddSubscription(responseTopic); err != nil {
-		if createdClient {
+		if cp.clientOwned {
 			cp.client.Stop()
 			cp.client = nil
+			cp.clientOwned = false
 		}
 
 		return fmt.Errorf("telemetry: config pull: subscribe: %w", err)
@@ -164,9 +164,10 @@ func (cp *ConfigPull) Stop() error {
 		cp.timer = nil
 	}
 
-	if cp.client != nil {
+	if cp.client != nil && cp.clientOwned {
 		cp.client.Stop()
 		cp.client = nil
+		cp.clientOwned = false
 	}
 
 	log.Infof("[cliff] Telemetry config pull stopped (source=%s)", cp.source)
@@ -269,18 +270,31 @@ func (cp *ConfigPull) poll(client SyncRequester) pollResult {
 func (cp *ConfigPull) applyConfig(cfg *ConfigResponse) {
 	var failed bool
 
+	suppressed := slices.Contains(cfg.Suppressed, cp.source)
+
+	// Apply suppression FIRST when this source should be suppressed,
+	// so there is no window where Report sees enabled=true + suppressed=false.
+	if suppressed {
+		if err := cp.reporter.SetSuppressed(true); err != nil {
+			log.WithError(err).Errorf("[cliff] Telemetry config pull: failed to apply suppressed=true")
+
+			failed = true
+		}
+	}
+
 	if err := cp.reporter.Enable(cfg.Enabled); err != nil {
 		log.WithError(err).Errorf("[cliff] Telemetry config pull: failed to apply enabled=%v", cfg.Enabled)
 
 		failed = true
 	}
 
-	suppressed := slices.Contains(cfg.Suppressed, cp.source)
+	// Clear suppression after enabling when this source is NOT suppressed.
+	if !suppressed {
+		if err := cp.reporter.SetSuppressed(false); err != nil {
+			log.WithError(err).Errorf("[cliff] Telemetry config pull: failed to apply suppressed=false")
 
-	if err := cp.reporter.SetSuppressed(suppressed); err != nil {
-		log.WithError(err).Errorf("[cliff] Telemetry config pull: failed to apply suppressed=%v", suppressed)
-
-		failed = true
+			failed = true
+		}
 	}
 
 	if !failed {
