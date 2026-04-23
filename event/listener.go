@@ -94,7 +94,11 @@ func (l *listener) startHandler(h *Handler) {
 
 	for {
 		select {
-		case event := <-h.eventCh:
+		case event, ok := <-h.eventCh:
+			if !ok {
+				return
+			}
+
 			l.doProcess(h.processor, event)
 
 		case <-l.closeCh:
@@ -125,13 +129,13 @@ func (l *listener) Stop() error {
 		return fmt.Errorf("listener: already stopped")
 	}
 
-	for _, h := range l.handlers {
-		l.manager.Unsubscribe(h.subID)
-	}
-
 	close(l.closeCh)
 
 	l.waitGroup.Wait()
+
+	for _, h := range l.handlers {
+		l.manager.Unsubscribe(h.subID)
+	}
 
 	l.closeCh = nil
 

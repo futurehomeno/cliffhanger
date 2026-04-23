@@ -33,8 +33,8 @@ const (
 	CmdAuthSetTokens           = "cmd.auth.set_tokens" //nolint:gosec
 	EvtAuthStatusReport        = "evt.auth.status_report"
 
-	CmdAppErrorsGetReport = "cmd.app.get_errors"
-	EvtAppErrorsReport    = "evt.app.errors_report"
+	CmdAppDiagGetReport = "cmd.app.get_diag"
+	EvtAppDiagReport    = "evt.app.diag_report"
 )
 
 // RouteApp creates routing for an application.
@@ -45,13 +45,14 @@ func RouteApp[C any](
 	configFactory func() C,
 	locker router.MessageHandlerLocker,
 	app App,
+	excludeAllThings func() error,
 ) []*router.Routing {
 	routing := []*router.Routing{
 		RouteCmdAppGetState(serviceName, appLifecycle),
 		RouteCmdConfigGetExtendedReport(serviceName, configStorage),
 		RouteCmdAppGetManifest(serviceName, appLifecycle, configStorage, app),
 		RouteCmdConfigExtendedSet(serviceName, appLifecycle, configFactory, app, locker),
-		RouteCmdAppUninstall(serviceName, appLifecycle, app, locker),
+		RouteCmdAppUninstall(serviceName, appLifecycle, app, locker, excludeAllThings),
 	}
 
 	resettable, ok := app.(ResettableApp)
@@ -97,7 +98,7 @@ func HandleCmdAppGetState(serviceName fimptype.ServiceNameT, appLifecycle *lifec
 				EvtAppStateReport,
 				serviceName,
 				fimptype.VTypeObject,
-				appLifecycle.GetAllStates(),
+				appLifecycle.AllStates(),
 				nil,
 				nil,
 				message.Payload,
@@ -174,7 +175,7 @@ func HandleCmdAppGetManifest[C any](
 			}
 
 			if mode == "manifest_state" || mode == "full" {
-				m.AppState = *appLifecycle.GetAllStates()
+				m.AppState = *appLifecycle.AllStates()
 				m.ConfigState = configStorage.Model()
 			}
 
@@ -237,9 +238,10 @@ func RouteCmdAppUninstall(
 	appLifecycle *lifecycle.Lifecycle,
 	app App,
 	locker router.MessageHandlerLocker,
+	excludeAllThings func() error,
 ) *router.Routing {
 	return router.NewRouting(
-		HandleCmdAppUninstall(serviceName, appLifecycle, app, locker),
+		HandleCmdAppUninstall(serviceName, appLifecycle, app, locker, excludeAllThings),
 		router.ForService(serviceName),
 		router.ForType(CmdAppUninstall),
 	)
@@ -252,11 +254,17 @@ func HandleCmdAppUninstall(
 	appLifecycle *lifecycle.Lifecycle,
 	app App,
 	locker router.MessageHandlerLocker,
+	excludeAllThings func() error,
 ) router.MessageHandler {
 	return router.NewMessageHandler(
 		router.MessageProcessorFn(func(message *fimpgo.Message) (*fimpgo.FimpMessage, error) {
-			err := app.Uninstall()
-			if err != nil {
+			if excludeAllThings != nil {
+				if err := excludeAllThings(); err != nil {
+					log.Errorf("Exclude all things err: %v", err)
+				}
+			}
+
+			if err := app.Uninstall(); err != nil {
 				return makeConfigurationReply(serviceName, EvtAppUninstallReport, message, appLifecycle, err), nil
 			}
 
@@ -348,17 +356,23 @@ type LogProvider interface {
 	ErrorsReport() ([]string, error)
 }
 
-// RouteCmdAppErrorsGetReport returns a routing responsible for handling the command.
-func RouteCmdAppErrorsGetReport(serviceName fimptype.ServiceNameT, logProvider LogProvider) *router.Routing {
+// DiagReport is the payload carried by evt.app.diag_report.
+type DiagReport struct {
+	Uptime        int      `json:"uptime"`
+	RestartsCount int      `json:"restarts_count"`
+	Errors        []string `json:"errors"`
+}
+
+func RouteCmdAppDiagGetReport(serviceName fimptype.ServiceNameT, appLifecycle *lifecycle.Lifecycle, logProvider LogProvider) *router.Routing {
 	return router.NewRouting(
-		HandleCmdAppErrorsGetReport(serviceName, logProvider),
+		HandleCmdAppDiagGetReport(serviceName, appLifecycle, logProvider),
 		router.ForService(serviceName),
-		router.ForType(CmdAppErrorsGetReport),
+		router.ForType(CmdAppDiagGetReport),
 	)
 }
 
-// HandleCmdAppErrorsGetReport returns a handler responsible for handling the command.
-func HandleCmdAppErrorsGetReport(serviceName fimptype.ServiceNameT, logProvider LogProvider) router.MessageHandler {
+// HandleCmdAppDiagGetReport returns a handler responsible for handling the command.
+func HandleCmdAppDiagGetReport(serviceName fimptype.ServiceNameT, appLifecycle *lifecycle.Lifecycle, logProvider LogProvider) router.MessageHandler {
 	return router.NewMessageHandler(
 		router.MessageProcessorFn(func(message *fimpgo.Message) (*fimpgo.FimpMessage, error) {
 			entries, err := logProvider.ErrorsReport()
@@ -367,10 +381,14 @@ func HandleCmdAppErrorsGetReport(serviceName fimptype.ServiceNameT, logProvider 
 			}
 
 			return fimpgo.NewMessage(
-				EvtAppErrorsReport,
+				EvtAppDiagReport,
 				serviceName,
-				fimptype.VTypeStrArray,
-				entries,
+				fimptype.VTypeObject,
+				&DiagReport{
+					Uptime:        appLifecycle.Uptime(),
+					RestartsCount: appLifecycle.RestartsCount(),
+					Errors:        entries,
+				},
 				nil,
 				nil,
 				message.Payload,
@@ -402,7 +420,7 @@ func makeConfigurationReply(
 		configReport.OpError = fmt.Sprintf("configure the app err: %s", err)
 	}
 
-	configReport.AppState = *appLifecycle.GetAllStates()
+	configReport.AppState = *appLifecycle.AllStates()
 
 	return fimpgo.NewMessage(
 		messageType,

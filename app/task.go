@@ -9,30 +9,30 @@ import (
 	"github.com/futurehomeno/cliffhanger/task"
 )
 
-// constants defining default periods for common application tasks.
 const (
-	defaultInitializationInterval = 5 * time.Minute
-	defaultCheckInterval          = 30 * time.Minute
+	defaultAppInitInterval = 10 * time.Minute
+	defaultCheckInterval   = 30 * time.Minute
 )
 
-// TaskApp creates application tasks.
 func TaskApp(app App, appLifecycle *lifecycle.Lifecycle) []*task.Task {
 	var tasks []*task.Task
 
-	initializable, ok := app.(InitializableApp)
-	if ok {
-		tasks = append(tasks, TaskInitialization(initializable, appLifecycle, defaultInitializationInterval)...)
+	if initializable, ok := app.(InitializableApp); ok {
+		tasks = append(tasks, TaskInitialization(initializable, appLifecycle, defaultAppInitInterval)...)
 	}
 
-	checkable, ok := app.(CheckableApp)
-	if ok {
-		tasks = append(tasks, TaskCheck(checkable, appLifecycle, defaultCheckInterval))
+	if checkable, ok := app.(CheckableApp); ok {
+		interval := checkable.CheckInterval()
+		if interval == 0 {
+			interval = defaultCheckInterval
+		}
+
+		tasks = append(tasks, TaskCheck(checkable, appLifecycle, interval))
 	}
 
 	return tasks
 }
 
-// TaskInitialization creates application initialization tasks.
 func TaskInitialization(
 	app InitializableApp,
 	appLifecycle *lifecycle.Lifecycle,
@@ -46,7 +46,6 @@ func TaskInitialization(
 	}
 }
 
-// HandleInitialization creates handler of an initialization task.
 func HandleInitialization(
 	app InitializableApp,
 	appLifecycle *lifecycle.Lifecycle,
@@ -55,13 +54,12 @@ func HandleInitialization(
 	return func() {
 		err := app.Initialize()
 		if err != nil {
-			appLifecycle.SetAppState(lifecycle.AppStateStartupError, nil)
+			appLifecycle.SetAppHealth(lifecycle.AppHealthStartupError, nil)
 			log.WithError(err).Errorf("App init failed, retry in %s", interval)
 		}
 	}
 }
 
-// TaskCheck creates application check task.
 func TaskCheck(
 	app CheckableApp,
 	appLifecycle *lifecycle.Lifecycle,
@@ -72,7 +70,6 @@ func TaskCheck(
 	return task.New(handler, interval, task.WhenAppIsRunning(appLifecycle))
 }
 
-// HandleCheck creates handler of a check task.
 func HandleCheck(
 	app CheckableApp,
 ) func() {

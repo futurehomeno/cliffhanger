@@ -65,7 +65,6 @@ const (
 
 type ConnTypeT string
 
-// Constants representing available connection types.
 const (
 	ConnTypeDirect   ConnTypeT = "direct"
 	ConnTypeIndirect ConnTypeT = "indirect"
@@ -107,16 +106,13 @@ type ConnectivityDetails struct {
 	ConnType         ConnTypeT           `json:"conn_type"`
 }
 
-// PingResult represents a result of a ping.
 type PingResult string
 
-// Constants representing available ping results.
 const (
 	PingResultSuccess PingResult = "SUCCESS"
 	PingResultFailed  PingResult = "FAILED"
 )
 
-// PingReport represents a ping report from a thing.
 type PingReport struct {
 	Address string `json:"address"`
 	Delay   int    `json:"delay"`
@@ -124,7 +120,6 @@ type PingReport struct {
 	*PingDetails
 }
 
-// PingDetails represents ping details from a thing.
 type PingDetails struct {
 	Status PingResult       `json:"status"`
 	Nodes  []ConnectionNode `json:"nodes,omitempty"`
@@ -138,7 +133,6 @@ type ConnectionNode struct {
 	Value   string `json:"value"`
 }
 
-// ConnectivityEvent represents a connectivity event.
 type ConnectivityEvent struct {
 	ThingEvent
 

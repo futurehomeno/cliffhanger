@@ -1,14 +1,22 @@
 package discovery
 
+import (
+	"github.com/futurehomeno/cliffhanger/lifecycle"
+	"github.com/futurehomeno/fimpgo/fimptype"
+)
+
 // Constants defining resource types.
 const (
 	ResourceTypeApp = "app"
 	ResourceTypeAd  = "ad"
 )
 
-type Resource struct {
-	ResourceName string `json:"resource_name"` // Name of the application or adapter.
-	ResourceType string `json:"resource_type"` // Type of the service: "app", "ad"
-	InstanceID   string `json:"instance_id"`   // An instance ID of the service, usually 1.
-	Version      string `json:"version"`       // Version of the application.
+// resourceT is the payload serialized in evt.discovery.report.
+type resourceT struct {
+	ResourceName fimptype.ResourceNameT `json:"resource_name"`
+	ResourceType fimptype.ResourceTypeT `json:"resource_type"`
+	PackageName  string                 `json:"package_name"`
+	InstanceID   string                 `json:"instance_id"`
+	Version      string                 `json:"version"`
+	States       *lifecycle.AppStateT   `json:"app_state,omitempty"`
 }

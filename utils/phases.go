@@ -118,3 +118,23 @@ func AvailablePhaseModes(earthingType types.GridType, supportedPhaseModes []type
 
 	return ret
 }
+
+func SupportedPhaseModes(earthingType types.GridType, utilizedPhases int, phaseMode types.PhaseMode) []types.PhaseMode {
+	switch earthingType {
+	case types.GridTypeTN:
+		if utilizedPhases == 3 {
+			return []types.PhaseMode{types.PhaseModeNL1, types.PhaseModeNL2, types.PhaseModeNL3, types.PhaseModeNL1L2L3}
+		}
+		return []types.PhaseMode{phaseMode}
+
+	case types.GridTypeIT, types.GridTypeTT:
+		if utilizedPhases == 3 {
+			return []types.PhaseMode{types.PhaseModeL1L2, types.PhaseModeL2L3, types.PhaseModeL3L1, types.PhaseModeL1L2L3}
+		}
+		return []types.PhaseMode{phaseMode}
+
+	case types.GridTypeUnknown:
+	}
+
+	return []types.PhaseMode{types.PhaseModeUnknown}
+}

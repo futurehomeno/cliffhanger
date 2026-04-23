@@ -53,7 +53,6 @@ type Adapter interface {
 	SendConnectivityReport() error
 }
 
-// NewAdapter creates new instance of an extended adapter.
 func NewAdapter(
 	mqtt *fimpgo.MqttTransport,
 	eventManager event.Manager,
@@ -72,25 +71,22 @@ func NewAdapter(
 	}
 }
 
-// adapter is a private implementation of an adapter service.
 type adapter struct {
 	publisher Publisher
 	state     State
 	factory   ThingFactory
 
-	name        fimptype.ResourceNameT // resource name
+	name        fimptype.ResourceNameT
 	address     string
 	things      map[string]Thing
 	initialized bool
 	lock        *sync.RWMutex
 }
 
-// Name returns name of the adapter.
 func (a *adapter) Name() fimptype.ResourceNameT {
 	return a.name
 }
 
-// Address returns an address of the adapter.
 func (a *adapter) Address() string {
 	return a.address
 }
@@ -109,7 +105,7 @@ func (a *adapter) Services(name fimptype.ServiceNameT) []Service {
 	return services
 }
 
-// ServiceByTopic returns a service based on its topic. Returns nil if service was not found.
+// Returns nil if service was not found.
 func (a *adapter) ServiceByTopic(topic string) Service {
 	a.lock.RLock()
 	defer a.lock.RUnlock()
@@ -124,7 +120,6 @@ func (a *adapter) ServiceByTopic(topic string) Service {
 	return nil
 }
 
-// Things returns all things.
 func (a *adapter) Things() []Thing {
 	a.lock.RLock()
 	defer a.lock.RUnlock()
@@ -138,7 +133,7 @@ func (a *adapter) Things() []Thing {
 	return things
 }
 
-// ThingByTopic returns a thing based on topic of one of its services. Returns nil if thing was not found.
+// Returns nil if thing was not found.
 func (a *adapter) ThingByTopic(topic string) Thing {
 	a.lock.RLock()
 	defer a.lock.RUnlock()
@@ -153,7 +148,7 @@ func (a *adapter) ThingByTopic(topic string) Thing {
 	return nil
 }
 
-// ThingByAddress returns a thing based on its address. Returns nil if thing was not found.
+// Returns nil if thing was not found.
 func (a *adapter) ThingByAddress(address string) Thing {
 	a.lock.RLock()
 	defer a.lock.RUnlock()
@@ -161,7 +156,7 @@ func (a *adapter) ThingByAddress(address string) Thing {
 	return a.things[address]
 }
 
-// ThingByID returns a thing based on its ID. Returns nil if thing was not found.
+// Returns nil if thing was not found.
 func (a *adapter) ThingByID(id string) Thing {
 	a.lock.RLock()
 	defer a.lock.RUnlock()
@@ -200,7 +195,6 @@ func (a *adapter) ExchangeAddress(address string) (id string, ok bool) {
 	return ts.ID(), true
 }
 
-// IsInitialized returns true if adapter is initialized.
 func (a *adapter) IsInitialized() bool {
 	a.lock.RLock()
 	defer a.lock.RUnlock()
@@ -279,7 +273,6 @@ func (a *adapter) EnsureThings(seeds ThingSeeds) error {
 	return nil
 }
 
-// CreateThing creates thing and adds it to the adapter.
 func (a *adapter) CreateThing(seed *ThingSeed) error {
 	a.lock.Lock()
 	defer a.lock.Unlock()
@@ -291,7 +284,6 @@ func (a *adapter) CreateThing(seed *ThingSeed) error {
 	return nil
 }
 
-// DestroyThingByID destroys thing and removes it from the adapter.
 func (a *adapter) DestroyThingByID(id string) error {
 	a.lock.Lock()
 	defer a.lock.Unlock()
@@ -304,7 +296,6 @@ func (a *adapter) DestroyThingByID(id string) error {
 	return a.destroyThing(ts.Address())
 }
 
-// DestroyThingByAddress destroys thing and removes it from the adapter.
 func (a *adapter) DestroyThingByAddress(address string) error {
 	a.lock.Lock()
 	defer a.lock.Unlock()
@@ -312,7 +303,6 @@ func (a *adapter) DestroyThingByAddress(address string) error {
 	return a.destroyThing(address)
 }
 
-// DestroyAllThings destroys all things and removes them from the adapter.
 func (a *adapter) DestroyAllThings() error {
 	a.lock.Lock()
 	defer a.lock.Unlock()
@@ -442,7 +432,6 @@ func (a *adapter) destroyThing(address string) error {
 	return nil
 }
 
-// SendExclusionReport sends exclusion report for a specific thing.
 func (a *adapter) sendExclusionReport(address string) error {
 	report := fimptype.ThingExclusionReport{
 		Address: address,
