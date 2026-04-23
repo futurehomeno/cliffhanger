@@ -230,7 +230,7 @@ func (a *app) startAuthLossWatcher() {
 					continue
 				}
 
-				if err := sendAppStateReport(a.mqtt, a.resourceName, fimptype.ServiceNameT(a.resourceName), a.lifecycle); err != nil {
+				if err := sendAppStateReport(a.mqtt, a.resourceName, a.lifecycle); err != nil {
 					log.WithError(err).Error("[cliff] failed to publish app state report on auth loss")
 				}
 
