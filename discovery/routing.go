@@ -3,6 +3,7 @@ package discovery
 import (
 	"github.com/futurehomeno/fimpgo"
 
+	"github.com/futurehomeno/cliffhanger/lifecycle"
 	"github.com/futurehomeno/cliffhanger/router"
 )
 
@@ -16,22 +17,35 @@ const (
 )
 
 // Route returns a routing responsible for handling the command.
-func Route(resource *Resource) *router.Routing {
+// appLifecycle may be nil; when provided, each reply includes fresh app states.
+func Route(resourceName, resourceType, packageName, instanceID, version string, appLifecycle *lifecycle.Lifecycle) *router.Routing {
 	return router.NewRouting(
-		Handle(resource),
+		Handle(resourceName, resourceType, packageName, instanceID, version, appLifecycle),
 		router.ForTopic(Topic),
 		router.ForType(CmdDiscoveryRequest),
 	)
 }
 
 // Handle returns a handler responsible for handling the command.
-func Handle(resource *Resource) router.MessageHandler {
+// appLifecycle may be nil; when provided, each reply includes fresh app states.
+func Handle(resourceName, resourceType, packageName, instanceID, version string, appLifecycle *lifecycle.Lifecycle) router.MessageHandler {
 	return router.NewMessageHandler(
 		router.MessageProcessorFn(func(message *fimpgo.Message) (*fimpgo.FimpMessage, error) {
+			reply := &resourceT{
+				ResourceName: resourceName,
+				ResourceType: resourceType,
+				PackageName:  packageName,
+				InstanceID:   instanceID,
+				Version:      version,
+			}
+			if appLifecycle != nil {
+				reply.States = appLifecycle.AllStates()
+			}
+
 			return fimpgo.NewObjectMessage(
 				EvtDiscoveryReport,
 				Service,
-				resource,
+				reply,
 				nil,
 				nil,
 				message.Payload,

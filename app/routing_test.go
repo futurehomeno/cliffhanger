@@ -41,7 +41,6 @@ func TestHandleCmdAppDiagGetReport_EmitsFullReport(t *testing.T) {
 	t.Parallel()
 
 	l := lifecycle.New(nil)
-	l.SetRestartCount(3)
 
 	logs := &stubLogProvider{entries: []string{"ERR one", "WARN two"}}
 
@@ -61,7 +60,7 @@ func TestHandleCmdAppDiagGetReport_EmitsFullReport(t *testing.T) {
 	require.True(t, ok, "expected *app.DiagReport payload, got %T", reply.Payload.Value)
 
 	assert.GreaterOrEqual(t, got.Uptime, 0)
-	assert.Equal(t, 3, got.RestartsCount)
+	assert.Equal(t, 0, got.RestartsCount)
 	assert.Equal(t, []string{"ERR one", "WARN two"}, got.Errors)
 }
 

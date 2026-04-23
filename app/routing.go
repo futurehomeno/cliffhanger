@@ -45,13 +45,14 @@ func RouteApp[C any](
 	configFactory func() C,
 	locker router.MessageHandlerLocker,
 	app App,
+	excludeAllThings func() error,
 ) []*router.Routing {
 	routing := []*router.Routing{
 		RouteCmdAppGetState(serviceName, appLifecycle),
 		RouteCmdConfigGetExtendedReport(serviceName, configStorage),
 		RouteCmdAppGetManifest(serviceName, appLifecycle, configStorage, app),
 		RouteCmdConfigExtendedSet(serviceName, appLifecycle, configFactory, app, locker),
-		RouteCmdAppUninstall(serviceName, appLifecycle, app, locker),
+		RouteCmdAppUninstall(serviceName, appLifecycle, app, locker, excludeAllThings),
 	}
 
 	resettable, ok := app.(ResettableApp)
@@ -97,7 +98,7 @@ func HandleCmdAppGetState(serviceName fimptype.ServiceNameT, appLifecycle *lifec
 				EvtAppStateReport,
 				serviceName,
 				fimptype.VTypeObject,
-				appLifecycle.GetAllStates(),
+				appLifecycle.AllStates(),
 				nil,
 				nil,
 				message.Payload,
@@ -174,7 +175,7 @@ func HandleCmdAppGetManifest[C any](
 			}
 
 			if mode == "manifest_state" || mode == "full" {
-				m.AppState = *appLifecycle.GetAllStates()
+				m.AppState = *appLifecycle.AllStates()
 				m.ConfigState = configStorage.Model()
 			}
 
@@ -237,9 +238,10 @@ func RouteCmdAppUninstall(
 	appLifecycle *lifecycle.Lifecycle,
 	app App,
 	locker router.MessageHandlerLocker,
+	excludeAllThings func() error,
 ) *router.Routing {
 	return router.NewRouting(
-		HandleCmdAppUninstall(serviceName, appLifecycle, app, locker),
+		HandleCmdAppUninstall(serviceName, appLifecycle, app, locker, excludeAllThings),
 		router.ForService(serviceName),
 		router.ForType(CmdAppUninstall),
 	)
@@ -252,11 +254,17 @@ func HandleCmdAppUninstall(
 	appLifecycle *lifecycle.Lifecycle,
 	app App,
 	locker router.MessageHandlerLocker,
+	excludeAllThings func() error,
 ) router.MessageHandler {
 	return router.NewMessageHandler(
 		router.MessageProcessorFn(func(message *fimpgo.Message) (*fimpgo.FimpMessage, error) {
-			err := app.Uninstall()
-			if err != nil {
+			if excludeAllThings != nil {
+				if err := excludeAllThings(); err != nil {
+					log.Errorf("Exclude all things err: %v", err)
+				}
+			}
+
+			if err := app.Uninstall(); err != nil {
 				return makeConfigurationReply(serviceName, EvtAppUninstallReport, message, appLifecycle, err), nil
 			}
 
@@ -412,7 +420,7 @@ func makeConfigurationReply(
 		configReport.OpError = fmt.Sprintf("configure the app err: %s", err)
 	}
 
-	configReport.AppState = *appLifecycle.GetAllStates()
+	configReport.AppState = *appLifecycle.AllStates()
 
 	return fimpgo.NewMessage(
 		messageType,

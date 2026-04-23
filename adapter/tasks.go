@@ -8,7 +8,6 @@ import (
 	"github.com/futurehomeno/cliffhanger/task"
 )
 
-// TaskAdapter creates background tasks specific for an adapter.
 func TaskAdapter(
 	adapter Adapter,
 	reportingInterval time.Duration,
@@ -22,12 +21,10 @@ func TaskAdapter(
 	}
 }
 
-// taskInitialization creates an initialization task.
 func taskInitialization(adapter Adapter, reportingInterval time.Duration, reportingVoters ...task.Voter) *task.Task {
 	return task.New(handleInitialization(adapter), reportingInterval, reportingVoters...)
 }
 
-// handleInitialization creates handler of an initialization task.
 func handleInitialization(adapter Adapter) func() {
 	return func() {
 		err := adapter.InitializeThings()
@@ -37,12 +34,10 @@ func handleInitialization(adapter Adapter) func() {
 	}
 }
 
-// taskConnectivityReporting creates a reporting task.
 func taskConnectivityReporting(adapter Adapter, reportingInterval time.Duration, reportingVoters ...task.Voter) *task.Task {
 	return task.New(handleConnectivityReporting(adapter), reportingInterval, reportingVoters...)
 }
 
-// handleConnectivityReporting creates handler of a reporting task.
 func handleConnectivityReporting(adapter Adapter) func() {
 	return func() {
 		for _, t := range adapter.Things() {
@@ -54,7 +49,6 @@ func handleConnectivityReporting(adapter Adapter) func() {
 	}
 }
 
-// IsInitialized returns a voter that checks if the adapter is initialized.
 func IsInitialized(adapter Adapter) task.Voter {
 	return task.VoterFn(func() bool {
 		return adapter.IsInitialized()

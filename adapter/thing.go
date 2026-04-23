@@ -14,26 +14,19 @@ import (
 	"github.com/futurehomeno/cliffhanger/adapter/cache"
 )
 
-// ThingRegistry is an interface representing a thing registry.
 type ThingRegistry interface {
-	// Things returns all things.
 	Things() []Thing
-	// ThingByAddress returns a thing based on its address. Returns nil if thing was not found.
 	ThingByAddress(address string) Thing
-	// ThingByTopic returns a thing based on topic of one of its services. Returns nil if thing was not found.
 	ThingByTopic(topic string) Thing
 }
 
-// ThingFactory is an interface representing a thing factory service which is used by a stateful adapter.
 type ThingFactory interface {
 	// Create creates an instance of a thing using provided state.
 	Create(adapter Adapter, publisher Publisher, thingState ThingState) (Thing, error)
 }
 
-// ThingSeeds is a set of thing seeds to be used for creating things.
 type ThingSeeds []*ThingSeed
 
-// Contains returns true if the set contains a thing with the provided ID.
 func (s ThingSeeds) Contains(id string) bool {
 	for _, seed := range s {
 		if seed.ID == id {
@@ -44,7 +37,6 @@ func (s ThingSeeds) Contains(id string) bool {
 	return false
 }
 
-// Without returns a new set without a thing with the provided ID.
 func (s ThingSeeds) Without(id string) ThingSeeds {
 	var seeds ThingSeeds
 
@@ -59,21 +51,18 @@ func (s ThingSeeds) Without(id string) ThingSeeds {
 	return seeds
 }
 
-// ThingSeed represents a thing seed to be used for creating thing.
 type ThingSeed struct {
 	ID            string
 	Info          any
 	CustomAddress string
 }
 
-// ThingConfig represents a thing configuration.
 type ThingConfig struct {
 	Connector                     Connector
 	InclusionReport               *fimptype.ThingInclusionReport
 	ConnectivityReportingStrategy cache.ReportingStrategy
 }
 
-// Thing is an interface representing FIMP thing.
 type Thing interface {
 	// Update updates the thing by applying the list of ThingUpdate functions. Sending report is optional.
 	// Returns error if failed to send report.
@@ -84,25 +73,19 @@ type Thing interface {
 	Services(name fimptype.ServiceNameT) []Service // map[topic][]Service
 	// ServiceByTopic returns a service based on the topic on which is supposed to be listening for commands.
 	ServiceByTopic(topic string) Service
-	// InclusionReport returns an inclusion report of the thing.
 	InclusionReport() *fimptype.ThingInclusionReport
-	// SendInclusionReport sends inclusion report of the thing.
 	// If force is true, report is sent even if it did not change from previously sent one.
 	SendInclusionReport(force bool) (bool, error)
-	// ConnectivityReport returns a connectivity report of the thing.
 	ConnectivityReport() *ConnectivityReport
-	// SendConnectivityReport sends connectivity report of the thing.
 	// If force is true, report is sent even if it did not change from previously sent one.
 	SendConnectivityReport(force bool) (bool, error)
-	// SendPingReport sends ping report of the thing.
 	SendPingReport() error
-	// Connect connects the thing. If the thing is already connected, this method does nothing.
+	// If the thing is already connected, this method does nothing.
 	Connect()
 	// Disconnect disconnects the thing. If the thing is already disconnected, this method does nothing.
 	Disconnect()
 }
 
-// NewThing creates new instance of a FIMP thing.
 func NewThing(
 	publisher Publisher,
 	state ThingState,
@@ -134,7 +117,6 @@ func NewThing(
 	}
 }
 
-// thing is a private implementation of a FIMP thing.
 type thing struct {
 	publisher                     Publisher
 	state                         ThingState
@@ -146,12 +128,10 @@ type thing struct {
 	lock                          *sync.RWMutex
 }
 
-// Address returns address of the thing.
 func (t *thing) Address() string {
 	return t.inclusionReport.Address
 }
 
-// Services returns all services from the thing that match the provided name. If empty all services are returned.
 func (t *thing) Services(name fimptype.ServiceNameT) []Service {
 	t.lock.RLock()
 	defer t.lock.RUnlock()
@@ -169,7 +149,6 @@ func (t *thing) Services(name fimptype.ServiceNameT) []Service {
 	return services
 }
 
-// ServiceByTopic returns a service based on the topic on which it is supposed to be listening for commands.
 func (t *thing) ServiceByTopic(topic string) Service {
 	t.lock.RLock()
 	defer t.lock.RUnlock()
@@ -183,7 +162,6 @@ func (t *thing) ServiceByTopic(topic string) Service {
 	return nil
 }
 
-// InclusionReport returns an inclusion report of the thing.
 func (t *thing) InclusionReport() *fimptype.ThingInclusionReport {
 	t.lock.RLock()
 	defer t.lock.RUnlock()
@@ -191,7 +169,6 @@ func (t *thing) InclusionReport() *fimptype.ThingInclusionReport {
 	return t.inclusionReport
 }
 
-// SendInclusionReport sends inclusion report of the thing.
 // If force is true, report is sent even if it did not change from previously sent one.
 func (t *thing) SendInclusionReport(force bool) (bool, error) {
 	report := t.InclusionReport()
@@ -206,7 +183,7 @@ func (t *thing) SendInclusionReport(force bool) (bool, error) {
 
 	checksum := crc32.ChecksumIEEE(data)
 
-	if !force && checksum == t.state.GetInclusionChecksum() {
+	if !force && checksum == t.state.InclusionChecksum() {
 		return false, nil
 	}
 
@@ -234,7 +211,6 @@ func (t *thing) SendInclusionReport(force bool) (bool, error) {
 	return true, nil
 }
 
-// ConnectivityReport returns a connectivity report of the thing.
 func (t *thing) ConnectivityReport() *ConnectivityReport {
 	t.lock.Lock()
 	defer t.lock.Unlock()
@@ -256,7 +232,6 @@ func (t *thing) ConnectivityReport() *ConnectivityReport {
 	return report
 }
 
-// SendConnectivityReport sends connectivity report of the thing.
 // If force is true, report is sent even if it did not change from previously sent one.
 func (t *thing) SendConnectivityReport(force bool) (bool, error) {
 	report := t.ConnectivityReport()
@@ -289,7 +264,6 @@ func (t *thing) SendConnectivityReport(force bool) (bool, error) {
 	return true, nil
 }
 
-// SendPingReport sends ping report of the thing.
 func (t *thing) SendPingReport() error {
 	t.lock.RLock()
 	defer t.lock.RUnlock()
@@ -323,7 +297,7 @@ func (t *thing) SendPingReport() error {
 	return nil
 }
 
-// Connect connects the thing. If the thing is already connected, this method does nothing.
+// If the thing is already connected, this method does nothing.
 func (t *thing) Connect() {
 	c, ok := t.connector.(ControllableConnector)
 	if !ok {
@@ -333,7 +307,6 @@ func (t *thing) Connect() {
 	c.Connect(t)
 }
 
-// Disconnect disconnects the thing. If the thing is already disconnected, this method does nothing.
 func (t *thing) Disconnect() {
 	c, ok := t.connector.(ControllableConnector)
 	if !ok {
@@ -345,7 +318,6 @@ func (t *thing) Disconnect() {
 
 type ThingUpdate func(*thing)
 
-// Update applies provided ThingUpdate options to the thing and sends a report if requested.
 func (t *thing) Update(options ...ThingUpdate) error {
 	t.lock.Lock()
 	defer t.lock.Unlock()

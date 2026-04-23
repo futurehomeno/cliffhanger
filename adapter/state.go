@@ -9,7 +9,6 @@ import (
 	"github.com/futurehomeno/cliffhanger/storage"
 )
 
-// adapterStateModel is a model of the adapter state file.
 type adapterStateModel struct {
 	AddressIndex int                         `json:"address_index"`
 	Things       map[string]*thingStateModel `json:"things"`
@@ -40,7 +39,6 @@ type State interface {
 	byAddress(address string) ThingState
 }
 
-// NewState creates new instance of the adapter state.
 func NewState(workDir string) (State, error) {
 	storageService := storage.NewState(&adapterStateModel{}, workDir, "adapter.json")
 
@@ -53,7 +51,6 @@ func NewState(workDir string) (State, error) {
 	}, nil
 }
 
-// state is a private implementation of the adapter state service.
 type state struct {
 	storage.Storage[*adapterStateModel]
 	lock sync.RWMutex
@@ -73,7 +70,6 @@ func (s *state) acquireAddress() (string, error) {
 	return strconv.Itoa(s.Model().AddressIndex), nil
 }
 
-// all returns all persisted thing states.
 func (s *state) all() []ThingState {
 	s.lock.RLock()
 	defer s.lock.RUnlock()
@@ -87,7 +83,6 @@ func (s *state) all() []ThingState {
 	return thingStates
 }
 
-// add persists a new thing state.
 func (s *state) add(model *thingStateModel) (ThingState, error) {
 	s.lock.Lock()
 	defer s.lock.Unlock()
@@ -105,7 +100,6 @@ func (s *state) add(model *thingStateModel) (ThingState, error) {
 	return newThingState(s, model), nil
 }
 
-// remove deletes a thing state at a given ID.
 func (s *state) remove(id string) error {
 	s.lock.Lock()
 	defer s.lock.Unlock()
@@ -119,7 +113,6 @@ func (s *state) remove(id string) error {
 	return nil
 }
 
-// byID returns a thing state for a thing with a given ID.
 func (s *state) byID(id string) ThingState {
 	s.lock.RLock()
 	defer s.lock.RUnlock()
@@ -132,7 +125,6 @@ func (s *state) byID(id string) ThingState {
 	return newThingState(s, ts)
 }
 
-// byAddress returns a thing state for a thing with a given address.
 func (s *state) byAddress(address string) ThingState {
 	s.lock.RLock()
 	defer s.lock.RUnlock()
@@ -158,8 +150,8 @@ type ThingState interface {
 	State(model any) error
 	// SetState persists new state of a thing.
 	SetState(model any) error
-	// GetInclusionChecksum returns the checksum of the inclusion report stored in the thing state.
-	GetInclusionChecksum() uint32
+	// InclusionChecksum returns the checksum of the inclusion report stored in the thing state.
+	InclusionChecksum() uint32
 	// SetInclusionChecksum persists the checksum of the inclusion report in the thing state.
 	SetInclusionChecksum(checksum uint32) error
 }
@@ -172,13 +164,11 @@ func newThingState(s *state, m *thingStateModel) ThingState {
 	}
 }
 
-// thingState is a private implementation of a thing state service.
 type thingState struct {
 	state *state
 	model *thingStateModel
 }
 
-// ID returns the ID of the thing.
 func (s *thingState) ID() string {
 	s.state.lock.RLock()
 	defer s.state.lock.RUnlock()
@@ -186,7 +176,6 @@ func (s *thingState) ID() string {
 	return s.model.ID
 }
 
-// Address returns the address assigned to the thing by the adapter.
 func (s *thingState) Address() string {
 	s.state.lock.RLock()
 	defer s.state.lock.RUnlock()
@@ -194,7 +183,6 @@ func (s *thingState) Address() string {
 	return s.model.Address
 }
 
-// Info marshals thing optional information into the provided model.
 func (s *thingState) Info(model any) error {
 	s.state.lock.RLock()
 	defer s.state.lock.RUnlock()
@@ -211,7 +199,6 @@ func (s *thingState) Info(model any) error {
 	return nil
 }
 
-// State marshals thing persisted state into the provided model.
 func (s *thingState) State(model any) error {
 	s.state.lock.RLock()
 	defer s.state.lock.RUnlock()
@@ -228,7 +215,6 @@ func (s *thingState) State(model any) error {
 	return nil
 }
 
-// SetState persists new state of a thing.
 func (s *thingState) SetState(model any) error {
 	s.state.lock.Lock()
 	defer s.state.lock.Unlock()
@@ -248,15 +234,13 @@ func (s *thingState) SetState(model any) error {
 	return nil
 }
 
-// GetInclusionChecksum returns the checksum of the inclusion report stored in the thing state.
-func (s *thingState) GetInclusionChecksum() uint32 {
+func (s *thingState) InclusionChecksum() uint32 {
 	s.state.lock.RLock()
 	defer s.state.lock.RUnlock()
 
 	return s.model.InclusionChecksum
 }
 
-// SetInclusionChecksum persists the checksum of the inclusion report in the thing state.
 func (s *thingState) SetInclusionChecksum(checksum uint32) error {
 	s.state.lock.Lock()
 	defer s.state.lock.Unlock()
