@@ -50,6 +50,10 @@ const (
 	// DefaultPollInterval is the fallback interval when the cloud response
 	// does not include next_update or on error.
 	DefaultPollInterval = 6 * time.Hour
+	// MaxPollInterval caps the delay derived from the cloud next_update
+	// field. Prevents a misconfigured response from silencing config
+	// updates indefinitely.
+	MaxPollInterval = 24 * time.Hour
 )
 
 // Event is the payload carried in the FIMP val field.

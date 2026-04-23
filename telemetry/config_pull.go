@@ -256,7 +256,7 @@ func (cp *ConfigPull) poll(client SyncRequester) pollResult {
 		if err != nil {
 			log.WithError(err).Warnf("[cliff] Telemetry config pull: failed to parse next_update %q", cfg.NextUpdate)
 		} else if d := time.Until(nextUpdate); d > 0 {
-			delay = d
+			delay = min(d, MaxPollInterval)
 		}
 	}
 
