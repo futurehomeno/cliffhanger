@@ -12,8 +12,10 @@ import (
 	"time"
 
 	"github.com/futurehomeno/fimpgo"
+	"github.com/futurehomeno/fimpgo/fimptype"
 	log "github.com/sirupsen/logrus"
 
+	cliffapp "github.com/futurehomeno/cliffhanger/app"
 	"github.com/futurehomeno/cliffhanger/config"
 	"github.com/futurehomeno/cliffhanger/lifecycle"
 	"github.com/futurehomeno/cliffhanger/router"
@@ -57,11 +59,15 @@ type app struct {
 
 	mqtt               *fimpgo.MqttTransport
 	lifecycle          *lifecycle.Lifecycle
+	resourceName       fimptype.ResourceNameT
 	topicSubscriptions []string
 	messageRouter      router.Router
 	taskManager        task.Manager
 	services           []Service
 	resetters          []Resetter
+
+	authWatcherStopCh chan struct{}
+	authWatcherDoneCh chan struct{}
 }
 
 // Start starts the root application.
@@ -154,7 +160,7 @@ func (a *app) doStart() error {
 	log.Info("[cliff] Start app")
 
 	if a.lifecycle != nil {
-		a.lifecycle.SetAppState(lifecycle.AppStateStarting, nil)
+		a.lifecycle.SetAppHealth(lifecycle.AppHealthStarting, nil)
 	}
 
 	err := a.mqtt.Start(10 * time.Second)
@@ -186,11 +192,71 @@ func (a *app) doStart() error {
 		return fmt.Errorf("start task manager err: %w", err)
 	}
 
+	a.startAuthLossWatcher()
+
 	log.Info("[cliff] App started")
 
 	a.running = true
 
 	return nil
+}
+
+// startAuthLossWatcher subscribes to lifecycle auth state changes and publishes
+// evt.app.state_report whenever the auth state transitions to LOST. This guarantees
+// subscribers are notified when an unexpected logout occurs.
+func (a *app) startAuthLossWatcher() {
+	if a.lifecycle == nil || a.mqtt == nil || a.resourceName == "" {
+		return
+	}
+
+	const subID = "auth_lost"
+
+	ch := a.lifecycle.Subscribe(subID, 5)
+	a.authWatcherStopCh = make(chan struct{})
+	a.authWatcherDoneCh = make(chan struct{})
+
+	go func() {
+		defer close(a.authWatcherDoneCh)
+		defer a.lifecycle.Unsubscribe(subID)
+
+		if a.lifecycle.AuthState() == lifecycle.AuthStateLost {
+			if err := sendAppStateReport(a.mqtt, a.resourceName, a.lifecycle); err != nil {
+				log.WithError(err).Error("[cliff] failed to publish app state report on startup auth loss")
+			}
+		}
+
+		for {
+			select {
+			case event, ok := <-ch:
+				if !ok {
+					return
+				}
+
+				if event.Type != lifecycle.StateTypeAuthState || event.State != lifecycle.AuthStateLost {
+					continue
+				}
+
+				if err := sendAppStateReport(a.mqtt, a.resourceName, a.lifecycle); err != nil {
+					log.WithError(err).Error("[cliff] failed to publish app state report on auth loss")
+				}
+
+			case <-a.authWatcherStopCh:
+				return
+			}
+		}
+	}()
+}
+
+// stopAuthLossWatcher stops the auth loss watcher goroutine started by startAuthLossWatcher.
+func (a *app) stopAuthLossWatcher() {
+	if a.authWatcherStopCh == nil {
+		return
+	}
+
+	close(a.authWatcherStopCh)
+	<-a.authWatcherDoneCh
+	a.authWatcherStopCh = nil
+	a.authWatcherDoneCh = nil
 }
 
 // doStop performs the application shutdown.
@@ -199,8 +265,10 @@ func (a *app) doStop() error {
 		return nil
 	}
 
+	a.stopAuthLossWatcher()
+
 	if a.lifecycle != nil {
-		a.lifecycle.SetAppState(lifecycle.AppStateTerminate, nil)
+		a.lifecycle.SetAppHealth(lifecycle.AppHealthTerminate, nil)
 	}
 
 	err := a.taskManager.Stop()
@@ -257,4 +325,24 @@ func (a *app) passErr(err error) error {
 	}
 
 	return err
+}
+
+func sendAppStateReport(mqtt *fimpgo.MqttTransport, resourceName fimptype.ResourceNameT, appLifecycle *lifecycle.Lifecycle) error {
+	msg := fimpgo.NewMessage(
+		cliffapp.EvtAppStateReport,
+		fimptype.ServiceNameT(resourceName),
+		fimptype.VTypeObject,
+		appLifecycle.AllStates(),
+		nil,
+		nil,
+		nil,
+	)
+
+	topic := fmt.Sprintf("pt:j1/mt:evt/rt:app/rn:%s/ad:1", resourceName)
+
+	if err := mqtt.PublishToTopic(topic, msg); err != nil {
+		return fmt.Errorf("failed to publish app state report: %w", err)
+	}
+
+	return nil
 }

@@ -60,7 +60,7 @@ func TestHandle_WithLifecycle_EmitsFreshStatesOnEachRequest(t *testing.T) {
 	firstReply := handler.Handle(newDiscoveryRequest(t))
 	require.NotNil(t, firstReply)
 
-	l.SetAppState(lifecycle.AppStateRunning, nil)
+	l.SetAppHealth(lifecycle.AppHealthRunning, nil)
 
 	secondReply := handler.Handle(newDiscoveryRequest(t))
 	require.NotNil(t, secondReply)
@@ -84,5 +84,5 @@ func TestHandle_WithLifecycle_EmitsFreshStatesOnEachRequest(t *testing.T) {
 	secondStates := unmarshalStates(t, secondReply)
 
 	assert.NotEqual(t, firstStates["app"], secondStates["app"], "second reply must reflect state change")
-	assert.Equal(t, string(lifecycle.AppStateRunning), secondStates["app"])
+	assert.Equal(t, string(lifecycle.AppHealthRunning), secondStates["app"])
 }
