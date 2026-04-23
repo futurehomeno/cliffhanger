@@ -132,7 +132,7 @@ func (cp *ConfigPull) Start() error {
 		cp.clientOwned = true
 	}
 
-	responseTopic := fmt.Sprintf("pt:j1/mt:rsp/rt:app/rn:%s/ad:1", cp.source)
+	responseTopic := fmt.Sprintf(configResponseTopicFmt, cp.source)
 
 	if err := cp.client.AddSubscription(responseTopic); err != nil {
 		if cp.clientOwned {
@@ -227,7 +227,7 @@ func (cp *ConfigPull) scheduleLocked(delay time.Duration) {
 func (cp *ConfigPull) poll(client SyncRequester) pollResult {
 	msg := fimpgo.NewNullMessage(CmdGetConfig, Service, nil, nil, nil)
 	msg.Source = fimptype.ResourceNameT(cp.source)
-	msg.ResponseToTopic = fmt.Sprintf("pt:j1/mt:rsp/rt:app/rn:%s/ad:1", cp.source)
+	msg.ResponseToTopic = fmt.Sprintf(configResponseTopicFmt, cp.source)
 
 	resp, err := client.SendFimp(cp.requestTopic, msg, cp.timeout)
 	if err != nil {
