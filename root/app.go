@@ -215,15 +215,19 @@ func (a *app) startAuthLossWatcher() {
 	a.authWatcherStopCh = make(chan struct{})
 	a.authWatcherDoneCh = make(chan struct{})
 
-	if a.lifecycle.AuthState() == lifecycle.AuthStateLost {
-		if err := sendAppStateReport(a.mqtt, a.resourceName, a.lifecycle); err != nil {
-			log.WithError(err).Error("[cliff] failed to publish app state report on startup auth loss")
-		}
-	}
-
 	go func() {
 		defer close(a.authWatcherDoneCh)
 		defer a.lifecycle.Unsubscribe(subID)
+
+		if a.lifecycle.AuthState() == lifecycle.AuthStateLost {
+			if err := sendAppStateReport(a.mqtt, a.resourceName, a.lifecycle); err != nil {
+				log.WithError(err).Error("[cliff] failed to publish app state report on startup auth loss")
+			}
+		}
+
+		for len(ch) > 0 {
+			<-ch
+		}
 
 		for {
 			select {
