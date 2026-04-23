@@ -36,8 +36,8 @@ type CheckableApp interface {
 	// Check performs periodic checks of the application status.
 	// Check is performed only if application is in running state.
 	Check() error
-	// CheckInterval returns the interval between Check calls. Return 0 to disable.
-	// Return DefaultCheckInterval if no custom interval is needed.
+	// CheckInterval returns the interval between Check calls.
+	// Return 0 to use DefaultCheckInterval.
 	CheckInterval() time.Duration
 }
 

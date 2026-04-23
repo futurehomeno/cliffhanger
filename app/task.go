@@ -9,24 +9,25 @@ import (
 	"github.com/futurehomeno/cliffhanger/task"
 )
 
-// constants defining default periods for common application tasks.
 const (
-	DefaultInitializationInterval = 5 * time.Minute
-	DefaultCheckInterval          = 30 * time.Minute
+	defaultAppInitInterval = 10 * time.Minute
+	defaultCheckInterval   = 30 * time.Minute
 )
 
-// TaskApp creates application tasks based on which interfaces app implements.
 func TaskApp(app App, appLifecycle *lifecycle.Lifecycle) []*task.Task {
 	var tasks []*task.Task
 
 	if initializable, ok := app.(InitializableApp); ok {
-		tasks = append(tasks, TaskInitialization(initializable, appLifecycle, DefaultInitializationInterval)...)
+		tasks = append(tasks, TaskInitialization(initializable, appLifecycle, defaultAppInitInterval)...)
 	}
 
 	if checkable, ok := app.(CheckableApp); ok {
-		if interval := checkable.CheckInterval(); interval > 0 {
-			tasks = append(tasks, TaskCheck(checkable, appLifecycle, interval))
+		interval := checkable.CheckInterval()
+		if interval == 0 {
+			interval = defaultCheckInterval
 		}
+
+		tasks = append(tasks, TaskCheck(checkable, appLifecycle, interval))
 	}
 
 	return tasks

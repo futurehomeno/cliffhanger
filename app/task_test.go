@@ -53,7 +53,7 @@ func TestHandleCheck_LogsErrorAndContinues(t *testing.T) {
 func TestTaskApp_CheckableApp_CreatesCheckTask(t *testing.T) {
 	t.Parallel()
 
-	stub := &stubCheckableApp{checkInterval: app.DefaultCheckInterval}
+	stub := &stubCheckableApp{checkInterval: 30 * time.Minute}
 	lc := lifecycle.New(nil)
 
 	tasks := app.TaskApp(stub, lc)
@@ -72,7 +72,7 @@ func TestTaskApp_CheckableApp_RespectsCustomInterval(t *testing.T) {
 	assert.Len(t, tasks, 1)
 }
 
-func TestTaskApp_CheckableApp_DisabledWhenIntervalIsZero(t *testing.T) {
+func TestTaskApp_CheckableApp_UsesDefaultIntervalWhenZero(t *testing.T) {
 	t.Parallel()
 
 	stub := &stubCheckableApp{checkInterval: 0}
@@ -80,5 +80,5 @@ func TestTaskApp_CheckableApp_DisabledWhenIntervalIsZero(t *testing.T) {
 
 	tasks := app.TaskApp(stub, lc)
 
-	assert.Empty(t, tasks)
+	assert.Len(t, tasks, 1)
 }
