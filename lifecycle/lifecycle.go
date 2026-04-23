@@ -4,7 +4,6 @@ import (
 	"sync"
 	"time"
 
-	"github.com/futurehomeno/cliffhanger/lifecycle/restartsstore"
 	log "github.com/sirupsen/logrus"
 )
 
@@ -70,7 +69,12 @@ type Lifecycle struct {
 	restartsCount      int
 }
 
-func New(store restartsstore.RestartsStore) *Lifecycle {
+// Store is satisfied by any storage whose model embeds config.Default, including storage.Storage[T].
+type Store interface {
+	IncrementRestartsCount() (int, error)
+}
+
+func New(store Store) *Lifecycle {
 	l := &Lifecycle{
 		systemEventBus:     make(map[string]SystemEventChannel),
 		lock:               &sync.RWMutex{},

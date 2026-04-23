@@ -28,6 +28,9 @@ type Storage[T any] interface {
 	Reset() error
 	// Model returns a configuration model object.
 	Model() T
+	// IncrementRestartsCount increments the restart counter in the model and persists it.
+	// The model must embed config.Default (which provides IncrementRestarts).
+	IncrementRestartsCount() (int, error)
 }
 
 // New creates a new storage service in accordance to Thingsplex layout. Provided model should be a pointer.
@@ -84,6 +87,20 @@ type storage[T any] struct {
 // Model returns a configuration model object.
 func (s *storage[T]) Model() T {
 	return s.model
+}
+
+// IncrementRestartsCount increments the restart counter and saves. The model must embed config.Default.
+func (s *storage[T]) IncrementRestartsCount() (int, error) {
+	type restartable interface {
+		IncrementRestarts() int
+	}
+
+	r, ok := any(s.model).(restartable)
+	if !ok {
+		return 0, fmt.Errorf("storage: model does not embed config.Default")
+	}
+
+	return r.IncrementRestarts(), s.Save()
 }
 
 // Load loads the configuration. First a default configuration is loaded if present and then an actual configuration is used to override the defaults.

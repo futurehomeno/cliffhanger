@@ -39,3 +39,11 @@ func NewCanonicalDefault(cfgDir, workDir string) Default {
 		ConfigDir: cfgDir,
 	}
 }
+
+// IncrementRestarts increments RestartsCount in memory and returns the new value.
+// Persistence is the caller's responsibility (e.g. via storage.ConfigStorage).
+func (d *Default) IncrementRestarts() int {
+	d.RestartsCount++
+
+	return d.RestartsCount
+}
