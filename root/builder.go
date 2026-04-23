@@ -117,11 +117,12 @@ func (b *Builder) doBuild() App {
 		lock:  &sync.Mutex{},
 		errCh: make(chan error),
 
-		mqtt:        b.mqtt,
-		lifecycle:   b.lifecycle,
-		taskManager: task.NewManager(b.tasks...),
-		services:    b.services,
-		resetters:   b.resetters,
+		mqtt:         b.mqtt,
+		lifecycle:    b.lifecycle,
+		resourceName: b.resourceName,
+		taskManager:  task.NewManager(b.tasks...),
+		services:     b.services,
+		resetters:    b.resetters,
 	}
 
 	b.prepareRouting(rootApp)

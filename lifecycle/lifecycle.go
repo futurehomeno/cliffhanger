@@ -8,17 +8,17 @@ import (
 )
 
 const (
-	StateTypeAppState    StateType = "APP_STATE"
+	StateTypeAppHealth   StateType = "APP_HEALTH"
 	StateTypeConfigState StateType = "CONFIG_STATE"
 	StateTypeAuthState   StateType = "AUTH_STATE"
 	StateTypeConnState   StateType = "CONN_STATE"
 
-	AppStateStarting      State = "STARTING"
-	AppStateStartupError  State = "STARTUP_ERROR"
-	AppStateNotConfigured State = "NOT_CONFIGURED"
-	AppStateError         State = "ERROR"
-	AppStateRunning       State = "RUNNING"
-	AppStateTerminate     State = "TERMINATING"
+	AppHealthStarting      State = "STARTING"
+	AppHealthStartupError  State = "STARTUP_ERROR"
+	AppHealthNotConfigured State = "NOT_CONFIGURED"
+	AppHealthError         State = "ERROR"
+	AppHealthRunning       State = "RUNNING"
+	AppHealthTerminate     State = "TERMINATING"
 
 	ConfigStateNotConfigured  State = "NOT_CONFIGURED"
 	ConfigStateConfigured     State = "CONFIGURED"
@@ -30,6 +30,7 @@ const (
 	AuthStateAuthenticated    State = "AUTHENTICATED"
 	AuthStateInProgress       State = "IN_PROGRESS"
 	AuthStateError            State = "ERROR"
+	AuthStateLost             State = "LOST"
 	AuthStateNA               State = "NA"
 
 	ConnStateConnecting   State = "CONNECTING"
@@ -43,7 +44,7 @@ type StateType string
 type State string
 
 type AppStateT struct {
-	App        string `json:"app"`
+	Health     string `json:"app"`
 	Connection string `json:"connection"`
 	Config     string `json:"config"`
 	Auth       string `json:"auth"`
@@ -61,7 +62,7 @@ type Lifecycle struct {
 	lock               *sync.RWMutex
 	systemEventBusLock *sync.RWMutex
 	systemEventBus     map[string]SystemEventChannel
-	appState           State
+	appHealth          State
 	connectionState    State
 	authState          State
 	configState        State
@@ -79,7 +80,7 @@ func New(store Store) *Lifecycle {
 		systemEventBus:     make(map[string]SystemEventChannel),
 		lock:               &sync.RWMutex{},
 		systemEventBusLock: &sync.RWMutex{},
-		appState:           AppStateStarting,
+		appHealth:          AppHealthStarting,
 		authState:          AuthStateNA,
 		configState:        ConfigStateNotConfigured,
 		connectionState:    ConnStateNA,
@@ -115,7 +116,7 @@ func (l *Lifecycle) RestartsCount() int {
 func (l *Lifecycle) AllStates() *AppStateT {
 	l.lock.RLock()
 	states := &AppStateT{
-		App:        string(l.appState),
+		Health:     string(l.appHealth),
 		Connection: string(l.connectionState),
 		Config:     string(l.configState),
 		Auth:       string(l.authState),
@@ -129,8 +130,8 @@ func (l *Lifecycle) State(stateType StateType) State {
 	defer l.lock.RUnlock()
 
 	switch stateType {
-	case StateTypeAppState:
-		return l.appState
+	case StateTypeAppHealth:
+		return l.appHealth
 	case StateTypeConfigState:
 		return l.configState
 	case StateTypeAuthState:
@@ -202,24 +203,24 @@ func (l *Lifecycle) SetConnState(connectionState State) {
 	l.emitStateChangeEvent(StateTypeConnState, connectionState, nil)
 }
 
-func (l *Lifecycle) AppState() State {
+func (l *Lifecycle) AppHealth() State {
 	l.lock.RLock()
 	defer l.lock.RUnlock()
 
-	return l.appState
+	return l.appHealth
 }
 
-func (l *Lifecycle) SetAppState(appState State, params map[string]string) {
+func (l *Lifecycle) SetAppHealth(appState State, params map[string]string) {
 	l.lock.Lock()
 	defer l.lock.Unlock()
 
-	if appState == l.appState {
+	if appState == l.appHealth {
 		return
 	}
 
-	l.appState = appState
+	l.appHealth = appState
 
-	l.emitStateChangeEvent(StateTypeAppState, appState, params)
+	l.emitStateChangeEvent(StateTypeAppHealth, appState, params)
 }
 
 func (l *Lifecycle) Subscribe(subID string, bufSize int) SystemEventChannel {
