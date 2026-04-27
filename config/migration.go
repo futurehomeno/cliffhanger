@@ -12,9 +12,9 @@ import (
 type Migration struct {
 	// From is the version expected to trigger this step. Use "" to migrate
 	// an unversioned or fresh configuration.
-	From string
+	From int
 	// To is the version written after Do succeeds.
-	To string
+	To int
 	// Do performs the migration work. Typically a closure that mutates the
 	// consumer's config. Optional: leave nil for a pure version bump.
 	Do func() error
@@ -29,7 +29,7 @@ type Migration struct {
 // caller's responsibility (typically via storage.Save after the call).
 func (d *Default) Migrate(migrations ...Migration) (int, error) {
 	applied := 0
-	seen := make(map[string]bool)
+	seen := make(map[int]bool)
 
 	for {
 		current := d.ConfigVersion
@@ -50,20 +50,20 @@ func (d *Default) Migrate(migrations ...Migration) (int, error) {
 
 		m := migrations[idx]
 		if m.To == m.From {
-			return applied, fmt.Errorf("config: migration %q->%q does not advance version", m.From, m.To)
+			return applied, fmt.Errorf("config: migration %d->%d does not advance version", m.From, m.To)
 		}
 
 		if seen[m.To] {
-			return applied, fmt.Errorf("config: migration cycle detected at version %q", m.To)
+			return applied, fmt.Errorf("config: migration cycle detected at version %d", m.To)
 		}
 
 		seen[current] = true
 
-		log.Infof("[cliff] migrating config from %q to %q", m.From, m.To)
+		log.Infof("[cliff] migrating config from %d to %d", m.From, m.To)
 
 		if m.Do != nil {
 			if err := m.Do(); err != nil {
-				return applied, fmt.Errorf("config: migration %q->%q failed: %w", m.From, m.To, err)
+				return applied, fmt.Errorf("config: migration %d->%d failed: %w", m.From, m.To, err)
 			}
 		}
 
