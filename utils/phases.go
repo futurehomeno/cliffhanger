@@ -80,45 +80,6 @@ func PhaseMode(gridType types.GridType, phases ...types.Phase) types.PhaseMode {
 	return types.PhaseModeUnknown
 }
 
-// some phase modes are forbidden - not tested or other problems (AMS does not report i2)
-func AvailablePhaseModes(earthingType types.GridType, supportedPhaseModes []types.PhaseMode, utilizedPhases int) []types.PhaseMode {
-	if len(supportedPhaseModes) == 0 {
-		return []types.PhaseMode{types.PhaseModeUnknown}
-	}
-
-	if earthingType == types.GridTypeIT || earthingType == types.GridTypeTT {
-		ret := []types.PhaseMode{types.PhaseModeL3L1}
-
-		if !slices.Contains(supportedPhaseModes, ret[0]) {
-			return []types.PhaseMode{types.PhaseModeUnknown}
-		}
-
-		return ret
-	}
-
-	if utilizedPhases == 3 {
-		if !slices.Contains(supportedPhaseModes, types.PhaseModeNL1L2L3) {
-			return []types.PhaseMode{types.PhaseModeUnknown}
-		}
-
-		return []types.PhaseMode{types.PhaseModeNL1L2L3}
-	}
-
-	ret := []types.PhaseMode{}
-
-	for _, pm := range []types.PhaseMode{types.PhaseModeNL1, types.PhaseModeNL2, types.PhaseModeNL3} {
-		if slices.Contains(supportedPhaseModes, pm) {
-			ret = append(ret, pm)
-		}
-	}
-
-	if len(ret) == 0 {
-		return []types.PhaseMode{types.PhaseModeUnknown}
-	}
-
-	return ret
-}
-
 func SupportedPhaseModes(earthingType types.GridType, utilizedPhases int, phaseMode types.PhaseMode) []types.PhaseMode {
 	switch earthingType {
 	case types.GridTypeTN:
