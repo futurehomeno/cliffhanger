@@ -7,7 +7,7 @@ const configFileName = "config.json"
 type Default struct {
 	WorkDir             string        `json:"-"`
 	ConfigDir           string        `json:"-"`
-	ConfigVersion       string        `json:"config_version,omitempty"`
+	ConfigVersion       int           `json:"config_version,omitempty"`
 	MQTTServerURI       string        `json:"mqtt_server_uri"`
 	MQTTUsername        string        `json:"mqtt_server_username"`
 	MQTTPassword        string        `json:"mqtt_server_password"`
