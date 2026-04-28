@@ -220,7 +220,7 @@ func (a *app) startAuthLossWatcher() {
 		defer a.lifecycle.Unsubscribe(subID)
 
 		if a.lifecycle.AuthState() == lifecycle.AuthStateLost {
-			if err := sendAppStateReport(a.mqtt, a.resourceName, a.lifecycle); err != nil {
+			if err := sendAppStateReport(a.mqtt, a.resourceName, fimptype.ServiceNameT(a.resourceName), a.lifecycle); err != nil {
 				log.WithError(err).Error("[cliff] failed to publish app state report on startup auth loss")
 			}
 		}
@@ -236,7 +236,7 @@ func (a *app) startAuthLossWatcher() {
 					continue
 				}
 
-				if err := sendAppStateReport(a.mqtt, a.resourceName, a.lifecycle); err != nil {
+				if err := sendAppStateReport(a.mqtt, a.resourceName, fimptype.ServiceNameT(a.resourceName), a.lifecycle); err != nil {
 					log.WithError(err).Error("[cliff] failed to publish app state report on auth loss")
 				}
 
@@ -327,10 +327,10 @@ func (a *app) passErr(err error) error {
 	return err
 }
 
-func sendAppStateReport(mqtt *fimpgo.MqttTransport, resourceName fimptype.ResourceNameT, appLifecycle *lifecycle.Lifecycle) error {
+func sendAppStateReport(mqtt *fimpgo.MqttTransport, resourceName fimptype.ResourceNameT, srvName fimptype.ServiceNameT, appLifecycle *lifecycle.Lifecycle) error {
 	msg := fimpgo.NewMessage(
 		cliffapp.EvtAppStateReport,
-		fimptype.ServiceNameT(resourceName),
+		srvName,
 		fimptype.VTypeObject,
 		appLifecycle.AllStates(),
 		nil,
