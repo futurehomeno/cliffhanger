@@ -28,6 +28,9 @@ type Storage[T any] interface {
 	Reset() error
 	// Model returns a configuration model object.
 	Model() T
+	// IncrementRestartsCount increments the restart counter in the model and persists it.
+	// The model must embed config.Default (which provides IncrementRestarts).
+	IncrementRestartsCount() (int, error)
 }
 
 // New creates a new storage service in accordance to Thingsplex layout. Provided model should be a pointer.
@@ -81,12 +84,33 @@ type storage[T any] struct {
 	model        T
 }
 
-// Model returns a configuration model object.
 func (s *storage[T]) Model() T {
 	return s.model
 }
 
-// Load loads the configuration. First a default configuration is loaded if present and then an actual configuration is used to override the defaults.
+func (s *storage[T]) IncrementRestartsCount() (int, error) {
+	s.lock.Lock()
+	defer s.lock.Unlock()
+
+	type restartable interface {
+		IncrementRestartsCount() int
+	}
+
+	r, ok := any(s.model).(restartable)
+	if !ok {
+		return 0, fmt.Errorf("storage: the model does not support restart counting")
+	}
+
+	count := r.IncrementRestartsCount()
+
+	if err := s.save(); err != nil {
+		return 0, fmt.Errorf("storage: failed to persist restart count: %w", err)
+	}
+
+	return count, nil
+}
+
+// First a default configuration is loaded if present and then an actual configuration is used to override the defaults.
 func (s *storage[T]) Load() error {
 	s.lock.Lock()
 	defer s.lock.Unlock()
@@ -176,6 +200,11 @@ func (s *storage[T]) Save() error {
 	s.lock.Lock()
 	defer s.lock.Unlock()
 
+	return s.save()
+}
+
+// saveLocked persists the configuration to disk. The caller must hold s.lock.
+func (s *storage[T]) save() error {
 	err := os.MkdirAll(path.Dir(s.dataPath), 0774) //nolint:gofumpt,gosec
 	if err != nil {
 		return fmt.Errorf("storage: cannot create a configuration directory at path %s: %w", path.Dir(s.dataPath), err)

@@ -28,42 +28,42 @@ func WhenNot(v Voter) Voter {
 // WhenAppIsStarting is a task voter allowing a task to run only if relevant state is met.
 func WhenAppIsStarting(l *lifecycle.Lifecycle) Voter {
 	return VoterFn(func() bool {
-		return l.AppState() == lifecycle.AppStateStarting
+		return l.AppHealth() == lifecycle.AppHealthStarting
 	})
 }
 
 // WhenAppIsNotConfigured is a task voter allowing a task to run only if relevant state is met.
 func WhenAppIsNotConfigured(l *lifecycle.Lifecycle) Voter {
 	return VoterFn(func() bool {
-		return l.AppState() == lifecycle.AppStateNotConfigured
+		return l.AppHealth() == lifecycle.AppHealthNotConfigured
 	})
 }
 
 // WhenAppIsRunning is a task voter allowing a task to run only if relevant state is met.
 func WhenAppIsRunning(l *lifecycle.Lifecycle) Voter {
 	return VoterFn(func() bool {
-		return l.AppState() == lifecycle.AppStateRunning
+		return l.AppHealth() == lifecycle.AppHealthRunning
 	})
 }
 
 // WhenAppIsTerminating is a task voter allowing a task to run only if relevant state is met.
 func WhenAppIsTerminating(l *lifecycle.Lifecycle) Voter {
 	return VoterFn(func() bool {
-		return l.AppState() == lifecycle.AppStateTerminate
+		return l.AppHealth() == lifecycle.AppHealthTerminate
 	})
 }
 
 // WhenAppEncounteredStartupError is a task voter allowing a task to run only if relevant state is met.
 func WhenAppEncounteredStartupError(l *lifecycle.Lifecycle) Voter {
 	return VoterFn(func() bool {
-		return l.AppState() == lifecycle.AppStateStartupError
+		return l.AppHealth() == lifecycle.AppHealthStartupError
 	})
 }
 
 // WhenAppEncounteredError is a task voter allowing a task to run only if relevant state is met.
 func WhenAppEncounteredError(l *lifecycle.Lifecycle) Voter {
 	return VoterFn(func() bool {
-		return l.AppState() == lifecycle.AppStateError
+		return l.AppHealth() == lifecycle.AppHealthError
 	})
 }
 

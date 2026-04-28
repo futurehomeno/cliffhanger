@@ -16,19 +16,19 @@ func TestNew_DefaultStates(t *testing.T) {
 
 	l := lifecycle.New(nil)
 
-	assert.Equal(t, lifecycle.AppStateStarting, l.AppState())
+	assert.Equal(t, lifecycle.AppHealthStarting, l.AppHealth())
 	assert.Equal(t, lifecycle.AuthStateNA, l.AuthState())
 	assert.Equal(t, lifecycle.ConfigStateNotConfigured, l.ConfigState())
 	assert.Equal(t, lifecycle.ConnStateNA, l.ConnectionState())
 }
 
-func TestGetAppState_DefaultFields(t *testing.T) {
+func TestGetAppHealth_DefaultFields(t *testing.T) {
 	t.Parallel()
 
 	l := lifecycle.New(nil)
 	states := l.AllStates()
 
-	assert.Equal(t, string(lifecycle.AppStateStarting), states.App)
+	assert.Equal(t, string(lifecycle.AppHealthStarting), states.Health)
 	assert.Equal(t, string(lifecycle.AuthStateNA), states.Auth)
 	assert.Equal(t, string(lifecycle.ConfigStateNotConfigured), states.Config)
 	assert.Equal(t, string(lifecycle.ConnStateNA), states.Connection)
@@ -50,16 +50,16 @@ func TestGetState_ByType(t *testing.T) {
 	t.Parallel()
 
 	l := lifecycle.New(nil)
-	l.SetAppState(lifecycle.AppStateRunning, nil)
+	l.SetAppHealth(lifecycle.AppHealthRunning, nil)
 	l.SetConfigState(lifecycle.ConfigStateConfigured)
 	l.SetAuthState(lifecycle.AuthStateAuthenticated)
-	l.SetConnectionState(lifecycle.ConnStateConnected)
+	l.SetConnState(lifecycle.ConnStateConnected)
 
 	testCases := []struct {
 		stateType lifecycle.StateType
 		want      lifecycle.State
 	}{
-		{lifecycle.StateTypeAppState, lifecycle.AppStateRunning},
+		{lifecycle.StateTypeAppHealth, lifecycle.AppHealthRunning},
 		{lifecycle.StateTypeConfigState, lifecycle.ConfigStateConfigured},
 		{lifecycle.StateTypeAuthState, lifecycle.AuthStateAuthenticated},
 		{lifecycle.StateTypeConnState, lifecycle.ConnStateConnected},
@@ -83,13 +83,13 @@ func TestSetAppState_EmitsEvent(t *testing.T) {
 	l := lifecycle.New(nil)
 	ch := l.Subscribe("test", 1)
 
-	l.SetAppState(lifecycle.AppStateRunning, nil)
+	l.SetAppHealth(lifecycle.AppHealthRunning, nil)
 
 	require.Eventually(t, func() bool { return len(ch) == 1 }, time.Second, 10*time.Millisecond)
 
 	event := <-ch
-	assert.Equal(t, lifecycle.StateTypeAppState, event.Type)
-	assert.Equal(t, lifecycle.AppStateRunning, event.State)
+	assert.Equal(t, lifecycle.StateTypeAppHealth, event.Type)
+	assert.Equal(t, lifecycle.AppHealthRunning, event.State)
 }
 
 func TestSetAppState_NoDuplicateEvent(t *testing.T) {
@@ -98,8 +98,8 @@ func TestSetAppState_NoDuplicateEvent(t *testing.T) {
 	l := lifecycle.New(nil)
 	ch := l.Subscribe("test", 5)
 
-	l.SetAppState(lifecycle.AppStateRunning, nil)
-	l.SetAppState(lifecycle.AppStateRunning, nil) // same state: no second event
+	l.SetAppHealth(lifecycle.AppHealthRunning, nil)
+	l.SetAppHealth(lifecycle.AppHealthRunning, nil) // same state: no second event
 
 	time.Sleep(50 * time.Millisecond)
 
@@ -142,7 +142,7 @@ func TestSetConnectionState_EmitsEvent(t *testing.T) {
 	l := lifecycle.New(nil)
 	ch := l.Subscribe("test", 1)
 
-	l.SetConnectionState(lifecycle.ConnStateConnected)
+	l.SetConnState(lifecycle.ConnStateConnected)
 
 	require.Eventually(t, func() bool { return len(ch) == 1 }, time.Second, 10*time.Millisecond)
 
@@ -169,7 +169,7 @@ func TestUnsubscribe_StopsEvents(t *testing.T) {
 	l.Subscribe("sub", 5)
 	l.Unsubscribe("sub")
 
-	l.SetAppState(lifecycle.AppStateRunning, nil)
+	l.SetAppHealth(lifecycle.AppHealthRunning, nil)
 
 	time.Sleep(50 * time.Millisecond)
 
@@ -181,12 +181,12 @@ func TestWaitFor_ReturnsImmediatelyIfAlreadyInState(t *testing.T) {
 	t.Parallel()
 
 	l := lifecycle.New(nil)
-	l.SetAppState(lifecycle.AppStateRunning, nil)
+	l.SetAppHealth(lifecycle.AppHealthRunning, nil)
 
 	done := make(chan struct{})
 
 	go func() {
-		l.WaitFor("test", lifecycle.StateTypeAppState, lifecycle.AppStateRunning)
+		l.WaitFor("test", lifecycle.StateTypeAppHealth, lifecycle.AppHealthRunning)
 		close(done)
 	}()
 
@@ -205,7 +205,7 @@ func TestWaitFor_BlocksUntilStateReached(t *testing.T) {
 	done := make(chan struct{})
 
 	go func() {
-		l.WaitFor("test", lifecycle.StateTypeAppState, lifecycle.AppStateRunning)
+		l.WaitFor("test", lifecycle.StateTypeAppHealth, lifecycle.AppHealthRunning)
 		close(done)
 	}()
 
@@ -217,7 +217,7 @@ func TestWaitFor_BlocksUntilStateReached(t *testing.T) {
 	default:
 	}
 
-	l.SetAppState(lifecycle.AppStateRunning, nil)
+	l.SetAppHealth(lifecycle.AppHealthRunning, nil)
 
 	select {
 	case <-done:

@@ -39,3 +39,9 @@ func NewCanonicalDefault(cfgDir, workDir string) Default {
 		ConfigDir: cfgDir,
 	}
 }
+
+func (d *Default) IncrementRestartsCount() int {
+	d.RestartsCount++
+
+	return d.RestartsCount
+}

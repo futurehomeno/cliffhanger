@@ -54,7 +54,7 @@ func HandleInitialization(
 	return func() {
 		err := app.Initialize()
 		if err != nil {
-			appLifecycle.SetAppState(lifecycle.AppStateStartupError, nil)
+			appLifecycle.SetAppHealth(lifecycle.AppHealthStartupError, nil)
 			log.WithError(err).Errorf("App init failed, retry in %s", interval)
 		}
 	}
