@@ -78,6 +78,11 @@ func RouteApp[C any](
 		)
 	}
 
+	logProvider, ok := app.(LogProvider)
+	if ok {
+		routing = append(routing, RouteCmdAppDiagGetReport(serviceName, appLifecycle, logProvider))
+	}
+
 	return routing
 }
 
