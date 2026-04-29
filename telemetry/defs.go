@@ -43,9 +43,15 @@ const (
 	EvtConfigReport = "evt.telemetry.config_report"
 
 	// ConfigRequestTopic is the MQTT topic for config requests to the cloud.
-	// Uses mt:rsp so CloudBridge's existing LocalToCloud default route
-	// forwards it without bridge changes.
-	ConfigRequestTopic = "pt:j1/mt:rsp/rt:cloud/rn:backend-service/ad:telemetry-config"
+	// Uses mt:cmd/rt:cloud which matches the CloudBridge SDU/MDU
+	// LocalToCloud default route (+/mt:cmd/rt:cloud/#).
+	ConfigRequestTopic = "pt:j1/mt:cmd/rt:cloud/rn:telemetry/ad:config"
+
+	// configResponseTopicFmt is the MQTT topic the cloud publishes config
+	// responses to. Uses mt:evt/rt:cloud which matches the existing
+	// CloudBridge CloudToLocal default route (+/mt:evt/rt:cloud/#).
+	// The %s placeholder is the app's FIMP resource name (source).
+	configResponseTopicFmt = "pt:j1/mt:evt/rt:cloud/rn:%s/ad:telemetry-config"
 
 	// DefaultPollInterval is the fallback interval when the cloud response
 	// does not include next_update or on error.

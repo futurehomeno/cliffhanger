@@ -15,13 +15,18 @@ import (
 
 // mockSyncRequester implements telemetry.SyncRequester for testing.
 type mockSyncRequester struct {
-	response *fimpgo.FimpMessage
-	err      error
-	calls    atomic.Int32
+	response      *fimpgo.FimpMessage
+	err           error
+	calls         atomic.Int32
+	lastSendTopic atomic.Value // string
+	lastRespTo    atomic.Value // string - ResponseToTopic from last SendFimp message
+	subscriptions atomic.Value // []string
 }
 
-func (m *mockSyncRequester) SendFimp(_ string, _ *fimpgo.FimpMessage, _ int) (*fimpgo.FimpMessage, error) {
+func (m *mockSyncRequester) SendFimp(topic string, msg *fimpgo.FimpMessage, _ int) (*fimpgo.FimpMessage, error) {
 	m.calls.Add(1)
+	m.lastSendTopic.Store(topic)
+	m.lastRespTo.Store(msg.ResponseToTopic)
 
 	if m.err != nil {
 		return nil, m.err
@@ -30,8 +35,14 @@ func (m *mockSyncRequester) SendFimp(_ string, _ *fimpgo.FimpMessage, _ int) (*f
 	return m.response, nil
 }
 
-func (m *mockSyncRequester) AddSubscription(_ string) error { return nil }
-func (m *mockSyncRequester) Stop()                          {}
+func (m *mockSyncRequester) AddSubscription(topic string) error {
+	existing, _ := m.subscriptions.Load().([]string)
+	m.subscriptions.Store(append(existing, topic))
+
+	return nil
+}
+
+func (m *mockSyncRequester) Stop() {}
 
 func configResponse(t *testing.T, enabled bool, suppressed []string, nextUpdate string) *fimpgo.FimpMessage {
 	t.Helper()
@@ -251,6 +262,40 @@ func TestConfigPull_PastNextUpdateUsesFallback(t *testing.T) {
 	time.Sleep(150 * time.Millisecond)
 
 	assert.GreaterOrEqual(t, mock.calls.Load(), int32(2), "past next_update should use fallback interval")
+
+	require.NoError(t, cp.Stop())
+}
+
+func TestConfigPull_UsesCloudToLocalResponseTopic(t *testing.T) {
+	t.Parallel()
+
+	mock := &mockSyncRequester{
+		response: configResponse(t, true, nil, ""),
+	}
+
+	store := telemetry.NewMemoryStore(true)
+	tel, err := telemetry.New(&fimpgo.MqttTransport{}, testSource, store)
+	require.NoError(t, err)
+
+	cp, err := telemetry.NewConfigPull(&fimpgo.MqttTransport{}, testSource, tel,
+		telemetry.WithSyncRequester(mock),
+	)
+	require.NoError(t, err)
+
+	require.NoError(t, cp.Start())
+
+	time.Sleep(100 * time.Millisecond)
+
+	expectedTopic := "pt:j1/mt:evt/rt:cloud/rn:" + testSource + "/ad:telemetry-config"
+
+	// Verify subscription topic matches CloudBridge CloudToLocal route.
+	subs, _ := mock.subscriptions.Load().([]string)
+	require.Len(t, subs, 1, "should subscribe to exactly one topic")
+	assert.Equal(t, expectedTopic, subs[0], "subscription must use mt:evt/rt:cloud for CloudToLocal routing")
+
+	// Verify resp_to in outgoing request matches the same topic.
+	respTo, _ := mock.lastRespTo.Load().(string)
+	assert.Equal(t, expectedTopic, respTo, "resp_to must use mt:evt/rt:cloud for CloudToLocal routing")
 
 	require.NoError(t, cp.Stop())
 }
