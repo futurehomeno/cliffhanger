@@ -22,9 +22,9 @@ type logEntry struct {
 	time  time.Time
 }
 
-// ErrorHook is a logrus hook that captures Warn and Error level entries into a
-// ring buffer of MaxLogEntries. It implements lifecycle.LogStatsProvider and
-// diagnostic.ErrorsReporter so it can be wired directly to both.
+// ErrorHook is a logrus hook that captures Warn, Error, Fatal and Panic level
+// entries into a ring buffer of MaxLogEntries. It implements
+// diagnostic.ErrorsReporter so it can be wired directly to the app diag report.
 type ErrorHook struct {
 	mu      sync.Mutex
 	entries [MaxLogEntries]logEntry
@@ -39,7 +39,7 @@ func NewErrorHook() *ErrorHook {
 
 // Levels implements logrus.Hook.
 func (h *ErrorHook) Levels() []logrus.Level {
-	return []logrus.Level{logrus.WarnLevel, logrus.ErrorLevel}
+	return []logrus.Level{logrus.WarnLevel, logrus.ErrorLevel, logrus.FatalLevel, logrus.PanicLevel}
 }
 
 // Fire implements logrus.Hook.
@@ -82,40 +82,6 @@ func (h *ErrorHook) ErrorsReport() ([]string, error) {
 	}
 
 	return result, nil
-}
-
-// ErrorsCount implements lifecycle.LogStatsProvider.
-func (h *ErrorHook) ErrorsCount() int {
-	h.mu.Lock()
-	defer h.mu.Unlock()
-
-	h.purgeExpired(time.Now())
-
-	count := 0
-	for i := 0; i < h.count; i++ {
-		if h.entries[(h.head+i)%MaxLogEntries].level == logrus.ErrorLevel {
-			count++
-		}
-	}
-
-	return count
-}
-
-// WarningsCount implements lifecycle.LogStatsProvider.
-func (h *ErrorHook) WarningsCount() int {
-	h.mu.Lock()
-	defer h.mu.Unlock()
-
-	h.purgeExpired(time.Now())
-
-	count := 0
-	for i := 0; i < h.count; i++ {
-		if h.entries[(h.head+i)%MaxLogEntries].level == logrus.WarnLevel {
-			count++
-		}
-	}
-
-	return count
 }
 
 // purgeExpired drops entries older than LogRetention from the head of the ring

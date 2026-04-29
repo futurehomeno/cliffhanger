@@ -6,19 +6,16 @@ import (
 	"os"
 )
 
-const hubV1FilePath = "/var/lib/futurehome/hub/hub.json"
+const hubV1FilePath = "/var/lib/futurehome/hub/hub.json" // DEPRECATED
 const hubV2FilePath = "/var/lib/futurehome/hub/hub_v2.json"
 
-// Environment is a type representing environment within which the hub is registered.
 type Environment string
 
-// Constants defining possible environments.
 const (
 	EnvBeta Environment = "beta"
 	EnvProd Environment = "prod"
 )
 
-// Info is an object representing basic information about the hub environment.
 type Info struct {
 	HubID           string      `json:"hub_id"`
 	SiteID          string      `json:"site_id"`

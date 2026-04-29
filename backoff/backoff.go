@@ -12,7 +12,6 @@ type Backoff interface {
 	Delay(failureCount uint32) time.Duration
 }
 
-// New creates a new backoff strategy.
 func New(
 	initialBackoff, repeatedBackoff, finalBackoff time.Duration,
 	initialFailureCount, repeatedFailureCount uint32,
@@ -26,7 +25,6 @@ func New(
 	}
 }
 
-// backoff is a simple backoff strategy based on the number of failures and three thresholds.
 type backoff struct {
 	initialBackoff       time.Duration
 	repeatedBackoff      time.Duration
@@ -35,7 +33,6 @@ type backoff struct {
 	repeatedFailureCount uint32
 }
 
-// Should returns true if the backoff should be applied or not based on the time of last failure and the number of consecutive failures.
 func (b *backoff) Should(lastFailure time.Time, failureCount uint32) bool {
 	if lastFailure.IsZero() {
 		return false
@@ -46,7 +43,6 @@ func (b *backoff) Should(lastFailure time.Time, failureCount uint32) bool {
 	return lastFailure.Add(backoffDelay).After(time.Now())
 }
 
-// Delay returns the backoff delay based on the number of consecutive failures.
 func (b *backoff) Delay(failureCount uint32) time.Duration {
 	if failureCount <= b.initialFailureCount {
 		return b.initialBackoff

@@ -1,40 +1,24 @@
 package lifecycle
 
 import (
-	"fmt"
 	"sync"
 	"time"
 
 	log "github.com/sirupsen/logrus"
 )
 
-// LogStatsProvider is an optional source of warn/error log counters used to populate AppStates.
-type LogStatsProvider interface {
-	ErrorsCount() int
-	WarningsCount() int
-}
-
-// RestartsStore persists the restart counter across application restarts. A
-// missing value must be reported as (0, nil) so the first startup can begin
-// counting from zero.
-type RestartsStore interface {
-	GetRestartsCount() (int, error)
-	SetRestartsCount(n int) error
-}
-
-// Constants defining event types and application states.
 const (
-	StateTypeAppState    StateType = "APP_STATE"
+	StateTypeAppHealth   StateType = "APP_HEALTH"
 	StateTypeConfigState StateType = "CONFIG_STATE"
 	StateTypeAuthState   StateType = "AUTH_STATE"
 	StateTypeConnState   StateType = "CONN_STATE"
 
-	AppStateStarting      State = "STARTING"
-	AppStateStartupError  State = "STARTUP_ERROR"
-	AppStateNotConfigured State = "NOT_CONFIGURED"
-	AppStateError         State = "ERROR"
-	AppStateRunning       State = "RUNNING"
-	AppStateTerminate     State = "TERMINATING"
+	AppHealthStarting      State = "STARTING"
+	AppHealthStartupError  State = "STARTUP_ERROR"
+	AppHealthNotConfigured State = "NOT_CONFIGURED"
+	AppHealthError         State = "ERROR"
+	AppHealthRunning       State = "RUNNING"
+	AppHealthTerminate     State = "TERMINATING"
 
 	ConfigStateNotConfigured  State = "NOT_CONFIGURED"
 	ConfigStateConfigured     State = "CONFIGURED"
@@ -45,6 +29,8 @@ const (
 	AuthStateNotAuthenticated State = "NOT_AUTHENTICATED"
 	AuthStateAuthenticated    State = "AUTHENTICATED"
 	AuthStateInProgress       State = "IN_PROGRESS"
+	AuthStateError            State = "ERROR"
+	AuthStateLost             State = "LOST"
 	AuthStateNA               State = "NA"
 
 	ConnStateConnecting   State = "CONNECTING"
@@ -53,130 +39,99 @@ const (
 	ConnStateNA           State = "NA"
 )
 
-// StateType is a type representing a type of an application state.
 type StateType string
 
-// State represents one of the application states.
 type State string
 
-// AppStates is an object representing current application states.
-type AppStates struct {
-	App           string `json:"app"`
-	Connection    string `json:"connection"`
-	Config        string `json:"config"`
-	Auth          string `json:"auth"`
-	Uptime        int    `json:"uptime"`
-	RestartsCount int    `json:"restarts_count"`
-	ErrorsCount   int    `json:"errors_count"`
-	WarningsCount int    `json:"warnings_count"`
+type AppStateT struct {
+	Health     string `json:"app"`
+	Connection string `json:"connection"`
+	Config     string `json:"config"`
+	Auth       string `json:"auth"`
 }
 
-// SystemEvent is an object representing a particular system event.
 type SystemEvent struct {
 	Type   StateType
 	State  State
 	Params map[string]string
 }
 
-// SystemEventChannel is a channel used to subscribe to system events.
 type SystemEventChannel chan SystemEvent
 
-// Lifecycle is a service holding central information concerning the state of the edge application.
 type Lifecycle struct {
 	lock               *sync.RWMutex
 	systemEventBusLock *sync.RWMutex
 	systemEventBus     map[string]SystemEventChannel
-	appState           State
+	appHealth          State
 	connectionState    State
 	authState          State
 	configState        State
 	startTime          time.Time
 	restartsCount      int
-	logStats           LogStatsProvider
 }
 
-// New creates new instance of a lifecycle service.
-func New() *Lifecycle {
-	return &Lifecycle{
+// Store is satisfied by any storage whose model embeds config.Default, including storage.Storage[T].
+type Store interface {
+	IncrementRestartsCount() (int, error)
+}
+
+func New(store Store) *Lifecycle {
+	l := &Lifecycle{
 		systemEventBus:     make(map[string]SystemEventChannel),
 		lock:               &sync.RWMutex{},
 		systemEventBusLock: &sync.RWMutex{},
-		appState:           AppStateStarting,
+		appHealth:          AppHealthStarting,
 		authState:          AuthStateNA,
 		configState:        ConfigStateNotConfigured,
 		connectionState:    ConnStateNA,
 		startTime:          time.Now(),
 	}
-}
 
-// SetRestartCount sets the number of times the application has been restarted.
-func (l *Lifecycle) SetRestartCount(n int) {
-	l.lock.Lock()
-	defer l.lock.Unlock()
-
-	l.restartsCount = n
-}
-
-// LoadRestartsCount reads the current restart count from the store, increments
-// it, persists the new value, and caches it in the lifecycle. Intended to be
-// called once during application bootstrap.
-func (l *Lifecycle) LoadRestartsCount(store RestartsStore) error {
-	n, err := store.GetRestartsCount()
-	if err != nil {
-		return fmt.Errorf("lifecycle: failed to read restart count: %w", err)
+	if store != nil {
+		var err error
+		l.restartsCount, err = store.IncrementRestartsCount()
+		if err != nil {
+			log.Errorf("Increment restart count err: %v", err)
+		}
 	}
 
-	n++
-
-	if err := store.SetRestartsCount(n); err != nil {
-		return fmt.Errorf("lifecycle: failed to persist restart count: %w", err)
-	}
-
-	l.lock.Lock()
-	l.restartsCount = n
-	l.lock.Unlock()
-
-	return nil
+	return l
 }
 
-// SetLogStatsProvider sets the provider used to populate ErrorsCount and WarningsCount in AppStates.
-func (l *Lifecycle) SetLogStatsProvider(p LogStatsProvider) {
-	l.lock.Lock()
-	defer l.lock.Unlock()
-
-	l.logStats = p
-}
-
-// GetAllStates returns all application states.
-func (l *Lifecycle) GetAllStates() *AppStates {
+func (l *Lifecycle) Uptime() int {
 	l.lock.RLock()
-	states := &AppStates{
-		App:           string(l.appState),
-		Connection:    string(l.connectionState),
-		Config:        string(l.configState),
-		Auth:          string(l.authState),
-		Uptime:        int(time.Since(l.startTime).Seconds()),
-		RestartsCount: l.restartsCount,
-	}
-	logStats := l.logStats
+	start := l.startTime
 	l.lock.RUnlock()
 
-	if logStats != nil {
-		states.ErrorsCount = logStats.ErrorsCount()
-		states.WarningsCount = logStats.WarningsCount()
-	}
+	return int(time.Since(start).Seconds())
+}
 
+func (l *Lifecycle) RestartsCount() int {
+	l.lock.RLock()
+	defer l.lock.RUnlock()
+
+	return l.restartsCount
+}
+
+func (l *Lifecycle) AllStates() *AppStateT {
+	l.lock.RLock()
+	states := &AppStateT{
+		Health:     string(l.appHealth),
+		Connection: string(l.connectionState),
+		Config:     string(l.configState),
+		Auth:       string(l.authState),
+	}
+	l.lock.RUnlock()
 	return states
 }
 
-// GetState returns a current application state of the provided type.
-func (l *Lifecycle) GetState(stateType StateType) State {
+func (l *Lifecycle) State(stateType StateType) State {
 	l.lock.RLock()
 	defer l.lock.RUnlock()
 
 	switch stateType {
-	case StateTypeAppState:
-		return l.appState
+	case StateTypeAppHealth:
+		return l.appHealth
 	case StateTypeConfigState:
 		return l.configState
 	case StateTypeAuthState:
@@ -188,7 +143,6 @@ func (l *Lifecycle) GetState(stateType StateType) State {
 	return ""
 }
 
-// ConfigState returns current configuration state.
 func (l *Lifecycle) ConfigState() State {
 	l.lock.RLock()
 	defer l.lock.RUnlock()
@@ -196,7 +150,6 @@ func (l *Lifecycle) ConfigState() State {
 	return l.configState
 }
 
-// SetConfigState sets configuration state.
 func (l *Lifecycle) SetConfigState(configState State) {
 	l.lock.Lock()
 	defer l.lock.Unlock()
@@ -210,7 +163,6 @@ func (l *Lifecycle) SetConfigState(configState State) {
 	l.emitStateChangeEvent(StateTypeConfigState, configState, nil)
 }
 
-// AuthState returns current authorization state.
 func (l *Lifecycle) AuthState() State {
 	l.lock.RLock()
 	defer l.lock.RUnlock()
@@ -218,7 +170,6 @@ func (l *Lifecycle) AuthState() State {
 	return l.authState
 }
 
-// SetAuthState sets authorization state.
 func (l *Lifecycle) SetAuthState(authState State) {
 	l.lock.Lock()
 	defer l.lock.Unlock()
@@ -232,7 +183,6 @@ func (l *Lifecycle) SetAuthState(authState State) {
 	l.emitStateChangeEvent(StateTypeAuthState, authState, nil)
 }
 
-// ConnectionState returns current connection state.
 func (l *Lifecycle) ConnectionState() State {
 	l.lock.RLock()
 	defer l.lock.RUnlock()
@@ -240,8 +190,7 @@ func (l *Lifecycle) ConnectionState() State {
 	return l.connectionState
 }
 
-// SetConnectionState sets connection state.
-func (l *Lifecycle) SetConnectionState(connectionState State) {
+func (l *Lifecycle) SetConnState(connectionState State) {
 	l.lock.Lock()
 	defer l.lock.Unlock()
 
@@ -254,29 +203,26 @@ func (l *Lifecycle) SetConnectionState(connectionState State) {
 	l.emitStateChangeEvent(StateTypeConnState, connectionState, nil)
 }
 
-// AppState returns current application state.
-func (l *Lifecycle) AppState() State {
+func (l *Lifecycle) AppHealth() State {
 	l.lock.RLock()
 	defer l.lock.RUnlock()
 
-	return l.appState
+	return l.appHealth
 }
 
-// SetAppState sets application state.
-func (l *Lifecycle) SetAppState(appState State, params map[string]string) {
+func (l *Lifecycle) SetAppHealth(appState State, params map[string]string) {
 	l.lock.Lock()
 	defer l.lock.Unlock()
 
-	if appState == l.appState {
+	if appState == l.appHealth {
 		return
 	}
 
-	l.appState = appState
+	l.appHealth = appState
 
-	l.emitStateChangeEvent(StateTypeAppState, appState, params)
+	l.emitStateChangeEvent(StateTypeAppHealth, appState, params)
 }
 
-// Subscribe subscribes to system events. If subscription already exists previously set channel is being returned.
 func (l *Lifecycle) Subscribe(subID string, bufSize int) SystemEventChannel {
 	l.systemEventBusLock.Lock()
 	defer l.systemEventBusLock.Unlock()
@@ -293,7 +239,6 @@ func (l *Lifecycle) Subscribe(subID string, bufSize int) SystemEventChannel {
 	return msgChan
 }
 
-// Unsubscribe removes subscription to system events.
 func (l *Lifecycle) Unsubscribe(subID string) {
 	l.systemEventBusLock.Lock()
 	defer l.systemEventBusLock.Unlock()
@@ -302,12 +247,12 @@ func (l *Lifecycle) Unsubscribe(subID string) {
 		return
 	}
 
+	close(l.systemEventBus[subID])
 	delete(l.systemEventBus, subID)
 }
 
-// WaitFor blocks until application lifecycle state is reached.
 func (l *Lifecycle) WaitFor(subID string, stateType StateType, targetState State) {
-	if l.GetState(stateType) == targetState {
+	if l.State(stateType) == targetState {
 		return
 	}
 
@@ -321,7 +266,6 @@ func (l *Lifecycle) WaitFor(subID string, stateType StateType, targetState State
 	}
 }
 
-// emitStateChangeEvent emits a state change event.
 func (l *Lifecycle) emitStateChangeEvent(stateType StateType, currentState State, params map[string]string) {
 	l.systemEventBusLock.RLock()
 	defer l.systemEventBusLock.RUnlock()

@@ -24,8 +24,7 @@ type memLogStore struct {
 	format        string
 	file          string
 	revertTimeout time.Duration
-	previousLevel log.Level
-	levelSetAt    time.Time
+	revertAt      time.Time
 	setLevelErr   error
 }
 
@@ -94,40 +93,17 @@ func (s *memLogStore) SetRevertTimeout(d time.Duration) error {
 	return nil
 }
 
-func (s *memLogStore) PreviousLevel() log.Level {
+func (s *memLogStore) RevertAt() time.Time {
 	s.lock.Lock()
 	defer s.lock.Unlock()
 
-	return s.previousLevel
+	return s.revertAt
 }
 
-func (s *memLogStore) SetPreviousLevel(level log.Level) error {
+func (s *memLogStore) SetRevertAt(t time.Time) error {
 	s.lock.Lock()
 	defer s.lock.Unlock()
-	s.previousLevel = level
-
-	return nil
-}
-
-func (s *memLogStore) ClearPreviousLevel() error {
-	s.lock.Lock()
-	defer s.lock.Unlock()
-	s.previousLevel = log.InfoLevel
-
-	return nil
-}
-
-func (s *memLogStore) LevelSetAt() time.Time {
-	s.lock.Lock()
-	defer s.lock.Unlock()
-
-	return s.levelSetAt
-}
-
-func (s *memLogStore) SetLevelSetAt(t time.Time) error {
-	s.lock.Lock()
-	defer s.lock.Unlock()
-	s.levelSetAt = t
+	s.revertAt = t
 
 	return nil
 }
@@ -141,22 +117,6 @@ func restoreGlobalLogLevel(t *testing.T) {
 	t.Cleanup(func() { log.SetLevel(saved) })
 }
 
-// waitUntil polls until cond returns true or the deadline expires.
-func waitUntil(t *testing.T, timeout time.Duration, cond func() bool) bool {
-	t.Helper()
-
-	deadline := time.Now().Add(timeout)
-	for time.Now().Before(deadline) {
-		if cond() {
-			return true
-		}
-
-		time.Sleep(5 * time.Millisecond)
-	}
-
-	return cond()
-}
-
 func TestLogManager_SetLevel_InfoOrHigher_HasNoRevertState(t *testing.T) { //nolint:paralleltest
 	restoreGlobalLogLevel(t)
 
@@ -165,65 +125,83 @@ func TestLogManager_SetLevel_InfoOrHigher_HasNoRevertState(t *testing.T) { //nol
 
 	assert.NoError(t, mgr.SetLevel("warning"))
 	assert.Equal(t, "warning", store.Level())
-	assert.True(t, store.LevelSetAt().IsZero())
+	assert.True(t, store.RevertAt().IsZero())
 	assert.Equal(t, log.WarnLevel, log.GetLevel())
 }
 
-func TestLogManager_SetLevel_Debug_ArmsRevertAndSnapshotsPrevious(t *testing.T) { //nolint:paralleltest
+func TestLogManager_SetLevel_Debug_ArmsRevert(t *testing.T) { //nolint:paralleltest
 	restoreGlobalLogLevel(t)
 
 	store := &memLogStore{level: "warning"}
-	store.revertTimeout = 50 * time.Millisecond
 	mgr := config.NewLogManager(store)
 
 	before := time.Now()
 	assert.NoError(t, mgr.SetLevel("debug"))
 
 	assert.Equal(t, "debug", store.Level())
-	assert.Equal(t, log.WarnLevel, store.PreviousLevel())
-	assert.False(t, store.LevelSetAt().IsZero())
-	assert.True(t, !store.LevelSetAt().Before(before))
+	assert.False(t, store.RevertAt().IsZero())
+	assert.True(t, !store.RevertAt().Before(before.Add(config.DefaultLogRevertTimeout)))
 	assert.Equal(t, log.DebugLevel, log.GetLevel())
-
-	// Timer should fire and revert to the previous level.
-	reverted := waitUntil(t, 500*time.Millisecond, func() bool {
-		return log.GetLevel() == log.WarnLevel && store.Level() == "warning" && store.LevelSetAt().IsZero()
-	})
-	assert.True(t, reverted, "expected auto-revert to restore warn level")
-	assert.True(t, store.LevelSetAt().IsZero())
 }
 
-func TestLogManager_SetLevel_TraceAfterDebug_KeepsOriginalPrevious(t *testing.T) { //nolint:paralleltest
+func TestLogManager_SetLevel_TraceAfterDebug_RefreshesRevertAt(t *testing.T) { //nolint:paralleltest
 	restoreGlobalLogLevel(t)
 
-	store := &memLogStore{level: "error", revertTimeout: time.Hour}
+	store := &memLogStore{level: "error"}
 	mgr := config.NewLogManager(store)
 
 	assert.NoError(t, mgr.SetLevel("debug"))
-	assert.Equal(t, log.ErrorLevel, store.PreviousLevel())
-	firstSetAt := store.LevelSetAt()
+	firstRevertAt := store.RevertAt()
 
 	time.Sleep(5 * time.Millisecond)
 
 	assert.NoError(t, mgr.SetLevel("trace"))
 	assert.Equal(t, "trace", store.Level())
-	assert.Equal(t, log.ErrorLevel, store.PreviousLevel(), "previous must remain the pre-verbose level")
-	assert.True(t, store.LevelSetAt().After(firstSetAt), "setAt should refresh on re-arm")
+	assert.True(t, store.RevertAt().After(firstRevertAt), "revertAt should refresh on re-arm")
 }
 
 func TestLogManager_SetLevel_InfoAfterDebug_CancelsRevert(t *testing.T) { //nolint:paralleltest
 	restoreGlobalLogLevel(t)
 
-	store := &memLogStore{level: "warning", revertTimeout: time.Hour}
+	store := &memLogStore{level: "warning"}
 	mgr := config.NewLogManager(store)
 
 	assert.NoError(t, mgr.SetLevel("debug"))
-	assert.Equal(t, log.WarnLevel, store.PreviousLevel())
 
 	assert.NoError(t, mgr.SetLevel("info"))
 	assert.Equal(t, "info", store.Level())
-	assert.True(t, store.LevelSetAt().IsZero())
+	assert.True(t, store.RevertAt().IsZero())
 	assert.Equal(t, log.InfoLevel, log.GetLevel())
+}
+
+func TestLogManager_SetRevertTimeout_WhileArmed_UpdatesDeadline(t *testing.T) { //nolint:paralleltest
+	restoreGlobalLogLevel(t)
+
+	store := &memLogStore{level: "info"}
+	mgr := config.NewLogManager(store)
+
+	assert.NoError(t, mgr.SetLevel("debug"))
+	originalRevertAt := store.RevertAt()
+	assert.False(t, originalRevertAt.IsZero())
+
+	time.Sleep(5 * time.Millisecond)
+
+	newTimeout := 2 * time.Hour
+	assert.NoError(t, mgr.SetRevertTimeout(newTimeout))
+
+	updatedRevertAt := store.RevertAt()
+	assert.False(t, updatedRevertAt.IsZero())
+	assert.NotEqual(t, originalRevertAt, updatedRevertAt, "deadline should be updated")
+	assert.True(t, updatedRevertAt.After(time.Now().Add(newTimeout-time.Minute)), "deadline should reflect new timeout")
+}
+
+func TestLogManager_SetRevertTimeout_NoArmedRevert_OnlyPersistsTimeout(t *testing.T) { //nolint:paralleltest
+	store := &memLogStore{level: "info"}
+	mgr := config.NewLogManager(store)
+
+	assert.NoError(t, mgr.SetRevertTimeout(3*time.Hour))
+	assert.Equal(t, 3*time.Hour, store.RevertTimeout())
+	assert.True(t, store.RevertAt().IsZero(), "should not arm a revert when none was pending")
 }
 
 func TestLogManager_SetLevel_InvalidLevel_Errors(t *testing.T) { //nolint:paralleltest
@@ -262,91 +240,47 @@ func TestLogManager_Start_NoPendingRevert_IsNoop(t *testing.T) { //nolint:parall
 func TestLogManager_Start_PendingButCurrentLevelIsInfo_ClearsStaleState(t *testing.T) { //nolint:paralleltest
 	restoreGlobalLogLevel(t)
 
-	// Persisted state says "was debug, revert to warn" but the current level
-	// is info. Start should treat this as stale and clear the revert state.
+	// Persisted state says a revert is pending but the current level is info.
+	// Start should treat this as stale and clear the revert state.
 	store := &memLogStore{
-		level:         "info",
-		previousLevel: log.WarnLevel,
-		levelSetAt:    time.Now(),
+		level:    "info",
+		revertAt: time.Now().Add(time.Hour),
 	}
 	mgr := config.NewLogManager(store)
 	mgr.Start()
 
-	assert.True(t, store.LevelSetAt().IsZero())
+	assert.True(t, store.RevertAt().IsZero())
 }
 
-func TestLogManager_Start_ElapsedGreaterThanTimeout_RevertsImmediately(t *testing.T) { //nolint:paralleltest
+func TestLogManager_Start_RevertAtElapsed_RevertsImmediately(t *testing.T) { //nolint:paralleltest
 	restoreGlobalLogLevel(t)
 	log.SetLevel(log.DebugLevel)
 
 	store := &memLogStore{
-		level:         "debug",
-		previousLevel: log.WarnLevel,
-		levelSetAt:    time.Now().Add(-2 * time.Hour),
-		revertTimeout: time.Hour,
+		level:    "debug",
+		revertAt: time.Now().Add(-time.Minute),
 	}
 	mgr := config.NewLogManager(store)
 	mgr.Start()
 
-	assert.Equal(t, "warning", store.Level())
-	assert.True(t, store.LevelSetAt().IsZero())
-	assert.Equal(t, log.WarnLevel, log.GetLevel())
+	assert.Equal(t, "info", store.Level())
+	assert.True(t, store.RevertAt().IsZero())
+	assert.Equal(t, log.InfoLevel, log.GetLevel())
 }
 
-func TestLogManager_Start_ElapsedLessThanTimeout_ArmsRemainingTimer(t *testing.T) { //nolint:paralleltest
+func TestLogManager_Start_RevertAtInFuture_LeavesLevelAlone(t *testing.T) { //nolint:paralleltest
 	restoreGlobalLogLevel(t)
 	log.SetLevel(log.DebugLevel)
 
 	store := &memLogStore{
-		level:         "debug",
-		previousLevel: log.ErrorLevel,
-		levelSetAt:    time.Now().Add(-40 * time.Millisecond),
-		revertTimeout: 100 * time.Millisecond,
+		level:    "debug",
+		revertAt: time.Now().Add(time.Hour),
 	}
 	mgr := config.NewLogManager(store)
 	mgr.Start()
 
-	// Immediately after Start, state must still be pending.
 	assert.Equal(t, "debug", store.Level())
-	assert.Equal(t, log.ErrorLevel, store.PreviousLevel())
-
-	// Timer should fire roughly 60ms later.
-	reverted := waitUntil(t, 500*time.Millisecond, func() bool {
-		return log.GetLevel() == log.ErrorLevel && store.Level() == "error"
-	})
-	assert.True(t, reverted, "expected auto-revert from Start to fire")
-}
-
-func TestLogManager_RevertTimeout_DefaultWhenUnset(t *testing.T) { //nolint:paralleltest
-	store := &memLogStore{}
-	mgr := config.NewLogManager(store)
-
-	assert.Equal(t, config.DefaultLogRevertTimeout, mgr.RevertTimeout())
-}
-
-func TestLogManager_SetRevertTimeout_RejectsNonPositive(t *testing.T) { //nolint:paralleltest
-	store := &memLogStore{}
-	mgr := config.NewLogManager(store)
-
-	assert.Error(t, mgr.SetRevertTimeout(0))
-	assert.Error(t, mgr.SetRevertTimeout(-time.Second))
-}
-
-func TestLogManager_SetRevertTimeout_AlreadyElapsedTriggersImmediateRevert(t *testing.T) { //nolint:paralleltest
-	restoreGlobalLogLevel(t)
-
-	store := &memLogStore{level: "warning", revertTimeout: time.Hour}
-	mgr := config.NewLogManager(store)
-
-	assert.NoError(t, mgr.SetLevel("debug"))
-
-	// Backdate the setAt so the new timeout appears to have already elapsed.
-	assert.NoError(t, store.SetLevelSetAt(time.Now().Add(-time.Minute)))
-
-	assert.NoError(t, mgr.SetRevertTimeout(time.Second))
-
-	assert.Equal(t, "warning", store.Level())
-	assert.Equal(t, log.WarnLevel, log.GetLevel())
+	assert.False(t, store.RevertAt().IsZero())
 }
 
 func TestLogManager_SetFormat_CallsApplierAndPersists(t *testing.T) { //nolint:paralleltest
@@ -417,28 +351,22 @@ func TestNewDefaultLogStore_RoundTripsAllFields(t *testing.T) { //nolint:paralle
 	assert.NoError(t, store.SetLevel("debug"))
 	assert.NoError(t, store.SetFormat("json"))
 	assert.NoError(t, store.SetFile("/var/log/a.log"))
-	assert.NoError(t, store.SetRevertTimeout(90*time.Minute))
-	assert.NoError(t, store.SetPreviousLevel(log.InfoLevel))
 
-	now := time.Date(2026, 4, 17, 10, 0, 0, 0, time.UTC)
-	assert.NoError(t, store.SetLevelSetAt(now))
+	revertAt := time.Date(2026, 4, 17, 10, 0, 0, 0, time.UTC)
+	assert.NoError(t, store.SetRevertAt(revertAt))
 
 	assert.Equal(t, "debug", store.Level())
 	assert.Equal(t, "json", store.Format())
 	assert.Equal(t, "/var/log/a.log", store.File())
-	assert.Equal(t, 90*time.Minute, store.RevertTimeout())
-	assert.Equal(t, log.InfoLevel, store.PreviousLevel())
-	assert.True(t, store.LevelSetAt().Equal(now))
+	assert.True(t, store.RevertAt().Equal(revertAt))
 
-	assert.NoError(t, store.SetLevelSetAt(time.Time{}))
-	assert.True(t, store.LevelSetAt().IsZero())
+	assert.NoError(t, store.SetRevertAt(time.Time{}))
+	assert.True(t, store.RevertAt().IsZero())
 
-	// Only persisted fields (level, format, file, revert timeout) call save;
-	// revert state (previous level, level-set timestamp) is in-memory only.
-	assert.Equal(t, int32(4), atomic.LoadInt32(&saveCalls))
+	assert.Equal(t, int32(5), atomic.LoadInt32(&saveCalls))
 }
 
-// TestRouteCmdLog_Managed exercises the new FIMP routing functions end-to-end
+// TestRouteCmdLog_Managed exercises the log-related FIMP routing end-to-end
 // against an in-memory LogManager.
 func TestRouteCmdLog_Managed(t *testing.T) { //nolint:paralleltest
 	restoreGlobalLogLevel(t)
@@ -451,10 +379,9 @@ func TestRouteCmdLog_Managed(t *testing.T) { //nolint:paralleltest
 					t.Helper()
 
 					store := &memLogStore{
-						level:         "info",
-						format:        "text",
-						file:          "/tmp/app.log",
-						revertTimeout: 72 * time.Hour,
+						level:  "info",
+						format: "text",
+						file:   "/tmp/app.log",
 					}
 					mgr := config.NewLogManager(store)
 
@@ -496,27 +423,6 @@ func TestRouteCmdLog_Managed(t *testing.T) { //nolint:paralleltest
 						Command: suite.StringMessage("pt:j1/mt:cmd/rt:app/rn:test/ad:1", "cmd.log.set_file", "test_service", "other.log"),
 						Expectations: []*suite.Expectation{
 							suite.ExpectString("pt:j1/mt:evt/rt:app/rn:test/ad:1", "evt.log.file_report", "test_service", "other.log"),
-						},
-					},
-					{
-						Name:    "get revert timeout",
-						Command: suite.NullMessage("pt:j1/mt:cmd/rt:app/rn:test/ad:1", "cmd.log.get_revert_timeout", "test_service"),
-						Expectations: []*suite.Expectation{
-							suite.ExpectString("pt:j1/mt:evt/rt:app/rn:test/ad:1", "evt.log.revert_timeout_report", "test_service", "72h0m0s"),
-						},
-					},
-					{
-						Name:    "set revert timeout",
-						Command: suite.StringMessage("pt:j1/mt:cmd/rt:app/rn:test/ad:1", "cmd.log.set_revert_timeout", "test_service", "24h"),
-						Expectations: []*suite.Expectation{
-							suite.ExpectString("pt:j1/mt:evt/rt:app/rn:test/ad:1", "evt.log.revert_timeout_report", "test_service", "24h0m0s"),
-						},
-					},
-					{
-						Name:    "set revert timeout with invalid duration returns error",
-						Command: suite.StringMessage("pt:j1/mt:cmd/rt:app/rn:test/ad:1", "cmd.log.set_revert_timeout", "test_service", "not-a-duration"),
-						Expectations: []*suite.Expectation{
-							suite.ExpectError("pt:j1/mt:evt/rt:app/rn:test/ad:1", "test_service"),
 						},
 					},
 				},

@@ -77,6 +77,7 @@ func (m *manager) Unsubscribe(subID string) {
 		return
 	}
 
+	close(m.subscriptions[subID].channel)
 	delete(m.subscriptions, subID)
 }
 

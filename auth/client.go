@@ -14,7 +14,6 @@ import (
 	"github.com/futurehomeno/cliffhanger/hub"
 )
 
-// ProxyClientConfig is a configuration object for an authentication proxy client.
 type ProxyClientConfig struct {
 	PartnerCode string
 	Token       string
@@ -25,7 +24,6 @@ type ProxyClientConfig struct {
 	Headers     map[string]string
 }
 
-// setDefaults sets default configuration for a authentication proxy client.
 func (cfg *ProxyClientConfig) setDefaults() {
 	if cfg.URL == "" {
 		cfg.URL = ProxyURL(hub.EnvProd)
@@ -36,7 +34,6 @@ func (cfg *ProxyClientConfig) setDefaults() {
 	}
 }
 
-// ProxyClient is an interface representing a service responsible for utilization of the Partners API.
 type ProxyClient interface {
 	// ExchangeAuthorizationCode exchanges a one-time authorization code for the access token response.
 	ExchangeAuthorizationCode(code string) (*OAuth2TokenResponse, error)
@@ -44,7 +41,6 @@ type ProxyClient interface {
 	ExchangeRefreshToken(refreshToken string) (*OAuth2TokenResponse, error)
 }
 
-// NewProxyClient creates new instance of a proxy proxyClient.
 func NewProxyClient(cfg *ProxyClientConfig) ProxyClient {
 	cfg.setDefaults()
 
@@ -64,27 +60,23 @@ func NewProxyClient(cfg *ProxyClientConfig) ProxyClient {
 	}
 }
 
-// proxyClient is a private implementation of an authentication proxy client.
 type proxyClient struct {
 	cfg    *ProxyClientConfig
 	client *http.Client
 }
 
-// ExchangeAuthorizationCode exchanges a one-time authorization code for the access token response.
 func (c *proxyClient) ExchangeAuthorizationCode(code string) (*OAuth2TokenResponse, error) {
 	request := &OAuth2AuthCodeProxyRequest{AuthCode: code, PartnerCode: c.cfg.PartnerCode}
 
 	return c.getToken(request, c.cfg.URL+"/api/control/edge/proxy/auth-code")
 }
 
-// ExchangeRefreshToken exchanges a refresh token for the access token response.
 func (c *proxyClient) ExchangeRefreshToken(refreshToken string) (*OAuth2TokenResponse, error) {
 	request := OAuth2RefreshProxyRequest{RefreshToken: refreshToken, PartnerCode: c.cfg.PartnerCode}
 
 	return c.getToken(request, c.cfg.URL+"/api/control/edge/proxy/refresh")
 }
 
-// getToken retrieves token from Partners API.
 func (c *proxyClient) getToken(request any, url string) (*OAuth2TokenResponse, error) {
 	requestData, err := json.Marshal(request)
 	if err != nil {
@@ -125,7 +117,6 @@ func (c *proxyClient) getToken(request any, url string) (*OAuth2TokenResponse, e
 	return nil, err
 }
 
-// requestToken requests token from Partners API.
 func (c *proxyClient) requestToken(r *http.Request) (*OAuth2TokenResponse, error) {
 	response, err := c.client.Do(r) //nolint:gosec
 	if err != nil {
