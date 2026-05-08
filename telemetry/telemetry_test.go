@@ -806,6 +806,23 @@ func TestNewDefaultStore_SuppressedRoundTrip(t *testing.T) {
 	assert.False(t, st.Suppressed)
 }
 
+type testConfig struct {
+	config.Default
+}
+
+func TestNewConfigStore(t *testing.T) {
+	t.Parallel()
+
+	cfg := &testConfig{Default: config.NewDefault(t.TempDir())}
+	s := config.NewStorage(cfg, t.TempDir())
+
+	store := telemetry.NewConfigStore(s)
+
+	st := store.Load()
+	assert.True(t, st.Enabled, "telemetry should be enabled by default when TelemetryEnabled is nil")
+	assert.Equal(t, telemetry.DefaultValidity, st.Validity)
+}
+
 func TestEmit_NilTelemetry(t *testing.T) {
 	t.Parallel()
 

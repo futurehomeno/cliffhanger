@@ -6,6 +6,7 @@ import (
 	log "github.com/sirupsen/logrus"
 
 	"github.com/futurehomeno/cliffhanger/config"
+	"github.com/futurehomeno/cliffhanger/storage"
 )
 
 // State is the persisted telemetry configuration. All fields are written
@@ -29,6 +30,21 @@ type Store interface {
 	Load() State
 	// Save atomically persists the full state.
 	Save(State) error
+}
+
+// NewConfigStore creates a Store backed by the application's config storage.
+// The config model must embed config.Default (which provides GetDefault).
+// Persistence and locking are handled by the storage layer.
+//
+// This is the recommended way to create a telemetry Store for applications
+// built with the cliffhanger config/storage packages:
+//
+//	store := telemetry.NewConfigStore(configService)
+func NewConfigStore[T config.DefaultProvider](s storage.Storage[T]) Store {
+	return NewDefaultStore(
+		func() *config.Default { return s.Model().GetDefault() },
+		s.Save,
+	)
 }
 
 // NewDefaultStore adapts a config.Default-backed persistence layer to the

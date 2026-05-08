@@ -40,6 +40,16 @@ func NewCanonicalDefault(cfgDir, workDir string) Default {
 	}
 }
 
+// DefaultProvider is implemented by any config model that embeds Default.
+type DefaultProvider interface {
+	GetDefault() *Default
+}
+
+func (d *Default) GetDefault() *Default {
+	return d
+}
+
+// IncrementRestartsCount increments the restart counter in the model.
 func (d *Default) IncrementRestartsCount() int {
 	d.RestartsCount++
 
