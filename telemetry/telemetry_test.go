@@ -3,6 +3,7 @@ package telemetry_test
 import (
 	"errors"
 	"reflect"
+	"sync"
 	"testing"
 	"time"
 
@@ -804,4 +805,56 @@ func TestNewDefaultStore_SuppressedRoundTrip(t *testing.T) {
 
 	st = store.Load()
 	assert.False(t, st.Suppressed)
+}
+
+func TestEmit_NilTelemetry(t *testing.T) {
+	t.Parallel()
+
+	assert.NotPanics(t, func() {
+		telemetry.Emit(nil, "test_event", "domain", map[string]any{"key": "val"})
+	})
+}
+
+func TestEmitRequired_NilTelemetry(t *testing.T) {
+	t.Parallel()
+
+	assert.NotPanics(t, func() {
+		telemetry.EmitRequired(nil, "test_event", "domain", map[string]any{"key": "val"})
+	})
+}
+
+func TestNewLockedStore_DelegatesToInner(t *testing.T) {
+	t.Parallel()
+
+	inner := telemetry.NewMemoryStore(false)
+	mu := &sync.RWMutex{}
+	store := telemetry.NewLockedStore(inner, mu)
+
+	st := store.Load()
+	assert.False(t, st.Enabled)
+
+	require.NoError(t, store.Save(telemetry.State{
+		Enabled:  true,
+		Validity: 48 * time.Hour,
+	}))
+
+	st = store.Load()
+	assert.True(t, st.Enabled)
+	assert.Equal(t, 48*time.Hour, st.Validity)
+}
+
+func TestNewLockedStore_PanicsOnNilStore(t *testing.T) {
+	t.Parallel()
+
+	assert.Panics(t, func() {
+		telemetry.NewLockedStore(nil, &sync.RWMutex{})
+	})
+}
+
+func TestNewLockedStore_PanicsOnNilMutex(t *testing.T) {
+	t.Parallel()
+
+	assert.Panics(t, func() {
+		telemetry.NewLockedStore(telemetry.NewMemoryStore(false), nil)
+	})
 }

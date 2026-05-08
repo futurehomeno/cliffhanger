@@ -1,6 +1,7 @@
 package telemetry
 
 import (
+	"sync"
 	"time"
 
 	log "github.com/sirupsen/logrus"
@@ -29,6 +30,45 @@ type Store interface {
 	Load() State
 	// Save atomically persists the full state.
 	Save(State) error
+}
+
+// NewLockedStore wraps a Store with a read-write mutex. Load acquires a read
+// lock and Save acquires a write lock. Use when the underlying store shares
+// state with application config that is accessed from multiple goroutines.
+//
+// Lock ordering: callers must not hold mu while invoking Telemetry methods
+// that persist state (Enable, SetValidity, SetSuppressed). The reporter
+// holds its own internal lock across Save, so re-entering via mu will
+// deadlock.
+func NewLockedStore(store Store, mu *sync.RWMutex) Store {
+	if store == nil {
+		panic("telemetry: NewLockedStore: store must not be nil")
+	}
+
+	if mu == nil {
+		panic("telemetry: NewLockedStore: mutex must not be nil")
+	}
+
+	return &lockedStore{inner: store, mu: mu}
+}
+
+type lockedStore struct {
+	inner Store
+	mu    *sync.RWMutex
+}
+
+func (s *lockedStore) Load() State {
+	s.mu.RLock()
+	defer s.mu.RUnlock()
+
+	return s.inner.Load()
+}
+
+func (s *lockedStore) Save(st State) error {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+
+	return s.inner.Save(st)
 }
 
 // NewDefaultStore adapts a config.Default-backed persistence layer to the
