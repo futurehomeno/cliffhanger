@@ -46,6 +46,41 @@ type Telemetry interface {
 	IsSuppressed() bool
 }
 
+// Emit calls Report and logs on error. Nil-safe: returns immediately
+// if tel is nil, so callers do not need a nil guard.
+//
+// Callers must pass the interface value directly, not a typed-nil pointer.
+// A typed-nil (e.g. (*myImpl)(nil) stored in a Telemetry variable) is not
+// caught by the nil check and will panic.
+func Emit(tel Telemetry, event, domain string, data map[string]any) {
+	if tel == nil {
+		return
+	}
+
+	if err := tel.Report(event, domain, data); err != nil {
+		log.WithError(err).Warnf("[cliff] Telemetry: %q", event)
+	}
+}
+
+// EmitRequired calls ReportRequired and logs on error. If tel is nil,
+// the event is dropped with a warning - required events should not be
+// silently lost.
+//
+// Callers must pass the interface value directly, not a typed-nil pointer.
+// A typed-nil (e.g. (*myImpl)(nil) stored in a Telemetry variable) is not
+// caught by the nil check and will panic.
+func EmitRequired(tel Telemetry, event, domain string, data map[string]any) {
+	if tel == nil {
+		log.Warnf("[cliff] Telemetry: dropping required event %q (reporter is nil)", event)
+
+		return
+	}
+
+	if err := tel.ReportRequired(event, domain, data); err != nil {
+		log.WithError(err).Warnf("[cliff] Telemetry: %q", event)
+	}
+}
+
 // New returns a Telemetry that publishes telemetry events as the given source.
 // The source becomes the FIMP src field and is used by the consumer to populate
 // the app column, so it must uniquely identify the emitting application. The

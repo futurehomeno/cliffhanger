@@ -805,3 +805,20 @@ func TestNewDefaultStore_SuppressedRoundTrip(t *testing.T) {
 	st = store.Load()
 	assert.False(t, st.Suppressed)
 }
+
+func TestEmit_NilTelemetry(t *testing.T) {
+	t.Parallel()
+
+	assert.NotPanics(t, func() {
+		telemetry.Emit(nil, "test_event", "domain", map[string]any{"key": "val"})
+	})
+}
+
+func TestEmitRequired_NilTelemetry(t *testing.T) {
+	t.Parallel()
+
+	assert.NotPanics(t, func() {
+		telemetry.EmitRequired(nil, "test_event", "domain", map[string]any{"key": "val"})
+	})
+}
+
