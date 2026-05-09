@@ -50,20 +50,20 @@ func (d *Default) Migrate(migrations ...Migration) (int, error) {
 
 		m := migrations[idx]
 		if m.To == m.From {
-			return applied, fmt.Errorf("config: migration %d->%d does not advance version", m.From, m.To)
+			return applied, fmt.Errorf("config migration %d->%d does not advance version", m.From, m.To)
 		}
 
 		if seen[m.To] {
-			return applied, fmt.Errorf("config: migration cycle detected at version %d", m.To)
+			return applied, fmt.Errorf("config migration cycle detected at version %d", m.To)
 		}
 
 		seen[current] = true
 
-		log.Infof("[cliff] migrating config from %d to %d", m.From, m.To)
+		log.Infof("[cliff] Migrate config from %d to %d", m.From, m.To)
 
 		if m.Do != nil {
 			if err := m.Do(); err != nil {
-				return applied, fmt.Errorf("config: migration %d->%d failed: %w", m.From, m.To, err)
+				return applied, fmt.Errorf("config migration %d->%d failed: %w", m.From, m.To, err)
 			}
 		}
 

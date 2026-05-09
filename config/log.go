@@ -222,7 +222,7 @@ func (m *LogManager) SetFile(file string) error {
 
 func (m *LogManager) revertLog(reason string) {
 	if err := m.store.SetLevel(log.InfoLevel.String()); err != nil {
-		log.WithError(err).Errorf("[cliff] failed to persist reverted log level, keeping revert state for next startup retry")
+		log.WithError(err).Errorf("[cliff] Persist reverted log level, keeping revert state for next startup retry")
 
 		return
 	}
@@ -231,7 +231,7 @@ func (m *LogManager) revertLog(reason string) {
 	log.Infof("[cliff] Log level reverted to %s (%s)", log.InfoLevel, reason)
 
 	if err := m.clearRevertStateLocked(); err != nil {
-		log.WithError(err).Errorf("[cliff] failed to clear log revert state")
+		log.WithError(err).Errorf("[cliff] Clear log revert state")
 	}
 }
 

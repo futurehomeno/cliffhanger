@@ -28,12 +28,6 @@ const (
 	// commands. Once the window elapses since the last Enable(true),
 	// the reporter auto-disables.
 	SettingValidity = "telemetry_validity"
-	// SettingSuppressed is the config parameter name for the suppressed state.
-	SettingSuppressed = "telemetry_suppressed"
-
-	// DefaultValidity is the default window telemetry stays enabled after
-	// Enable(true). After that it auto-disables via a background timer.
-	DefaultValidity = 30 * 24 * time.Hour
 
 	// CmdGetConfig is the FIMP message type for requesting telemetry config
 	// from the cloud.
@@ -71,7 +65,8 @@ type Event struct {
 
 // ConfigResponse is the payload of evt.telemetry.config_report from the cloud.
 type ConfigResponse struct {
-	Enabled    bool     `json:"enabled"`
-	Suppressed []string `json:"suppressed"`
-	NextUpdate string   `json:"next_update"`
+	Enabled         bool     `json:"enabled"`
+	RequiredOnly    bool     `json:"required_only"` // when domain enabled only EmitRequired and ReportRequired will be sent
+	DisabledDomains []string `json:"disabled_domains"`
+	NextUpdate      string   `json:"next_update"`
 }

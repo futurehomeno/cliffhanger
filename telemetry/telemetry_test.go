@@ -10,7 +10,6 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
-	"github.com/futurehomeno/cliffhanger/config"
 	"github.com/futurehomeno/cliffhanger/router"
 	"github.com/futurehomeno/cliffhanger/task"
 	"github.com/futurehomeno/cliffhanger/telemetry"
@@ -18,18 +17,18 @@ import (
 )
 
 const (
-	testSource            = "core-energy-guard"
-	appTopic              = "pt:j1/mt:cmd/rt:app/rn:" + string(telemetry.Service) + "/ad:1"
-	appReportTopic        = "pt:j1/mt:evt/rt:app/rn:" + string(telemetry.Service) + "/ad:1"
-	cmdSetEnabledType     = "cmd.config.set_" + telemetry.SettingEnabled
-	cmdGetEnabledType     = "cmd.config.get_" + telemetry.SettingEnabled
-	evtEnabledReport      = "evt.config." + telemetry.SettingEnabled + "_report"
-	cmdSetValidityType    = "cmd.config.set_" + telemetry.SettingValidity
-	cmdGetValidityType    = "cmd.config.get_" + telemetry.SettingValidity
-	evtValidityReport     = "evt.config." + telemetry.SettingValidity + "_report"
-	cmdSetSuppressedType  = "cmd.config.set_" + telemetry.SettingSuppressed
-	cmdGetSuppressedType  = "cmd.config.get_" + telemetry.SettingSuppressed
-	evtSuppressedReport   = "evt.config." + telemetry.SettingSuppressed + "_report"
+	testSource           = "core-energy-guard"
+	appTopic             = "pt:j1/mt:cmd/rt:app/rn:" + string(telemetry.Service) + "/ad:1"
+	appReportTopic       = "pt:j1/mt:evt/rt:app/rn:" + string(telemetry.Service) + "/ad:1"
+	cmdSetEnabledType    = "cmd.config.set_" + telemetry.SettingEnabled
+	cmdGetEnabledType    = "cmd.config.get_" + telemetry.SettingEnabled
+	evtEnabledReport     = "evt.config." + telemetry.SettingEnabled + "_report"
+	cmdSetValidityType   = "cmd.config.set_" + telemetry.SettingValidity
+	cmdGetValidityType   = "cmd.config.get_" + telemetry.SettingValidity
+	evtValidityReport    = "evt.config." + telemetry.SettingValidity + "_report"
+	cmdSetSuppressedType = "cmd.config.set_" + telemetry.SettingSuppressed
+	cmdGetSuppressedType = "cmd.config.get_" + telemetry.SettingSuppressed
+	evtSuppressedReport  = "evt.config." + telemetry.SettingSuppressed + "_report"
 )
 
 func TestNew_RejectsInvalidInput(t *testing.T) {
@@ -496,17 +495,42 @@ func TestReporter(t *testing.T) { //nolint:paralleltest
 	s.Run(t)
 }
 
+func boolPtr(b bool) *bool { return &b }
+
 // stubStore exposes raw fields for white-box testing of New's restart-resume
-// logic. Unlike NewMemoryStore, it lets tests seed non-zero state values.
+// logic. Unlike NewMemoryStore, it lets tests seed non-zero values.
 type stubStore struct {
-	state     telemetry.State
-	saveCalls int
+	enabled    *bool
+	enabledAt  time.Time
+	validity   time.Duration
+	suppressed *bool
+	saveCalls  int
 }
 
-func (s *stubStore) Load() telemetry.State { return s.state }
+func (s *stubStore) Enabled() *bool { return s.enabled }
 
-func (s *stubStore) Save(st telemetry.State) error {
-	s.state = st
+func (s *stubStore) SetEnabled(v *bool) error {
+	s.enabled = v
+	s.saveCalls++
+
+	return nil
+}
+
+func (s *stubStore) EnabledAt() time.Time { return s.enabledAt }
+
+func (s *stubStore) Validity() time.Duration { return s.validity }
+
+func (s *stubStore) SetValidity(d time.Duration) error {
+	s.validity = d
+	s.saveCalls++
+
+	return nil
+}
+
+func (s *stubStore) Suppressed() *bool { return s.suppressed }
+
+func (s *stubStore) SetSuppressed(v *bool) error {
+	s.suppressed = v
 	s.saveCalls++
 
 	return nil
@@ -518,11 +542,11 @@ func TestNew_ResumesValidityWindowAcrossRestart(t *testing.T) {
 	t.Run("mid-window: resumes with remaining time", func(t *testing.T) {
 		t.Parallel()
 
-		store := &stubStore{state: telemetry.State{
-			Enabled:   true,
-			EnabledAt: time.Now().Add(-10 * time.Minute),
-			Validity:  time.Hour,
-		}}
+		store := &stubStore{
+			enabled:   boolPtr(true),
+			enabledAt: time.Now().Add(-10 * time.Minute),
+			validity:  time.Hour,
+		}
 
 		tel, err := telemetry.New(&fimpgo.MqttTransport{}, testSource, store)
 		require.NoError(t, err)
@@ -535,27 +559,28 @@ func TestNew_ResumesValidityWindowAcrossRestart(t *testing.T) {
 	t.Run("already expired: auto-disables and persists", func(t *testing.T) {
 		t.Parallel()
 
-		store := &stubStore{state: telemetry.State{
-			Enabled:   true,
-			EnabledAt: time.Now().Add(-40 * 24 * time.Hour),
-			Validity:  30 * 24 * time.Hour,
-		}}
+		store := &stubStore{
+			enabled:   boolPtr(true),
+			enabledAt: time.Now().Add(-40 * 24 * time.Hour),
+			validity:  30 * 24 * time.Hour,
+		}
 
 		tel, err := telemetry.New(&fimpgo.MqttTransport{}, testSource, store)
 		require.NoError(t, err)
 
 		assert.False(t, tel.IsEnabled())
-		assert.False(t, store.state.Enabled)
-		assert.True(t, store.state.EnabledAt.IsZero())
+		require.NotNil(t, store.enabled)
+		assert.False(t, *store.enabled)
+		assert.True(t, store.enabledAt.IsZero())
 	})
 
 	t.Run("enabled with zero enabledAt: stamps fresh window", func(t *testing.T) {
 		t.Parallel()
 
-		store := &stubStore{state: telemetry.State{
-			Enabled:  true,
-			Validity: time.Hour,
-		}}
+		store := &stubStore{
+			enabled:  boolPtr(true),
+			validity: time.Hour,
+		}
 
 		before := time.Now()
 
@@ -563,72 +588,66 @@ func TestNew_ResumesValidityWindowAcrossRestart(t *testing.T) {
 		require.NoError(t, err)
 
 		assert.True(t, tel.IsEnabled())
-		assert.False(t, store.state.EnabledAt.IsZero())
-		assert.True(t, !store.state.EnabledAt.Before(before))
+		assert.False(t, store.enabledAt.IsZero())
+		assert.True(t, !store.enabledAt.Before(before))
 	})
 }
 
-func TestNewDefaultStore_RoundTrip(t *testing.T) {
-	t.Parallel()
-
-	d := &config.Default{}
-	saves := 0
-	store := telemetry.NewDefaultStore(func() *config.Default { return d }, func() error { saves++; return nil })
-
-	// Defaults when nothing is persisted.
-	st := store.Load()
-	assert.True(t, st.Enabled, "unset enabled should default to true")
-	assert.True(t, st.EnabledAt.IsZero())
-	assert.Equal(t, telemetry.DefaultValidity, st.Validity)
-
-	stamp := time.Date(2026, 4, 20, 12, 0, 0, 123_000_000, time.UTC)
-
-	require.NoError(t, store.Save(telemetry.State{
-		Enabled:   false,
-		EnabledAt: stamp,
-		Validity:  2 * time.Hour,
-	}))
-
-	// Load reflects the writes.
-	st = store.Load()
-	assert.False(t, st.Enabled)
-	assert.Equal(t, 2*time.Hour, st.Validity)
-	assert.True(t, st.EnabledAt.Equal(stamp))
-
-	// Raw fields serialize the way the format contract says they should.
-	assert.NotNil(t, d.TelemetryEnabled)
-	assert.False(t, *d.TelemetryEnabled)
-	assert.Equal(t, "2h0m0s", d.TelemetryValidity)
-	assert.Equal(t, "2026-04-20T12:00:00.123Z", d.TelemetryEnabledAt)
-
-	// Clearing enabledAt writes an empty string, not "0001-01-01..." -
-	// a malformed RFC3339Nano in the file must round-trip to zero time.
-	require.NoError(t, store.Save(telemetry.State{
-		Enabled:  false,
-		Validity: 2 * time.Hour,
-	}))
-	assert.Equal(t, "", d.TelemetryEnabledAt)
-
-	st = store.Load()
-	assert.True(t, st.EnabledAt.IsZero())
-
-	assert.Equal(t, 2, saves, "each Save must call save exactly once")
-}
-
-// failStore lets tests inject Save failures.
+// failStore returns the configured error from every setter and never mutates
+// its fields - lets tests assert that a setter failure leaves the store
+// untouched.
 type failStore struct {
-	state   telemetry.State
-	saveErr error
+	enabled    *bool
+	enabledAt  time.Time
+	validity   time.Duration
+	suppressed *bool
+	setErr     error
 }
 
-func (s *failStore) Load() telemetry.State { return s.state }
+func (s *failStore) Enabled() *bool { return s.enabled }
 
-func (s *failStore) Save(st telemetry.State) error {
-	if s.saveErr != nil {
-		return s.saveErr
+func (s *failStore) SetEnabled(v *bool) error {
+	if s.setErr != nil {
+		return s.setErr
 	}
 
-	s.state = st
+	s.enabled = v
+
+	return nil
+}
+
+func (s *failStore) EnabledAt() time.Time { return s.enabledAt }
+
+func (s *failStore) SetEnabledAt(t time.Time) error {
+	if s.setErr != nil {
+		return s.setErr
+	}
+
+	s.enabledAt = t
+
+	return nil
+}
+
+func (s *failStore) Validity() time.Duration { return s.validity }
+
+func (s *failStore) SetValidity(d time.Duration) error {
+	if s.setErr != nil {
+		return s.setErr
+	}
+
+	s.validity = d
+
+	return nil
+}
+
+func (s *failStore) Suppressed() *bool { return s.suppressed }
+
+func (s *failStore) SetSuppressed(v *bool) error {
+	if s.setErr != nil {
+		return s.setErr
+	}
+
+	s.suppressed = v
 
 	return nil
 }
@@ -636,191 +655,100 @@ func (s *failStore) Save(st telemetry.State) error {
 func TestEnable_SaveFailure_LeavesStateUnchanged(t *testing.T) {
 	t.Parallel()
 
-	store := &failStore{state: telemetry.State{
-		Enabled:  false,
-		Validity: telemetry.DefaultValidity,
-	}}
+	store := &failStore{
+		enabled:  boolPtr(false),
+		validity: telemetry.DefaultValidity,
+	}
 
 	tel, err := telemetry.New(&fimpgo.MqttTransport{}, testSource, store)
 	require.NoError(t, err)
 	assert.False(t, tel.IsEnabled())
 
 	// Inject failure and try to enable.
-	store.saveErr = errors.New("disk full")
+	store.setErr = errors.New("disk full")
 	err = tel.Enable(true)
 	require.Error(t, err)
 
 	// In-memory state must remain disabled.
-	assert.False(t, tel.IsEnabled(), "Enable must not change in-memory state on Save failure")
-	assert.False(t, store.state.Enabled, "Store must not be mutated on Save failure")
+	assert.False(t, tel.IsEnabled(), "Enable must not change in-memory state on setter failure")
+	require.NotNil(t, store.enabled)
+	assert.False(t, *store.enabled, "Store must not be mutated on setter failure")
 }
 
 func TestSetValidity_SaveFailure_LeavesStateUnchanged(t *testing.T) {
 	t.Parallel()
 
-	store := &failStore{state: telemetry.State{
-		Enabled:  true,
-		Validity: telemetry.DefaultValidity,
-	}}
+	store := &failStore{
+		enabled:  boolPtr(true),
+		validity: telemetry.DefaultValidity,
+	}
 
 	tel, err := telemetry.New(&fimpgo.MqttTransport{}, testSource, store)
 	require.NoError(t, err)
 
-	store.saveErr = errors.New("disk full")
+	store.setErr = errors.New("disk full")
 	err = tel.SetValidity(time.Hour)
 	require.Error(t, err)
 
-	assert.Equal(t, telemetry.DefaultValidity, tel.Validity(), "SetValidity must not change in-memory state on Save failure")
+	assert.Equal(t, telemetry.DefaultValidity, tel.Validity(), "SetValidity must not change in-memory state on setter failure")
 }
 
-func TestSetValidity_BelowElapsed_SingleSave(t *testing.T) {
+func TestSetValidity_BelowElapsed_AutoDisables(t *testing.T) {
 	t.Parallel()
 
-	store := &stubStore{state: telemetry.State{
-		Enabled:   true,
-		EnabledAt: time.Now().Add(-10 * time.Minute),
-		Validity:  time.Hour,
-	}}
+	store := &stubStore{
+		enabled:   boolPtr(true),
+		enabledAt: time.Now().Add(-10 * time.Minute),
+		validity:  time.Hour,
+	}
 
 	tel, err := telemetry.New(&fimpgo.MqttTransport{}, testSource, store)
 	require.NoError(t, err)
 	assert.True(t, tel.IsEnabled())
 
-	store.saveCalls = 0
-
 	require.NoError(t, tel.SetValidity(time.Millisecond))
 
 	assert.False(t, tel.IsEnabled(), "should auto-disable")
-	assert.Equal(t, 1, store.saveCalls, "SetValidity must perform exactly one Save")
-	assert.False(t, store.state.Enabled, "persisted state must be disabled")
-	assert.True(t, store.state.EnabledAt.IsZero(), "persisted enabledAt must be cleared")
-}
-
-func TestDefaultStore_SaveFailure_RestoresConfig(t *testing.T) {
-	t.Parallel()
-
-	enabled := true
-	d := &config.Default{
-		TelemetryEnabled:   &enabled,
-		TelemetryEnabledAt: "2026-04-20T12:00:00Z",
-		TelemetryValidity:  "1h0m0s",
-	}
-
-	fail := true
-	store := telemetry.NewDefaultStore(
-		func() *config.Default { return d },
-		func() error {
-			if fail {
-				return errors.New("disk full")
-			}
-
-			return nil
-		},
-	)
-
-	err := store.Save(telemetry.State{
-		Enabled:  false,
-		Validity: 2 * time.Hour,
-	})
-	require.Error(t, err)
-
-	// Config must be rolled back to pre-Save state.
-	assert.NotNil(t, d.TelemetryEnabled)
-	assert.True(t, *d.TelemetryEnabled, "TelemetryEnabled must be restored")
-	assert.Equal(t, "2026-04-20T12:00:00Z", d.TelemetryEnabledAt, "TelemetryEnabledAt must be restored")
-	assert.Equal(t, "1h0m0s", d.TelemetryValidity, "TelemetryValidity must be restored")
-
-	// Load must still return the original state.
-	st := store.Load()
-	assert.True(t, st.Enabled)
+	require.NotNil(t, store.enabled)
+	assert.False(t, *store.enabled, "persisted state must be disabled")
+	assert.True(t, store.enabledAt.IsZero(), "persisted enabledAt must be cleared")
 }
 
 func TestSetSuppressed_SaveFailure_LeavesStateUnchanged(t *testing.T) {
 	t.Parallel()
 
-	store := &failStore{state: telemetry.State{
-		Enabled:  true,
-		Validity: telemetry.DefaultValidity,
-	}}
+	store := &failStore{
+		enabled:  boolPtr(true),
+		validity: telemetry.DefaultValidity,
+	}
 
 	tel, err := telemetry.New(&fimpgo.MqttTransport{}, testSource, store)
 	require.NoError(t, err)
 	assert.False(t, tel.IsSuppressed())
 
-	store.saveErr = errors.New("disk full")
+	store.setErr = errors.New("disk full")
 	err = tel.SetSuppressed(true)
 	require.Error(t, err)
 
-	assert.False(t, tel.IsSuppressed(), "SetSuppressed must not change in-memory state on Save failure")
+	assert.False(t, tel.IsSuppressed(), "SetSuppressed must not change in-memory state on setter failure")
 }
 
 func TestEnable_PreservesSuppressedInStore(t *testing.T) {
 	t.Parallel()
 
-	store := &stubStore{state: telemetry.State{
-		Enabled:    true,
-		Suppressed: true,
-		Validity:   telemetry.DefaultValidity,
-	}}
+	store := &stubStore{
+		enabled:    boolPtr(true),
+		suppressed: boolPtr(true),
+		validity:   telemetry.DefaultValidity,
+	}
 
 	tel, err := telemetry.New(&fimpgo.MqttTransport{}, testSource, store)
 	require.NoError(t, err)
 	assert.True(t, tel.IsSuppressed())
 
-	// Enable(true) must preserve the suppressed flag in the saved state.
-	store.saveCalls = 0
-
 	require.NoError(t, tel.Enable(true))
-	assert.True(t, store.state.Suppressed, "Enable must preserve Suppressed in persisted state")
-}
-
-func TestNewDefaultStore_SuppressedRoundTrip(t *testing.T) {
-	t.Parallel()
-
-	d := &config.Default{}
-	store := telemetry.NewDefaultStore(func() *config.Default { return d }, func() error { return nil })
-
-	// Default: not suppressed.
-	st := store.Load()
-	assert.False(t, st.Suppressed, "unset suppressed should default to false")
-
-	// Save with suppressed=true.
-	require.NoError(t, store.Save(telemetry.State{
-		Enabled:    true,
-		Suppressed: true,
-		Validity:   telemetry.DefaultValidity,
-	}))
-
-	st = store.Load()
-	assert.True(t, st.Suppressed)
-	assert.NotNil(t, d.TelemetrySuppressed)
-	assert.True(t, *d.TelemetrySuppressed)
-
-	// Save with suppressed=false.
-	require.NoError(t, store.Save(telemetry.State{
-		Enabled:  true,
-		Validity: telemetry.DefaultValidity,
-	}))
-
-	st = store.Load()
-	assert.False(t, st.Suppressed)
-}
-
-type testConfig struct {
-	config.Default
-}
-
-func TestNewConfigStore(t *testing.T) {
-	t.Parallel()
-
-	cfg := &testConfig{Default: config.NewDefault(t.TempDir())}
-	s := config.NewStorage(cfg, t.TempDir())
-
-	store := telemetry.NewConfigStore(s)
-
-	st := store.Load()
-	assert.True(t, st.Enabled, "telemetry should be enabled by default when TelemetryEnabled is nil")
-	assert.Equal(t, telemetry.DefaultValidity, st.Validity)
+	require.NotNil(t, store.suppressed)
+	assert.True(t, *store.suppressed, "Enable must not touch the persisted suppressed flag")
 }
 
 func TestEmit_NilTelemetry(t *testing.T) {
@@ -838,4 +766,3 @@ func TestEmitRequired_NilTelemetry(t *testing.T) {
 		telemetry.EmitRequired(nil, "test_event", "domain", map[string]any{"key": "val"})
 	})
 }
-

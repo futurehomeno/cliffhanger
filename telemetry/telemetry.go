@@ -7,12 +7,12 @@ import (
 	"time"
 
 	"github.com/futurehomeno/fimpgo"
-	"github.com/futurehomeno/fimpgo/fimptype"
 	log "github.com/sirupsen/logrus"
 )
 
 // Telemetry emits telemetry events over MQTT to the cloud backend-service.
 type Telemetry interface {
+	Store
 	// Report publishes an event with the given name, optional domain, and
 	// free-form data payload. Returns nil without publishing when telemetry
 	// is disabled or the source is suppressed.
@@ -25,25 +25,6 @@ type Telemetry interface {
 	// Passing an empty string restores the default. The override is
 	// not persisted and resets to the default on restart.
 	SetTargetTopic(topic string)
-	// Enable toggles reporting. Enable(true) always re-stamps the
-	// enabled-at timestamp and restarts the validity window - including
-	// when telemetry is already enabled - which incurs a store write on
-	// every call. Enable(false) makes subsequent Report calls silent
-	// no-ops. Callers that want idempotent behavior should gate on
-	// IsEnabled first.
-	Enable(enabled bool) error
-	// IsEnabled reports whether telemetry is currently publishing.
-	IsEnabled() bool
-	// Validity returns the window telemetry stays enabled after Enable(true)
-	// before it auto-disables.
-	Validity() time.Duration
-	// SetValidity updates the validity window. Must be positive.
-	SetValidity(validity time.Duration) error
-	// SetSuppressed marks this source as suppressed (true) or active (false).
-	// When suppressed, Report returns nil but ReportRequired still publishes.
-	SetSuppressed(suppressed bool) error
-	// IsSuppressed reports whether this source is currently suppressed.
-	IsSuppressed() bool
 }
 
 // Emit calls Report and logs on error. Nil-safe: returns immediately
@@ -85,82 +66,29 @@ func EmitRequired(tel Telemetry, event, domain string, data map[string]any) {
 // The source becomes the FIMP src field and is used by the consumer to populate
 // the app column, so it must uniquely identify the emitting application. The
 // store is required and persists enabled / validity across restarts.
-func New(mqtt *fimpgo.MqttTransport, source string, store Store) (Telemetry, error) {
+func New(mqtt *fimpgo.MqttTransport, store storeIf) (Telemetry, error) {
 	if mqtt == nil {
 		return nil, errors.New("telemetry: mqtt transport is nil")
-	}
-
-	if source == "" {
-		return nil, errors.New("telemetry: source is not set")
 	}
 
 	if store == nil {
 		return nil, errors.New("telemetry: store is required")
 	}
 
-	st := store.Load()
-	if st.Validity <= 0 {
-		st.Validity = DefaultValidity
+	enabled := true
+	if v := store.Enabled(); v != nil {
+		enabled = *v
+	}
+
+	validity := store.Validity()
+	if validity <= 0 {
+		validity = defaultTelemetryValidity
 	}
 
 	r := &telemetryT{
-		mqtt:       mqtt,
-		source:     fimptype.ResourceNameT(source),
-		store:      store,
-		topic:      Topic,
-		enabled:    st.Enabled,
-		suppressed: st.Suppressed,
-		validity:   st.Validity,
-	}
-
-	if r.enabled { //nolint:nestif
-		enabledAt := st.EnabledAt
-		if enabledAt.IsZero() {
-			enabledAt = time.Now()
-
-			st.EnabledAt = enabledAt
-			if err := store.Save(st); err != nil {
-				return nil, fmt.Errorf("telemetry: persist enabled_at: %w", err)
-			}
-		}
-
-		elapsed := time.Since(enabledAt)
-		if elapsed < 0 {
-			// Clock skew: persisted timestamp is in the future.
-			// Normalize to now so SetValidity doesn't overshoot.
-			enabledAt = time.Now()
-			elapsed = 0
-
-			st.EnabledAt = enabledAt
-			if err := store.Save(st); err != nil {
-				return nil, fmt.Errorf("telemetry: persist normalized enabled_at: %w", err)
-			}
-		}
-
-		if elapsed >= st.Validity {
-			r.enabled = false
-
-			st.Enabled = false
-			st.EnabledAt = time.Time{}
-
-			if err := store.Save(st); err != nil {
-				return nil, fmt.Errorf("telemetry: persist disabled state: %w", err)
-			}
-
-			log.Infof("[cliff] Telemetry disabled: validity expired before startup")
-		} else {
-			r.enabledAt = enabledAt
-
-			// Hold the lock so r.timer is assigned before the AfterFunc
-			// callback can acquire it - prevents a race on tiny durations.
-			r.lock.Lock()
-			r.startTimerLocked(st.Validity - elapsed)
-			r.lock.Unlock()
-		}
-	}
-
-	if r.enabled {
-		log.Infof("[cliff] Telemetry enabled (source=%s, validity=%s)", source, r.validity)
+		mqtt:  mqtt,
+		store: store,
+		topic: Topic,
 	}
 
 	return r, nil
@@ -175,29 +103,20 @@ func New(mqtt *fimpgo.MqttTransport, source string, store Store) (Telemetry, err
 // callers - acceptable for the file-backed config.Default store, but worth
 // revisiting for stores with higher write latency.
 type telemetryT struct {
-	mqtt   *fimpgo.MqttTransport
-	source fimptype.ResourceNameT
-	store  Store
-
-	lock       sync.Mutex
-	topic      string
-	enabled    bool
-	suppressed bool
-	validity   time.Duration
-	enabledAt  time.Time
-	timer      *time.Timer
+	mqtt  *fimpgo.MqttTransport
+	store storeIf
+	lock  sync.Mutex
+	topic string
+	timer *time.Timer
 }
 
 func (r *telemetryT) Report(event, domain string, data map[string]any) error {
 	r.lock.Lock()
 	topic := r.topic
-	enabled := r.enabled
-	suppressed := r.suppressed
+
 	r.lock.Unlock()
 
-	if !enabled || suppressed {
-		return nil
-	}
+	// TODO: check if domain is suppressed here instead of in the caller, to avoid the overhead of constructing and publishing messages that will be dropped. Requires exposing the list of suppressed domains from the store, and a decision on how to handle changes to that list while running (e.g. if Report is in-flight while a new config is applied with an updated list).
 
 	return r.publish(topic, event, domain, data)
 }
@@ -243,26 +162,14 @@ func (r *telemetryT) Enable(enabled bool) error {
 	r.lock.Lock()
 	defer r.lock.Unlock()
 
-	st := State{
-		Enabled:    enabled,
-		Validity:   r.validity,
-		Suppressed: r.suppressed,
-	}
-
-	if enabled {
-		st.EnabledAt = time.Now()
-	}
-
-	if err := r.store.Save(st); err != nil {
-		return fmt.Errorf("telemetry: persist state: %w", err)
+	if err := r.store.SetEnabled(&enabled); err != nil {
+		return fmt.Errorf("telemetry: persist enabled: %w", err)
 	}
 
 	r.stopTimerLocked()
-	r.enabled = enabled
-	r.enabledAt = st.EnabledAt
 
 	if enabled {
-		r.startTimerLocked(r.validity)
+		r.startTimerLocked(r.validity) // TODO: take validity from Store()
 	}
 
 	return nil
@@ -272,41 +179,32 @@ func (r *telemetryT) IsEnabled() bool {
 	r.lock.Lock()
 	defer r.lock.Unlock()
 
-	return r.enabled
+	return r.enabled // TODO: take enabled from Store()
 }
 
-func (r *telemetryT) SetSuppressed(suppressed bool) error {
+func (r *telemetryT) SetDisabledDomains(disabledDOmains []string) error {
 	r.lock.Lock()
 	defer r.lock.Unlock()
 
-	st := State{
-		Enabled:    r.enabled,
-		EnabledAt:  r.enabledAt,
-		Validity:   r.validity,
-		Suppressed: suppressed,
-	}
-
-	if err := r.store.Save(st); err != nil {
+	if err := r.store.SetDisabledDomains(disabledDOmains); err != nil {
 		return fmt.Errorf("telemetry: persist suppressed: %w", err)
 	}
-
-	r.suppressed = suppressed
 
 	return nil
 }
 
-func (r *telemetryT) IsSuppressed() bool {
+func (r *telemetryT) DisabledDomains() []string {
 	r.lock.Lock()
 	defer r.lock.Unlock()
 
-	return r.suppressed
+	return r.disabledDomains
 }
 
 func (r *telemetryT) Validity() time.Duration {
 	r.lock.Lock()
 	defer r.lock.Unlock()
 
-	return r.validity
+	return r.validity // TODO: take Validity from Store()
 }
 
 func (r *telemetryT) SetValidity(validity time.Duration) error {
@@ -317,12 +215,10 @@ func (r *telemetryT) SetValidity(validity time.Duration) error {
 	r.lock.Lock()
 	defer r.lock.Unlock()
 
-	// Compute elapsed once and use it for both the Save decision and the
-	// post-Save timer scheduling, avoiding a TOCTOU gap during slow saves.
+	// Compute elapsed once and use it for both the disable decision and the
+	// post-write timer scheduling, avoiding a TOCTOU gap during slow saves.
 	var elapsed time.Duration
 
-	newEnabled := r.enabled
-	newEnabledAt := r.enabledAt
 	shouldDisable := false
 
 	if r.enabled && !r.enabledAt.IsZero() {
@@ -332,21 +228,23 @@ func (r *telemetryT) SetValidity(validity time.Duration) error {
 		}
 
 		if elapsed >= validity {
-			newEnabled = false
-			newEnabledAt = time.Time{}
 			shouldDisable = true
 		}
 	}
 
-	st := State{
-		Enabled:    newEnabled,
-		EnabledAt:  newEnabledAt,
-		Validity:   validity,
-		Suppressed: r.suppressed,
+	if err := r.store.SetValidity(validity); err != nil {
+		return fmt.Errorf("telemetry: persist validity: %w", err)
 	}
 
-	if err := r.store.Save(st); err != nil {
-		return fmt.Errorf("telemetry: persist validity: %w", err)
+	if shouldDisable {
+		if err := r.store.SetEnabledAt(time.Time{}); err != nil {
+			return fmt.Errorf("telemetry: persist cleared enabled_at: %w", err)
+		}
+
+		disabled := false
+		if err := r.store.SetEnabled(&disabled); err != nil {
+			return fmt.Errorf("telemetry: persist disabled state: %w", err)
+		}
 	}
 
 	r.validity = validity
@@ -397,13 +295,14 @@ func (r *telemetryT) stopTimerLocked() {
 // is false; New handles the "already-expired" case on next startup, so a
 // failed persist leaks at most one reboot's worth of telemetry.
 func (r *telemetryT) disableLocked(reason string) {
-	r.enabled = false
-	r.enabledAt = time.Time{}
 	r.timer = nil
 
-	st := State{Validity: r.validity, Suppressed: r.suppressed}
+	if err := r.store.SetEnabledAt(time.Time{}); err != nil {
+		log.WithError(err).Errorf("[cliff] Telemetry: failed to persist cleared enabled_at")
+	}
 
-	if err := r.store.Save(st); err != nil {
+	disabled := false
+	if err := r.store.SetEnabled(&disabled); err != nil {
 		log.WithError(err).Errorf("[cliff] Telemetry: failed to persist disabled state")
 	}
 

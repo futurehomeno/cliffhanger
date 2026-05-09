@@ -25,9 +25,8 @@ type SyncRequester interface {
 // Apps opt in by constructing a ConfigPull and passing it to WithServices()
 // on the EdgeAppBuilder.
 type ConfigPull struct {
-	mqtt         *fimpgo.MqttTransport
-	source       string
-	reporter     Telemetry
+	mqtt *fimpgo.MqttTransport
+	//	reporter     Telemetry
 	fallbackPoll time.Duration
 	requestTopic string
 	timeout      int
@@ -147,7 +146,7 @@ func (cp *ConfigPull) Start() error {
 	cp.stopped = false
 	cp.scheduleLocked(0)
 
-	log.Infof("[cliff] Telemetry config pull started (source=%s)", cp.source)
+	log.Infof("[cliff] Telemetry config pull from src=%s", cp.source)
 
 	return nil
 }
@@ -270,34 +269,36 @@ func (cp *ConfigPull) poll(client SyncRequester) pollResult {
 func (cp *ConfigPull) applyConfig(cfg *ConfigResponse) {
 	var failed bool
 
-	suppressed := slices.Contains(cfg.Suppressed, cp.source)
+	isDisabled := slices.Contains(cfg.DisabledDomains, cp.source)
 
 	// Apply suppression FIRST when this source should be suppressed,
 	// so there is no window where Report sees enabled=true + suppressed=false.
-	if suppressed {
-		if err := cp.reporter.SetSuppressed(true); err != nil {
-			log.WithError(err).Errorf("[cliff] Telemetry config pull: failed to apply suppressed=true")
+	if isDisabled {
+		if err := cp.store.SetDisabledDomains(append(cp.store.DisabledDomains(), cp.source)); err != nil {
+			log.WithError(err).Errorf("[cliff] Telemetry config pull: failed to apply disabled domains")
 
 			failed = true
 		}
 	}
 
-	if err := cp.reporter.Enable(cfg.Enabled); err != nil {
+	if err := cp.store.Enable(cfg.Enabled); err != nil {
 		log.WithError(err).Errorf("[cliff] Telemetry config pull: failed to apply enabled=%v", cfg.Enabled)
 
 		failed = true
 	}
 
 	// Clear suppression after enabling when this source is NOT suppressed.
-	if !suppressed {
-		if err := cp.reporter.SetSuppressed(false); err != nil {
-			log.WithError(err).Errorf("[cliff] Telemetry config pull: failed to apply suppressed=false")
+	if !isDisabled {
+		if err := cp.store.SetDisabledDomains(slices.DeleteFunc(cp.store.DisabledDomains(), func(s string) bool {
+			return s == cp.source
+		})); err != nil {
+			log.WithError(err).Errorf("[cliff] Telemetry config pull: failed to apply disabled domains")
 
 			failed = true
 		}
 	}
 
 	if !failed {
-		log.Infof("[cliff] Telemetry config applied (enabled=%v, suppressed=%v)", cfg.Enabled, suppressed)
+		log.Infof("[cliff] Telemetry config applied (enabled=%v, disabled_domains=%v)", cfg.Enabled, cp.store.DisabledDomains())
 	}
 }
