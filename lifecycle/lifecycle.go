@@ -70,12 +70,12 @@ type Lifecycle struct {
 	restartsCount      int
 }
 
-// Store is satisfied by any storage whose model embeds config.Default, including storage.Storage[T].
-type Store interface {
+// storeIf is satisfied by any storage whose model embeds config.Default, including storage.Storage[T].
+type storeIf interface {
 	IncrementRestartsCount() (int, error)
 }
 
-func New(store Store) *Lifecycle {
+func New(store storeIf) *Lifecycle {
 	l := &Lifecycle{
 		systemEventBus:     make(map[string]SystemEventChannel),
 		lock:               &sync.RWMutex{},

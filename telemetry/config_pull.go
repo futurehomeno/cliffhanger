@@ -2,7 +2,6 @@ package telemetry
 
 import (
 	"fmt"
-	"slices"
 	"sync"
 	"time"
 
@@ -11,114 +10,58 @@ import (
 	log "github.com/sirupsen/logrus"
 )
 
-// SyncRequester is the subset of fimpgo.SyncClient used by ConfigPull.
-// Extracted as an interface for testability.
+// SyncRequester is the subset of fimpgo.SyncClient used by the internal
+// config pull. Exported so tests can inject a mock via WithSyncRequester.
 type SyncRequester interface {
 	SendFimp(topic string, fimpMsg *fimpgo.FimpMessage, timeout int) (*fimpgo.FimpMessage, error)
 	AddSubscription(topic string) error
 	Stop()
 }
 
-// ConfigPull periodically pulls telemetry configuration from the cloud
-// and applies it to the reporter. It implements root.Service (Start/Stop).
-//
-// Apps opt in by constructing a ConfigPull and passing it to WithServices()
-// on the EdgeAppBuilder.
-type ConfigPull struct {
-	mqtt *fimpgo.MqttTransport
-	//	reporter     Telemetry
+// configPull periodically pulls telemetry configuration from the cloud and
+// applies it to the owning telemetryT. It is constructed by New and lives
+// for the lifetime of the Telemetry; apps do not interact with it directly.
+type configPull struct {
+	mqtt         *fimpgo.MqttTransport
+	sourceRn     fimptype.ResourceNameT
+	telemetry    Telemetry
 	fallbackPoll time.Duration
 	requestTopic string
 	timeout      int
 
-	lock        sync.Mutex
-	timer       *time.Timer
-	stopped     bool
-	client      SyncRequester
-	clientOwned bool // true when we created the client (not injected)
+	lock    sync.Mutex
+	timer   *time.Timer
+	stopped bool
+	client  SyncRequester
 }
 
-// ConfigPullOption configures optional parameters for NewConfigPull.
-type ConfigPullOption func(*ConfigPull)
-
-// WithFallbackPoll sets the fallback polling interval used when the cloud
-// response does not include next_update or on error. Default: DefaultPollInterval.
-func WithFallbackPoll(d time.Duration) ConfigPullOption {
-	return func(cp *ConfigPull) {
-		cp.fallbackPoll = d
-	}
-}
-
-// WithRequestTopic overrides the MQTT topic for config requests.
-// Default: ConfigRequestTopic.
-func WithRequestTopic(topic string) ConfigPullOption {
-	return func(cp *ConfigPull) {
-		cp.requestTopic = topic
-	}
-}
-
-// WithRequestTimeout sets the MQTT request timeout in seconds.
-// Default: 30.
-func WithRequestTimeout(seconds int) ConfigPullOption {
-	return func(cp *ConfigPull) {
-		cp.timeout = seconds
-	}
-}
-
-// WithSyncRequester injects a SyncRequester for testing.
-func WithSyncRequester(client SyncRequester) ConfigPullOption {
-	return func(cp *ConfigPull) {
-		cp.client = client
-	}
-}
-
-// NewConfigPull creates a config pull service that periodically fetches
-// telemetry config from the cloud and applies it to the reporter.
-func NewConfigPull(mqtt *fimpgo.MqttTransport, source string, reporter Telemetry, opts ...ConfigPullOption) (*ConfigPull, error) {
-	if mqtt == nil {
-		return nil, fmt.Errorf("telemetry: config pull: mqtt transport is nil")
-	}
-
-	if source == "" {
-		return nil, fmt.Errorf("telemetry: config pull: source is not set")
-	}
-
-	if reporter == nil {
-		return nil, fmt.Errorf("telemetry: config pull: reporter is nil")
-	}
-
-	cp := &ConfigPull{
+// newConfigPull seeds the configPull with package defaults.
+func newConfigPull(mqtt *fimpgo.MqttTransport, sourceRn fimptype.ResourceNameT, telemetry Telemetry) *configPull {
+	return &configPull{
 		mqtt:         mqtt,
-		source:       source,
-		reporter:     reporter,
+		sourceRn:     sourceRn,
+		telemetry:    telemetry,
 		fallbackPoll: DefaultPollInterval,
 		requestTopic: ConfigRequestTopic,
 		timeout:      30,
 	}
+}
 
-	for _, opt := range opts {
-		opt(cp)
-	}
-
+// start begins the poll loop. The first poll fires immediately and is
+// non-blocking (runs in a background goroutine).
+func (cp *configPull) start() error {
 	if cp.fallbackPoll <= 0 {
-		return nil, fmt.Errorf("telemetry: config pull: fallback poll interval must be positive")
+		return fmt.Errorf("telemetry: config pull: fallback poll interval must be positive")
 	}
 
 	if cp.timeout <= 0 {
-		return nil, fmt.Errorf("telemetry: config pull: request timeout must be positive")
+		return fmt.Errorf("telemetry: config pull: request timeout must be positive")
 	}
 
 	if cp.requestTopic == "" {
-		return nil, fmt.Errorf("telemetry: config pull: request topic must not be empty")
+		return fmt.Errorf("telemetry: config pull: request topic must not be empty")
 	}
 
-	return cp, nil
-}
-
-// Start begins the config pull loop. The first poll fires immediately
-// and is non-blocking (runs in a background goroutine). Calling Start
-// on an already-running service is a no-op.
-func (cp *ConfigPull) Start() error {
 	cp.lock.Lock()
 	defer cp.lock.Unlock()
 
@@ -126,19 +69,13 @@ func (cp *ConfigPull) Start() error {
 		return nil // already running
 	}
 
-	if cp.client == nil {
-		cp.client = fimpgo.NewSyncClient(cp.mqtt)
-		cp.clientOwned = true
-	}
+	cp.client = fimpgo.NewSyncClient(cp.mqtt)
 
-	responseTopic := fmt.Sprintf(configResponseTopicFmt, cp.source)
+	responseTopic := fmt.Sprintf(configResponseTopicFmt, cp.sourceRn)
 
 	if err := cp.client.AddSubscription(responseTopic); err != nil {
-		if cp.clientOwned {
-			cp.client.Stop()
-			cp.client = nil
-			cp.clientOwned = false
-		}
+		cp.client.Stop()
+		cp.client = nil
 
 		return fmt.Errorf("telemetry: config pull: subscribe: %w", err)
 	}
@@ -146,13 +83,13 @@ func (cp *ConfigPull) Start() error {
 	cp.stopped = false
 	cp.scheduleLocked(0)
 
-	log.Infof("[cliff] Telemetry config pull from src=%s", cp.source)
+	log.Infof("[cliff] Telemetry config pull from src=%s", cp.sourceRn)
 
 	return nil
 }
 
-// Stop cancels any pending poll and stops the sync client.
-func (cp *ConfigPull) Stop() error {
+// stop cancels any pending poll and stops an owned sync client.
+func (cp *configPull) stop() {
 	cp.lock.Lock()
 	defer cp.lock.Unlock()
 
@@ -163,15 +100,12 @@ func (cp *ConfigPull) Stop() error {
 		cp.timer = nil
 	}
 
-	if cp.client != nil && cp.clientOwned {
+	if cp.client != nil {
 		cp.client.Stop()
 		cp.client = nil
-		cp.clientOwned = false
 	}
 
-	log.Infof("[cliff] Telemetry config pull stopped (source=%s)", cp.source)
-
-	return nil
+	log.Infof("[cliff] Telemetry config pull stopped (source=%s)", cp.sourceRn)
 }
 
 // pollResult holds the outcome of a single config poll.
@@ -182,7 +116,7 @@ type pollResult struct {
 
 // scheduleLocked schedules the next poll after the given delay.
 // Must be called with cp.lock held.
-func (cp *ConfigPull) scheduleLocked(delay time.Duration) {
+func (cp *configPull) scheduleLocked(delay time.Duration) {
 	var t *time.Timer
 
 	t = time.AfterFunc(delay, func() {
@@ -190,10 +124,11 @@ func (cp *ConfigPull) scheduleLocked(delay time.Duration) {
 
 		if cp.stopped || cp.timer != t {
 			cp.lock.Unlock()
+
 			return
 		}
 
-		// Release lock during network I/O. If Stop() is called
+		// Release lock during network I/O. If stop() is called
 		// concurrently, it cancels the SyncClient's transport which
 		// causes SendFimp to return an error promptly.
 		client := cp.client
@@ -205,7 +140,7 @@ func (cp *ConfigPull) scheduleLocked(delay time.Duration) {
 		defer cp.lock.Unlock()
 
 		// Re-check both flags: stopped gates shutdown, timer identity
-		// gates Stop+Start races where a new timer replaced this one.
+		// gates stop+restart races where a new timer replaced this one.
 		if cp.stopped || cp.timer != t {
 			return
 		}
@@ -223,10 +158,10 @@ func (cp *ConfigPull) scheduleLocked(delay time.Duration) {
 // poll sends a config request and parses the response. Returns the
 // delay until the next poll and the parsed config (nil on failure).
 // Does not apply config - the caller decides based on stop/timer state.
-func (cp *ConfigPull) poll(client SyncRequester) pollResult {
+func (cp *configPull) poll(client SyncRequester) pollResult {
 	msg := fimpgo.NewNullMessage(CmdGetConfig, Service, nil, nil, nil)
-	msg.Source = fimptype.ResourceNameT(cp.source)
-	msg.ResponseToTopic = fmt.Sprintf(configResponseTopicFmt, cp.source)
+	msg.Source = cp.sourceRn
+	msg.ResponseToTopic = fmt.Sprintf(configResponseTopicFmt, cp.sourceRn)
 
 	resp, err := client.SendFimp(cp.requestTopic, msg, cp.timeout)
 	if err != nil {
@@ -262,43 +197,25 @@ func (cp *ConfigPull) poll(client SyncRequester) pollResult {
 	return pollResult{delay: delay, cfg: &cfg}
 }
 
-// applyConfig applies the parsed cloud config to the reporter.
-// Enable and SetSuppressed are applied independently: a failure in
-// one does not prevent the other. The next poll reconciles any
-// partial state.
-func (cp *ConfigPull) applyConfig(cfg *ConfigResponse) {
+// applyConfig persists the cloud config to the reporter. Enable and
+// SetSuppressedDomains are applied independently: a failure in one does
+// not prevent the other. The next poll reconciles any partial state.
+func (cp *configPull) applyConfig(cfg *ConfigResponse) {
 	var failed bool
 
-	isDisabled := slices.Contains(cfg.DisabledDomains, cp.source)
-
-	// Apply suppression FIRST when this source should be suppressed,
-	// so there is no window where Report sees enabled=true + suppressed=false.
-	if isDisabled {
-		if err := cp.store.SetDisabledDomains(append(cp.store.DisabledDomains(), cp.source)); err != nil {
-			log.WithError(err).Errorf("[cliff] Telemetry config pull: failed to apply disabled domains")
-
-			failed = true
-		}
-	}
-
-	if err := cp.store.Enable(cfg.Enabled); err != nil {
+	if err := cp.telemetry.Enable(cfg.Enabled); err != nil {
 		log.WithError(err).Errorf("[cliff] Telemetry config pull: failed to apply enabled=%v", cfg.Enabled)
 
 		failed = true
 	}
 
-	// Clear suppression after enabling when this source is NOT suppressed.
-	if !isDisabled {
-		if err := cp.store.SetDisabledDomains(slices.DeleteFunc(cp.store.DisabledDomains(), func(s string) bool {
-			return s == cp.source
-		})); err != nil {
-			log.WithError(err).Errorf("[cliff] Telemetry config pull: failed to apply disabled domains")
+	if err := cp.telemetry.SetSuppressedDomains(cfg.Suppressed); err != nil {
+		log.WithError(err).Errorf("[cliff] Telemetry config pull: failed to apply suppressed domains")
 
-			failed = true
-		}
+		failed = true
 	}
 
 	if !failed {
-		log.Infof("[cliff] Telemetry config applied (enabled=%v, disabled_domains=%v)", cfg.Enabled, cp.store.DisabledDomains())
+		log.Infof("[cliff] Telemetry config applied (enabled=%v, suppressed=%v)", cfg.Enabled, cfg.Suppressed)
 	}
 }

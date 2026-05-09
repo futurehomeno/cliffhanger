@@ -1,8 +1,7 @@
-package config
+package log
 
 import (
 	"fmt"
-	"sync"
 	"time"
 
 	log "github.com/sirupsen/logrus"
@@ -14,9 +13,9 @@ import (
 // verbose logging until its next restart at or after the deadline.
 const DefaultLogRevertTimeout = 7 * 24 * time.Hour
 
-// LogStore persists log configuration so an armed auto-revert survives
+// storeIf persists log configuration so an armed auto-revert survives
 // application restarts.
-type LogStore interface {
+type storeIf interface {
 	Level() string
 	SetLevel(level string) error
 	Format() string
@@ -27,44 +26,6 @@ type LogStore interface {
 	SetRevertTimeout(d time.Duration) error
 	RevertAt() time.Time
 	SetRevertAt(t time.Time) error
-}
-
-// LogManagerOption configures a LogManager.
-type LogManagerOption func(*LogManager)
-
-// WithFormatApplier registers a hook that applies a new log format at runtime.
-// When nil or not provided, format changes are persisted only and take effect
-// on next restart.
-func WithFormatApplier(applier func(format string) error) LogManagerOption {
-	return func(m *LogManager) { m.formatApplier = applier }
-}
-
-// WithOutputApplier registers a hook that applies a new log output file at
-// runtime. When nil or not provided, file changes are persisted only and take
-// effect on next restart.
-func WithOutputApplier(applier func(file string) error) LogManagerOption {
-	return func(m *LogManager) { m.outputApplier = applier }
-}
-
-// LogManager coordinates dynamic log configuration. When the log level is
-// lowered to debug or trace, it persists an absolute revert deadline. The
-// deadline is evaluated on Start and the level reverts if it has elapsed.
-type LogManager struct {
-	store         LogStore
-	formatApplier func(string) error
-	outputApplier func(string) error
-
-	lock sync.Mutex
-}
-
-// NewLogManager creates a log manager backed by the given store.
-func NewLogManager(store LogStore, opts ...LogManagerOption) *LogManager {
-	m := &LogManager{store: store}
-	for _, opt := range opts {
-		opt(m)
-	}
-
-	return m
 }
 
 // Start evaluates a persisted revert deadline and reverts the level when it
@@ -240,9 +201,9 @@ func (m *LogManager) clearRevertStateLocked() error {
 }
 
 // NewDefaultLogStore adapts a config.Default-backed persistence layer to the
-// LogStore interface. The accessor must return a pointer to the embedded
+// storeIf interface. The accessor must return a pointer to the embedded
 // Default block; save persists any field mutation to disk.
-func NewDefaultLogStore(accessor func() *Default, save func() error) LogStore {
+func NewDefaultLogStore(accessor func() *Default, save func() error) storeIf {
 	return &defaultLogStore{accessor: accessor, save: save}
 }
 

@@ -13,21 +13,11 @@ const (
 	// Topic is the default FIMP topic used by the cloud telemetry pipeline.
 	// Picking mt:rsp is deliberate: it matches the existing CloudBridge
 	// LocalToCloud default route so no bridge change is needed.
-	Topic = "pt:j1/mt:rsp/rt:cloud/rn:backend-service/ad:telemetry"
+	DefaultTelemetryEvtTopic = "pt:j1/mt:evt/rt:cloud/rn:backend-service/ad:telemetry"
 	// MessageType is the FIMP type used for telemetry events.
 	MessageType = "evt.telemetry.report"
 	// Service is the FIMP serv field used for telemetry events.
 	Service fimptype.ServiceNameT = "telemetry"
-
-	// SettingEnabled is the config parameter name used by the FIMP
-	// cmd.config.set_telemetry_enabled / cmd.config.get_telemetry_enabled
-	// commands produced by RoutingForTelemetry.
-	SettingEnabled = "telemetry_enabled"
-	// SettingValidity is the config parameter name used by the FIMP
-	// cmd.config.set_telemetry_validity / cmd.config.get_telemetry_validity
-	// commands. Once the window elapses since the last Enable(true),
-	// the reporter auto-disables.
-	SettingValidity = "telemetry_validity"
 
 	// CmdGetConfig is the FIMP message type for requesting telemetry config
 	// from the cloud.
@@ -64,9 +54,11 @@ type Event struct {
 }
 
 // ConfigResponse is the payload of evt.telemetry.config_report from the cloud.
+//
+// Suppressed lists domain names for which Report/Emit are dropped on this
+// app; ReportRequired/EmitRequired still publish for those domains.
 type ConfigResponse struct {
-	Enabled         bool     `json:"enabled"`
-	RequiredOnly    bool     `json:"required_only"` // when domain enabled only EmitRequired and ReportRequired will be sent
-	DisabledDomains []string `json:"disabled_domains"`
-	NextUpdate      string   `json:"next_update"`
+	Enabled    bool     `json:"enabled"`
+	Suppressed []string `json:"suppressed"`
+	NextUpdate string   `json:"next_update"`
 }

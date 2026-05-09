@@ -7,9 +7,18 @@ import (
 	"path"
 	"path/filepath"
 	"sync"
+	"time"
 
+	"github.com/futurehomeno/cliffhanger/telemetry/types"
 	log "github.com/sirupsen/logrus"
 )
+
+type DefaultConfigIf interface {
+	GetTelemetry() (types.TelemetryConfig, error)
+	SetTelemetry(types.TelemetryConfig)
+	SetConfiguredAt(time.Time)
+	IncrementRestartsCount() int
+}
 
 // Constants defining internal settings of the storage.
 const (
@@ -28,9 +37,6 @@ type Storage[T any] interface {
 	Reset() error
 	// Model returns a configuration model object.
 	Model() T
-	// IncrementRestartsCount increments the restart counter in the model and persists it.
-	// The model must embed config.Default (which provides IncrementRestarts).
-	IncrementRestartsCount() (int, error)
 }
 
 // New creates a new storage service in accordance to Thingsplex layout. Provided model should be a pointer.
@@ -92,16 +98,12 @@ func (s *storage[T]) IncrementRestartsCount() (int, error) {
 	s.lock.Lock()
 	defer s.lock.Unlock()
 
-	type restartable interface {
-		IncrementRestartsCount() int
-	}
-
-	r, ok := any(s.model).(restartable)
+	d, ok := any(s.model).(DefaultConfigIf)
 	if !ok {
 		return 0, fmt.Errorf("storage: the model does not support restart counting")
 	}
 
-	count := r.IncrementRestartsCount()
+	count := d.IncrementRestartsCount()
 
 	if err := s.save(); err != nil {
 		return 0, fmt.Errorf("storage: failed to persist restart count: %w", err)
@@ -213,6 +215,11 @@ func (s *storage[T]) save() error {
 	err = s.makeBackup()
 	if err != nil {
 		return fmt.Errorf("storage: failed to make a configuration backup: %w", err)
+	}
+
+	d, ok := any(s.model).(DefaultConfigIf)
+	if ok {
+		d.SetConfiguredAt(time.Now())
 	}
 
 	body, err := json.MarshalIndent(s.model, "", "\t")
