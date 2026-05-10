@@ -118,7 +118,7 @@ func (c *proxyClient) getToken(request any, url string) (*OAuth2TokenResponse, e
 }
 
 func (c *proxyClient) requestToken(r *http.Request) (*OAuth2TokenResponse, error) {
-	response, err := c.client.Do(r) //nolint:gosec
+	response, err := c.client.Do(r)
 	if err != nil {
 		return nil, fmt.Errorf("proxy proxyClient: failed to retrieve token from partner API due to an error: %w", err)
 	}

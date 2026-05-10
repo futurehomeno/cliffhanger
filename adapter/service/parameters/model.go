@@ -196,7 +196,7 @@ func (o SelectOptions) IntValues() []int {
 		case float64:
 			values = append(values, int(v))
 		case uint:
-			values = append(values, int(v)) //nolint:gosec
+			values = append(values, int(v))
 		case uint8:
 			values = append(values, int(v))
 		case uint16:

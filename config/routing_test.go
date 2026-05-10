@@ -7,9 +7,6 @@ import (
 	"time"
 
 	"github.com/futurehomeno/fimpgo"
-	"github.com/futurehomeno/fimpgo/fimptype"
-	log "github.com/sirupsen/logrus"
-	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
 
 	"github.com/futurehomeno/cliffhanger/config"
@@ -17,81 +14,6 @@ import (
 	"github.com/futurehomeno/cliffhanger/task"
 	"github.com/futurehomeno/cliffhanger/test/suite"
 )
-
-func TestHandleCmdLogGetLevel(t *testing.T) { //nolint:paralleltest
-	makeCommand := func(valueType fimptype.ValueTypeT, value any) *fimpgo.Message {
-		return &fimpgo.Message{
-			Payload: &fimpgo.FimpMessage{
-				Interface: config.CmdLogSetLevel,
-				ValueType: valueType,
-				Value:     value,
-			},
-			Addr: &fimpgo.Address{},
-		}
-	}
-
-	tests := []struct {
-		name       string
-		logSetter  func(string) error
-		msg        *fimpgo.Message
-		want       *fimpgo.Message
-		wantErr    bool
-		wantLogLvl log.Level
-	}{
-		{
-			name: "happy path",
-			logSetter: func(s string) error {
-				lvl, err := log.ParseLevel(s)
-				if err != nil {
-					return err
-				}
-
-				log.SetLevel(lvl)
-
-				return nil
-			},
-			msg:        makeCommand("string", "error"),
-			wantLogLvl: log.ErrorLevel,
-		},
-		{
-			name:      "error when checking payload value",
-			logSetter: func(s string) error { return nil },
-			msg:       makeCommand("bool", true),
-			wantErr:   true,
-		},
-		{
-			name:      "error when parsing log level",
-			logSetter: func(s string) error { return nil },
-			msg:       makeCommand("string", "dummy"),
-			wantErr:   true,
-		},
-		{
-			name:      "error when saving log level",
-			logSetter: func(s string) error { return errors.New("test error") },
-			msg:       makeCommand("string", "error"),
-			wantErr:   true,
-		},
-	}
-
-	for _, tt := range tests { //nolint:paralleltest
-		tt := tt
-		t.Run(tt.name, func(t *testing.T) {
-			f := config.HandleCmdLogSetLevel("test", tt.logSetter)
-
-			got := f.Handle(tt.msg)
-
-			if tt.wantErr {
-				assert.NotNil(t, got)
-				assert.Equal(t, "evt.error.report", got.Payload.Interface)
-			} else {
-				assert.NotNil(t, got)
-				assert.Equal(t, config.EvtLogLevelReport, got.Payload.Interface)
-				assert.Equal(t, tt.wantLogLvl.String(), got.Payload.Value)
-				assert.Equal(t, tt.wantLogLvl, log.GetLevel())
-			}
-		})
-	}
-}
 
 func TestRouteConfig(t *testing.T) { //nolint:paralleltest
 	type TestObject struct {
@@ -120,13 +42,12 @@ func TestRouteConfig(t *testing.T) { //nolint:paralleltest
 					mArrayFloat := newConfigMock[[]float32]().mockGetter([]float32{1}).mockSetter([]float32{2}, nil)
 					mObject := newConfigMock[*TestObject]().mockGetter(&TestObject{"a"}).mockSetter(&TestObject{"b"}, nil)
 					mConfig := newConfigMock[*TestObject]().mockGetter(&TestObject{"a"})
-					mLog := newConfigMock[string]().mockGetter("debug").mockSetter("info", nil)
 
 					mocks = append(mocks,
 						mString, mBool, mInt, mFloat,
 						mMapString, mMapBool, mMapInt, mMapFloat,
 						mArrayString, mArrayBool, mArrayInt, mArrayFloat,
-						mDuration, mObject, mConfig, mLog,
+						mDuration, mObject, mConfig,
 					)
 
 					routing = append(routing,
@@ -159,8 +80,6 @@ func TestRouteConfig(t *testing.T) { //nolint:paralleltest
 						config.RouteCmdConfigGetObject("test_service", "test_setting_object", mObject.getter),
 						config.RouteCmdConfigSetObject("test_service", "test_setting_object", mObject.setter),
 						config.RouteCmdConfigGetReport("test_service", mConfig.getter),
-						config.RouteCmdLogGetLevel("test_service", mLog.getter),
-						config.RouteCmdLogSetLevel("test_service", mLog.setter),
 					)
 
 					return routing, tasks, mocks
@@ -338,19 +257,6 @@ func TestRouteConfig(t *testing.T) { //nolint:paralleltest
 						Command: suite.NullMessage("pt:j1/mt:cmd/rt:app/rn:test/ad:1", "cmd.config.get_report", "test_service"),
 						Expectations: []*suite.Expectation{
 							suite.ExpectObject("pt:j1/mt:evt/rt:app/rn:test/ad:1", "evt.config.report", "test_service", &TestObject{A: "a"}),
-						},
-					},
-
-					{
-						Command: suite.NullMessage("pt:j1/mt:cmd/rt:app/rn:test/ad:1", "cmd.log.get_level", "test_service"),
-						Expectations: []*suite.Expectation{
-							suite.ExpectString("pt:j1/mt:evt/rt:app/rn:test/ad:1", "evt.log.level_report", "test_service", "debug"),
-						},
-					},
-					{
-						Command: suite.StringMessage("pt:j1/mt:cmd/rt:app/rn:test/ad:1", "cmd.log.set_level", "test_service", "info"),
-						Expectations: []*suite.Expectation{
-							suite.ExpectString("pt:j1/mt:evt/rt:app/rn:test/ad:1", "evt.log.level_report", "test_service", "info"),
 						},
 					},
 				},

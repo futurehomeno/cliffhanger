@@ -1,0 +1,28 @@
+name: Setup Go environment
+description: Sets up Go and configures access to private futurehomeno modules.
+
+inputs:
+  go-version:
+    description: Go version to install.
+    required: false
+    default: '1.26'
+  github-token:
+    description: Token used to authenticate to private GitHub modules.
+    required: true
+
+runs:
+  using: composite
+  steps:
+    - uses: actions/setup-go@v5
+      with:
+        go-version: ${{ inputs.go-version }}
+
+    - name: Configure git for private modules
+      shell: bash
+      run: |
+        git config --global url."https://${{ inputs.github-token }}@github.com/".insteadOf "https://github.com/"
+
+    - name: Configure Go private modules
+      shell: bash
+      run: |
+        go env -w GOPRIVATE=github.com/futurehomeno/*

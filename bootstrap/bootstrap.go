@@ -2,21 +2,9 @@ package bootstrap
 
 import (
 	"flag"
-	"fmt"
 	"os"
 	"os/signal"
-	"path/filepath"
-	"sync"
 	"syscall"
-
-	"github.com/futurehomeno/cliffhanger/formatters"
-	log "github.com/sirupsen/logrus"
-	"gopkg.in/natefinch/lumberjack.v2"
-)
-
-var (
-	logConfigLock    sync.Mutex
-	currentLogOutput *lumberjack.Logger
 )
 
 // GetConfigurationDirectory returns a configuration directory passed through the -c option with a fallback to a relative path.
@@ -43,74 +31,6 @@ func GetWorkingDirectory() string {
 	}
 
 	return dir
-}
-
-func InitializeLogger(logFile string, level string, logFormat string) error {
-	SetLogFormat(logFormat)
-
-	logLevel, err := log.ParseLevel(level)
-	if err != nil {
-		log.SetLevel(log.InfoLevel)
-		log.Warnf("[cliff] invalid log level %q, falling back to %s", level, log.InfoLevel)
-	} else {
-		log.SetLevel(logLevel)
-	}
-
-	return SetLogOutput(logFile)
-}
-
-func SetLogFormat(logFormat string) {
-	logConfigLock.Lock()
-	defer logConfigLock.Unlock()
-
-	switch logFormat {
-	case "json":
-		log.SetFormatter(&log.JSONFormatter{TimestampFormat: "2006-01-02 15:04:05.999"})
-	case "budzik":
-		log.SetFormatter(formatters.NewBudzikFormatter())
-	default:
-		log.SetFormatter(&log.TextFormatter{FullTimestamp: true, ForceColors: true, TimestampFormat: "2006-01-02T15:04:05.999"})
-	}
-}
-
-// SetLogOutput (re)configures the lumberjack-rotated log output to the given
-// file. It creates the target directory if missing and closes any previously
-// configured output. Safe to call repeatedly at runtime.
-func SetLogOutput(logFile string) error {
-	if logFile == "" {
-		return fmt.Errorf("logfile not set")
-	}
-
-	logConfigLock.Lock()
-	defer logConfigLock.Unlock()
-
-	if err := os.MkdirAll(filepath.Dir(logFile), 0755); err != nil { //nolint:gosec
-		return fmt.Errorf("create log dir=%s err: %w", filepath.Dir(logFile), err)
-	}
-
-	if f, err := os.OpenFile(logFile, os.O_RDONLY|os.O_CREATE, 0644); err != nil { //nolint:gosec
-		return fmt.Errorf("open log file=%s err: %w", logFile, err)
-	} else if cerr := f.Close(); cerr != nil {
-		log.Errorf("close err: %v", cerr)
-	}
-
-	newOutput := &lumberjack.Logger{
-		Filename:   logFile,
-		MaxSize:    5, // MiB
-		MaxBackups: 4,
-	}
-
-	previous := currentLogOutput
-	currentLogOutput = newOutput
-	log.SetOutput(newOutput)
-
-	if previous != nil && previous != newOutput {
-		if err := previous.Close(); err != nil {
-			log.Errorf("close previous log output err: %v", err)
-		}
-	}
-
-	return nil
 }
 
 func WaitForShutdown() {

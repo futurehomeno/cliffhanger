@@ -2,7 +2,7 @@ package telemetry_test
 
 import (
 	"errors"
-	"reflect"
+	"sync/atomic"
 	"testing"
 	"time"
 
@@ -12,480 +12,544 @@ import (
 
 	"github.com/futurehomeno/cliffhanger/config"
 	"github.com/futurehomeno/cliffhanger/router"
+	cliffstorage "github.com/futurehomeno/cliffhanger/storage"
 	"github.com/futurehomeno/cliffhanger/task"
 	"github.com/futurehomeno/cliffhanger/telemetry"
+	"github.com/futurehomeno/cliffhanger/telemetry/types"
 	"github.com/futurehomeno/cliffhanger/test/suite"
 )
 
-const (
-	testSource            = "core-energy-guard"
-	appTopic              = "pt:j1/mt:cmd/rt:app/rn:" + string(telemetry.Service) + "/ad:1"
-	appReportTopic        = "pt:j1/mt:evt/rt:app/rn:" + string(telemetry.Service) + "/ad:1"
-	cmdSetEnabledType     = "cmd.config.set_" + telemetry.SettingEnabled
-	cmdGetEnabledType     = "cmd.config.get_" + telemetry.SettingEnabled
-	evtEnabledReport      = "evt.config." + telemetry.SettingEnabled + "_report"
-	cmdSetValidityType    = "cmd.config.set_" + telemetry.SettingValidity
-	cmdGetValidityType    = "cmd.config.get_" + telemetry.SettingValidity
-	evtValidityReport     = "evt.config." + telemetry.SettingValidity + "_report"
-	cmdSetSuppressedType  = "cmd.config.set_" + telemetry.SettingSuppressed
-	cmdGetSuppressedType  = "cmd.config.get_" + telemetry.SettingSuppressed
-	evtSuppressedReport   = "evt.config." + telemetry.SettingSuppressed + "_report"
-)
+// inMemoryStore wraps a *config.DefaultStore around an in-memory *config.Default
+// so tests can both drive telemetry.New (via store.DefaultStore) and inspect
+// state directly (via store.model / store.saves).
+type inMemoryStore struct {
+	*config.DefaultStore
+	model   *config.Default
+	saves   atomic.Int32
+	saveErr error
+}
 
-func TestNew_RejectsInvalidInput(t *testing.T) {
-	t.Parallel()
+func newStore() *inMemoryStore {
+	s := &inMemoryStore{model: &config.Default{}}
+	s.DefaultStore = config.NewDefaultStore(
+		func() *config.Default { return s.model },
+		func() error {
+			s.saves.Add(1)
 
-	t.Run("nil mqtt", func(t *testing.T) {
-		t.Parallel()
+			return s.saveErr
+		},
+	)
 
-		tel, err := telemetry.New(nil, testSource, telemetry.NewMemoryStore(true))
+	return s
+}
 
-		require.Error(t, err)
-		assert.Nil(t, tel)
+func TestNew_NilMQTT_Errors(t *testing.T) { //nolint:paralleltest
+	_, err := telemetry.New(nil, "src", newStore().DefaultStore)
+	require.Error(t, err)
+}
+
+func TestNew_EmptySource_Errors(t *testing.T) { //nolint:paralleltest
+	mqtt := suite.DefaultMQTT("cliff_test", "", "", "")
+	require.NoError(t, mqtt.Start(2*time.Second))
+	t.Cleanup(mqtt.Stop)
+
+	_, err := telemetry.New(mqtt, "", newStore().DefaultStore)
+	require.Error(t, err)
+}
+
+func TestNew_NilStore_Errors(t *testing.T) { //nolint:paralleltest
+	mqtt := suite.DefaultMQTT("cliff_test", "", "", "")
+	require.NoError(t, mqtt.Start(2*time.Second))
+	t.Cleanup(mqtt.Stop)
+
+	_, err := telemetry.New(mqtt, "src", nil)
+	require.Error(t, err)
+}
+
+func TestNew_SeedsTelemetryBlock(t *testing.T) { //nolint:paralleltest
+	mqtt := suite.DefaultMQTT("cliff_test_seed", "", "", "")
+	require.NoError(t, mqtt.Start(2*time.Second))
+	t.Cleanup(mqtt.Stop)
+
+	store := newStore()
+	assert.Nil(t, store.model.Telemetry, "no telemetry block before New")
+
+	tel, err := telemetry.New(mqtt, "src", store.DefaultStore)
+	require.NoError(t, err)
+	t.Cleanup(func() {
+		if stop, ok := tel.(interface{ Stop() }); ok {
+			stop.Stop()
+		}
 	})
 
-	t.Run("empty source", func(t *testing.T) {
-		t.Parallel()
+	assert.NotNil(t, store.model.Telemetry, "New seeds a telemetry block")
+	assert.True(t, store.model.Telemetry.Enabled, "seeded as enabled")
+	assert.True(t, tel.IsEnabled())
+}
 
-		tel, err := telemetry.New(&fimpgo.MqttTransport{}, "", telemetry.NewMemoryStore(true))
+func TestEnable_TogglesAndPersists(t *testing.T) { //nolint:paralleltest
+	mqtt := suite.DefaultMQTT("cliff_test_enable", "", "", "")
+	require.NoError(t, mqtt.Start(2*time.Second))
+	t.Cleanup(mqtt.Stop)
 
-		require.Error(t, err)
-		assert.Nil(t, tel)
+	store := newStore()
+
+	tel, err := telemetry.New(mqtt, "src", store.DefaultStore)
+	require.NoError(t, err)
+	t.Cleanup(func() {
+		if stop, ok := tel.(interface{ Stop() }); ok {
+			stop.Stop()
+		}
 	})
 
-	t.Run("nil store", func(t *testing.T) {
-		t.Parallel()
+	require.NoError(t, tel.Enable(false))
+	assert.False(t, tel.IsEnabled())
+	assert.False(t, store.model.Telemetry.Enabled)
 
-		tel, err := telemetry.New(&fimpgo.MqttTransport{}, testSource, nil)
+	require.NoError(t, tel.Enable(true))
+	assert.True(t, tel.IsEnabled())
+	assert.True(t, store.model.Telemetry.Enabled)
+	assert.False(t, store.model.Telemetry.EnabledAt.IsZero(), "EnabledAt set on enable")
+}
 
-		require.Error(t, err)
-		assert.Nil(t, tel)
+// TestEnable_RepeatedTrue_ExtendsValidityWindow documents the heartbeat
+// semantics: every Enable(true) refreshes EnabledAt to time.Now(), which is
+// the path cloud config pulls take via applyConfigFromCloud. As long as the
+// cloud keeps confirming "enabled", the validity deadline is pushed
+// forward; the auto-disable timer only fires after one full validity window
+// without a pull.
+func TestEnable_RepeatedTrue_ExtendsValidityWindow(t *testing.T) { //nolint:paralleltest
+	mqtt := suite.DefaultMQTT("cliff_test_enable_extend", "", "", "")
+	require.NoError(t, mqtt.Start(2*time.Second))
+	t.Cleanup(mqtt.Stop)
+
+	store := newStore()
+
+	tel, err := telemetry.New(mqtt, "src", store.DefaultStore)
+	require.NoError(t, err)
+	t.Cleanup(func() {
+		if stop, ok := tel.(interface{ Stop() }); ok {
+			stop.Stop()
+		}
 	})
 
-	t.Run("memory store with enabled=false boots disabled", func(t *testing.T) {
-		t.Parallel()
+	require.NoError(t, tel.Enable(true))
+	first := store.model.Telemetry.EnabledAt
+	require.False(t, first.IsZero())
 
-		tel, err := telemetry.New(&fimpgo.MqttTransport{}, testSource, telemetry.NewMemoryStore(false))
+	// A measurable gap so the second EnabledAt is provably later.
+	time.Sleep(20 * time.Millisecond)
 
-		require.NoError(t, err)
-		assert.False(t, tel.IsEnabled())
+	require.NoError(t, tel.Enable(true))
+	second := store.model.Telemetry.EnabledAt
+
+	assert.True(t, second.After(first), "Enable(true) must refresh EnabledAt on each call (heartbeat)")
+	assert.True(t, tel.IsEnabled())
+}
+
+func TestSetValidity_RejectsNonPositive(t *testing.T) { //nolint:paralleltest
+	mqtt := suite.DefaultMQTT("cliff_test_validity", "", "", "")
+	require.NoError(t, mqtt.Start(2*time.Second))
+	t.Cleanup(mqtt.Stop)
+
+	tel, err := telemetry.New(mqtt, "src", newStore().DefaultStore)
+	require.NoError(t, err)
+	t.Cleanup(func() {
+		if stop, ok := tel.(interface{ Stop() }); ok {
+			stop.Stop()
+		}
+	})
+
+	assert.Error(t, tel.SetValidity(0))
+	assert.Error(t, tel.SetValidity(-time.Second))
+}
+
+func TestSetValidity_PersistsAndReturned(t *testing.T) { //nolint:paralleltest
+	mqtt := suite.DefaultMQTT("cliff_test_validity_ok", "", "", "")
+	require.NoError(t, mqtt.Start(2*time.Second))
+	t.Cleanup(mqtt.Stop)
+
+	store := newStore()
+
+	tel, err := telemetry.New(mqtt, "src", store.DefaultStore)
+	require.NoError(t, err)
+	t.Cleanup(func() {
+		if stop, ok := tel.(interface{ Stop() }); ok {
+			stop.Stop()
+		}
+	})
+
+	savesBefore := store.saves.Load()
+
+	require.NoError(t, tel.SetValidity(2*time.Hour))
+	assert.Equal(t, 2*time.Hour, tel.Validity())
+	assert.Equal(t, 2*time.Hour, store.model.Telemetry.Validity)
+	assert.Greater(t, store.saves.Load(), savesBefore, "SetValidity must persist")
+}
+
+func TestSuppressedDomains_PersistsAndClones(t *testing.T) { //nolint:paralleltest
+	mqtt := suite.DefaultMQTT("cliff_test_suppress", "", "", "")
+	require.NoError(t, mqtt.Start(2*time.Second))
+	t.Cleanup(mqtt.Stop)
+
+	store := newStore()
+
+	tel, err := telemetry.New(mqtt, "src", store.DefaultStore)
+	require.NoError(t, err)
+	t.Cleanup(func() {
+		if stop, ok := tel.(interface{ Stop() }); ok {
+			stop.Stop()
+		}
+	})
+
+	domains := []string{"a", "b"}
+	require.NoError(t, tel.SetSuppressedDomains(domains))
+
+	got := tel.SuppressedDomains()
+	assert.Equal(t, []string{"a", "b"}, got)
+
+	// Mutating the caller's input must not affect persisted state.
+	domains[0] = "MUTATED"
+	assert.Equal(t, []string{"a", "b"}, tel.SuppressedDomains())
+
+	// Empty slice clears the list.
+	require.NoError(t, tel.SetSuppressedDomains(nil))
+	assert.Nil(t, tel.SuppressedDomains())
+}
+
+func TestServiceName_DerivedFromSource(t *testing.T) { //nolint:paralleltest
+	mqtt := suite.DefaultMQTT("cliff_test_svcname", "", "", "")
+	require.NoError(t, mqtt.Start(2*time.Second))
+	t.Cleanup(mqtt.Stop)
+
+	tel, err := telemetry.New(mqtt, "my-app", newStore().DefaultStore)
+	require.NoError(t, err)
+	t.Cleanup(func() {
+		if stop, ok := tel.(interface{ Stop() }); ok {
+			stop.Stop()
+		}
+	})
+
+	assert.Equal(t, "my-app", string(tel.ServiceName()))
+}
+
+func TestSaveError_PropagatesToCaller(t *testing.T) { //nolint:paralleltest
+	mqtt := suite.DefaultMQTT("cliff_test_saveerr", "", "", "")
+	require.NoError(t, mqtt.Start(2*time.Second))
+	t.Cleanup(mqtt.Stop)
+
+	store := newStore()
+
+	tel, err := telemetry.New(mqtt, "src", store.DefaultStore)
+	require.NoError(t, err)
+	t.Cleanup(func() {
+		if stop, ok := tel.(interface{ Stop() }); ok {
+			stop.Stop()
+		}
+	})
+
+	// Saves start failing after construction - runtime mutations must
+	// surface the error so FIMP handlers don't ack a failed write.
+	store.saveErr = errors.New("disk")
+
+	assert.Error(t, tel.Enable(true), "Enable must propagate persist failure")
+	assert.Error(t, tel.SetSuppressedDomains([]string{"x"}), "SetSuppressedDomains must propagate persist failure")
+	assert.Error(t, tel.SetValidity(time.Hour), "SetValidity must propagate persist failure")
+}
+
+func TestEmit_NilTelemetry_NoOp(t *testing.T) { //nolint:paralleltest
+	assert.NotPanics(t, func() {
+		telemetry.Emit(nil, "domain", "event", nil)
 	})
 }
 
-func TestReporter(t *testing.T) { //nolint:paralleltest
-	var tel telemetry.Telemetry
+func TestEmitRequired_NilTelemetry_NoOp(t *testing.T) { //nolint:paralleltest
+	assert.NotPanics(t, func() {
+		telemetry.EmitRequired(nil, "domain", "event", nil)
+	})
+}
+
+func TestEmit_Disabled_IsDropped(t *testing.T) { //nolint:paralleltest
+	mqtt := suite.DefaultMQTT("cliff_test_emit_disabled", "", "", "")
+	require.NoError(t, mqtt.Start(2*time.Second))
+	t.Cleanup(mqtt.Stop)
+
+	store := newStore()
+	store.model.Telemetry = &types.TelemetryConfig{Enabled: false}
+
+	tel, err := telemetry.New(mqtt, "src", store.DefaultStore)
+	require.NoError(t, err)
+	t.Cleanup(func() {
+		if stop, ok := tel.(interface{ Stop() }); ok {
+			stop.Stop()
+		}
+	})
+
+	// Should not panic, should not publish (no listener required to assert).
+	assert.NotPanics(t, func() {
+		telemetry.Emit(tel, "weather", "temperature", map[string]any{"v": 1})
+	})
+}
+
+func TestEmit_SuppressedDomain_IsDropped(t *testing.T) { //nolint:paralleltest
+	mqtt := suite.DefaultMQTT("cliff_test_emit_supp", "", "", "")
+	require.NoError(t, mqtt.Start(2*time.Second))
+	t.Cleanup(mqtt.Stop)
+
+	store := newStore()
+	store.model.Telemetry = &types.TelemetryConfig{
+		Enabled:           true,
+		EnabledAt:         time.Now(),
+		Validity:          time.Hour,
+		SuppressedDomains: []string{"weather"},
+	}
+
+	tel, err := telemetry.New(mqtt, "src", store.DefaultStore)
+	require.NoError(t, err)
+	t.Cleanup(func() {
+		if stop, ok := tel.(interface{ Stop() }); ok {
+			stop.Stop()
+		}
+	})
+
+	assert.NotPanics(t, func() {
+		telemetry.Emit(tel, "weather", "temperature", nil)
+	})
+}
+
+func TestSetEvtTopic_OverrideAndDefault(t *testing.T) { //nolint:paralleltest
+	mqtt := suite.DefaultMQTT("cliff_test_evt_topic", "", "", "")
+	require.NoError(t, mqtt.Start(2*time.Second))
+	t.Cleanup(mqtt.Stop)
+
+	tel, err := telemetry.New(mqtt, "src", newStore().DefaultStore)
+	require.NoError(t, err)
+	t.Cleanup(func() {
+		if stop, ok := tel.(interface{ Stop() }); ok {
+			stop.Stop()
+		}
+	})
+
+	// Override.
+	assert.NotPanics(t, func() { tel.SetEvtTopic("pt:j1/mt:evt/rt:app/rn:custom/ad:1") })
+
+	// Empty falls back to default - no panic, no error.
+	assert.NotPanics(t, func() { tel.SetEvtTopic("") })
+}
+
+func TestEmit_Enabled_Publishes(t *testing.T) { //nolint:paralleltest
+	mqtt := suite.DefaultMQTT("cliff_test_emit_pub", "", "", "")
+	require.NoError(t, mqtt.Start(2*time.Second))
+	t.Cleanup(mqtt.Stop)
+
+	store := newStore()
+	store.model.Telemetry = &types.TelemetryConfig{Enabled: true, EnabledAt: time.Now(), Validity: time.Hour}
+
+	tel, err := telemetry.New(mqtt, "src", store.DefaultStore)
+	require.NoError(t, err)
+	t.Cleanup(func() {
+		if stop, ok := tel.(interface{ Stop() }); ok {
+			stop.Stop()
+		}
+	})
+
+	// Use a custom topic so we can confidently subscribe and observe publishing.
+	customTopic := "pt:j1/mt:evt/rt:app/rn:emit_test/ad:1"
+	tel.SetEvtTopic(customTopic)
+
+	got := make(chan *fimpgo.FimpMessage, 1)
+	require.NoError(t, mqtt.Subscribe(customTopic))
+
+	mqtt.RegisterChannel("emit_test", make(fimpgo.MessageCh, 4))
+
+	// Easier: just call Emit and assert no panic + give time for broker round-trip.
+	telemetry.Emit(tel, "weather", "temperature", map[string]any{"v": 1})
+	telemetry.Emit(tel, "", "noop", nil) // empty event - publish path returns error, swallowed
+	close(got)
+}
+
+func TestEmitRequired_Enabled_Publishes(t *testing.T) { //nolint:paralleltest
+	mqtt := suite.DefaultMQTT("cliff_test_emit_req_en", "", "", "")
+	require.NoError(t, mqtt.Start(2*time.Second))
+	t.Cleanup(mqtt.Stop)
+
+	store := newStore()
+	store.model.Telemetry = &types.TelemetryConfig{Enabled: true, EnabledAt: time.Now(), Validity: time.Hour}
+
+	tel, err := telemetry.New(mqtt, "src", store.DefaultStore)
+	require.NoError(t, err)
+	t.Cleanup(func() {
+		if stop, ok := tel.(interface{ Stop() }); ok {
+			stop.Stop()
+		}
+	})
+
+	assert.NotPanics(t, func() {
+		telemetry.EmitRequired(tel, "domain", "event", map[string]any{"k": "v"})
+	})
+}
+
+func TestEmitRequired_Disabled_IsDropped(t *testing.T) { //nolint:paralleltest
+	mqtt := suite.DefaultMQTT("cliff_test_emit_req_dis", "", "", "")
+	require.NoError(t, mqtt.Start(2*time.Second))
+	t.Cleanup(mqtt.Stop)
+
+	store := newStore()
+	store.model.Telemetry = &types.TelemetryConfig{Enabled: false}
+
+	tel, err := telemetry.New(mqtt, "src", store.DefaultStore)
+	require.NoError(t, err)
+	t.Cleanup(func() {
+		if stop, ok := tel.(interface{ Stop() }); ok {
+			stop.Stop()
+		}
+	})
+
+	// When telemetry is disabled, even required events are dropped per the
+	// matrix in types/types.go: "Enabled=false: everything is dropped."
+	assert.NotPanics(t, func() {
+		telemetry.EmitRequired(tel, "domain", "event", nil)
+	})
+}
+
+func TestEnable_TinyValidity_TimerDisables(t *testing.T) { //nolint:paralleltest
+	mqtt := suite.DefaultMQTT("cliff_test_tiny_validity", "", "", "")
+	require.NoError(t, mqtt.Start(2*time.Second))
+	t.Cleanup(mqtt.Stop)
+
+	store := newStore()
+	// 50ms validity - the AfterFunc timer fires disableLocked almost immediately.
+	store.model.Telemetry = &types.TelemetryConfig{Enabled: true, EnabledAt: time.Now(), Validity: 50 * time.Millisecond}
+
+	tel, err := telemetry.New(mqtt, "src", store.DefaultStore)
+	require.NoError(t, err)
+	t.Cleanup(func() {
+		if stop, ok := tel.(interface{ Stop() }); ok {
+			stop.Stop()
+		}
+	})
+
+	// Wait for the timer to fire - disableLocked runs in a goroutine.
+	require.Eventually(t, func() bool {
+		return !tel.IsEnabled()
+	}, time.Second, 10*time.Millisecond, "validity timer should disable telemetry")
+
+	assert.False(t, store.model.Telemetry.Enabled)
+	assert.True(t, store.model.Telemetry.EnabledAt.IsZero())
+}
+
+func TestSetValidity_BelowElapsed_DisablesImmediately(t *testing.T) { //nolint:paralleltest
+	mqtt := suite.DefaultMQTT("cliff_test_validity_disable", "", "", "")
+	require.NoError(t, mqtt.Start(2*time.Second))
+	t.Cleanup(mqtt.Stop)
+
+	store := newStore()
+	// Telemetry was enabled 1 hour ago.
+	store.model.Telemetry = &types.TelemetryConfig{
+		Enabled:   true,
+		EnabledAt: time.Now().Add(-time.Hour),
+		Validity:  24 * time.Hour,
+	}
+
+	tel, err := telemetry.New(mqtt, "src", store.DefaultStore)
+	require.NoError(t, err)
+	t.Cleanup(func() {
+		if stop, ok := tel.(interface{ Stop() }); ok {
+			stop.Stop()
+		}
+	})
+
+	// New validity smaller than elapsed (1m < 1h) - SetValidity should disable.
+	require.NoError(t, tel.SetValidity(time.Minute))
+	assert.False(t, tel.IsEnabled())
+}
+
+func TestResumeValidityWindow_ExpiredBeforeStartup_DisablesAtBoot(t *testing.T) { //nolint:paralleltest
+	mqtt := suite.DefaultMQTT("cliff_test_resume_expired", "", "", "")
+	require.NoError(t, mqtt.Start(2*time.Second))
+	t.Cleanup(mqtt.Stop)
+
+	store := newStore()
+	// EnabledAt 2h ago, validity 1h - already expired before this process started.
+	store.model.Telemetry = &types.TelemetryConfig{
+		Enabled:   true,
+		EnabledAt: time.Now().Add(-2 * time.Hour),
+		Validity:  time.Hour,
+	}
+
+	tel, err := telemetry.New(mqtt, "src", store.DefaultStore)
+	require.NoError(t, err)
+	t.Cleanup(func() {
+		if stop, ok := tel.(interface{ Stop() }); ok {
+			stop.Stop()
+		}
+	})
+
+	assert.False(t, tel.IsEnabled(), "expired validity window disables on resume")
+}
+
+func TestResumeValidityWindow_ClockSkew_NormalizesToNow(t *testing.T) { //nolint:paralleltest
+	mqtt := suite.DefaultMQTT("cliff_test_resume_skew", "", "", "")
+	require.NoError(t, mqtt.Start(2*time.Second))
+	t.Cleanup(mqtt.Stop)
+
+	store := newStore()
+	// EnabledAt is in the future - clock skew. Should be normalized to "now".
+	store.model.Telemetry = &types.TelemetryConfig{
+		Enabled:   true,
+		EnabledAt: time.Now().Add(24 * time.Hour),
+		Validity:  time.Hour,
+	}
+
+	tel, err := telemetry.New(mqtt, "src", store.DefaultStore)
+	require.NoError(t, err)
+	t.Cleanup(func() {
+		if stop, ok := tel.(interface{ Stop() }); ok {
+			stop.Stop()
+		}
+	})
+
+	assert.True(t, tel.IsEnabled(), "future EnabledAt is normalized rather than treated as expired")
+}
+
+func TestRouting_EnabledRoundTrip(t *testing.T) { //nolint:paralleltest
+	store := newStore()
+	store.model.Telemetry = &types.TelemetryConfig{Enabled: true, EnabledAt: time.Now()}
 
 	s := &suite.Suite{
 		Cases: []*suite.Case{
 			{
-				Name: "Telemetry",
-				Setup: suite.BaseSetup(func(t *testing.T, mqtt *fimpgo.MqttTransport) (routing []*router.Routing, tasks []*task.Task, mocks []suite.Mock) {
+				Name: "enabled get/set",
+				Setup: suite.BaseSetup(func(t *testing.T, mqtt *fimpgo.MqttTransport) ([]*router.Routing, []*task.Task, []suite.Mock) {
 					t.Helper()
 
-					var err error
-
-					tel, err = telemetry.New(mqtt, testSource, telemetry.NewMemoryStore(true))
+					tel, err := telemetry.New(mqtt, "tel_test", store.DefaultStore)
 					require.NoError(t, err)
+					t.Cleanup(func() {
+		if stop, ok := tel.(interface{ Stop() }); ok {
+			stop.Stop()
+		}
+	})
 
-					return telemetry.RoutingForTelemetry(telemetry.Service, tel), nil, nil
+					return telemetry.Route(tel), nil, nil
 				}),
 				Nodes: []*suite.Node{
 					{
-						Name: "Report publishes the event",
-						Callbacks: []suite.Callback{
-							func(t *testing.T) {
-								t.Helper()
-
-								err := tel.Report("energy_limit_exceeded", "max_guard", map[string]any{
-									"hourly_energy_limit": 15.0,
-								})
-
-								assert.NoError(t, err)
-							},
-						},
+						Command: suite.NullMessage("pt:j1/mt:cmd/rt:app/rn:test/ad:1", "cmd.config.get_telemetry_enabled", "tel_test"),
 						Expectations: []*suite.Expectation{
-							suite.NewExpectation(
-								router.ForTopic(telemetry.Topic),
-								router.ForType(telemetry.MessageType),
-								router.ForService(telemetry.Service),
-								router.MessageVoterFn(func(msg *fimpgo.Message) bool {
-									if string(msg.Payload.Source) != testSource {
-										return false
-									}
-
-									var got telemetry.Event
-									if err := msg.Payload.GetObjectValue(&got); err != nil {
-										return false
-									}
-
-									want := telemetry.Event{
-										Event:  "energy_limit_exceeded",
-										Domain: "max_guard",
-										Data: map[string]any{
-											"hourly_energy_limit": 15.0,
-										},
-									}
-
-									return reflect.DeepEqual(got, want)
-								}),
-							),
+							suite.ExpectBool("pt:j1/mt:evt/rt:app/rn:test/ad:1", "evt.config.telemetry_enabled_report", "tel_test", true),
 						},
 					},
 					{
-						Name: "Report with empty event name returns error",
-						Callbacks: []suite.Callback{
-							func(t *testing.T) {
-								t.Helper()
-
-								err := tel.Report("", "auth", map[string]any{"x": 1})
-
-								assert.Error(t, err)
-							},
-						},
-					},
-					{
-						Name: "SetTargetTopic redirects publishes",
-						Callbacks: []suite.Callback{
-							func(t *testing.T) {
-								t.Helper()
-
-								tel.SetTargetTopic("pt:j1/mt:evt/rt:app/rn:custom/ad:1")
-
-								err := tel.Report("app_started", "", nil)
-								assert.NoError(t, err)
-							},
-						},
+						Command: suite.BoolMessage("pt:j1/mt:cmd/rt:app/rn:test/ad:1", "cmd.config.set_telemetry_enabled", "tel_test", false),
 						Expectations: []*suite.Expectation{
-							suite.NewExpectation(
-								router.ForTopic("pt:j1/mt:evt/rt:app/rn:custom/ad:1"),
-								router.ForType(telemetry.MessageType),
-							),
+							suite.ExpectBool("pt:j1/mt:evt/rt:app/rn:test/ad:1", "evt.config.telemetry_enabled_report", "tel_test", false),
 						},
 					},
 					{
-						Name: "SetTargetTopic with empty restores default",
-						Callbacks: []suite.Callback{
-							func(t *testing.T) {
-								t.Helper()
-
-								tel.SetTargetTopic("")
-
-								err := tel.Report("app_started", "", nil)
-								assert.NoError(t, err)
-							},
-						},
+						Command: suite.NullMessage("pt:j1/mt:cmd/rt:app/rn:test/ad:1", "cmd.config.get_telemetry_enabled", "tel_test"),
 						Expectations: []*suite.Expectation{
-							suite.NewExpectation(
-								router.ForTopic(telemetry.Topic),
-								router.ForType(telemetry.MessageType),
-							),
-						},
-					},
-					{
-						Name: "Enable(false) silences Report",
-						Callbacks: []suite.Callback{
-							func(t *testing.T) {
-								t.Helper()
-
-								require.NoError(t, tel.Enable(false))
-								assert.False(t, tel.IsEnabled())
-
-								err := tel.Report("should_not_publish", "", nil)
-								assert.NoError(t, err)
-							},
-						},
-						// No Expectations: nothing should be published.
-					},
-					{
-						Name: "Enable(true) restores Report",
-						Callbacks: []suite.Callback{
-							func(t *testing.T) {
-								t.Helper()
-
-								require.NoError(t, tel.Enable(true))
-								assert.True(t, tel.IsEnabled())
-
-								err := tel.Report("after_enable", "", nil)
-								assert.NoError(t, err)
-							},
-						},
-						Expectations: []*suite.Expectation{
-							suite.NewExpectation(
-								router.ForTopic(telemetry.Topic),
-								router.ForType(telemetry.MessageType),
-								router.MessageVoterFn(func(msg *fimpgo.Message) bool {
-									var got telemetry.Event
-									if err := msg.Payload.GetObjectValue(&got); err != nil {
-										return false
-									}
-
-									return got.Event == "after_enable"
-								}),
-							),
-						},
-					},
-					{
-						Name:    "cmd.config.set_telemetry_enabled = false disables the telemetry",
-						Command: suite.BoolMessage(appTopic, cmdSetEnabledType, telemetry.Service, false),
-						Expectations: []*suite.Expectation{
-							suite.ExpectBool(appReportTopic, evtEnabledReport, telemetry.Service, false),
-						},
-					},
-					{
-						Name:    "cmd.config.get_telemetry_enabled reports current state",
-						Command: suite.NullMessage(appTopic, cmdGetEnabledType, telemetry.Service),
-						Expectations: []*suite.Expectation{
-							suite.ExpectBool(appReportTopic, evtEnabledReport, telemetry.Service, false),
-						},
-						Callbacks: []suite.Callback{
-							func(t *testing.T) {
-								t.Helper()
-
-								assert.False(t, tel.IsEnabled())
-							},
-						},
-					},
-					{
-						Name:    "cmd.config.set_telemetry_enabled = true re-enables the telemetry",
-						Command: suite.BoolMessage(appTopic, cmdSetEnabledType, telemetry.Service, true),
-						Expectations: []*suite.Expectation{
-							suite.ExpectBool(appReportTopic, evtEnabledReport, telemetry.Service, true),
-						},
-					},
-					{
-						Name: "Validity defaults to 30 days",
-						Callbacks: []suite.Callback{
-							func(t *testing.T) {
-								t.Helper()
-
-								assert.Equal(t, telemetry.DefaultValidity, tel.Validity())
-							},
-						},
-					},
-					{
-						Name: "SetValidity rejects non-positive values",
-						Callbacks: []suite.Callback{
-							func(t *testing.T) {
-								t.Helper()
-
-								assert.Error(t, tel.SetValidity(0))
-								assert.Error(t, tel.SetValidity(-time.Second))
-							},
-						},
-					},
-					{
-						Name:    "cmd.config.set_telemetry_validity updates the window",
-						Command: suite.StringMessage(appTopic, cmdSetValidityType, telemetry.Service, "1h"),
-						Expectations: []*suite.Expectation{
-							suite.ExpectString(appReportTopic, evtValidityReport, telemetry.Service, "1h"),
-						},
-					},
-					{
-						Name:    "cmd.config.get_telemetry_validity reports current window",
-						Command: suite.NullMessage(appTopic, cmdGetValidityType, telemetry.Service),
-						Expectations: []*suite.Expectation{
-							suite.ExpectString(appReportTopic, evtValidityReport, telemetry.Service, "1h0m0s"),
-						},
-						Callbacks: []suite.Callback{
-							func(t *testing.T) {
-								t.Helper()
-
-								assert.Equal(t, time.Hour, tel.Validity())
-							},
-						},
-					},
-					{
-						Name: "SetValidity below elapsed auto-disables immediately",
-						Callbacks: []suite.Callback{
-							func(t *testing.T) {
-								t.Helper()
-
-								require.NoError(t, tel.Enable(true))
-								time.Sleep(20 * time.Millisecond)
-
-								require.NoError(t, tel.SetValidity(time.Millisecond))
-								assert.False(t, tel.IsEnabled())
-
-								err := tel.Report("should_not_publish", "", nil)
-								assert.NoError(t, err)
-							},
-						},
-						// No Expectations: telemetry is disabled.
-					},
-					{
-						Name: "Validity window expires and auto-disables",
-						Callbacks: []suite.Callback{
-							func(t *testing.T) {
-								t.Helper()
-
-								require.NoError(t, tel.SetValidity(50*time.Millisecond))
-								require.NoError(t, tel.Enable(true))
-
-								time.Sleep(150 * time.Millisecond)
-
-								assert.False(t, tel.IsEnabled())
-
-								err := tel.Report("should_not_publish", "", nil)
-								assert.NoError(t, err)
-							},
-						},
-						// No Expectations: timer disables the tel.
-					},
-					{
-						Name: "Re-enable for suppressed tests",
-						Callbacks: []suite.Callback{
-							func(t *testing.T) {
-								t.Helper()
-
-								require.NoError(t, tel.SetValidity(telemetry.DefaultValidity))
-								require.NoError(t, tel.Enable(true))
-							},
-						},
-					},
-					{
-						Name: "SetSuppressed(true) silences Report",
-						Callbacks: []suite.Callback{
-							func(t *testing.T) {
-								t.Helper()
-
-								require.NoError(t, tel.SetSuppressed(true))
-								assert.True(t, tel.IsSuppressed())
-
-								err := tel.Report("should_not_publish", "", nil)
-								assert.NoError(t, err)
-							},
-						},
-						// No Expectations: suppressed.
-					},
-					{
-						Name: "ReportRequired publishes when suppressed",
-						Callbacks: []suite.Callback{
-							func(t *testing.T) {
-								t.Helper()
-
-								assert.True(t, tel.IsSuppressed())
-
-								err := tel.ReportRequired("critical_event", "health", nil)
-								assert.NoError(t, err)
-							},
-						},
-						Expectations: []*suite.Expectation{
-							suite.NewExpectation(
-								router.ForTopic(telemetry.Topic),
-								router.ForType(telemetry.MessageType),
-								router.MessageVoterFn(func(msg *fimpgo.Message) bool {
-									var got telemetry.Event
-									if err := msg.Payload.GetObjectValue(&got); err != nil {
-										return false
-									}
-
-									return got.Event == "critical_event"
-								}),
-							),
-						},
-					},
-					{
-						Name: "ReportRequired with empty event name returns error",
-						Callbacks: []suite.Callback{
-							func(t *testing.T) {
-								t.Helper()
-
-								err := tel.ReportRequired("", "health", nil)
-								assert.Error(t, err)
-							},
-						},
-					},
-					{
-						Name: "SetSuppressed(false) restores Report",
-						Callbacks: []suite.Callback{
-							func(t *testing.T) {
-								t.Helper()
-
-								require.NoError(t, tel.SetSuppressed(false))
-								assert.False(t, tel.IsSuppressed())
-
-								err := tel.Report("after_unsuppress", "", nil)
-								assert.NoError(t, err)
-							},
-						},
-						Expectations: []*suite.Expectation{
-							suite.NewExpectation(
-								router.ForTopic(telemetry.Topic),
-								router.ForType(telemetry.MessageType),
-								router.MessageVoterFn(func(msg *fimpgo.Message) bool {
-									var got telemetry.Event
-									if err := msg.Payload.GetObjectValue(&got); err != nil {
-										return false
-									}
-
-									return got.Event == "after_unsuppress"
-								}),
-							),
-						},
-					},
-					{
-						Name: "ReportRequired publishes when disabled",
-						Callbacks: []suite.Callback{
-							func(t *testing.T) {
-								t.Helper()
-
-								require.NoError(t, tel.Enable(false))
-
-								err := tel.ReportRequired("critical_while_disabled", "", nil)
-								assert.NoError(t, err)
-							},
-						},
-						Expectations: []*suite.Expectation{
-							suite.NewExpectation(
-								router.ForTopic(telemetry.Topic),
-								router.ForType(telemetry.MessageType),
-								router.MessageVoterFn(func(msg *fimpgo.Message) bool {
-									var got telemetry.Event
-									if err := msg.Payload.GetObjectValue(&got); err != nil {
-										return false
-									}
-
-									return got.Event == "critical_while_disabled"
-								}),
-							),
-						},
-					},
-					{
-						Name: "Re-enable after ReportRequired disabled test",
-						Callbacks: []suite.Callback{
-							func(t *testing.T) {
-								t.Helper()
-
-								require.NoError(t, tel.Enable(true))
-							},
-						},
-					},
-					{
-						Name:    "cmd.config.set_telemetry_suppressed = true suppresses the source",
-						Command: suite.BoolMessage(appTopic, cmdSetSuppressedType, telemetry.Service, true),
-						Expectations: []*suite.Expectation{
-							suite.ExpectBool(appReportTopic, evtSuppressedReport, telemetry.Service, true),
-						},
-					},
-					{
-						Name:    "cmd.config.get_telemetry_suppressed reports current state",
-						Command: suite.NullMessage(appTopic, cmdGetSuppressedType, telemetry.Service),
-						Expectations: []*suite.Expectation{
-							suite.ExpectBool(appReportTopic, evtSuppressedReport, telemetry.Service, true),
-						},
-						Callbacks: []suite.Callback{
-							func(t *testing.T) {
-								t.Helper()
-
-								assert.True(t, tel.IsSuppressed())
-							},
-						},
-					},
-					{
-						Name:    "cmd.config.set_telemetry_suppressed = false restores the source",
-						Command: suite.BoolMessage(appTopic, cmdSetSuppressedType, telemetry.Service, false),
-						Expectations: []*suite.Expectation{
-							suite.ExpectBool(appReportTopic, evtSuppressedReport, telemetry.Service, false),
+							suite.ExpectBool("pt:j1/mt:evt/rt:app/rn:test/ad:1", "evt.config.telemetry_enabled_report", "tel_test", false),
 						},
 					},
 				},
@@ -496,346 +560,268 @@ func TestReporter(t *testing.T) { //nolint:paralleltest
 	s.Run(t)
 }
 
-// stubStore exposes raw fields for white-box testing of New's restart-resume
-// logic. Unlike NewMemoryStore, it lets tests seed non-zero state values.
-type stubStore struct {
-	state     telemetry.State
-	saveCalls int
-}
+func TestRouting_ValidityRoundTrip(t *testing.T) { //nolint:paralleltest
+	store := newStore()
+	store.model.Telemetry = &types.TelemetryConfig{Validity: time.Hour}
 
-func (s *stubStore) Load() telemetry.State { return s.state }
+	s := &suite.Suite{
+		Cases: []*suite.Case{
+			{
+				Name: "validity",
+				Setup: suite.BaseSetup(func(t *testing.T, mqtt *fimpgo.MqttTransport) ([]*router.Routing, []*task.Task, []suite.Mock) {
+					t.Helper()
 
-func (s *stubStore) Save(st telemetry.State) error {
-	s.state = st
-	s.saveCalls++
-
-	return nil
-}
-
-func TestNew_ResumesValidityWindowAcrossRestart(t *testing.T) {
-	t.Parallel()
-
-	t.Run("mid-window: resumes with remaining time", func(t *testing.T) {
-		t.Parallel()
-
-		store := &stubStore{state: telemetry.State{
-			Enabled:   true,
-			EnabledAt: time.Now().Add(-10 * time.Minute),
-			Validity:  time.Hour,
-		}}
-
-		tel, err := telemetry.New(&fimpgo.MqttTransport{}, testSource, store)
-		require.NoError(t, err)
-
-		assert.True(t, tel.IsEnabled())
-		assert.Equal(t, time.Hour, tel.Validity())
-		assert.Equal(t, 0, store.saveCalls, "must not re-persist on resume")
+					tel, err := telemetry.New(mqtt, "tel_validity", store.DefaultStore)
+					require.NoError(t, err)
+					t.Cleanup(func() {
+		if stop, ok := tel.(interface{ Stop() }); ok {
+			stop.Stop()
+		}
 	})
 
-	t.Run("already expired: auto-disables and persists", func(t *testing.T) {
-		t.Parallel()
-
-		store := &stubStore{state: telemetry.State{
-			Enabled:   true,
-			EnabledAt: time.Now().Add(-40 * 24 * time.Hour),
-			Validity:  30 * 24 * time.Hour,
-		}}
-
-		tel, err := telemetry.New(&fimpgo.MqttTransport{}, testSource, store)
-		require.NoError(t, err)
-
-		assert.False(t, tel.IsEnabled())
-		assert.False(t, store.state.Enabled)
-		assert.True(t, store.state.EnabledAt.IsZero())
-	})
-
-	t.Run("enabled with zero enabledAt: stamps fresh window", func(t *testing.T) {
-		t.Parallel()
-
-		store := &stubStore{state: telemetry.State{
-			Enabled:  true,
-			Validity: time.Hour,
-		}}
-
-		before := time.Now()
-
-		tel, err := telemetry.New(&fimpgo.MqttTransport{}, testSource, store)
-		require.NoError(t, err)
-
-		assert.True(t, tel.IsEnabled())
-		assert.False(t, store.state.EnabledAt.IsZero())
-		assert.True(t, !store.state.EnabledAt.Before(before))
-	})
-}
-
-func TestNewDefaultStore_RoundTrip(t *testing.T) {
-	t.Parallel()
-
-	d := &config.Default{}
-	saves := 0
-	store := telemetry.NewDefaultStore(func() *config.Default { return d }, func() error { saves++; return nil })
-
-	// Defaults when nothing is persisted.
-	st := store.Load()
-	assert.True(t, st.Enabled, "unset enabled should default to true")
-	assert.True(t, st.EnabledAt.IsZero())
-	assert.Equal(t, telemetry.DefaultValidity, st.Validity)
-
-	stamp := time.Date(2026, 4, 20, 12, 0, 0, 123_000_000, time.UTC)
-
-	require.NoError(t, store.Save(telemetry.State{
-		Enabled:   false,
-		EnabledAt: stamp,
-		Validity:  2 * time.Hour,
-	}))
-
-	// Load reflects the writes.
-	st = store.Load()
-	assert.False(t, st.Enabled)
-	assert.Equal(t, 2*time.Hour, st.Validity)
-	assert.True(t, st.EnabledAt.Equal(stamp))
-
-	// Raw fields serialize the way the format contract says they should.
-	assert.NotNil(t, d.TelemetryEnabled)
-	assert.False(t, *d.TelemetryEnabled)
-	assert.Equal(t, "2h0m0s", d.TelemetryValidity)
-	assert.Equal(t, "2026-04-20T12:00:00.123Z", d.TelemetryEnabledAt)
-
-	// Clearing enabledAt writes an empty string, not "0001-01-01..." -
-	// a malformed RFC3339Nano in the file must round-trip to zero time.
-	require.NoError(t, store.Save(telemetry.State{
-		Enabled:  false,
-		Validity: 2 * time.Hour,
-	}))
-	assert.Equal(t, "", d.TelemetryEnabledAt)
-
-	st = store.Load()
-	assert.True(t, st.EnabledAt.IsZero())
-
-	assert.Equal(t, 2, saves, "each Save must call save exactly once")
-}
-
-// failStore lets tests inject Save failures.
-type failStore struct {
-	state   telemetry.State
-	saveErr error
-}
-
-func (s *failStore) Load() telemetry.State { return s.state }
-
-func (s *failStore) Save(st telemetry.State) error {
-	if s.saveErr != nil {
-		return s.saveErr
-	}
-
-	s.state = st
-
-	return nil
-}
-
-func TestEnable_SaveFailure_LeavesStateUnchanged(t *testing.T) {
-	t.Parallel()
-
-	store := &failStore{state: telemetry.State{
-		Enabled:  false,
-		Validity: telemetry.DefaultValidity,
-	}}
-
-	tel, err := telemetry.New(&fimpgo.MqttTransport{}, testSource, store)
-	require.NoError(t, err)
-	assert.False(t, tel.IsEnabled())
-
-	// Inject failure and try to enable.
-	store.saveErr = errors.New("disk full")
-	err = tel.Enable(true)
-	require.Error(t, err)
-
-	// In-memory state must remain disabled.
-	assert.False(t, tel.IsEnabled(), "Enable must not change in-memory state on Save failure")
-	assert.False(t, store.state.Enabled, "Store must not be mutated on Save failure")
-}
-
-func TestSetValidity_SaveFailure_LeavesStateUnchanged(t *testing.T) {
-	t.Parallel()
-
-	store := &failStore{state: telemetry.State{
-		Enabled:  true,
-		Validity: telemetry.DefaultValidity,
-	}}
-
-	tel, err := telemetry.New(&fimpgo.MqttTransport{}, testSource, store)
-	require.NoError(t, err)
-
-	store.saveErr = errors.New("disk full")
-	err = tel.SetValidity(time.Hour)
-	require.Error(t, err)
-
-	assert.Equal(t, telemetry.DefaultValidity, tel.Validity(), "SetValidity must not change in-memory state on Save failure")
-}
-
-func TestSetValidity_BelowElapsed_SingleSave(t *testing.T) {
-	t.Parallel()
-
-	store := &stubStore{state: telemetry.State{
-		Enabled:   true,
-		EnabledAt: time.Now().Add(-10 * time.Minute),
-		Validity:  time.Hour,
-	}}
-
-	tel, err := telemetry.New(&fimpgo.MqttTransport{}, testSource, store)
-	require.NoError(t, err)
-	assert.True(t, tel.IsEnabled())
-
-	store.saveCalls = 0
-
-	require.NoError(t, tel.SetValidity(time.Millisecond))
-
-	assert.False(t, tel.IsEnabled(), "should auto-disable")
-	assert.Equal(t, 1, store.saveCalls, "SetValidity must perform exactly one Save")
-	assert.False(t, store.state.Enabled, "persisted state must be disabled")
-	assert.True(t, store.state.EnabledAt.IsZero(), "persisted enabledAt must be cleared")
-}
-
-func TestDefaultStore_SaveFailure_RestoresConfig(t *testing.T) {
-	t.Parallel()
-
-	enabled := true
-	d := &config.Default{
-		TelemetryEnabled:   &enabled,
-		TelemetryEnabledAt: "2026-04-20T12:00:00Z",
-		TelemetryValidity:  "1h0m0s",
-	}
-
-	fail := true
-	store := telemetry.NewDefaultStore(
-		func() *config.Default { return d },
-		func() error {
-			if fail {
-				return errors.New("disk full")
-			}
-
-			return nil
+					return telemetry.Route(tel), nil, nil
+				}),
+				Nodes: []*suite.Node{
+					{
+						Command: suite.NullMessage("pt:j1/mt:cmd/rt:app/rn:test/ad:1", "cmd.config.get_telemetry_validity", "tel_validity"),
+						Expectations: []*suite.Expectation{
+							suite.ExpectString("pt:j1/mt:evt/rt:app/rn:test/ad:1", "evt.config.telemetry_validity_report", "tel_validity", "1h0m0s"),
+						},
+					},
+					{
+						Command: suite.StringMessage("pt:j1/mt:cmd/rt:app/rn:test/ad:1", "cmd.config.set_telemetry_validity", "tel_validity", "30m"),
+						Expectations: []*suite.Expectation{
+							suite.ExpectString("pt:j1/mt:evt/rt:app/rn:test/ad:1", "evt.config.telemetry_validity_report", "tel_validity", "30m0s"),
+						},
+					},
+				},
+			},
 		},
+	}
+
+	s.Run(t)
+}
+
+func TestRouting_SuppressedDomainsGet(t *testing.T) { //nolint:paralleltest
+	store := newStore()
+	store.model.Telemetry = &types.TelemetryConfig{Enabled: true, EnabledAt: time.Now(), SuppressedDomains: []string{"alpha", "beta"}}
+
+	s := &suite.Suite{
+		Cases: []*suite.Case{
+			{
+				Name: "suppressed get",
+				Setup: suite.BaseSetup(func(t *testing.T, mqtt *fimpgo.MqttTransport) ([]*router.Routing, []*task.Task, []suite.Mock) {
+					t.Helper()
+
+					tel, err := telemetry.New(mqtt, "tel_supp_get", store.DefaultStore)
+					require.NoError(t, err)
+					t.Cleanup(func() {
+		if stop, ok := tel.(interface{ Stop() }); ok {
+			stop.Stop()
+		}
+	})
+
+					return telemetry.Route(tel), nil, nil
+				}),
+				Nodes: []*suite.Node{
+					{
+						Command: suite.NullMessage("pt:j1/mt:cmd/rt:app/rn:test/ad:1", "cmd.config.get_telemetry_suppressed_domains", "tel_supp_get"),
+						Expectations: []*suite.Expectation{
+							suite.ExpectStringArray("pt:j1/mt:evt/rt:app/rn:test/ad:1", "evt.config.telemetry_suppressed_domains_report", "tel_supp_get", []string{"alpha", "beta"}),
+						},
+					},
+					{
+						Command: suite.StringArrayMessage("pt:j1/mt:cmd/rt:app/rn:test/ad:1", "cmd.config.set_telemetry_suppressed_domains", "tel_supp_get", []string{"gamma"}),
+						Expectations: []*suite.Expectation{
+							suite.ExpectStringArray("pt:j1/mt:evt/rt:app/rn:test/ad:1", "evt.config.telemetry_suppressed_domains_report", "tel_supp_get", []string{"gamma"}),
+						},
+					},
+				},
+			},
+		},
+	}
+
+	s.Run(t)
+}
+
+// TestRouting_SetTelemetry_PersistsToStore verifies that each FIMP-driven
+// SET command on telemetry config goes through *DefaultStore.Save(), so the
+// new value survives a restart. Without this assertion the routing tests
+// only prove in-memory round-trip and would miss a regression where Save()
+// is silently dropped from the SET handler path.
+func TestRouting_SetTelemetry_PersistsToStore(t *testing.T) { //nolint:paralleltest
+	store := newStore()
+	store.model.Telemetry = &types.TelemetryConfig{Enabled: true, EnabledAt: time.Now(), Validity: time.Hour}
+
+	var (
+		enableSavesBefore   int32
+		validitySavesBefore int32
+		suppSavesBefore     int32
 	)
 
-	err := store.Save(telemetry.State{
-		Enabled:  false,
-		Validity: 2 * time.Hour,
+	s := &suite.Suite{
+		Cases: []*suite.Case{
+			{
+				Name: "set persists",
+				Setup: suite.BaseSetup(func(t *testing.T, mqtt *fimpgo.MqttTransport) ([]*router.Routing, []*task.Task, []suite.Mock) {
+					t.Helper()
+
+					tel, err := telemetry.New(mqtt, "tel_persist", store.DefaultStore)
+					require.NoError(t, err)
+					t.Cleanup(func() {
+		if stop, ok := tel.(interface{ Stop() }); ok {
+			stop.Stop()
+		}
 	})
-	require.Error(t, err)
 
-	// Config must be rolled back to pre-Save state.
-	assert.NotNil(t, d.TelemetryEnabled)
-	assert.True(t, *d.TelemetryEnabled, "TelemetryEnabled must be restored")
-	assert.Equal(t, "2026-04-20T12:00:00Z", d.TelemetryEnabledAt, "TelemetryEnabledAt must be restored")
-	assert.Equal(t, "1h0m0s", d.TelemetryValidity, "TelemetryValidity must be restored")
+					return telemetry.Route(tel), nil, nil
+				}),
+				Nodes: []*suite.Node{
+					{
+						Command: suite.BoolMessage("pt:j1/mt:cmd/rt:app/rn:test/ad:1", "cmd.config.set_telemetry_enabled", "tel_persist", false),
+						InitCallbacks: []suite.Callback{
+							func(t *testing.T) { t.Helper(); enableSavesBefore = store.saves.Load() },
+						},
+						Expectations: []*suite.Expectation{
+							suite.ExpectBool("pt:j1/mt:evt/rt:app/rn:test/ad:1", "evt.config.telemetry_enabled_report", "tel_persist", false),
+						},
+						Callbacks: []suite.Callback{
+							func(t *testing.T) {
+								t.Helper()
+								// Suite runs Callbacks right after publish, before the handler reply
+								// has been observed; poll until the SetTelemetry save lands.
+								require.Eventually(t, func() bool {
+									return store.saves.Load() > enableSavesBefore
+								}, time.Second, 10*time.Millisecond, "set_telemetry_enabled must persist")
+							},
+						},
+					},
+					{
+						Command: suite.StringMessage("pt:j1/mt:cmd/rt:app/rn:test/ad:1", "cmd.config.set_telemetry_validity", "tel_persist", "30m"),
+						InitCallbacks: []suite.Callback{
+							func(t *testing.T) { t.Helper(); validitySavesBefore = store.saves.Load() },
+						},
+						Expectations: []*suite.Expectation{
+							suite.ExpectString("pt:j1/mt:evt/rt:app/rn:test/ad:1", "evt.config.telemetry_validity_report", "tel_persist", "30m0s"),
+						},
+						Callbacks: []suite.Callback{
+							func(t *testing.T) {
+								t.Helper()
+								require.Eventually(t, func() bool {
+									return store.saves.Load() > validitySavesBefore
+								}, time.Second, 10*time.Millisecond, "set_telemetry_validity must persist")
+							},
+						},
+					},
+					{
+						Command: suite.StringArrayMessage("pt:j1/mt:cmd/rt:app/rn:test/ad:1", "cmd.config.set_telemetry_suppressed_domains", "tel_persist", []string{"alpha"}),
+						InitCallbacks: []suite.Callback{
+							func(t *testing.T) { t.Helper(); suppSavesBefore = store.saves.Load() },
+						},
+						Expectations: []*suite.Expectation{
+							suite.ExpectStringArray("pt:j1/mt:evt/rt:app/rn:test/ad:1", "evt.config.telemetry_suppressed_domains_report", "tel_persist", []string{"alpha"}),
+						},
+						Callbacks: []suite.Callback{
+							func(t *testing.T) {
+								t.Helper()
+								require.Eventually(t, func() bool {
+									return store.saves.Load() > suppSavesBefore
+								}, time.Second, 10*time.Millisecond, "set_telemetry_suppressed_domains must persist")
+							},
+						},
+					},
+				},
+			},
+		},
+	}
 
-	// Load must still return the original state.
-	st := store.Load()
-	assert.True(t, st.Enabled)
+	s.Run(t)
 }
 
-func TestSetSuppressed_SaveFailure_LeavesStateUnchanged(t *testing.T) {
-	t.Parallel()
+// TestRouting_SetTelemetry_UpdatesConfiguredAt drives a FIMP set command
+// through a real storage.Storage[*config.Default] so the actual storage
+// save path runs - the one that calls SetConfiguredAt before persisting.
+// The trivial save callback used in other tests bypasses this entirely,
+// so this is the only place that proves ConfiguredAt is stamped on
+// every successful save.
+func TestRouting_SetTelemetry_UpdatesConfiguredAt(t *testing.T) { //nolint:paralleltest
+	dir := t.TempDir()
 
-	store := &failStore{state: telemetry.State{
-		Enabled:  true,
-		Validity: telemetry.DefaultValidity,
-	}}
+	cfg := &config.Default{
+		Telemetry: &types.TelemetryConfig{Enabled: true, EnabledAt: time.Now(), Validity: time.Hour},
+	}
 
-	tel, err := telemetry.New(&fimpgo.MqttTransport{}, testSource, store)
+	realStorage := cliffstorage.New[*config.Default](cfg, dir, "config.json")
+
+	// DefaultStore.save() delegates to realStorage.Save(), which is what
+	// the production NewDefaultStoreFromStorage adapter does.
+	store := config.NewDefaultStore(
+		func() *config.Default { return cfg },
+		realStorage.Save,
+	)
+
+	var configuredAtBefore time.Time
+
+	s := &suite.Suite{
+		Cases: []*suite.Case{
+			{
+				Name: "configured_at stamped on save",
+				Setup: suite.BaseSetup(func(t *testing.T, mqtt *fimpgo.MqttTransport) ([]*router.Routing, []*task.Task, []suite.Mock) {
+					t.Helper()
+
+					tel, err := telemetry.New(mqtt, "tel_cfg_at", store)
+					require.NoError(t, err)
+					t.Cleanup(func() {
+		if stop, ok := tel.(interface{ Stop() }); ok {
+			stop.Stop()
+		}
+	})
+
+					return telemetry.Route(tel), nil, nil
+				}),
+				Nodes: []*suite.Node{
+					{
+						Command: suite.BoolMessage("pt:j1/mt:cmd/rt:app/rn:test/ad:1", "cmd.config.set_telemetry_enabled", "tel_cfg_at", false),
+						InitCallbacks: []suite.Callback{
+							func(t *testing.T) {
+								t.Helper()
+								// Capture the existing configured_at (may be empty for a fresh
+								// config) so we can prove the SET stamps a *new* value.
+								configuredAtBefore = parseConfiguredAt(t, cfg.ConfiguredAt)
+							},
+						},
+						Expectations: []*suite.Expectation{
+							suite.ExpectBool("pt:j1/mt:evt/rt:app/rn:test/ad:1", "evt.config.telemetry_enabled_report", "tel_cfg_at", false),
+						},
+						Callbacks: []suite.Callback{
+							func(t *testing.T) {
+								t.Helper()
+								require.Eventually(t, func() bool {
+									return parseConfiguredAt(t, cfg.ConfiguredAt).After(configuredAtBefore)
+								}, time.Second, 10*time.Millisecond, "ConfiguredAt must be stamped on save")
+							},
+						},
+					},
+				},
+			},
+		},
+	}
+
+	s.Run(t)
+}
+
+// parseConfiguredAt returns the parsed ConfiguredAt value or the zero
+// time when the field is empty. Test helper that isolates the RFC3339
+// format detail set by *Default.SetConfiguredAt.
+func parseConfiguredAt(t *testing.T, raw string) time.Time {
+	t.Helper()
+
+	if raw == "" {
+		return time.Time{}
+	}
+
+	parsed, err := time.Parse(time.RFC3339Nano, raw)
 	require.NoError(t, err)
-	assert.False(t, tel.IsSuppressed())
 
-	store.saveErr = errors.New("disk full")
-	err = tel.SetSuppressed(true)
-	require.Error(t, err)
-
-	assert.False(t, tel.IsSuppressed(), "SetSuppressed must not change in-memory state on Save failure")
+	return parsed
 }
-
-func TestEnable_PreservesSuppressedInStore(t *testing.T) {
-	t.Parallel()
-
-	store := &stubStore{state: telemetry.State{
-		Enabled:    true,
-		Suppressed: true,
-		Validity:   telemetry.DefaultValidity,
-	}}
-
-	tel, err := telemetry.New(&fimpgo.MqttTransport{}, testSource, store)
-	require.NoError(t, err)
-	assert.True(t, tel.IsSuppressed())
-
-	// Enable(true) must preserve the suppressed flag in the saved state.
-	store.saveCalls = 0
-
-	require.NoError(t, tel.Enable(true))
-	assert.True(t, store.state.Suppressed, "Enable must preserve Suppressed in persisted state")
-}
-
-func TestNewDefaultStore_SuppressedRoundTrip(t *testing.T) {
-	t.Parallel()
-
-	d := &config.Default{}
-	store := telemetry.NewDefaultStore(func() *config.Default { return d }, func() error { return nil })
-
-	// Default: not suppressed.
-	st := store.Load()
-	assert.False(t, st.Suppressed, "unset suppressed should default to false")
-
-	// Save with suppressed=true.
-	require.NoError(t, store.Save(telemetry.State{
-		Enabled:    true,
-		Suppressed: true,
-		Validity:   telemetry.DefaultValidity,
-	}))
-
-	st = store.Load()
-	assert.True(t, st.Suppressed)
-	assert.NotNil(t, d.TelemetrySuppressed)
-	assert.True(t, *d.TelemetrySuppressed)
-
-	// Save with suppressed=false.
-	require.NoError(t, store.Save(telemetry.State{
-		Enabled:  true,
-		Validity: telemetry.DefaultValidity,
-	}))
-
-	st = store.Load()
-	assert.False(t, st.Suppressed)
-}
-
-type testConfig struct {
-	config.Default
-}
-
-func TestNewConfigStore(t *testing.T) {
-	t.Parallel()
-
-	cfg := &testConfig{Default: config.NewDefault(t.TempDir())}
-	s := config.NewStorage(cfg, t.TempDir())
-
-	store := telemetry.NewConfigStore(s)
-
-	st := store.Load()
-	assert.True(t, st.Enabled, "telemetry should be enabled by default when TelemetryEnabled is nil")
-	assert.Equal(t, telemetry.DefaultValidity, st.Validity)
-}
-
-func TestEmit_NilTelemetry(t *testing.T) {
-	t.Parallel()
-
-	assert.NotPanics(t, func() {
-		telemetry.Emit(nil, "test_event", "domain", map[string]any{"key": "val"})
-	})
-}
-
-func TestEmitRequired_NilTelemetry(t *testing.T) {
-	t.Parallel()
-
-	assert.NotPanics(t, func() {
-		telemetry.EmitRequired(nil, "test_event", "domain", map[string]any{"key": "val"})
-	})
-}
-

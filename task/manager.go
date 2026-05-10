@@ -9,11 +9,8 @@ import (
 	log "github.com/sirupsen/logrus"
 )
 
-// Manager is an interface representing a tasks manager service.
 type Manager interface {
-	// Start starts the manager and all its tasks.
 	Start() error
-	// Stop stops the manager and all its tasks.
 	Stop() error
 }
 
@@ -25,7 +22,6 @@ type manager struct {
 	lock   *sync.Mutex
 }
 
-// NewManager returns a new task manager.
 func NewManager(tasks ...*Task) Manager {
 	return &manager{
 		wg:    &sync.WaitGroup{},
@@ -34,7 +30,6 @@ func NewManager(tasks ...*Task) Manager {
 	}
 }
 
-// Start starts the manager and all its tasks.
 func (r *manager) Start() error {
 	r.lock.Lock()
 	defer r.lock.Unlock()

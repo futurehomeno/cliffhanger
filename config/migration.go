@@ -10,14 +10,9 @@ import (
 // string. Migrations are applied in a chain: as long as some step's From
 // matches the current version, it runs and the version advances to its To.
 type Migration struct {
-	// From is the version expected to trigger this step. Use "" to migrate
-	// an unversioned or fresh configuration.
 	From int
-	// To is the version written after Do succeeds.
-	To int
-	// Do performs the migration work. Typically a closure that mutates the
-	// consumer's config. Optional: leave nil for a pure version bump.
-	Do func() error
+	To   int
+	Do   func() error
 }
 
 // Migrate advances ConfigVersion through a chain of migrations. It
@@ -50,20 +45,20 @@ func (d *Default) Migrate(migrations ...Migration) (int, error) {
 
 		m := migrations[idx]
 		if m.To == m.From {
-			return applied, fmt.Errorf("config: migration %d->%d does not advance version", m.From, m.To)
+			return applied, fmt.Errorf("config migration %d->%d does not advance version", m.From, m.To)
 		}
 
 		if seen[m.To] {
-			return applied, fmt.Errorf("config: migration cycle detected at version %d", m.To)
+			return applied, fmt.Errorf("config migration cycle detected at version %d", m.To)
 		}
 
 		seen[current] = true
 
-		log.Infof("[cliff] migrating config from %d to %d", m.From, m.To)
+		log.Infof("[cliff] Migrate config from %d to %d", m.From, m.To)
 
 		if m.Do != nil {
 			if err := m.Do(); err != nil {
-				return applied, fmt.Errorf("config: migration %d->%d failed: %w", m.From, m.To, err)
+				return applied, fmt.Errorf("config migration %d->%d failed: %w", m.From, m.To, err)
 			}
 		}
 

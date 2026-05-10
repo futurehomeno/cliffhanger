@@ -8,8 +8,8 @@ import (
 	"github.com/futurehomeno/cliffhanger/task"
 )
 
-// TaskObserver creates tasks for prime observer.
-func TaskObserver(observer Observer, refreshInterval time.Duration) []*task.Task {
+// Task creates tasks for prime observer.
+func Task(observer Observer, refreshInterval time.Duration) []*task.Task {
 	return []*task.Task{
 		TaskRefreshing(observer, refreshInterval),
 	}
