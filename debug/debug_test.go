@@ -55,6 +55,53 @@ func TestInitializeLogger_AppliesPersistedLevelAndCreatesLogFile(t *testing.T) {
 	assert.Equal(t, "warning", cfg.LogLevel)
 }
 
+func TestInitializeLogger_DebugWithElapsedDeadline_RevertsToInfo(t *testing.T) { //nolint:paralleltest
+	dir := t.TempDir()
+	cfg := &config.Default{
+		LogLevel:    "debug",
+		LogFormat:   "text",
+		LogFile:     filepath.Join(dir, "x.log"),
+		LogRevertAt: time.Now().Add(-time.Hour),
+	}
+	store := config.NewDefaultStore(
+		func() *config.Default { return cfg },
+		func() error { return nil },
+	)
+
+	saved := logrus.GetLevel()
+	t.Cleanup(func() { logrus.SetLevel(saved) })
+
+	require.NoError(t, debug.InitializeLogger(store))
+
+	assert.Equal(t, logrus.InfoLevel, logrus.GetLevel(), "elapsed deadline should revert to info")
+	assert.Equal(t, "info", cfg.LogLevel, "persisted level should be reset to info")
+	assert.True(t, cfg.LogRevertAt.IsZero(), "revert deadline should be cleared")
+}
+
+func TestInitializeLogger_DebugWithFutureDeadline_KeepsDebugAndDoesNotRearm(t *testing.T) { //nolint:paralleltest
+	dir := t.TempDir()
+	originalDeadline := time.Now().Add(time.Hour)
+	cfg := &config.Default{
+		LogLevel:    "debug",
+		LogFormat:   "text",
+		LogFile:     filepath.Join(dir, "x.log"),
+		LogRevertAt: originalDeadline,
+	}
+	store := config.NewDefaultStore(
+		func() *config.Default { return cfg },
+		func() error { return nil },
+	)
+
+	saved := logrus.GetLevel()
+	t.Cleanup(func() { logrus.SetLevel(saved) })
+
+	require.NoError(t, debug.InitializeLogger(store))
+
+	assert.Equal(t, logrus.DebugLevel, logrus.GetLevel())
+	assert.Equal(t, "debug", cfg.LogLevel)
+	assert.True(t, cfg.LogRevertAt.Equal(originalDeadline), "startup must not push the deadline forward")
+}
+
 func TestInitializeLogger_InvalidLevel_FallsBackToInfo(t *testing.T) { //nolint:paralleltest
 	dir := t.TempDir()
 	cfg := &config.Default{

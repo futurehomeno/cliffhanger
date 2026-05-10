@@ -47,12 +47,53 @@ func InitializeLogger(store Store) error {
 
 	setLogFormat(store.Format())
 
-	// SetLevel returns an error when the persisted level is unparseable,
-	// but it has already fallen back to InfoLevel by then. Swallow it so a
-	// bad log_level value in config.json does not prevent startup.
-	_ = logManager.SetLevel()
+	// applyPersistedLevel returns an error when the persisted level is
+	// unparseable, but it has already fallen back to InfoLevel by then.
+	// Swallow it so a bad log_level value in config.json does not prevent
+	// startup.
+	_ = logManager.applyPersistedLevel()
 
 	return logManager.setLogOutput(store.LogFile())
+}
+
+// applyPersistedLevel applies the persisted log level at startup. Unlike
+// SetLevel, it does not re-arm the revert deadline on every boot: if the
+// persisted level is debug/trace and the deadline has elapsed, the level
+// is reset to info and the deadline cleared; otherwise the level is
+// applied and the existing deadline left untouched.
+func (ptr *logManagerT) applyPersistedLevel() error {
+	logLevel, err := logrus.ParseLevel(ptr.store.Level())
+	if err != nil {
+		logrus.SetLevel(logrus.InfoLevel)
+		logrus.Warnf("[cliff] Invalid log level %q, falling back to %s", ptr.store.Level(), logrus.InfoLevel)
+
+		return fmt.Errorf("log: invalid level %q: %w", ptr.store.Level(), err)
+	}
+
+	ptr.lock.Lock()
+	defer ptr.lock.Unlock()
+
+	if logLevel >= logrus.DebugLevel {
+		revertAt := ptr.store.LogRevertAt()
+		if !revertAt.IsZero() && !time.Now().Before(revertAt) {
+			if err := ptr.store.SetLevel(logrus.InfoLevel.String()); err != nil {
+				return err
+			}
+
+			if err := ptr.clearRevertStateLocked(); err != nil {
+				logrus.WithError(err).Warnf("[cliff] failed to clear log revert state on startup")
+			}
+
+			logrus.SetLevel(logrus.InfoLevel)
+			logrus.Infof("[cliff] Log level reverted to info: revert deadline elapsed")
+
+			return nil
+		}
+	}
+
+	logrus.SetLevel(logLevel)
+
+	return nil
 }
 
 func setLogFormat(logFormat string) {
