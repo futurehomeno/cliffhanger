@@ -2,6 +2,7 @@ package config
 
 import (
 	"fmt"
+	"slices"
 	"sync"
 	"time"
 
@@ -95,11 +96,27 @@ func (s *DefaultStore) saveStamped() error {
 	return s.save()
 }
 
+// Default returns a deep copy of the current Default, safe to use after
+// the store lock is released - including for deferred JSON marshaling
+// (e.g. fimpgo report payloads). The copy is taken under the read lock
+// so it does not race with concurrent setters, and the embedded
+// *TelemetryConfig (and its slice) is cloned so callers cannot mutate
+// shared state.
 func (s *DefaultStore) Default() *Default {
 	s.lock.RLock()
 	defer s.lock.RUnlock()
 
-	return s.accessor()
+	snap := *s.accessor()
+	if snap.Telemetry != nil {
+		tc := *snap.Telemetry
+		if tc.SuppressedDomains != nil {
+			tc.SuppressedDomains = slices.Clone(tc.SuppressedDomains)
+		}
+
+		snap.Telemetry = &tc
+	}
+
+	return &snap
 }
 
 func (s *DefaultStore) Level() string {

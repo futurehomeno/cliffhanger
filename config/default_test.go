@@ -99,14 +99,18 @@ func TestDefaultStore_Telemetry_RoundTrip(t *testing.T) { //nolint:paralleltest
 	assert.Equal(t, int32(1), saves.Load())
 }
 
-func TestDefaultStore_Default_ReturnsLiveAccessor(t *testing.T) { //nolint:paralleltest
+func TestDefaultStore_Default_ReturnsSnapshot(t *testing.T) { //nolint:paralleltest
 	store, cfg, _ := newTestStore(t)
 
-	assert.Same(t, cfg, store.Default())
+	snap := store.Default()
+	assert.NotSame(t, cfg, snap, "Default() must return a copy, not the live pointer")
+	assert.Equal(t, *cfg, *snap)
 
 	cfg.LogLevel = "trace"
+	assert.Equal(t, "trace", store.Default().LogLevel, "subsequent calls reflect current state")
 
-	assert.Equal(t, "trace", store.Default().LogLevel)
+	snap.LogLevel = "warn"
+	assert.NotEqual(t, "warn", cfg.LogLevel, "mutating the snapshot must not affect the live config")
 }
 
 func TestDefaultStore_Save_PropagatesError(t *testing.T) { //nolint:paralleltest
