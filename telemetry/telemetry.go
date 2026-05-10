@@ -227,7 +227,7 @@ func (ptr *telemetryT) Enable(enabled bool) error {
 	}
 
 	if err := ptr.store.SetTelemetry(&next); err != nil {
-		log.WithError(err).Errorf("[cliff] Telemetry: persist enable=%v", enabled)
+		return fmt.Errorf("telemetry: persist enable=%v: %w", enabled, err)
 	}
 
 	ptr.stopTimerLocked()
@@ -244,7 +244,9 @@ func (ptr *telemetryT) IsEnabled() bool {
 }
 
 func (ptr *telemetryT) Validity() time.Duration {
-	return ptr.config().Validity
+	cfg := ptr.config()
+
+	return validityOrDefault(&cfg)
 }
 
 func (ptr *telemetryT) SetValidity(validity time.Duration) error {
@@ -277,7 +279,7 @@ func (ptr *telemetryT) SetValidity(validity time.Duration) error {
 	}
 
 	if err := ptr.store.SetTelemetry(&next); err != nil {
-		log.WithError(err).Errorf("[cliff] Telemetry: persist validity")
+		return fmt.Errorf("telemetry: persist validity: %w", err)
 	}
 
 	ptr.stopTimerLocked()
@@ -304,7 +306,7 @@ func (ptr *telemetryT) SetSuppressedDomains(domains []string) error {
 	}
 
 	if err := ptr.store.SetTelemetry(&next); err != nil {
-		log.WithError(err).Errorf("[cliff] Telemetry: persist suppressed domains")
+		return fmt.Errorf("telemetry: persist suppressed domains: %w", err)
 	}
 
 	return nil

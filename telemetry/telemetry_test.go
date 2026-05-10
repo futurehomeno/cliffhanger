@@ -233,7 +233,7 @@ func TestServiceName_DerivedFromSource(t *testing.T) { //nolint:paralleltest
 	assert.Equal(t, "my-app", string(tel.ServiceName()))
 }
 
-func TestSaveError_DoesNotPanic(t *testing.T) { //nolint:paralleltest
+func TestSaveError_PropagatesToCaller(t *testing.T) { //nolint:paralleltest
 	mqtt := suite.DefaultMQTT("cliff_test_saveerr", "", "", "")
 	require.NoError(t, mqtt.Start(2*time.Second))
 	t.Cleanup(mqtt.Stop)
@@ -248,12 +248,13 @@ func TestSaveError_DoesNotPanic(t *testing.T) { //nolint:paralleltest
 		}
 	})
 
-	// Saves now start failing after construction - runtime mutations log
-	// the error and continue.
+	// Saves start failing after construction - runtime mutations must
+	// surface the error so FIMP handlers don't ack a failed write.
 	store.saveErr = errors.New("disk")
 
-	require.NoError(t, tel.Enable(true))
-	require.NoError(t, tel.SetSuppressedDomains([]string{"x"}))
+	assert.Error(t, tel.Enable(true), "Enable must propagate persist failure")
+	assert.Error(t, tel.SetSuppressedDomains([]string{"x"}), "SetSuppressedDomains must propagate persist failure")
+	assert.Error(t, tel.SetValidity(time.Hour), "SetValidity must propagate persist failure")
 }
 
 func TestEmit_NilTelemetry_NoOp(t *testing.T) { //nolint:paralleltest
