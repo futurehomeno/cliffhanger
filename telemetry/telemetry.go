@@ -54,12 +54,12 @@ func EmitRequired(tel Telemetry, domain, event string, data map[string]any) {
 	}
 }
 
-func New(mqtt *fimpgo.MqttTransport, source string, store *config.DefaultStore) (Telemetry, error) {
+func New(mqtt *fimpgo.MqttTransport, sourceRn fimptype.ResourceNameT, store *config.DefaultStore) (Telemetry, error) {
 	if mqtt == nil {
 		return nil, errors.New("telemetry: mqtt transport is nil")
 	}
 
-	if source == "" {
+	if sourceRn == "" {
 		return nil, errors.New("telemetry: source is not set")
 	}
 
@@ -75,7 +75,7 @@ func New(mqtt *fimpgo.MqttTransport, source string, store *config.DefaultStore) 
 
 	t := &telemetryT{
 		mqtt:     mqtt,
-		sourceRn: fimptype.ResourceNameT(source),
+		sourceRn: sourceRn,
 		store:    store,
 		topic:    defaultTelemetryEvtTopic,
 	}

@@ -84,8 +84,9 @@ func New(mqtt *fimpgo.MqttTransport, sourceRn fimptype.ResourceNameT, applyConfi
 	}
 }
 
-// start begins the poll loop. The first poll fires immediately and is
-// non-blocking (runs in a background goroutine).
+// Start begins the poll loop. The first poll is deferred by
+// DefaultPollInterval to avoid hammering the cloud at app startup; Start
+// itself is non-blocking.
 func (ptr *Config) Start() error {
 	if ptr.fallbackPoll <= 0 {
 		return fmt.Errorf("telemetry: config pull: fallback poll interval must be positive")
