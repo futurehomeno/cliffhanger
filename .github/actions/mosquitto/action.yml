@@ -1,0 +1,44 @@
+name: Start Mosquitto broker
+description: Writes a Mosquitto config, starts the broker in Docker, and waits until it is reachable.
+
+inputs:
+  port:
+    description: TCP port to expose Mosquitto on.
+    required: false
+    default: '11883'
+  image:
+    description: Mosquitto Docker image.
+    required: false
+    default: eclipse-mosquitto:2
+
+runs:
+  using: composite
+  steps:
+    - name: Create Mosquitto config
+      shell: bash
+      run: |
+        mkdir -p .ci
+        cat > .ci/mosquitto.conf <<EOF
+        listener ${{ inputs.port }}
+        allow_anonymous true
+        persistence false
+        EOF
+
+    - name: Start Mosquitto
+      shell: bash
+      run: |
+        docker run -d --name mosquitto \
+          -p ${{ inputs.port }}:${{ inputs.port }} \
+          -v "$PWD/.ci/mosquitto.conf:/mosquitto/config/mosquitto.conf" \
+          ${{ inputs.image }}
+
+    - name: Wait for Mosquitto
+      shell: bash
+      run: |
+        for i in {1..5}; do
+          nc -z 127.0.0.1 ${{ inputs.port }} && exit 0
+          sleep 2
+        done
+        echo "Mosquitto not ready"
+        docker logs mosquitto
+        exit 1

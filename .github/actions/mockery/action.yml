@@ -1,0 +1,35 @@
+name: Install mockery and generate mocks
+description: Installs mockery (with binary cache) and runs make generate-mocks.
+
+inputs:
+  version:
+    description: mockery version to install.
+    required: false
+    default: v2.53.5
+
+runs:
+  using: composite
+  steps:
+    - name: Cache mockery binary
+      id: cache-mockery
+      uses: actions/cache@v4
+      with:
+        path: ~/go/bin/mockery
+        key: mockery-${{ runner.os }}-${{ runner.arch }}-${{ inputs.version }}
+
+    - name: Install mockery
+      if: steps.cache-mockery.outputs.cache-hit != 'true'
+      shell: bash
+      run: |
+        go install github.com/vektra/mockery/v2@${{ inputs.version }}
+
+    - name: Add mockery to PATH
+      shell: bash
+      run: |
+        echo "$HOME/go/bin" >> "$GITHUB_PATH"
+
+    - name: Generate mocks
+      shell: bash
+      run: |
+        mockery --version
+        make generate-mocks
