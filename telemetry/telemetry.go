@@ -139,50 +139,49 @@ func validityOrDefault(c *types.TelemetryConfig) time.Duration {
 }
 
 func (ptr *telemetryT) emit(event, domain string, data map[string]any) error {
-	ptr.lock.Lock()
 	cfg := ptr.config()
-	enabled := cfg.Enabled
-	suppressed := slices.Contains(cfg.SuppressedDomains, domain)
-	topic := ptr.topic
-	ptr.lock.Unlock()
-
-	if !enabled || suppressed {
+	if !cfg.Enabled || slices.Contains(cfg.SuppressedDomains, domain) {
 		return nil
 	}
 
-	return ptr.publish(topic, event, domain, data)
+	return ptr.publish(ptr.evtTopic(), event, domain, data)
 }
 
 func (ptr *telemetryT) emitRequired(event, domain string, data map[string]any) error {
-	ptr.lock.Lock()
-	enabled := ptr.config().Enabled
-	topic := ptr.topic
-	ptr.lock.Unlock()
-
-	if !enabled {
+	if !ptr.config().Enabled {
 		return nil
 	}
 
-	return ptr.publish(topic, event, domain, data)
+	return ptr.publish(ptr.evtTopic(), event, domain, data)
 }
 
-func (ptr *telemetryT) config() *types.TelemetryConfig {
+// evtTopic returns the current event topic under the local lock.
+func (ptr *telemetryT) evtTopic() string {
+	ptr.lock.Lock()
+	defer ptr.lock.Unlock()
+
+	return ptr.topic
+}
+
+// config returns a value snapshot of the persisted telemetry block, or a
+// zero value when none is set. Slices are cloned so callers can safely
+// read or mutate the result without affecting the store.
+func (ptr *telemetryT) config() types.TelemetryConfig {
 	if ptr.store == nil {
-		return &types.TelemetryConfig{}
+		return types.TelemetryConfig{}
 	}
 
-	cfg := ptr.store.Telemetry()
-	if cfg == nil {
-		return &types.TelemetryConfig{}
+	cur := ptr.store.Telemetry()
+	if cur == nil {
+		return types.TelemetryConfig{}
 	}
 
-	return cfg
-}
-
-func (ptr *telemetryT) saveConfig() {
-	if err := ptr.store.Save(); err != nil {
-		log.Errorf("[cliff] Telemetry save config error: %v", err)
+	snap := *cur
+	if snap.SuppressedDomains != nil {
+		snap.SuppressedDomains = slices.Clone(snap.SuppressedDomains)
 	}
+
+	return snap
 }
 
 func (ptr *telemetryT) publish(topic, event, domain string, data map[string]any) error {
@@ -218,34 +217,33 @@ func (ptr *telemetryT) Enable(enabled bool) error {
 	ptr.lock.Lock()
 	defer ptr.lock.Unlock()
 
-	cfg := ptr.config()
-	cfg.Enabled = enabled
+	next := ptr.config()
+	next.Enabled = enabled
 
 	if enabled {
-		cfg.EnabledAt = time.Now()
+		next.EnabledAt = time.Now()
 	} else {
-		cfg.EnabledAt = time.Time{}
+		next.EnabledAt = time.Time{}
 	}
 
-	ptr.saveConfig()
+	if err := ptr.store.SetTelemetry(&next); err != nil {
+		log.WithError(err).Errorf("[cliff] Telemetry: persist enable=%v", enabled)
+	}
+
 	ptr.stopTimerLocked()
 
 	if enabled {
-		ptr.startTimerLocked(validityOrDefault(cfg))
+		ptr.startTimerLocked(validityOrDefault(&next))
 	}
 
 	return nil
 }
 
 func (ptr *telemetryT) IsEnabled() bool {
-	ptr.lock.Lock()
-	defer ptr.lock.Unlock()
 	return ptr.config().Enabled
 }
 
 func (ptr *telemetryT) Validity() time.Duration {
-	ptr.lock.Lock()
-	defer ptr.lock.Unlock()
 	return ptr.config().Validity
 }
 
@@ -257,35 +255,37 @@ func (ptr *telemetryT) SetValidity(validity time.Duration) error {
 	ptr.lock.Lock()
 	defer ptr.lock.Unlock()
 
-	var elapsed time.Duration
+	next := ptr.config()
 
-	shouldDisable := false
+	var (
+		elapsed       time.Duration
+		shouldDisable bool
+	)
 
-	if ptr.config().Enabled && !ptr.config().EnabledAt.IsZero() {
-		elapsed = time.Since(ptr.config().EnabledAt)
-		if elapsed < 0 {
-			elapsed = 0
-		}
-
+	if next.Enabled && !next.EnabledAt.IsZero() {
+		elapsed = max(time.Since(next.EnabledAt), 0)
 		if elapsed >= validity {
 			shouldDisable = true
 		}
 	}
 
-	ptr.config().Validity = validity
+	next.Validity = validity
 
 	if shouldDisable {
-		ptr.config().Enabled = false
-		ptr.config().EnabledAt = time.Time{}
+		next.Enabled = false
+		next.EnabledAt = time.Time{}
 	}
 
-	ptr.saveConfig()
+	if err := ptr.store.SetTelemetry(&next); err != nil {
+		log.WithError(err).Errorf("[cliff] Telemetry: persist validity")
+	}
+
 	ptr.stopTimerLocked()
 
 	switch {
 	case shouldDisable:
 		log.Infof("[cliff] Telemetry valididty ended: validity=%s elapsed=%s", validity, elapsed)
-	case ptr.config().Enabled && !ptr.config().EnabledAt.IsZero():
+	case next.Enabled && !next.EnabledAt.IsZero():
 		ptr.startTimerLocked(validity - elapsed)
 	}
 
@@ -296,21 +296,21 @@ func (ptr *telemetryT) SetSuppressedDomains(domains []string) error {
 	ptr.lock.Lock()
 	defer ptr.lock.Unlock()
 
+	next := ptr.config()
 	if len(domains) == 0 {
-		ptr.config().SuppressedDomains = nil
+		next.SuppressedDomains = nil
 	} else {
-		ptr.config().SuppressedDomains = slices.Clone(domains)
+		next.SuppressedDomains = slices.Clone(domains)
 	}
 
-	ptr.saveConfig()
+	if err := ptr.store.SetTelemetry(&next); err != nil {
+		log.WithError(err).Errorf("[cliff] Telemetry: persist suppressed domains")
+	}
 
 	return nil
 }
 
 func (ptr *telemetryT) SuppressedDomains() []string {
-	ptr.lock.Lock()
-	defer ptr.lock.Unlock()
-
 	src := ptr.config().SuppressedDomains
 	if src == nil {
 		return nil
@@ -323,14 +323,14 @@ func (ptr *telemetryT) resumeValidityWindow() error {
 	ptr.lock.Lock()
 	defer ptr.lock.Unlock()
 
-	cfg := ptr.config()
-	if !cfg.Enabled {
+	next := ptr.config()
+	if !next.Enabled {
 		return nil
 	}
 
-	validity := validityOrDefault(cfg)
+	validity := validityOrDefault(&next)
 	now := time.Now()
-	enabledAt := cfg.EnabledAt
+	enabledAt := next.EnabledAt
 
 	switch {
 	case enabledAt.IsZero():
@@ -340,19 +340,23 @@ func (ptr *telemetryT) resumeValidityWindow() error {
 		enabledAt = now
 	}
 
-	if !cfg.EnabledAt.Equal(enabledAt) {
-		ptr.config().EnabledAt = enabledAt
-
-		ptr.saveConfig()
-	}
+	dirty := !next.EnabledAt.Equal(enabledAt)
+	next.EnabledAt = enabledAt
 
 	elapsed := now.Sub(enabledAt)
 	if elapsed >= validity {
-		ptr.config().Enabled = false
-		ptr.config().EnabledAt = time.Time{}
+		next.Enabled = false
+		next.EnabledAt = time.Time{}
+		dirty = true
+	}
 
-		ptr.saveConfig()
+	if dirty {
+		if err := ptr.store.SetTelemetry(&next); err != nil {
+			log.WithError(err).Errorf("[cliff] Telemetry: persist resume")
+		}
+	}
 
+	if !next.Enabled {
 		log.Infof("[cliff] Telemetry disabled: validity expired before startup")
 
 		return nil
@@ -400,11 +404,13 @@ func (ptr *telemetryT) stopTimerLocked() {
 func (ptr *telemetryT) disableLocked(reason string) {
 	ptr.timer = nil
 
-	cfg := ptr.config()
-	cfg.Enabled = false
-	cfg.EnabledAt = time.Time{}
+	next := ptr.config()
+	next.Enabled = false
+	next.EnabledAt = time.Time{}
 
-	ptr.saveConfig()
+	if err := ptr.store.SetTelemetry(&next); err != nil {
+		log.WithError(err).Errorf("[cliff] Telemetry: persist disable")
+	}
 
 	log.Infof("[cliff] Telemetry disabled: %s", reason)
 }

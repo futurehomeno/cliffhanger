@@ -3,6 +3,7 @@ package debug_test
 import (
 	"path/filepath"
 	"sync"
+	"sync/atomic"
 	"testing"
 	"time"
 
@@ -389,6 +390,124 @@ func TestSetLevel_InfoOrHigher_ClearsRevert(t *testing.T) { //nolint:paralleltes
 
 	assert.Equal(t, "info", cfg.LogLevel)
 	assert.True(t, cfg.LogRevertAt.IsZero(), "info or higher should clear pending revert")
+}
+
+// TestRouting_SetLog_PersistsToStore verifies that each FIMP-driven log SET
+// command goes through *DefaultStore.Save(), so changes survive a restart.
+// The existing routing roundtrip tests only cover in-memory state.
+func TestRouting_SetLog_PersistsToStore(t *testing.T) { //nolint:paralleltest
+	dir := t.TempDir()
+	t.Chdir(dir)
+
+	cfg := &config.Default{LogLevel: "info", LogFormat: "text", LogFile: "app.log"}
+
+	var saves atomic.Int32
+
+	store := config.NewDefaultStore(
+		func() *config.Default { return cfg },
+		func() error {
+			saves.Add(1)
+
+			return nil
+		},
+	)
+
+	saved := logrus.GetLevel()
+	t.Cleanup(func() { logrus.SetLevel(saved) })
+
+	require.NoError(t, debug.InitializeLogger(store))
+
+	var (
+		levelSavesBefore   int32
+		formatSavesBefore  int32
+		fileSavesBefore    int32
+		revertSavesBefore  int32
+	)
+
+	s := &suite.Suite{
+		Cases: []*suite.Case{
+			{
+				Name: "set persists",
+				Setup: suite.BaseSetup(func(t *testing.T, _ *fimpgo.MqttTransport) ([]*router.Routing, []*task.Task, []suite.Mock) {
+					t.Helper()
+
+					return debug.Route("test_service"), nil, nil
+				}),
+				Nodes: []*suite.Node{
+					{
+						Command: suite.StringMessage("pt:j1/mt:cmd/rt:app/rn:test/ad:1", debug.CmdLogSetLevel, "test_service", "warning"),
+						InitCallbacks: []suite.Callback{
+							func(t *testing.T) { t.Helper(); levelSavesBefore = saves.Load() },
+						},
+						Expectations: []*suite.Expectation{
+							suite.ExpectString("pt:j1/mt:evt/rt:app/rn:test/ad:1", debug.EvtLogLevelReport, "test_service", "warning"),
+						},
+						Callbacks: []suite.Callback{
+							func(t *testing.T) {
+								t.Helper()
+								require.Eventually(t, func() bool {
+									return saves.Load() > levelSavesBefore
+								}, time.Second, 10*time.Millisecond, "set_level must persist")
+							},
+						},
+					},
+					{
+						Command: suite.StringMessage("pt:j1/mt:cmd/rt:app/rn:test/ad:1", debug.CmdLogSetFormat, "test_service", "json"),
+						InitCallbacks: []suite.Callback{
+							func(t *testing.T) { t.Helper(); formatSavesBefore = saves.Load() },
+						},
+						Expectations: []*suite.Expectation{
+							suite.ExpectString("pt:j1/mt:evt/rt:app/rn:test/ad:1", debug.EvtLogFormatReport, "test_service", "json"),
+						},
+						Callbacks: []suite.Callback{
+							func(t *testing.T) {
+								t.Helper()
+								require.Eventually(t, func() bool {
+									return saves.Load() > formatSavesBefore
+								}, time.Second, 10*time.Millisecond, "set_format must persist")
+							},
+						},
+					},
+					{
+						Command: suite.StringMessage("pt:j1/mt:cmd/rt:app/rn:test/ad:1", debug.CmdLogSetFile, "test_service", "rotated.log"),
+						InitCallbacks: []suite.Callback{
+							func(t *testing.T) { t.Helper(); fileSavesBefore = saves.Load() },
+						},
+						Expectations: []*suite.Expectation{
+							suite.ExpectString("pt:j1/mt:evt/rt:app/rn:test/ad:1", debug.EvtLogFileReport, "test_service", "rotated.log"),
+						},
+						Callbacks: []suite.Callback{
+							func(t *testing.T) {
+								t.Helper()
+								require.Eventually(t, func() bool {
+									return saves.Load() > fileSavesBefore
+								}, time.Second, 10*time.Millisecond, "set_file must persist")
+							},
+						},
+					},
+					{
+						Command: suite.StringMessage("pt:j1/mt:cmd/rt:app/rn:test/ad:1", debug.CmdLogSetRevertTimeout, "test_service", "2h"),
+						InitCallbacks: []suite.Callback{
+							func(t *testing.T) { t.Helper(); revertSavesBefore = saves.Load() },
+						},
+						Expectations: []*suite.Expectation{
+							suite.ExpectString("pt:j1/mt:evt/rt:app/rn:test/ad:1", debug.EvtLogRevertTimeoutReport, "test_service", "2h0m0s"),
+						},
+						Callbacks: []suite.Callback{
+							func(t *testing.T) {
+								t.Helper()
+								require.Eventually(t, func() bool {
+									return saves.Load() > revertSavesBefore
+								}, time.Second, 10*time.Millisecond, "set_revert_timeout must persist")
+							},
+						},
+					},
+				},
+			},
+		},
+	}
+
+	s.Run(t)
 }
 
 func TestInitializeLogger_ConcurrentSettersAreRaceFree(t *testing.T) { //nolint:paralleltest

@@ -7,6 +7,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"sync/atomic"
 	"testing"
 	"time"
 
@@ -205,6 +206,43 @@ func TestStart_RealClient_SchedulesAndStops(t *testing.T) { //nolint:paralleltes
 	cfg.Stop()
 	// Stop is idempotent.
 	cfg.Stop()
+}
+
+// TestSchedule_RepeatsOnFallbackPoll verifies that scheduleLocked re-fires
+// after fallbackPoll: a single Start+wait must observe at least two SendFimp
+// calls. Without this, a regression that broke the self-rescheduling tail of
+// scheduleLocked (e.g. a missed scheduleLocked call after poll) would still
+// pass TestStart_RealClient_SchedulesAndStops, since that one only proves
+// Start does not error.
+func TestSchedule_RepeatsOnFallbackPoll(t *testing.T) { //nolint:paralleltest
+	var calls atomic.Int32
+
+	client := mocked.NewSyncRequester(t)
+	client.EXPECT().
+		SendFimp(mock.Anything, mock.Anything, mock.Anything).
+		Run(func(_ string, _ *fimpgo.FimpMessage, _ int) {
+			calls.Add(1)
+		}).
+		Return(makeResponse(t, configResponseT{Enabled: true}), nil)
+	client.EXPECT().Stop().Return().Maybe()
+
+	cfg := newConfig()
+	cfg.fallbackPoll = 30 * time.Millisecond
+	cfg.client = client
+
+	cfg.lock.Lock()
+	cfg.scheduleLocked(0)
+	cfg.lock.Unlock()
+
+	t.Cleanup(cfg.Stop)
+
+	require.Eventually(t,
+		func() bool { return calls.Load() >= 2 },
+		1*time.Second,
+		10*time.Millisecond,
+		"scheduleLocked must re-fire after fallbackPoll; got %d calls",
+		calls.Load(),
+	)
 }
 
 // TestPoll_ResponseTopicFormat verifies the SendFimp call uses the correct

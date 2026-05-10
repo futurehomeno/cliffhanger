@@ -19,7 +19,7 @@ var (
 
 type logManagerT struct {
 	logOutput *lumberjack.Logger
-	store     storeIf
+	store     Store
 	lock      sync.Mutex
 }
 
@@ -27,7 +27,7 @@ type logManagerT struct {
 // (debug/trace) is automatically reverted to the previous level (info/warn)
 const defaultLogRevertTimeout = 7 * 24 * time.Hour
 
-type storeIf interface {
+type Store interface {
 	Level() string
 	SetLevel(level string) error
 	Format() string
@@ -40,7 +40,7 @@ type storeIf interface {
 	SetRevertAt(t time.Time) error
 }
 
-func InitializeLogger(store storeIf) error {
+func InitializeLogger(store Store) error {
 	logManager = &logManagerT{
 		store: store,
 	}

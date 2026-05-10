@@ -111,6 +111,41 @@ func TestEnable_TogglesAndPersists(t *testing.T) { //nolint:paralleltest
 	assert.False(t, store.model.Telemetry.EnabledAt.IsZero(), "EnabledAt set on enable")
 }
 
+// TestEnable_RepeatedTrue_ExtendsValidityWindow documents the heartbeat
+// semantics: every Enable(true) refreshes EnabledAt to time.Now(), which is
+// the path cloud config pulls take via applyConfigFromCloud. As long as the
+// cloud keeps confirming "enabled", the validity deadline is pushed
+// forward; the auto-disable timer only fires after one full validity window
+// without a pull.
+func TestEnable_RepeatedTrue_ExtendsValidityWindow(t *testing.T) { //nolint:paralleltest
+	mqtt := suite.DefaultMQTT("cliff_test_enable_extend", "", "", "")
+	require.NoError(t, mqtt.Start(2*time.Second))
+	t.Cleanup(mqtt.Stop)
+
+	store := newStore()
+
+	tel, err := telemetry.New(mqtt, "src", store.DefaultStore)
+	require.NoError(t, err)
+	t.Cleanup(func() {
+		if stop, ok := tel.(interface{ Stop() }); ok {
+			stop.Stop()
+		}
+	})
+
+	require.NoError(t, tel.Enable(true))
+	first := store.model.Telemetry.EnabledAt
+	require.False(t, first.IsZero())
+
+	// A measurable gap so the second EnabledAt is provably later.
+	time.Sleep(20 * time.Millisecond)
+
+	require.NoError(t, tel.Enable(true))
+	second := store.model.Telemetry.EnabledAt
+
+	assert.True(t, second.After(first), "Enable(true) must refresh EnabledAt on each call (heartbeat)")
+	assert.True(t, tel.IsEnabled())
+}
+
 func TestSetValidity_RejectsNonPositive(t *testing.T) { //nolint:paralleltest
 	mqtt := suite.DefaultMQTT("cliff_test_validity", "", "", "")
 	require.NoError(t, mqtt.Start(2*time.Second))
@@ -597,6 +632,100 @@ func TestRouting_SuppressedDomainsGet(t *testing.T) { //nolint:paralleltest
 						Command: suite.StringArrayMessage("pt:j1/mt:cmd/rt:app/rn:test/ad:1", "cmd.config.set_telemetry_suppressed_domains", "tel_supp_get", []string{"gamma"}),
 						Expectations: []*suite.Expectation{
 							suite.ExpectStringArray("pt:j1/mt:evt/rt:app/rn:test/ad:1", "evt.config.telemetry_suppressed_domains_report", "tel_supp_get", []string{"gamma"}),
+						},
+					},
+				},
+			},
+		},
+	}
+
+	s.Run(t)
+}
+
+// TestRouting_SetTelemetry_PersistsToStore verifies that each FIMP-driven
+// SET command on telemetry config goes through *DefaultStore.Save(), so the
+// new value survives a restart. Without this assertion the routing tests
+// only prove in-memory round-trip and would miss a regression where Save()
+// is silently dropped from the SET handler path.
+func TestRouting_SetTelemetry_PersistsToStore(t *testing.T) { //nolint:paralleltest
+	store := newStore()
+	store.model.Telemetry = &types.TelemetryConfig{Enabled: true, EnabledAt: time.Now(), Validity: time.Hour}
+
+	var (
+		enableSavesBefore   int32
+		validitySavesBefore int32
+		suppSavesBefore     int32
+	)
+
+	s := &suite.Suite{
+		Cases: []*suite.Case{
+			{
+				Name: "set persists",
+				Setup: suite.BaseSetup(func(t *testing.T, mqtt *fimpgo.MqttTransport) ([]*router.Routing, []*task.Task, []suite.Mock) {
+					t.Helper()
+
+					tel, err := telemetry.New(mqtt, "tel_persist", store.DefaultStore)
+					require.NoError(t, err)
+					t.Cleanup(func() {
+						if stop, ok := tel.(interface{ Stop() }); ok {
+							stop.Stop()
+						}
+					})
+
+					return telemetry.Route(tel), nil, nil
+				}),
+				Nodes: []*suite.Node{
+					{
+						Command: suite.BoolMessage("pt:j1/mt:cmd/rt:app/rn:test/ad:1", "cmd.config.set_telemetry_enabled", "tel_persist", false),
+						InitCallbacks: []suite.Callback{
+							func(t *testing.T) { t.Helper(); enableSavesBefore = store.saves.Load() },
+						},
+						Expectations: []*suite.Expectation{
+							suite.ExpectBool("pt:j1/mt:evt/rt:app/rn:test/ad:1", "evt.config.telemetry_enabled_report", "tel_persist", false),
+						},
+						Callbacks: []suite.Callback{
+							func(t *testing.T) {
+								t.Helper()
+								// Suite runs Callbacks right after publish, before the handler reply
+								// has been observed; poll until the SetTelemetry save lands.
+								require.Eventually(t, func() bool {
+									return store.saves.Load() > enableSavesBefore
+								}, time.Second, 10*time.Millisecond, "set_telemetry_enabled must persist")
+							},
+						},
+					},
+					{
+						Command: suite.StringMessage("pt:j1/mt:cmd/rt:app/rn:test/ad:1", "cmd.config.set_telemetry_validity", "tel_persist", "30m"),
+						InitCallbacks: []suite.Callback{
+							func(t *testing.T) { t.Helper(); validitySavesBefore = store.saves.Load() },
+						},
+						Expectations: []*suite.Expectation{
+							suite.ExpectString("pt:j1/mt:evt/rt:app/rn:test/ad:1", "evt.config.telemetry_validity_report", "tel_persist", "30m0s"),
+						},
+						Callbacks: []suite.Callback{
+							func(t *testing.T) {
+								t.Helper()
+								require.Eventually(t, func() bool {
+									return store.saves.Load() > validitySavesBefore
+								}, time.Second, 10*time.Millisecond, "set_telemetry_validity must persist")
+							},
+						},
+					},
+					{
+						Command: suite.StringArrayMessage("pt:j1/mt:cmd/rt:app/rn:test/ad:1", "cmd.config.set_telemetry_suppressed_domains", "tel_persist", []string{"alpha"}),
+						InitCallbacks: []suite.Callback{
+							func(t *testing.T) { t.Helper(); suppSavesBefore = store.saves.Load() },
+						},
+						Expectations: []*suite.Expectation{
+							suite.ExpectStringArray("pt:j1/mt:evt/rt:app/rn:test/ad:1", "evt.config.telemetry_suppressed_domains_report", "tel_persist", []string{"alpha"}),
+						},
+						Callbacks: []suite.Callback{
+							func(t *testing.T) {
+								t.Helper()
+								require.Eventually(t, func() bool {
+									return store.saves.Load() > suppSavesBefore
+								}, time.Second, 10*time.Millisecond, "set_telemetry_suppressed_domains must persist")
+							},
 						},
 					},
 				},
