@@ -62,51 +62,6 @@ func (_c *ThingState_Address_Call) RunAndReturn(run func() string) *ThingState_A
 	return _c
 }
 
-// GetInclusionChecksum provides a mock function with no fields
-func (_m *ThingState) GetInclusionChecksum() uint32 {
-	ret := _m.Called()
-
-	if len(ret) == 0 {
-		panic("no return value specified for GetInclusionChecksum")
-	}
-
-	var r0 uint32
-	if rf, ok := ret.Get(0).(func() uint32); ok {
-		r0 = rf()
-	} else {
-		r0 = ret.Get(0).(uint32)
-	}
-
-	return r0
-}
-
-// ThingState_GetInclusionChecksum_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'GetInclusionChecksum'
-type ThingState_GetInclusionChecksum_Call struct {
-	*mock.Call
-}
-
-// GetInclusionChecksum is a helper method to define mock.On call
-func (_e *ThingState_Expecter) GetInclusionChecksum() *ThingState_GetInclusionChecksum_Call {
-	return &ThingState_GetInclusionChecksum_Call{Call: _e.mock.On("GetInclusionChecksum")}
-}
-
-func (_c *ThingState_GetInclusionChecksum_Call) Run(run func()) *ThingState_GetInclusionChecksum_Call {
-	_c.Call.Run(func(args mock.Arguments) {
-		run()
-	})
-	return _c
-}
-
-func (_c *ThingState_GetInclusionChecksum_Call) Return(_a0 uint32) *ThingState_GetInclusionChecksum_Call {
-	_c.Call.Return(_a0)
-	return _c
-}
-
-func (_c *ThingState_GetInclusionChecksum_Call) RunAndReturn(run func() uint32) *ThingState_GetInclusionChecksum_Call {
-	_c.Call.Return(run)
-	return _c
-}
-
 // ID provides a mock function with no fields
 func (_m *ThingState) ID() string {
 	ret := _m.Called()
@@ -148,6 +103,51 @@ func (_c *ThingState_ID_Call) Return(_a0 string) *ThingState_ID_Call {
 }
 
 func (_c *ThingState_ID_Call) RunAndReturn(run func() string) *ThingState_ID_Call {
+	_c.Call.Return(run)
+	return _c
+}
+
+// InclusionChecksum provides a mock function with no fields
+func (_m *ThingState) InclusionChecksum() uint32 {
+	ret := _m.Called()
+
+	if len(ret) == 0 {
+		panic("no return value specified for InclusionChecksum")
+	}
+
+	var r0 uint32
+	if rf, ok := ret.Get(0).(func() uint32); ok {
+		r0 = rf()
+	} else {
+		r0 = ret.Get(0).(uint32)
+	}
+
+	return r0
+}
+
+// ThingState_InclusionChecksum_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'InclusionChecksum'
+type ThingState_InclusionChecksum_Call struct {
+	*mock.Call
+}
+
+// InclusionChecksum is a helper method to define mock.On call
+func (_e *ThingState_Expecter) InclusionChecksum() *ThingState_InclusionChecksum_Call {
+	return &ThingState_InclusionChecksum_Call{Call: _e.mock.On("InclusionChecksum")}
+}
+
+func (_c *ThingState_InclusionChecksum_Call) Run(run func()) *ThingState_InclusionChecksum_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		run()
+	})
+	return _c
+}
+
+func (_c *ThingState_InclusionChecksum_Call) Return(_a0 uint32) *ThingState_InclusionChecksum_Call {
+	_c.Call.Return(_a0)
+	return _c
+}
+
+func (_c *ThingState_InclusionChecksum_Call) RunAndReturn(run func() uint32) *ThingState_InclusionChecksum_Call {
 	_c.Call.Return(run)
 	return _c
 }

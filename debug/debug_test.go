@@ -1,6 +1,7 @@
 package debug_test
 
 import (
+	"os"
 	"path/filepath"
 	"sync"
 	"sync/atomic"
@@ -211,12 +212,21 @@ func TestRouting_FormatGetSet_RoundTrips(t *testing.T) { //nolint:paralleltest
 
 func TestRouting_FileGetSet_RoundTrips(t *testing.T) { //nolint:paralleltest
 	// SetFile rejects anything that isn't a plain file name, so chdir into
-	// the temp dir and pass a bare name.
-	dir := t.TempDir()
-	t.Chdir(dir)
+	// a real directory and pass bare names. Using testdata/ keeps the
+	// generated log files inspectable on failure; cleanup removes them
+	// after the test.
+	require.NoError(t, os.MkdirAll("testdata", 0o750))
+	t.Chdir("testdata")
 
 	startFile := "start.log"
 	newFile := "rotated.log"
+
+	savedOut := logrus.StandardLogger().Out
+	t.Cleanup(func() {
+		logrus.SetOutput(savedOut)
+		_ = os.Remove(startFile)
+		_ = os.Remove(newFile)
+	})
 
 	s := &suite.Suite{
 		Cases: []*suite.Case{
@@ -396,8 +406,13 @@ func TestSetLevel_InfoOrHigher_ClearsRevert(t *testing.T) { //nolint:paralleltes
 // command goes through *DefaultStore.Save(), so changes survive a restart.
 // The existing routing roundtrip tests only cover in-memory state.
 func TestRouting_SetLog_PersistsToStore(t *testing.T) { //nolint:paralleltest
-	dir := t.TempDir()
-	t.Chdir(dir)
+	require.NoError(t, os.MkdirAll("testdata", 0o755))
+	t.Chdir("testdata")
+
+	t.Cleanup(func() {
+		_ = os.Remove("app.log")
+		_ = os.Remove("rotated.log")
+	})
 
 	cfg := &config.Default{LogLevel: "info", LogFormat: "text", LogFile: "app.log"}
 
@@ -412,16 +427,20 @@ func TestRouting_SetLog_PersistsToStore(t *testing.T) { //nolint:paralleltest
 		},
 	)
 
-	saved := logrus.GetLevel()
-	t.Cleanup(func() { logrus.SetLevel(saved) })
+	savedLevel := logrus.GetLevel()
+	savedOut := logrus.StandardLogger().Out
+	t.Cleanup(func() {
+		logrus.SetLevel(savedLevel)
+		logrus.SetOutput(savedOut)
+	})
 
 	require.NoError(t, debug.InitializeLogger(store))
 
 	var (
-		levelSavesBefore   int32
-		formatSavesBefore  int32
-		fileSavesBefore    int32
-		revertSavesBefore  int32
+		levelSavesBefore  int32
+		formatSavesBefore int32
+		fileSavesBefore   int32
+		revertSavesBefore int32
 	)
 
 	s := &suite.Suite{
@@ -538,10 +557,10 @@ func TestInitializeLogger_ConcurrentSettersAreRaceFree(t *testing.T) { //nolint:
 	for i := 0; i < goroutines; i++ {
 		go func() {
 			defer wg.Done()
-			for j := 0; j < iters; j++ {
+			for range iters {
 				_ = store.Level()
 				_ = store.Format()
-				_ = store.File()
+				_ = store.LogFile()
 			}
 		}()
 	}

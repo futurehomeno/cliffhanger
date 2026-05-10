@@ -201,7 +201,7 @@ func RouteCmdLogGetRevertTimeout(serviceName fimptype.ServiceNameT) *router.Rout
 	return router.NewRouting(
 		router.NewMessageHandler(
 			router.MessageProcessorFn(func(message *fimpgo.Message) (reply *fimpgo.FimpMessage, err error) {
-				d := logManager.store.RevertTimeout()
+				d := logManager.store.LogRevertTimeout()
 				if d <= 0 {
 					d = defaultLogRevertTimeout
 				}

@@ -779,7 +779,7 @@ func setupObserverTest(testObserver *observer.Observer, testEventManager *event.
 			t.Fatalf("failed to create a new observer: %s", err)
 		}
 
-		return observer.RouteObserver(*testObserver), observer.TaskObserver(*testObserver, time.Minute), nil
+		return observer.Route(*testObserver), observer.Task(*testObserver, time.Minute), nil
 	}
 }
 

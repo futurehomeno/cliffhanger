@@ -7,18 +7,9 @@ import (
 	"path"
 	"path/filepath"
 	"sync"
-	"time"
 
-	"github.com/futurehomeno/cliffhanger/telemetry/types"
 	log "github.com/sirupsen/logrus"
 )
-
-type DefaultConfigIf interface {
-	GetTelemetry() (types.TelemetryConfig, error)
-	SetTelemetry(types.TelemetryConfig)
-	SetConfiguredAt(time.Time)
-	IncrementRestartsCount() int
-}
 
 // Constants defining internal settings of the storage.
 const (
@@ -29,13 +20,9 @@ const (
 
 // Storage is an interface representing a service responsible for loading JSON configuration from provided location.
 type Storage[T any] interface {
-	// Load loads the configuration. First a default configuration is loaded if present and then an actual configuration is used to override the defaults.
 	Load() error
-	// Save saves configuration to the configured location.
 	Save() error
-	// Reset deletes the configuration file and reloads default configuration.
 	Reset() error
-	// Model returns a configuration model object.
 	Model() T
 }
 
@@ -94,25 +81,6 @@ func (s *storage[T]) Model() T {
 	return s.model
 }
 
-func (s *storage[T]) IncrementRestartsCount() (int, error) {
-	s.lock.Lock()
-	defer s.lock.Unlock()
-
-	d, ok := any(s.model).(DefaultConfigIf)
-	if !ok {
-		return 0, fmt.Errorf("storage: the model does not support restart counting")
-	}
-
-	count := d.IncrementRestartsCount()
-
-	if err := s.save(); err != nil {
-		return 0, fmt.Errorf("storage: failed to persist restart count: %w", err)
-	}
-
-	return count, nil
-}
-
-// First a default configuration is loaded if present and then an actual configuration is used to override the defaults.
 func (s *storage[T]) Load() error {
 	s.lock.Lock()
 	defer s.lock.Unlock()
@@ -140,7 +108,6 @@ func (s *storage[T]) Load() error {
 	return s.load(defaultsExists, dataExists)
 }
 
-// load performs loading of the configuration files in the right order and performs fallback if allowed.
 func (s *storage[T]) load(defaultsExists, dataExists bool) error {
 	if !dataExists && !defaultsExists && s.defaultsPath == "" {
 		return nil
@@ -205,7 +172,6 @@ func (s *storage[T]) Save() error {
 	return s.save()
 }
 
-// saveLocked persists the configuration to disk. The caller must hold s.lock.
 func (s *storage[T]) save() error {
 	err := os.MkdirAll(path.Dir(s.dataPath), 0774) //nolint:gofumpt,gosec
 	if err != nil {
@@ -215,11 +181,6 @@ func (s *storage[T]) save() error {
 	err = s.makeBackup()
 	if err != nil {
 		return fmt.Errorf("storage: failed to make a configuration backup: %w", err)
-	}
-
-	d, ok := any(s.model).(DefaultConfigIf)
-	if ok {
-		d.SetConfiguredAt(time.Now())
 	}
 
 	body, err := json.MarshalIndent(s.model, "", "\t")
@@ -235,7 +196,6 @@ func (s *storage[T]) save() error {
 	return nil
 }
 
-// makeBackup copies contents of an existing configuration to a backup file.
 func (s *storage[T]) makeBackup() error {
 	cfgExists, err := s.fileExists(s.dataPath)
 	if err != nil {
@@ -259,7 +219,6 @@ func (s *storage[T]) makeBackup() error {
 	return nil
 }
 
-// Reset deletes the configuration file and reloads default configuration.
 func (s *storage[T]) Reset() error {
 	s.lock.Lock()
 	defer s.lock.Unlock()
@@ -290,7 +249,6 @@ func (s *storage[T]) Reset() error {
 	return s.load(true, false)
 }
 
-// fileExists checks if the file exists.
 func (s *storage[T]) fileExists(path string) (bool, error) {
 	info, err := os.Stat(path)
 	if os.IsNotExist(err) {
@@ -318,7 +276,6 @@ func (s *storage[T]) removeFile(path string) error {
 	return nil
 }
 
-// loadFile loads a provided file and unmarshalls it using the configured model.
 func (s *storage[T]) loadFile(path string) error {
 	body, err := os.ReadFile(path) //nolint:gosec
 	if err != nil {
@@ -333,7 +290,6 @@ func (s *storage[T]) loadFile(path string) error {
 	return nil
 }
 
-// writeFile provides a secure way of writing data to a file.
 func (s *storage[T]) writeFile(path string, data []byte) (err error) {
 	file, err := os.OpenFile(path, os.O_WRONLY|os.O_CREATE|os.O_TRUNC, 0664) //nolint:gofumpt,gosec
 	if err != nil {

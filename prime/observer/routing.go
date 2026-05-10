@@ -10,8 +10,8 @@ import (
 	"github.com/futurehomeno/cliffhanger/router"
 )
 
-// RouteObserver returns routing for prime observer.
-func RouteObserver(observer Observer) []*router.Routing {
+// Route returns routing for prime observer.
+func Route(observer Observer) []*router.Routing {
 	return []*router.Routing{
 		RouteEvtPD7Notify(observer),
 	}

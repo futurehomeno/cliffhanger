@@ -8,8 +8,6 @@ import (
 	"github.com/futurehomeno/cliffhanger/telemetry/types"
 )
 
-const configFileName = "config.json"
-
 type DefaultStore struct {
 	accessor func() *Default
 	save     func() error
@@ -55,8 +53,6 @@ func (d *Default) IncrementRestartsCount() int {
 	return d.RestartsCount
 }
 
-// GetTelemetry returns a copy of the persisted telemetry block, or a zero
-// value when none is set. The error return satisfies storage.DefaultConfigIf.
 func (d *Default) GetTelemetry() (types.TelemetryConfig, error) {
 	if d.Telemetry == nil {
 		return types.TelemetryConfig{}, nil
@@ -65,15 +61,13 @@ func (d *Default) GetTelemetry() (types.TelemetryConfig, error) {
 	return *d.Telemetry, nil
 }
 
-// SetTelemetry persists the given block by replacing the embedded pointer.
 func (d *Default) SetTelemetry(cfg types.TelemetryConfig) {
 	c := cfg
 	d.Telemetry = &c
 }
 
-// SetConfiguredAt persists the given time using RFC3339.
 func (d *Default) SetConfiguredAt(t time.Time) {
-	d.ConfiguredAt = t.Format(time.RFC3339)
+	d.ConfiguredAt = t.Format(time.RFC3339Nano)
 }
 
 func NewDefaultStore(accessor func() *Default, save func() error) *DefaultStore {
@@ -90,6 +84,12 @@ func NewDefaultStoreFromStorage[T any](s storage.Storage[T], pick func(T) *Defau
 func (s *DefaultStore) Save() error {
 	s.lock.Lock()
 	defer s.lock.Unlock()
+
+	return s.saveStamped()
+}
+
+func (s *DefaultStore) saveStamped() error {
+	s.accessor().SetConfiguredAt(time.Now())
 
 	return s.save()
 }
@@ -114,7 +114,7 @@ func (s *DefaultStore) SetLevel(level string) error {
 
 	s.accessor().LogLevel = level
 
-	return s.save()
+	return s.saveStamped()
 }
 
 func (s *DefaultStore) Format() string {
@@ -130,55 +130,55 @@ func (s *DefaultStore) SetFormat(format string) error {
 
 	s.accessor().LogFormat = format
 
-	return s.save()
+	return s.saveStamped()
 }
 
-func (s *DefaultStore) File() string {
+func (s *DefaultStore) LogFile() string {
 	s.lock.RLock()
 	defer s.lock.RUnlock()
 
 	return s.accessor().LogFile
 }
 
-func (s *DefaultStore) SetFile(file string) error {
+func (s *DefaultStore) SetLogFile(file string) error {
 	s.lock.Lock()
 	defer s.lock.Unlock()
 
 	s.accessor().LogFile = file
 
-	return s.save()
+	return s.saveStamped()
 }
 
-func (s *DefaultStore) RevertTimeout() time.Duration {
+func (s *DefaultStore) LogRevertTimeout() time.Duration {
 	s.lock.RLock()
 	defer s.lock.RUnlock()
 
 	return s.accessor().LogRevertTimeout
 }
 
-func (s *DefaultStore) SetRevertTimeout(d time.Duration) error {
+func (s *DefaultStore) SetLogRevertTimeout(d time.Duration) error {
 	s.lock.Lock()
 	defer s.lock.Unlock()
 
 	s.accessor().LogRevertTimeout = d
 
-	return s.save()
+	return s.saveStamped()
 }
 
-func (s *DefaultStore) RevertAt() time.Time {
+func (s *DefaultStore) LogRevertAt() time.Time {
 	s.lock.RLock()
 	defer s.lock.RUnlock()
 
 	return s.accessor().LogRevertAt
 }
 
-func (s *DefaultStore) SetRevertAt(t time.Time) error {
+func (s *DefaultStore) SetLogRevertAt(t time.Time) error {
 	s.lock.Lock()
 	defer s.lock.Unlock()
 
 	s.accessor().LogRevertAt = t
 
-	return s.save()
+	return s.saveStamped()
 }
 
 func (s *DefaultStore) Telemetry() *types.TelemetryConfig {
@@ -194,5 +194,18 @@ func (s *DefaultStore) SetTelemetry(cfg *types.TelemetryConfig) error {
 
 	s.accessor().Telemetry = cfg
 
-	return s.save()
+	return s.saveStamped()
+}
+
+func (s *DefaultStore) IncrementRestartsCount() (int, error) {
+	s.lock.Lock()
+	defer s.lock.Unlock()
+
+	count := s.accessor().IncrementRestartsCount()
+
+	if err := s.save(); err != nil {
+		return 0, err
+	}
+
+	return count, nil
 }

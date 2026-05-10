@@ -8,6 +8,7 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
+	"github.com/futurehomeno/cliffhanger/config"
 	"github.com/futurehomeno/cliffhanger/lifecycle"
 )
 
@@ -226,25 +227,14 @@ func TestWaitFor_BlocksUntilStateReached(t *testing.T) {
 	}
 }
 
-type stubRestartsStore struct {
-	count int
-	err   error
-}
-
-func (s *stubRestartsStore) IncrementRestartsCount() (int, error) {
-	if s.err != nil {
-		return 0, s.err
-	}
-
-	s.count++
-
-	return s.count, nil
-}
-
 func TestNew_WithStore_SetsRestartsCount(t *testing.T) {
 	t.Parallel()
 
-	store := &stubRestartsStore{count: 4}
+	cfg := &config.Default{RestartsCount: 4}
+	store := config.NewDefaultStore(
+		func() *config.Default { return cfg },
+		func() error { return nil },
+	)
 
 	l := lifecycle.New(store)
 
@@ -254,7 +244,11 @@ func TestNew_WithStore_SetsRestartsCount(t *testing.T) {
 func TestNew_WithStore_StoreError_RestartsCountIsZero(t *testing.T) {
 	t.Parallel()
 
-	store := &stubRestartsStore{err: errors.New("boom")}
+	cfg := &config.Default{}
+	store := config.NewDefaultStore(
+		func() *config.Default { return cfg },
+		func() error { return errors.New("boom") },
+	)
 
 	l := lifecycle.New(store)
 

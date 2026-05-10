@@ -12,6 +12,7 @@ import (
 
 	"github.com/futurehomeno/cliffhanger/config"
 	"github.com/futurehomeno/cliffhanger/router"
+	cliffstorage "github.com/futurehomeno/cliffhanger/storage"
 	"github.com/futurehomeno/cliffhanger/task"
 	"github.com/futurehomeno/cliffhanger/telemetry"
 	"github.com/futurehomeno/cliffhanger/telemetry/types"
@@ -734,4 +735,92 @@ func TestRouting_SetTelemetry_PersistsToStore(t *testing.T) { //nolint:parallelt
 	}
 
 	s.Run(t)
+}
+
+// TestRouting_SetTelemetry_UpdatesConfiguredAt drives a FIMP set command
+// through a real storage.Storage[*config.Default] so the actual storage
+// save path runs - the one that calls SetConfiguredAt before persisting.
+// The trivial save callback used in other tests bypasses this entirely,
+// so this is the only place that proves ConfiguredAt is stamped on
+// every successful save.
+func TestRouting_SetTelemetry_UpdatesConfiguredAt(t *testing.T) { //nolint:paralleltest
+	dir := t.TempDir()
+
+	cfg := &config.Default{
+		Telemetry: &types.TelemetryConfig{Enabled: true, EnabledAt: time.Now(), Validity: time.Hour},
+	}
+
+	realStorage := cliffstorage.New[*config.Default](cfg, dir, "config.json")
+
+	// DefaultStore.save() delegates to realStorage.Save(), which is what
+	// the production NewDefaultStoreFromStorage adapter does.
+	store := config.NewDefaultStore(
+		func() *config.Default { return cfg },
+		realStorage.Save,
+	)
+
+	var configuredAtBefore time.Time
+
+	s := &suite.Suite{
+		Cases: []*suite.Case{
+			{
+				Name: "configured_at stamped on save",
+				Setup: suite.BaseSetup(func(t *testing.T, mqtt *fimpgo.MqttTransport) ([]*router.Routing, []*task.Task, []suite.Mock) {
+					t.Helper()
+
+					tel, err := telemetry.New(mqtt, "tel_cfg_at", store)
+					require.NoError(t, err)
+					t.Cleanup(func() {
+						if stop, ok := tel.(interface{ Stop() }); ok {
+							stop.Stop()
+						}
+					})
+
+					return telemetry.Route(tel), nil, nil
+				}),
+				Nodes: []*suite.Node{
+					{
+						Command: suite.BoolMessage("pt:j1/mt:cmd/rt:app/rn:test/ad:1", "cmd.config.set_telemetry_enabled", "tel_cfg_at", false),
+						InitCallbacks: []suite.Callback{
+							func(t *testing.T) {
+								t.Helper()
+								// Capture the existing configured_at (may be empty for a fresh
+								// config) so we can prove the SET stamps a *new* value.
+								configuredAtBefore = parseConfiguredAt(t, cfg.ConfiguredAt)
+							},
+						},
+						Expectations: []*suite.Expectation{
+							suite.ExpectBool("pt:j1/mt:evt/rt:app/rn:test/ad:1", "evt.config.telemetry_enabled_report", "tel_cfg_at", false),
+						},
+						Callbacks: []suite.Callback{
+							func(t *testing.T) {
+								t.Helper()
+								require.Eventually(t, func() bool {
+									return parseConfiguredAt(t, cfg.ConfiguredAt).After(configuredAtBefore)
+								}, time.Second, 10*time.Millisecond, "ConfiguredAt must be stamped on save")
+							},
+						},
+					},
+				},
+			},
+		},
+	}
+
+	s.Run(t)
+}
+
+// parseConfiguredAt returns the parsed ConfiguredAt value or the zero
+// time when the field is empty. Test helper that isolates the RFC3339
+// format detail set by *Default.SetConfiguredAt.
+func parseConfiguredAt(t *testing.T, raw string) time.Time {
+	t.Helper()
+
+	if raw == "" {
+		return time.Time{}
+	}
+
+	parsed, err := time.Parse(time.RFC3339Nano, raw)
+	require.NoError(t, err)
+
+	return parsed
 }

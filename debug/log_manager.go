@@ -32,12 +32,12 @@ type Store interface {
 	SetLevel(level string) error
 	Format() string
 	SetFormat(format string) error
-	File() string
-	SetFile(file string) error
-	RevertTimeout() time.Duration
-	SetRevertTimeout(d time.Duration) error
-	RevertAt() time.Time
-	SetRevertAt(t time.Time) error
+	LogFile() string
+	SetLogFile(file string) error
+	LogRevertTimeout() time.Duration
+	SetLogRevertTimeout(d time.Duration) error
+	LogRevertAt() time.Time
+	SetLogRevertAt(t time.Time) error
 }
 
 func InitializeLogger(store Store) error {
@@ -52,7 +52,7 @@ func InitializeLogger(store Store) error {
 	// bad log_level value in config.json does not prevent startup.
 	_ = logManager.SetLevel()
 
-	return logManager.setLogOutput(store.File())
+	return logManager.setLogOutput(store.LogFile())
 }
 
 func setLogFormat(logFormat string) {
@@ -134,12 +134,12 @@ func (ptr *logManagerT) SetLevel() error {
 		return nil
 	}
 
-	timeout := ptr.store.RevertTimeout()
+	timeout := ptr.store.LogRevertTimeout()
 	if timeout <= 0 {
 		timeout = defaultLogRevertTimeout
 	}
 
-	if err := ptr.store.SetRevertAt(time.Now().Add(timeout)); err != nil {
+	if err := ptr.store.SetLogRevertAt(time.Now().Add(timeout)); err != nil {
 		return err
 	}
 
@@ -163,12 +163,12 @@ func (ptr *logManagerT) SetRevertTimeout(d time.Duration) error {
 	ptr.lock.Lock()
 	defer ptr.lock.Unlock()
 
-	if err := ptr.store.SetRevertTimeout(d); err != nil {
+	if err := ptr.store.SetLogRevertTimeout(d); err != nil {
 		return err
 	}
 
-	if !ptr.store.RevertAt().IsZero() {
-		return ptr.store.SetRevertAt(time.Now().Add(d))
+	if !ptr.store.LogRevertAt().IsZero() {
+		return ptr.store.SetLogRevertAt(time.Now().Add(d))
 	}
 
 	return nil
@@ -193,7 +193,7 @@ func (ptr *logManagerT) SetFormat(format string) error {
 
 // File returns the currently persisted log file path.
 func (ptr *logManagerT) File() string {
-	return ptr.store.File()
+	return ptr.store.LogFile()
 }
 
 // SetFile applies the given log file path via the output applier hook (if
@@ -207,9 +207,9 @@ func (ptr *logManagerT) SetFile(file string) error {
 	ptr.lock.Lock()
 	defer ptr.lock.Unlock()
 
-	return ptr.store.SetFile(file)
+	return ptr.store.SetLogFile(file)
 }
 
 func (ptr *logManagerT) clearRevertStateLocked() error {
-	return ptr.store.SetRevertAt(time.Time{})
+	return ptr.store.SetLogRevertAt(time.Time{})
 }
