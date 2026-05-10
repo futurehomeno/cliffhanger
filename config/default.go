@@ -1,6 +1,7 @@
 package config
 
 import (
+	"fmt"
 	"sync"
 	"time"
 
@@ -181,11 +182,15 @@ func (s *DefaultStore) SetLogRevertAt(t time.Time) error {
 	return s.saveStamped()
 }
 
-func (s *DefaultStore) Telemetry() *types.TelemetryConfig {
+func (s *DefaultStore) Telemetry() (types.TelemetryConfig, error) {
 	s.lock.RLock()
 	defer s.lock.RUnlock()
 
-	return s.accessor().Telemetry
+	if s.accessor().Telemetry == nil {
+		return types.TelemetryConfig{}, fmt.Errorf("not_found")
+	}
+
+	return *s.accessor().Telemetry, nil
 }
 
 func (s *DefaultStore) SetTelemetry(cfg *types.TelemetryConfig) error {

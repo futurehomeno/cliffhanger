@@ -86,12 +86,15 @@ func TestDefaultStore_LogFields_RoundTrip(t *testing.T) { //nolint:paralleltest
 func TestDefaultStore_Telemetry_RoundTrip(t *testing.T) { //nolint:paralleltest
 	store, cfg, saves := newTestStore(t)
 
-	assert.Nil(t, store.Telemetry(), "fresh store has no telemetry block")
+	_, err := store.Telemetry()
+	assert.Error(t, err, "fresh store has no telemetry block")
 
 	tc := &types.TelemetryConfig{Enabled: true, Validity: 24 * time.Hour}
 	require.NoError(t, store.SetTelemetry(tc))
 
-	assert.Same(t, tc, store.Telemetry())
+	got, err := store.Telemetry()
+	require.NoError(t, err)
+	assert.Equal(t, *tc, got)
 	assert.Same(t, tc, cfg.Telemetry)
 	assert.Equal(t, int32(1), saves.Load())
 }

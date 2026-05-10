@@ -67,7 +67,7 @@ func New(mqtt *fimpgo.MqttTransport, sourceRn fimptype.ResourceNameT, store *con
 		return nil, errors.New("telemetry: store is required")
 	}
 
-	if store.Telemetry() == nil {
+	if _, err := store.Telemetry(); err != nil {
 		if err := store.SetTelemetry(&types.TelemetryConfig{Enabled: true, EnabledAt: time.Now()}); err != nil {
 			return nil, fmt.Errorf("telemetry: seed config: %w", err)
 		}
@@ -171,12 +171,11 @@ func (ptr *telemetryT) config() types.TelemetryConfig {
 		return types.TelemetryConfig{}
 	}
 
-	cur := ptr.store.Telemetry()
-	if cur == nil {
+	snap, err := ptr.store.Telemetry()
+	if err != nil {
 		return types.TelemetryConfig{}
 	}
 
-	snap := *cur
 	if snap.SuppressedDomains != nil {
 		snap.SuppressedDomains = slices.Clone(snap.SuppressedDomains)
 	}
