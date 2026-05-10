@@ -11,95 +11,32 @@ import (
 	"github.com/futurehomeno/fimpgo/fimptype"
 	log "github.com/sirupsen/logrus"
 
+	"github.com/futurehomeno/cliffhanger/config"
+	"github.com/futurehomeno/cliffhanger/storage"
+	"github.com/futurehomeno/cliffhanger/telemetry/config_pull"
 	"github.com/futurehomeno/cliffhanger/telemetry/types"
 )
 
 // Telemetry emits telemetry events over MQTT to the cloud backend-service.
 type Telemetry interface {
-	// Report publishes an optional event. Dropped silently when telemetry
-	// is globally disabled or when the domain is in SuppressedDomains.
 	emit(event, domain string, data map[string]any) error
-	// ReportRequired publishes a critical event. Dropped only when
-	// telemetry is globally disabled.
 	emitRequired(event, domain string, data map[string]any) error
-	// SetEvtTopic overrides the default target topic.
-	// Passing an empty string restores the default. The override is
-	// not persisted and resets to the default on restart.
 	SetEvtTopic(topic string)
-
-	// Enable toggles the global enabled flag. Enable(true) re-stamps
-	// EnabledAt and starts the validity timer. Enable(false) cancels it.
 	Enable(enabled bool) error
-	// IsEnabled reports the current global enabled flag.
 	IsEnabled() bool
-	// Validity returns the auto-disable window.
 	Validity() time.Duration
-	// SetValidity updates the validity window. Must be positive.
 	SetValidity(validity time.Duration) error
-
-	// SetSuppressedDomains replaces the list of domains for which
-	// Report/Emit are dropped. ReportRequired/EmitRequired still publish.
-	// An empty or nil list clears all suppressions.
 	SetSuppressedDomains(domains []string) error
-	// SuppressedDomains returns a copy of the current suppressed-domains list.
 	SuppressedDomains() []string
-
-	// Stop tears down the embedded cloud config-pull and cancels the
-	// validity-expiry timer. After Stop the reporter still answers gates
-	// and getters, but no further cloud config will be applied. Safe to
-	// call multiple times.
-	Stop()
 }
 
-// New returns a Telemetry that publishes as the given source and embeds
-// a cloud config-pull that auto-starts. The store is the single source
-// of truth for the persisted telemetry config.
-func New(mqtt *fimpgo.MqttTransport, source string, cfg *types.TelemetryConfig, saveConfig func() error) (Telemetry, error) {
-	if mqtt == nil {
-		return nil, errors.New("telemetry: mqtt transport is nil")
-	}
-
-	if source == "" {
-		return nil, errors.New("telemetry: source is not set")
-	}
-
-	if cfg == nil {
-		return nil, errors.New("telemetry: store is required")
-	}
-
-	t := &telemetryT{
-		mqtt:          mqtt,
-		sourceRn:      fimptype.ResourceNameT(source),
-		cfg:           cfg,
-		topic:         DefaultTelemetryEvtTopic,
-		saveConfigPtr: saveConfig,
-	}
-
-	if err := t.resumeValidityWindow(); err != nil {
-		return nil, err
-	}
-
-	cp := newConfigPull(mqtt, t.sourceRn, t)
-	if err := cp.start(); err != nil {
-		t.stopValidityTimer()
-
-		return nil, err
-	}
-
-	t.pull = cp
-
-	return t, nil
-}
-
-// Emit calls Report and logs on error. Nil-safe: returns immediately
-// if tel is nil.
 func Emit(tel Telemetry, domain, event string, data map[string]any) {
 	if tel == nil {
 		return
 	}
 
 	if err := tel.emit(event, domain, data); err != nil {
-		log.WithError(err).Warnf("[cliff] Telemetry: %q", event)
+		log.WithError(err).Warnf("[cliff] Emit event= %q", event)
 	}
 }
 
@@ -111,30 +48,67 @@ func EmitRequired(tel Telemetry, domain, event string, data map[string]any) {
 	}
 
 	if err := tel.emitRequired(event, domain, data); err != nil {
-		log.WithError(err).Warnf("[cliff] Telemetry: %q", event)
+		log.WithError(err).Warnf("[cliff] Emit required event=%q", event)
 	}
 }
 
-// telemetryT serializes Telemetry-state access under one mutex. The
-// persisted state lives entirely in store; the cached fields are the
-// constants set at construction (mqtt, sourceRn, store) plus the runtime
-// topic override, the validity-expiry timer, and the embedded pull.
+func New(mqtt *fimpgo.MqttTransport, source string, store storage.Storage[*config.Default]) (Telemetry, error) {
+	if mqtt == nil {
+		return nil, errors.New("telemetry: mqtt transport is nil")
+	}
+
+	if source == "" {
+		return nil, errors.New("telemetry: source is not set")
+	}
+
+	if store == nil {
+		return nil, errors.New("telemetry: store is required")
+	}
+
+	// Establish the cfgLocked invariant: from this point on the store
+	// must always have a non-nil telemetry block.
+	if store.Model().Telemetry == nil {
+		store.Model().Telemetry = &types.TelemetryConfig{Enabled: true, EnabledAt: time.Now()}
+	}
+
+	t := &telemetryT{
+		mqtt:     mqtt,
+		sourceRn: fimptype.ResourceNameT(source),
+		store:    store,
+		topic:    defaultTelemetryEvtTopic,
+	}
+
+	if err := t.resumeValidityWindow(); err != nil {
+		return nil, err
+	}
+
+	cp := config_pull.New(mqtt, t.sourceRn, t.applyConfigFromCloud)
+	if err := cp.Start(); err != nil {
+		t.stopValidityTimer()
+
+		return nil, err
+	}
+
+	t.pullCfg = cp
+
+	return t, nil
+}
+
 type telemetryT struct {
-	mqtt          *fimpgo.MqttTransport
-	sourceRn      fimptype.ResourceNameT
-	cfg           *types.TelemetryConfig
-	saveConfigPtr func() error
+	mqtt     *fimpgo.MqttTransport
+	sourceRn fimptype.ResourceNameT
+	store    storage.Storage[*config.Default]
 
 	lock  sync.Mutex
 	topic string
 	timer *time.Timer
 
-	pull *configPull
+	pullCfg *config_pull.Config
 }
 
 func (ptr *telemetryT) Stop() {
-	if ptr.pull != nil {
-		ptr.pull.stop()
+	if ptr.pullCfg != nil {
+		ptr.pullCfg.Stop()
 	}
 
 	ptr.stopValidityTimer()
@@ -159,11 +133,13 @@ func validityOrDefault(c *types.TelemetryConfig) time.Duration {
 }
 
 func (ptr *telemetryT) emit(event, domain string, data map[string]any) error {
-	if !ptr.cfg.Enabled {
+	cfg := ptr.store.Model().Telemetry
+
+	if cfg == nil || !cfg.Enabled {
 		return nil
 	}
 
-	if slices.Contains(ptr.cfg.SuppressedDomains, domain) {
+	if slices.Contains(cfg.SuppressedDomains, domain) {
 		return nil
 	}
 
@@ -171,15 +147,23 @@ func (ptr *telemetryT) emit(event, domain string, data map[string]any) error {
 }
 
 func (ptr *telemetryT) emitRequired(event, domain string, data map[string]any) error {
-	if ptr.cfg.Enabled {
+	if ptr.config() != nil && ptr.config().Enabled {
 		return nil
 	}
 
 	return ptr.publish(ptr.topic, event, domain, data)
 }
 
+func (ptr *telemetryT) config() *types.TelemetryConfig {
+	if ptr.store == nil || ptr.store.Model() == nil || ptr.store.Model().Telemetry == nil {
+		return &types.TelemetryConfig{}
+	}
+
+	return ptr.store.Model().Telemetry
+}
+
 func (ptr *telemetryT) saveConfig() {
-	if err := ptr.saveConfigPtr(); err != nil {
+	if err := ptr.store.Save(); err != nil {
 		log.Errorf("[cliff] Telemetry save config error: %v", err)
 	}
 }
@@ -189,7 +173,7 @@ func (ptr *telemetryT) publish(topic, event, domain string, data map[string]any)
 		return errors.New("telemetry: event name is required")
 	}
 
-	msg := fimpgo.NewObjectMessage(MessageType, Service, &Event{
+	msg := fimpgo.NewObjectMessage(MessageType, fimptype.ServiceNameT(ptr.sourceRn), &Event{
 		Event:  event,
 		Domain: domain,
 		Data:   data,
@@ -205,7 +189,7 @@ func (ptr *telemetryT) publish(topic, event, domain string, data map[string]any)
 
 func (ptr *telemetryT) SetEvtTopic(topic string) {
 	if topic == "" {
-		topic = DefaultTelemetryEvtTopic
+		topic = defaultTelemetryEvtTopic
 	}
 
 	ptr.lock.Lock()
@@ -217,19 +201,20 @@ func (ptr *telemetryT) Enable(enabled bool) error {
 	ptr.lock.Lock()
 	defer ptr.lock.Unlock()
 
-	ptr.cfg.Enabled = enabled
+	cfg := ptr.config()
+	cfg.Enabled = enabled
 
 	if enabled {
-		ptr.cfg.EnabledAt = time.Now()
+		cfg.EnabledAt = time.Now()
 	} else {
-		ptr.cfg.EnabledAt = time.Time{}
+		cfg.EnabledAt = time.Time{}
 	}
 
 	ptr.saveConfig()
 	ptr.stopTimerLocked()
 
 	if enabled {
-		ptr.startTimerLocked(validityOrDefault(ptr.cfg))
+		ptr.startTimerLocked(validityOrDefault(cfg))
 	}
 
 	return nil
@@ -238,13 +223,13 @@ func (ptr *telemetryT) Enable(enabled bool) error {
 func (ptr *telemetryT) IsEnabled() bool {
 	ptr.lock.Lock()
 	defer ptr.lock.Unlock()
-	return ptr.cfg.Enabled
+	return ptr.config().Enabled
 }
 
 func (ptr *telemetryT) Validity() time.Duration {
 	ptr.lock.Lock()
 	defer ptr.lock.Unlock()
-	return ptr.cfg.Validity
+	return ptr.config().Validity
 }
 
 func (ptr *telemetryT) SetValidity(validity time.Duration) error {
@@ -259,8 +244,8 @@ func (ptr *telemetryT) SetValidity(validity time.Duration) error {
 
 	shouldDisable := false
 
-	if ptr.cfg.Enabled && !ptr.cfg.EnabledAt.IsZero() {
-		elapsed = time.Since(ptr.cfg.EnabledAt)
+	if ptr.config().Enabled && !ptr.config().EnabledAt.IsZero() {
+		elapsed = time.Since(ptr.config().EnabledAt)
 		if elapsed < 0 {
 			elapsed = 0
 		}
@@ -270,20 +255,20 @@ func (ptr *telemetryT) SetValidity(validity time.Duration) error {
 		}
 	}
 
-	ptr.cfg.Validity = validity
+	ptr.config().Validity = validity
 
 	if shouldDisable {
-		ptr.cfg.Enabled = false
-		ptr.cfg.EnabledAt = time.Time{}
+		ptr.config().Enabled = false
+		ptr.config().EnabledAt = time.Time{}
 	}
 
-	ptr.cfg.Validity = validity
+	ptr.store.Model().Telemetry.Validity = validity
 	ptr.stopTimerLocked()
 
 	switch {
 	case shouldDisable:
 		log.Infof("[cliff] Telemetry disabled: validity reduced below elapsed time")
-	case ptr.cfg.Enabled && !ptr.cfg.EnabledAt.IsZero():
+	case ptr.config().Enabled && !ptr.config().EnabledAt.IsZero():
 		ptr.startTimerLocked(validity - elapsed)
 	}
 
@@ -295,9 +280,9 @@ func (ptr *telemetryT) SetSuppressedDomains(domains []string) error {
 	defer ptr.lock.Unlock()
 
 	if len(domains) == 0 {
-		ptr.cfg.SuppressedDomains = nil
+		ptr.config().SuppressedDomains = nil
 	} else {
-		ptr.cfg.SuppressedDomains = slices.Clone(domains)
+		ptr.config().SuppressedDomains = slices.Clone(domains)
 	}
 
 	ptr.saveConfig()
@@ -309,7 +294,7 @@ func (ptr *telemetryT) SuppressedDomains() []string {
 	ptr.lock.Lock()
 	defer ptr.lock.Unlock()
 
-	src := ptr.cfg.SuppressedDomains
+	src := ptr.config().SuppressedDomains
 	if src == nil {
 		return nil
 	}
@@ -321,13 +306,14 @@ func (ptr *telemetryT) resumeValidityWindow() error {
 	ptr.lock.Lock()
 	defer ptr.lock.Unlock()
 
-	if !ptr.cfg.Enabled {
+	cfg := ptr.config()
+	if !cfg.Enabled {
 		return nil
 	}
 
-	validity := validityOrDefault(ptr.cfg)
+	validity := validityOrDefault(cfg)
 	now := time.Now()
-	enabledAt := ptr.cfg.EnabledAt
+	enabledAt := cfg.EnabledAt
 
 	switch {
 	case enabledAt.IsZero():
@@ -337,16 +323,18 @@ func (ptr *telemetryT) resumeValidityWindow() error {
 		enabledAt = now
 	}
 
-	if !ptr.cfg.EnabledAt.Equal(enabledAt) {
-		ptr.cfg.EnabledAt = enabledAt
+	if !cfg.EnabledAt.Equal(enabledAt) {
+		newCfg := *ptr.config()
+		newCfg.EnabledAt = enabledAt
 
 		ptr.saveConfig()
 	}
 
 	elapsed := now.Sub(enabledAt)
 	if elapsed >= validity {
-		ptr.cfg.Enabled = false
-		ptr.cfg.EnabledAt = time.Time{}
+		newCfg := *ptr.config()
+		newCfg.Enabled = false
+		newCfg.EnabledAt = time.Time{}
 
 		ptr.saveConfig()
 
@@ -397,10 +385,21 @@ func (ptr *telemetryT) stopTimerLocked() {
 func (ptr *telemetryT) disableLocked(reason string) {
 	ptr.timer = nil
 
-	ptr.cfg.Enabled = false
-	ptr.cfg.EnabledAt = time.Time{}
+	cfg := *ptr.config()
+	cfg.Enabled = false
+	cfg.EnabledAt = time.Time{}
 
 	ptr.saveConfig()
 
 	log.Infof("[cliff] Telemetry disabled: %s", reason)
+}
+
+func (ptr *telemetryT) applyConfigFromCloud(enabled bool, suppressed []string) {
+	if err := ptr.Enable(enabled); err != nil {
+		log.Errorf("[cliff] Telemetry enable=%v err: %v", enabled, err)
+	}
+
+	if err := ptr.SetSuppressedDomains(suppressed); err != nil {
+		log.Errorf("[cliff] Telemetry set suppressed domains=%v err: %v", suppressed, err)
+	}
 }

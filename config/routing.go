@@ -6,10 +6,10 @@ import (
 	"time"
 
 	"github.com/futurehomeno/cliffhanger/event"
-	"github.com/futurehomeno/cliffhanger/log"
 	"github.com/futurehomeno/cliffhanger/router"
 	"github.com/futurehomeno/fimpgo"
 	"github.com/futurehomeno/fimpgo/fimptype"
+	log "github.com/sirupsen/logrus"
 )
 
 const (
