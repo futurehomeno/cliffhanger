@@ -7,10 +7,6 @@ package types
 
 import "time"
 
-// DefaultTelemetryValidity is the default window telemetry stays enabled
-// after Enable(true) before it auto-disables.
-const DefaultTelemetryValidity = 30 * 24 * time.Hour
-
 // TelemetryConfig is the persisted telemetry state. Embedded as an
 // optional pointer in config.Default so a fresh config has no telemetry
 // block at all.

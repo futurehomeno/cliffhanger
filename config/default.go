@@ -4,6 +4,7 @@ import (
 	"sync"
 	"time"
 
+	"github.com/futurehomeno/cliffhanger/storage"
 	"github.com/futurehomeno/cliffhanger/telemetry/types"
 )
 
@@ -54,8 +55,36 @@ func (d *Default) IncrementRestartsCount() int {
 	return d.RestartsCount
 }
 
-func NewDefaultStoreIf(accessor func() *Default, save func() error) *DefaultStore {
+// GetTelemetry returns a copy of the persisted telemetry block, or a zero
+// value when none is set. The error return satisfies storage.DefaultConfigIf.
+func (d *Default) GetTelemetry() (types.TelemetryConfig, error) {
+	if d.Telemetry == nil {
+		return types.TelemetryConfig{}, nil
+	}
+
+	return *d.Telemetry, nil
+}
+
+// SetTelemetry persists the given block by replacing the embedded pointer.
+func (d *Default) SetTelemetry(cfg types.TelemetryConfig) {
+	c := cfg
+	d.Telemetry = &c
+}
+
+// SetConfiguredAt persists the given time using RFC3339.
+func (d *Default) SetConfiguredAt(t time.Time) {
+	d.ConfiguredAt = t.Format(time.RFC3339)
+}
+
+func NewDefaultStore(accessor func() *Default, save func() error) *DefaultStore {
 	return &DefaultStore{accessor: accessor, save: save}
+}
+
+func NewDefaultStoreFromStorage[T any](s storage.Storage[T], pick func(T) *Default) *DefaultStore {
+	return NewDefaultStore(
+		func() *Default { return pick(s.Model()) },
+		s.Save,
+	)
 }
 
 func (s *DefaultStore) Save() error {
@@ -63,6 +92,13 @@ func (s *DefaultStore) Save() error {
 	defer s.lock.Unlock()
 
 	return s.save()
+}
+
+func (s *DefaultStore) Default() *Default {
+	s.lock.RLock()
+	defer s.lock.RUnlock()
+
+	return s.accessor()
 }
 
 func (s *DefaultStore) Level() string {

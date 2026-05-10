@@ -23,9 +23,9 @@ type logManagerT struct {
 	lock      sync.Mutex
 }
 
-// DefaultLogRevertTimeout is the timeout after which a verbose log level
+// defaultLogRevertTimeout is the timeout after which a verbose log level
 // (debug/trace) is automatically reverted to the previous level (info/warn)
-const DefaultLogRevertTimeout = 7 * 24 * time.Hour
+const defaultLogRevertTimeout = 7 * 24 * time.Hour
 
 type storeIf interface {
 	Level() string
@@ -47,9 +47,10 @@ func InitializeLogger(store storeIf) error {
 
 	setLogFormat(store.Format())
 
-	if err := logManager.SetLevel(); err != nil {
-		return err
-	}
+	// SetLevel returns an error when the persisted level is unparseable,
+	// but it has already fallen back to InfoLevel by then. Swallow it so a
+	// bad log_level value in config.json does not prevent startup.
+	_ = logManager.SetLevel()
 
 	return logManager.setLogOutput(store.File())
 }
@@ -63,7 +64,6 @@ func setLogFormat(logFormat string) {
 	default:
 		logrus.SetFormatter(&logrus.TextFormatter{FullTimestamp: true, ForceColors: true, TimestampFormat: "2006-01-02T15:04:05.999"})
 	}
-
 }
 
 func (ptr *logManagerT) setLogOutput(logFile string) error {
@@ -103,7 +103,6 @@ func (ptr *logManagerT) setLogOutput(logFile string) error {
 	return nil
 }
 
-// Level returns the currently persisted log level.
 func (ptr *logManagerT) Level() string {
 	return ptr.store.Level()
 }
@@ -137,7 +136,7 @@ func (ptr *logManagerT) SetLevel() error {
 
 	timeout := ptr.store.RevertTimeout()
 	if timeout <= 0 {
-		timeout = DefaultLogRevertTimeout
+		timeout = defaultLogRevertTimeout
 	}
 
 	if err := ptr.store.SetRevertAt(time.Now().Add(timeout)); err != nil {

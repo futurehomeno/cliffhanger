@@ -21,9 +21,20 @@ const (
 	evtConfigReport = "evt.config.%s_report"
 )
 
-func RouteCmdConfigGetReport[T any](serviceName fimptype.ServiceNameT, getter func() T, options ...RoutingOption) *router.Routing {
+func RouteCmdConfigGetReport[T any](serviceName fimptype.ServiceNameT, getter func() T, _ ...RoutingOption) *router.Routing {
 	return router.NewRouting(
-		handleCmdConfigGet(serviceName, EvtConfigReport, fimptype.VTypeObject, getter, options...),
+		router.NewMessageHandler(
+			router.MessageProcessorFn(func(message *fimpgo.Message) (reply *fimpgo.FimpMessage, err error) {
+				return fimpgo.NewMessage(
+					EvtConfigReport,
+					serviceName,
+					fimptype.VTypeObject,
+					getter(),
+					nil,
+					nil,
+					message.Payload,
+				), nil
+			})),
 		router.ForService(serviceName),
 		router.ForType(CmdConfigGetReport),
 	)
@@ -166,76 +177,69 @@ func RouteCmdConfigSetObject[T any](serviceName fimptype.ServiceNameT, setting s
 	return routeCmdConfigSet(serviceName, setting, fimptype.VTypeObject, setter, options...)
 }
 
-func routeCmdConfigGet[T any](serviceName fimptype.ServiceNameT, setting string, valueType fimptype.ValueTypeT, getter func() T, options ...RoutingOption) *router.Routing {
+func routeCmdConfigGet[T any](serviceName fimptype.ServiceNameT, setting string, valueType fimptype.ValueTypeT, getter func() T, _ ...RoutingOption) *router.Routing {
+	settingInterface := fmt.Sprintf(evtConfigReport, setting)
+
 	return router.NewRouting(
-		handleCmdConfigGet(serviceName, fmt.Sprintf(evtConfigReport, setting), valueType, getter, options...),
+		router.NewMessageHandler(
+			router.MessageProcessorFn(func(message *fimpgo.Message) (reply *fimpgo.FimpMessage, err error) {
+				return fimpgo.NewMessage(
+					settingInterface,
+					serviceName,
+					valueType,
+					getter(),
+					nil,
+					nil,
+					message.Payload,
+				), nil
+			})),
 		router.ForService(serviceName),
 		router.ForType(cmdConfigGet+setting),
 	)
 }
 
-func handleCmdConfigGet[T any](serviceName fimptype.ServiceNameT, settingInterface string, valueType fimptype.ValueTypeT, getter func() T, _ ...RoutingOption) router.MessageHandler {
-	return router.NewMessageHandler(
-		router.MessageProcessorFn(func(message *fimpgo.Message) (reply *fimpgo.FimpMessage, err error) {
-			value := getter()
-
-			return fimpgo.NewMessage(
-				settingInterface,
-				serviceName,
-				valueType,
-				value,
-				nil,
-				nil,
-				message.Payload,
-			), nil
-		}))
-}
-
 func routeCmdConfigSet[T any](serviceName fimptype.ServiceNameT, setting string, valueType fimptype.ValueTypeT, setter func(T) error, options ...RoutingOption) *router.Routing {
+	settingInterface := fmt.Sprintf(evtConfigReport, setting)
+
 	return router.NewRouting(
-		handleCmdConfigSet(serviceName, fmt.Sprintf(evtConfigReport, setting), setting, valueType, setter, options...),
+		router.NewMessageHandler(
+			router.MessageProcessorFn(func(message *fimpgo.Message) (reply *fimpgo.FimpMessage, err error) {
+				if valueType != message.Payload.ValueType {
+					return nil, fmt.Errorf("config: message value type %s does not match the expected type %s", message.Payload.ValueType, valueType)
+				}
+
+				value, err := getMessageValue[T](message)
+				if err != nil {
+					return nil, err
+				}
+
+				if err := setter(value); err != nil {
+					return nil, err
+				}
+
+				opt := getRoutingOptions(options...)
+				if opt.eventManager != nil {
+					opt.eventManager.Publish(NewConfigurationChangeEvent(serviceName, setting))
+				}
+
+				log.WithField("srv", serviceName).
+					WithField("param", setting).
+					WithField("val", value).
+					Info("Cfg changed")
+
+				return fimpgo.NewMessage(
+					settingInterface,
+					serviceName,
+					valueType,
+					value,
+					nil,
+					nil,
+					message.Payload,
+				), nil
+			})),
 		router.ForService(serviceName),
 		router.ForType(cmdConfigSet+setting),
 	)
-}
-
-func handleCmdConfigSet[T any](serviceName fimptype.ServiceNameT, settingInterface, setting string, valueType fimptype.ValueTypeT, setter func(T) error, options ...RoutingOption) router.MessageHandler {
-	return router.NewMessageHandler(
-		router.MessageProcessorFn(func(message *fimpgo.Message) (reply *fimpgo.FimpMessage, err error) {
-			if valueType != message.Payload.ValueType {
-				return nil, fmt.Errorf("config: message value type %s does not match the expected type %s", message.Payload.ValueType, valueType)
-			}
-
-			value, err := getMessageValue[T](message)
-			if err != nil {
-				return nil, err
-			}
-
-			err = setter(value)
-			if err != nil {
-				return nil, err
-			}
-
-			opt := getRoutingOptions(options...)
-			if opt.eventManager != nil {
-				opt.eventManager.Publish(NewConfigurationChangeEvent(serviceName, setting))
-			}
-
-			log.WithField("srv", serviceName).
-				WithField("param", setting).
-				WithField("val", value).
-				Info("Cfg changed")
-
-			return fimpgo.NewMessage(
-				settingInterface,
-				serviceName,
-				valueType,
-				value,
-				nil,
-				nil,
-				message.Payload,
-			), nil
-		}))
 }
 
 func getMessageValue[T any](message *fimpgo.Message) (value T, err error) {

@@ -5,48 +5,51 @@ import (
 	"time"
 
 	"github.com/futurehomeno/fimpgo"
-	"github.com/futurehomeno/fimpgo/fimptype"
 
 	"github.com/futurehomeno/cliffhanger/config"
 	"github.com/futurehomeno/cliffhanger/router"
 )
 
 const (
-	SettingEnabled    = "telemetry_enabled"
-	SettingValidity   = "telemetry_validity"
-	SettingSuppressed = "telemetry_suppressed"
+	SettingEnabled           = "telemetry_enabled"
+	SettingValidity          = "telemetry_validity"
+	SettingSuppressedDomains = "telemetry_suppressed_domains"
 )
 
-func Route(serviceName fimptype.ServiceNameT, tel Telemetry, options ...config.RoutingOption) []*router.Routing {
+func Route(tel Telemetry, _ ...config.RoutingOption) []*router.Routing {
+	if tel == nil {
+		return []*router.Routing{}
+	}
+
 	return []*router.Routing{
-		RouteCmdTelemetrySetEnabled(serviceName, SettingEnabled, tel, options...),
-		RouteCmdTelemetryEnabled(serviceName, SettingEnabled, tel, options...),
-		RouteCmdTelemetrySetValidity(serviceName, SettingValidity, tel, options...),
-		RouteCmdTelemetryValidity(serviceName, SettingValidity, tel, options...),
-		RouteCmdTelemetrySetSuppressedDomains(serviceName, SettingSuppressed, tel, options...),
-		RouteCmdTelemetrySuppressedDomains(serviceName, SettingSuppressed, tel, options...),
+		RouteCmdTelemetrySetEnabled(tel),
+		RouteCmdTelemetryEnabled(tel),
+		RouteCmdTelemetrySetValidity(tel),
+		RouteCmdTelemetryValidity(tel),
+		RouteCmdTelemetrySetSuppressedDomains(tel),
+		RouteCmdTelemetrySuppressedDomains(tel),
 	}
 }
 
-func RouteCmdTelemetryEnabled(serviceName fimptype.ServiceNameT, setting string, tel Telemetry, _ ...config.RoutingOption) *router.Routing {
+func RouteCmdTelemetryEnabled(tel Telemetry) *router.Routing {
 	return router.NewRouting(
 		router.NewMessageHandler(
 			router.MessageProcessorFn(func(message *fimpgo.Message) (reply *fimpgo.FimpMessage, err error) {
 				return fimpgo.NewBoolMessage(
-					fmt.Sprintf("evt.config.%s_report", setting),
-					serviceName,
+					fmt.Sprintf("evt.config.%s_report", SettingEnabled),
+					tel.ServiceName(),
 					tel.IsEnabled(),
 					nil,
 					nil,
 					message.Payload,
 				), nil
 			})),
-		router.ForService(serviceName),
-		router.ForType("cmd.config.get_"+setting),
+		router.ForService(tel.ServiceName()),
+		router.ForType("cmd.config.get_"+SettingEnabled),
 	)
 }
 
-func RouteCmdTelemetrySetEnabled(serviceName fimptype.ServiceNameT, setting string, tel Telemetry, _ ...config.RoutingOption) *router.Routing {
+func RouteCmdTelemetrySetEnabled(tel Telemetry) *router.Routing {
 	return router.NewRouting(
 		router.NewMessageHandler(
 			router.MessageProcessorFn(func(message *fimpgo.Message) (reply *fimpgo.FimpMessage, err error) {
@@ -60,38 +63,38 @@ func RouteCmdTelemetrySetEnabled(serviceName fimptype.ServiceNameT, setting stri
 				}
 
 				return fimpgo.NewBoolMessage(
-					fmt.Sprintf("evt.config.%s_report", setting),
-					serviceName,
+					fmt.Sprintf("evt.config.%s_report", SettingEnabled),
+					tel.ServiceName(),
 					enabled,
 					nil,
 					nil,
 					message.Payload,
 				), nil
 			})),
-		router.ForService(serviceName),
-		router.ForType("cmd.config.set_"+setting),
+		router.ForService(tel.ServiceName()),
+		router.ForType("cmd.config.set_"+SettingEnabled),
 	)
 }
 
-func RouteCmdTelemetryValidity(serviceName fimptype.ServiceNameT, setting string, tel Telemetry, _ ...config.RoutingOption) *router.Routing {
+func RouteCmdTelemetryValidity(tel Telemetry) *router.Routing {
 	return router.NewRouting(
 		router.NewMessageHandler(
 			router.MessageProcessorFn(func(message *fimpgo.Message) (reply *fimpgo.FimpMessage, err error) {
 				return fimpgo.NewStringMessage(
-					fmt.Sprintf("evt.config.%s_report", setting),
-					serviceName,
+					fmt.Sprintf("evt.config.%s_report", SettingValidity),
+					tel.ServiceName(),
 					tel.Validity().String(),
 					nil,
 					nil,
 					message.Payload,
 				), nil
 			})),
-		router.ForService(serviceName),
-		router.ForType("cmd.config.get_"+setting),
+		router.ForService(tel.ServiceName()),
+		router.ForType("cmd.config.get_"+SettingValidity),
 	)
 }
 
-func RouteCmdTelemetrySetValidity(serviceName fimptype.ServiceNameT, setting string, tel Telemetry, _ ...config.RoutingOption) *router.Routing {
+func RouteCmdTelemetrySetValidity(tel Telemetry) *router.Routing {
 	return router.NewRouting(
 		router.NewMessageHandler(
 			router.MessageProcessorFn(func(message *fimpgo.Message) (reply *fimpgo.FimpMessage, err error) {
@@ -110,38 +113,38 @@ func RouteCmdTelemetrySetValidity(serviceName fimptype.ServiceNameT, setting str
 				}
 
 				return fimpgo.NewStringMessage(
-					fmt.Sprintf("evt.config.%s_report", setting),
-					serviceName,
+					fmt.Sprintf("evt.config.%s_report", SettingValidity),
+					tel.ServiceName(),
 					d.String(),
 					nil,
 					nil,
 					message.Payload,
 				), nil
 			})),
-		router.ForService(serviceName),
-		router.ForType("cmd.config.set_"+setting),
+		router.ForService(tel.ServiceName()),
+		router.ForType("cmd.config.set_"+SettingValidity),
 	)
 }
 
-func RouteCmdTelemetrySuppressedDomains(serviceName fimptype.ServiceNameT, setting string, tel Telemetry, _ ...config.RoutingOption) *router.Routing {
+func RouteCmdTelemetrySuppressedDomains(tel Telemetry) *router.Routing {
 	return router.NewRouting(
 		router.NewMessageHandler(
 			router.MessageProcessorFn(func(message *fimpgo.Message) (reply *fimpgo.FimpMessage, err error) {
 				return fimpgo.NewStrArrayMessage(
-					fmt.Sprintf("evt.config.%s_report", setting),
-					serviceName,
+					fmt.Sprintf("evt.config.%s_report", SettingSuppressedDomains),
+					tel.ServiceName(),
 					tel.SuppressedDomains(),
 					nil,
 					nil,
 					message.Payload,
 				), nil
 			})),
-		router.ForService(serviceName),
-		router.ForType("cmd.config.get_"+setting),
+		router.ForService(tel.ServiceName()),
+		router.ForType("cmd.config.get_"+SettingSuppressedDomains),
 	)
 }
 
-func RouteCmdTelemetrySetSuppressedDomains(serviceName fimptype.ServiceNameT, setting string, tel Telemetry, _ ...config.RoutingOption) *router.Routing {
+func RouteCmdTelemetrySetSuppressedDomains(tel Telemetry) *router.Routing {
 	return router.NewRouting(
 		router.NewMessageHandler(
 			router.MessageProcessorFn(func(message *fimpgo.Message) (reply *fimpgo.FimpMessage, err error) {
@@ -155,15 +158,15 @@ func RouteCmdTelemetrySetSuppressedDomains(serviceName fimptype.ServiceNameT, se
 				}
 
 				return fimpgo.NewStrArrayMessage(
-					fmt.Sprintf("evt.config.%s_report", setting),
-					serviceName,
+					fmt.Sprintf("evt.config.%s_report", SettingSuppressedDomains),
+					tel.ServiceName(),
 					domains,
 					nil,
 					nil,
 					message.Payload,
 				), nil
 			})),
-		router.ForService(serviceName),
-		router.ForType("cmd.config.set_"+setting),
+		router.ForService(tel.ServiceName()),
+		router.ForType("cmd.config.set_"+SettingSuppressedDomains),
 	)
 }
