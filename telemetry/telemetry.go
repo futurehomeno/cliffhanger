@@ -21,8 +21,8 @@ import (
 const defaultTelemetryValidity = 30 * 24 * time.Hour
 
 type Telemetry interface {
-	emit(event, domain string, data map[string]any) error
-	emitRequired(event, domain string, data map[string]any) error
+	emit(domain, event string, data map[string]any) error
+	emitRequired(domain, event string, data map[string]any) error
 	SetEvtTopic(topic string)
 	Enable(enabled bool) error
 	IsEnabled() bool
@@ -38,7 +38,7 @@ func Emit(tel Telemetry, domain, event string, data map[string]any) {
 		return
 	}
 
-	if err := tel.emit(event, domain, data); err != nil {
+	if err := tel.emit(domain, event, data); err != nil {
 		log.WithError(err).Warnf("[cliff] Emit event= %q", event)
 	}
 }
@@ -49,7 +49,7 @@ func EmitRequired(tel Telemetry, domain, event string, data map[string]any) {
 		return
 	}
 
-	if err := tel.emitRequired(event, domain, data); err != nil {
+	if err := tel.emitRequired(domain, event, data); err != nil {
 		log.WithError(err).Warnf("[cliff] Emit required event=%q", event)
 	}
 }
@@ -138,21 +138,21 @@ func validityOrDefault(c *types.TelemetryConfig) time.Duration {
 	return defaultTelemetryValidity
 }
 
-func (ptr *telemetryT) emit(event, domain string, data map[string]any) error {
+func (ptr *telemetryT) emit(domain, event string, data map[string]any) error {
 	cfg := ptr.config()
 	if !cfg.Enabled || slices.Contains(cfg.SuppressedDomains, domain) {
 		return nil
 	}
 
-	return ptr.publish(ptr.evtTopic(), event, domain, data)
+	return ptr.publish(ptr.evtTopic(), domain, event, data)
 }
 
-func (ptr *telemetryT) emitRequired(event, domain string, data map[string]any) error {
+func (ptr *telemetryT) emitRequired(domain, event string, data map[string]any) error {
 	if !ptr.config().Enabled {
 		return nil
 	}
 
-	return ptr.publish(ptr.evtTopic(), event, domain, data)
+	return ptr.publish(ptr.evtTopic(), domain, event, data)
 }
 
 // evtTopic returns the current event topic under the local lock.
@@ -183,7 +183,7 @@ func (ptr *telemetryT) config() types.TelemetryConfig {
 	return snap
 }
 
-func (ptr *telemetryT) publish(topic, event, domain string, data map[string]any) error {
+func (ptr *telemetryT) publish(topic, domain, event string, data map[string]any) error {
 	if event == "" {
 		return errors.New("telemetry: event name is required")
 	}

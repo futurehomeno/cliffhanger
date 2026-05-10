@@ -375,9 +375,9 @@ func (_c *Telemetry_Validity_Call) RunAndReturn(run func() time.Duration) *Telem
 	return _c
 }
 
-// emit provides a mock function with given fields: event, domain, data
-func (_m *Telemetry) emit(event string, domain string, data map[string]interface{}) error {
-	ret := _m.Called(event, domain, data)
+// emit provides a mock function with given fields: domain, event, data
+func (_m *Telemetry) emit(domain string, event string, data map[string]interface{}) error {
+	ret := _m.Called(domain, event, data)
 
 	if len(ret) == 0 {
 		panic("no return value specified for emit")
@@ -385,7 +385,7 @@ func (_m *Telemetry) emit(event string, domain string, data map[string]interface
 
 	var r0 error
 	if rf, ok := ret.Get(0).(func(string, string, map[string]interface{}) error); ok {
-		r0 = rf(event, domain, data)
+		r0 = rf(domain, event, data)
 	} else {
 		r0 = ret.Error(0)
 	}
@@ -399,14 +399,14 @@ type Telemetry_emit_Call struct {
 }
 
 // emit is a helper method to define mock.On call
-//   - event string
 //   - domain string
+//   - event string
 //   - data map[string]interface{}
-func (_e *Telemetry_Expecter) emit(event interface{}, domain interface{}, data interface{}) *Telemetry_emit_Call {
-	return &Telemetry_emit_Call{Call: _e.mock.On("emit", event, domain, data)}
+func (_e *Telemetry_Expecter) emit(domain interface{}, event interface{}, data interface{}) *Telemetry_emit_Call {
+	return &Telemetry_emit_Call{Call: _e.mock.On("emit", domain, event, data)}
 }
 
-func (_c *Telemetry_emit_Call) Run(run func(event string, domain string, data map[string]interface{})) *Telemetry_emit_Call {
+func (_c *Telemetry_emit_Call) Run(run func(domain string, event string, data map[string]interface{})) *Telemetry_emit_Call {
 	_c.Call.Run(func(args mock.Arguments) {
 		run(args[0].(string), args[1].(string), args[2].(map[string]interface{}))
 	})
@@ -423,9 +423,9 @@ func (_c *Telemetry_emit_Call) RunAndReturn(run func(string, string, map[string]
 	return _c
 }
 
-// emitRequired provides a mock function with given fields: event, domain, data
-func (_m *Telemetry) emitRequired(event string, domain string, data map[string]interface{}) error {
-	ret := _m.Called(event, domain, data)
+// emitRequired provides a mock function with given fields: domain, event, data
+func (_m *Telemetry) emitRequired(domain string, event string, data map[string]interface{}) error {
+	ret := _m.Called(domain, event, data)
 
 	if len(ret) == 0 {
 		panic("no return value specified for emitRequired")
@@ -433,7 +433,7 @@ func (_m *Telemetry) emitRequired(event string, domain string, data map[string]i
 
 	var r0 error
 	if rf, ok := ret.Get(0).(func(string, string, map[string]interface{}) error); ok {
-		r0 = rf(event, domain, data)
+		r0 = rf(domain, event, data)
 	} else {
 		r0 = ret.Error(0)
 	}
@@ -447,14 +447,14 @@ type Telemetry_emitRequired_Call struct {
 }
 
 // emitRequired is a helper method to define mock.On call
-//   - event string
 //   - domain string
+//   - event string
 //   - data map[string]interface{}
-func (_e *Telemetry_Expecter) emitRequired(event interface{}, domain interface{}, data interface{}) *Telemetry_emitRequired_Call {
-	return &Telemetry_emitRequired_Call{Call: _e.mock.On("emitRequired", event, domain, data)}
+func (_e *Telemetry_Expecter) emitRequired(domain interface{}, event interface{}, data interface{}) *Telemetry_emitRequired_Call {
+	return &Telemetry_emitRequired_Call{Call: _e.mock.On("emitRequired", domain, event, data)}
 }
 
-func (_c *Telemetry_emitRequired_Call) Run(run func(event string, domain string, data map[string]interface{})) *Telemetry_emitRequired_Call {
+func (_c *Telemetry_emitRequired_Call) Run(run func(domain string, event string, data map[string]interface{})) *Telemetry_emitRequired_Call {
 	_c.Call.Run(func(args mock.Arguments) {
 		run(args[0].(string), args[1].(string), args[2].(map[string]interface{}))
 	})
