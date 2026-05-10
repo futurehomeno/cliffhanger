@@ -10,14 +10,9 @@ import (
 // string. Migrations are applied in a chain: as long as some step's From
 // matches the current version, it runs and the version advances to its To.
 type Migration struct {
-	// From is the version expected to trigger this step. Use "" to migrate
-	// an unversioned or fresh configuration.
 	From int
-	// To is the version written after Do succeeds.
-	To int
-	// Do performs the migration work. Typically a closure that mutates the
-	// consumer's config. Optional: leave nil for a pure version bump.
-	Do func() error
+	To   int
+	Do   func() error
 }
 
 // Migrate advances ConfigVersion through a chain of migrations. It

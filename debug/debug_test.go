@@ -406,7 +406,7 @@ func TestSetLevel_InfoOrHigher_ClearsRevert(t *testing.T) { //nolint:paralleltes
 // command goes through *DefaultStore.Save(), so changes survive a restart.
 // The existing routing roundtrip tests only cover in-memory state.
 func TestRouting_SetLog_PersistsToStore(t *testing.T) { //nolint:paralleltest
-	require.NoError(t, os.MkdirAll("testdata", 0o755))
+	require.NoError(t, os.MkdirAll("testdata", 0o750))
 	t.Chdir("testdata")
 
 	t.Cleanup(func() {

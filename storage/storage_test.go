@@ -302,7 +302,7 @@ func TestStorage_DefaultConfigIf_ThroughDefaultStoreFromStorage(t *testing.T) { 
 	assert.Equal(t, cfg.ConfiguredAt, reloaded.ConfiguredAt)
 
 	// GetTelemetry on the reloaded *Default returns a value-copy of the persisted block.
-	gotReloaded, err := reloaded.Default.GetTelemetry()
+	gotReloaded, err := reloaded.GetTelemetry()
 	require.NoError(t, err)
 	assert.Equal(t, *reloaded.Telemetry, gotReloaded)
 }
