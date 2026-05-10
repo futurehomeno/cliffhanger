@@ -214,7 +214,12 @@ func (s *DefaultStore) SetTelemetry(cfg *types.TelemetryConfig) error {
 	s.lock.Lock()
 	defer s.lock.Unlock()
 
-	s.accessor().Telemetry = cfg
+	clone := *cfg
+	if cfg.SuppressedDomains != nil {
+		clone.SuppressedDomains = slices.Clone(cfg.SuppressedDomains)
+	}
+
+	s.accessor().Telemetry = &clone
 
 	return s.saveStamped()
 }

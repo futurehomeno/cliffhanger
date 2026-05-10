@@ -89,14 +89,20 @@ func TestDefaultStore_Telemetry_RoundTrip(t *testing.T) { //nolint:paralleltest
 	_, err := store.Telemetry()
 	assert.Error(t, err, "fresh store has no telemetry block")
 
-	tc := &types.TelemetryConfig{Enabled: true, Validity: 24 * time.Hour}
+	tc := &types.TelemetryConfig{Enabled: true, Validity: 24 * time.Hour, SuppressedDomains: []string{"a", "b"}}
 	require.NoError(t, store.SetTelemetry(tc))
 
 	got, err := store.Telemetry()
 	require.NoError(t, err)
 	assert.Equal(t, *tc, got)
-	assert.Same(t, tc, cfg.Telemetry)
+	assert.NotSame(t, tc, cfg.Telemetry, "SetTelemetry must store a clone, not the caller's pointer")
 	assert.Equal(t, int32(1), saves.Load())
+
+	// Mutating the caller's slice after SetTelemetry must not affect the stored config.
+	tc.SuppressedDomains[0] = "mutated"
+	got, err = store.Telemetry()
+	require.NoError(t, err)
+	assert.Equal(t, []string{"a", "b"}, got.SuppressedDomains, "stored SuppressedDomains must not alias the caller's slice")
 }
 
 func TestDefaultStore_Default_ReturnsSnapshot(t *testing.T) { //nolint:paralleltest

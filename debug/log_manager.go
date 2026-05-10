@@ -112,9 +112,6 @@ func (ptr *logManagerT) setLogOutput(logFile string) error {
 		return fmt.Errorf("log file not set")
 	}
 
-	ptr.lock.Lock()
-	defer ptr.lock.Unlock()
-
 	if err := os.MkdirAll(filepath.Dir(logFile), 0755); err != nil { //nolint:gosec
 		return fmt.Errorf("create log dir=%s err: %w", filepath.Dir(logFile), err)
 	}
@@ -243,12 +240,12 @@ func (ptr *logManagerT) File() string {
 // configured) and persists it on success. Persistence is skipped when the
 // applier fails so a bad path is not retained across restarts.
 func (ptr *logManagerT) SetFile(file string) error {
+	ptr.lock.Lock()
+	defer ptr.lock.Unlock()
+
 	if err := ptr.setLogOutput(file); err != nil {
 		return err
 	}
-
-	ptr.lock.Lock()
-	defer ptr.lock.Unlock()
 
 	return ptr.store.SetLogFile(file)
 }
