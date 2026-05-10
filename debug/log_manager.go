@@ -148,13 +148,15 @@ func (ptr *logManagerT) Level() string {
 	return ptr.store.Level()
 }
 
-func (ptr *logManagerT) SetLevel() error {
-	logLevel, err := logrus.ParseLevel(ptr.store.Level())
+// SetLevel validates and applies the requested log level, persisting it
+// alongside the revert deadline. For debug/trace, the deadline is
+// written before the level so a partial failure leaves the system on
+// the previous (less verbose) level rather than stranded on a verbose
+// level with no deadline.
+func (ptr *logManagerT) SetLevel(level string) error {
+	logLevel, err := logrus.ParseLevel(level)
 	if err != nil {
-		logrus.SetLevel(logrus.InfoLevel)
-		logrus.Warnf("[cliff] Invalid log level %q, falling back to %s", ptr.store.Level(), logrus.InfoLevel)
-
-		return fmt.Errorf("log: invalid level %q: %w", ptr.store.Level(), err)
+		return fmt.Errorf("log: invalid level %q: %w", level, err)
 	}
 
 	ptr.lock.Lock()

@@ -72,23 +72,14 @@ func RouteCmdLogSetLevel(serviceName fimptype.ServiceNameT) *router.Routing {
 					return nil, err
 				}
 
-				logLevel, err := logrus.ParseLevel(level)
-				if err != nil {
-					return nil, err
-				}
-
-				if err := logManager.store.SetLevel(level); err != nil {
-					return nil, err
-				}
-
-				if err := logManager.SetLevel(); err != nil {
+				if err := logManager.SetLevel(level); err != nil {
 					return nil, err
 				}
 
 				return fimpgo.NewStringMessage(
 					EvtLogLevelReport,
 					serviceName,
-					logLevel.String(),
+					logManager.Level(),
 					nil,
 					nil,
 					message.Payload,
