@@ -90,9 +90,9 @@ func TestPoll_BadObjectValue_ReturnsFallback(t *testing.T) { //nolint:parallelte
 	client := mocked.NewSyncRequester(t)
 	// Garbage raw bytes - GetObjectValue will fail to unmarshal.
 	resp := &fimpgo.FimpMessage{
-		Interface:        EvtConfigReport,
-		ValueType:        "object",
-		ValueObj:         []byte(`not-json`),
+		Interface: EvtConfigReport,
+		ValueType: "object",
+		ValueObj:  []byte(`not-json`),
 	}
 	client.EXPECT().
 		SendFimp(mock.Anything, mock.Anything, mock.Anything).

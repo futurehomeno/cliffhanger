@@ -284,7 +284,7 @@ func (ptr *telemetryT) SetValidity(validity time.Duration) error {
 
 	switch {
 	case shouldDisable:
-		log.Infof("[cliff] Telemetry valididty ended: validity=%s elapsed=%s", validity, elapsed)
+		log.Infof("[cliff] Telemetry validity ended: validity=%s elapsed=%s", validity, elapsed)
 	case next.Enabled && !next.EnabledAt.IsZero():
 		ptr.startTimerLocked(validity - elapsed)
 	}

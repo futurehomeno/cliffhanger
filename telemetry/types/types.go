@@ -1,8 +1,3 @@
-// Package types holds the persisted telemetry config that crosses the
-// telemetry / config package boundary. It is split out so the cliffhanger
-// config package can embed *TelemetryConfig in its Default struct without
-// importing the rest of the telemetry package (which itself imports
-// config for FIMP routing helpers).
 package types
 
 import "time"

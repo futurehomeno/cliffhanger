@@ -525,10 +525,10 @@ func TestRouting_EnabledRoundTrip(t *testing.T) { //nolint:paralleltest
 					tel, err := telemetry.New(mqtt, "tel_test", store.DefaultStore)
 					require.NoError(t, err)
 					t.Cleanup(func() {
-						if stop, ok := tel.(interface{ Stop() }); ok {
-							stop.Stop()
-						}
-					})
+		if stop, ok := tel.(interface{ Stop() }); ok {
+			stop.Stop()
+		}
+	})
 
 					return telemetry.Route(tel), nil, nil
 				}),
@@ -573,10 +573,10 @@ func TestRouting_ValidityRoundTrip(t *testing.T) { //nolint:paralleltest
 					tel, err := telemetry.New(mqtt, "tel_validity", store.DefaultStore)
 					require.NoError(t, err)
 					t.Cleanup(func() {
-						if stop, ok := tel.(interface{ Stop() }); ok {
-							stop.Stop()
-						}
-					})
+		if stop, ok := tel.(interface{ Stop() }); ok {
+			stop.Stop()
+		}
+	})
 
 					return telemetry.Route(tel), nil, nil
 				}),
@@ -615,10 +615,10 @@ func TestRouting_SuppressedDomainsGet(t *testing.T) { //nolint:paralleltest
 					tel, err := telemetry.New(mqtt, "tel_supp_get", store.DefaultStore)
 					require.NoError(t, err)
 					t.Cleanup(func() {
-						if stop, ok := tel.(interface{ Stop() }); ok {
-							stop.Stop()
-						}
-					})
+		if stop, ok := tel.(interface{ Stop() }); ok {
+			stop.Stop()
+		}
+	})
 
 					return telemetry.Route(tel), nil, nil
 				}),
@@ -668,10 +668,10 @@ func TestRouting_SetTelemetry_PersistsToStore(t *testing.T) { //nolint:parallelt
 					tel, err := telemetry.New(mqtt, "tel_persist", store.DefaultStore)
 					require.NoError(t, err)
 					t.Cleanup(func() {
-						if stop, ok := tel.(interface{ Stop() }); ok {
-							stop.Stop()
-						}
-					})
+		if stop, ok := tel.(interface{ Stop() }); ok {
+			stop.Stop()
+		}
+	})
 
 					return telemetry.Route(tel), nil, nil
 				}),
@@ -771,10 +771,10 @@ func TestRouting_SetTelemetry_UpdatesConfiguredAt(t *testing.T) { //nolint:paral
 					tel, err := telemetry.New(mqtt, "tel_cfg_at", store)
 					require.NoError(t, err)
 					t.Cleanup(func() {
-						if stop, ok := tel.(interface{ Stop() }); ok {
-							stop.Stop()
-						}
-					})
+		if stop, ok := tel.(interface{ Stop() }); ok {
+			stop.Stop()
+		}
+	})
 
 					return telemetry.Route(tel), nil, nil
 				}),

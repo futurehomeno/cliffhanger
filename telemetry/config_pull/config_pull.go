@@ -37,7 +37,10 @@ const (
 //	configResponseT is the payload of evt.telemetry.config_report from the cloud.
 //
 // Suppressed lists domain names for which Report/Emit are dropped on this
-// app; ReportRequired/EmitRequired still publish for those domains.
+// app; ReportRequired/EmitRequired still publish for those domains. NextUpdate
+// is the RFC3339 timestamp the cloud expects the next poll at; the local
+// scheduler clamps the derived delay with MaxPollInterval and falls back to
+// fallbackPoll on parse error.
 type configResponseT struct {
 	Enabled           bool     `json:"enabled"`
 	SuppressedDomains []string `json:"suppressed_domains"`
@@ -103,21 +106,31 @@ func (ptr *Config) Start() error {
 		return nil // already running
 	}
 
-	ptr.client = fimpgo.NewSyncClient(ptr.mqtt)
+	ptr.stopped = false
+	ptr.scheduleLocked(DefaultPollInterval)
 
+	log.Infof("[cliff] Telemetry config pull scheduled (source=%s)", ptr.sourceRn)
+
+	return nil
+}
+
+// ensureClientLocked lazily creates the SyncClient and subscribes to the
+// response topic. Caller must hold ptr.lock.
+func (ptr *Config) ensureClientLocked() error {
+	if ptr.client != nil {
+		return nil
+	}
+
+	client := fimpgo.NewSyncClient(ptr.mqtt)
 	responseTopic := fmt.Sprintf(configResponseTopicFmt, ptr.sourceRn)
 
-	if err := ptr.client.AddSubscription(responseTopic); err != nil {
-		ptr.client.Stop()
-		ptr.client = nil
+	if err := client.AddSubscription(responseTopic); err != nil {
+		client.Stop()
 
 		return fmt.Errorf("telemetry: config pull: subscribe: %w", err)
 	}
 
-	ptr.stopped = false
-	ptr.scheduleLocked(0)
-
-	log.Infof("[cliff] Telemetry config pull from src=%s", ptr.sourceRn)
+	ptr.client = client
 
 	return nil
 }
@@ -142,10 +155,12 @@ func (ptr *Config) Stop() {
 	log.Infof("[cliff] Telemetry config pull stopped (source=%s)", ptr.sourceRn)
 }
 
-// pollResult holds the outcome of a single config poll.
+// pollResult holds the outcome of a single config poll: the next-poll delay
+// derived from the cloud's NextUpdate (clamped to MaxPollInterval, falling
+// back to fallbackPoll on error), and the parsed config (nil on failure).
 type pollResult struct {
 	delay time.Duration
-	cfg   *configResponseT // nil when the request or parse failed
+	cfg   *configResponseT
 }
 
 // scheduleLocked schedules the next poll after the given delay.
@@ -162,9 +177,14 @@ func (ptr *Config) scheduleLocked(delay time.Duration) {
 			return
 		}
 
-		// Release lock during network I/O. If stop() is called
-		// concurrently, it cancels the SyncClient's transport which
-		// causes SendFimp to return an error promptly.
+		if err := ptr.ensureClientLocked(); err != nil {
+			log.WithError(err).Warnf("[cliff] Telemetry config pull: not ready yet, retrying in %s", ptr.fallbackPoll)
+			ptr.scheduleLocked(ptr.fallbackPoll)
+			ptr.lock.Unlock()
+
+			return
+		}
+
 		client := ptr.client
 		ptr.lock.Unlock()
 
@@ -173,8 +193,6 @@ func (ptr *Config) scheduleLocked(delay time.Duration) {
 		ptr.lock.Lock()
 		defer ptr.lock.Unlock()
 
-		// Re-check both flags: stopped gates shutdown, timer identity
-		// gates stop+restart races where a new timer replaced this one.
 		if ptr.stopped || ptr.timer != t {
 			return
 		}
@@ -189,9 +207,10 @@ func (ptr *Config) scheduleLocked(delay time.Duration) {
 	ptr.timer = t
 }
 
-// poll sends a config request and parses the response. Returns the
-// delay until the next poll and the parsed config (nil on failure).
-// Does not apply config - the caller decides based on stop/timer state.
+// poll sends a config request, parses the response, and computes the next
+// poll delay from the cloud's NextUpdate. Returns fallbackPoll + nil cfg on
+// any error. Does not apply config - the caller decides based on stop/timer
+// state.
 func (ptr *Config) poll(client SyncRequester) pollResult {
 	msg := fimpgo.NewNullMessage(CmdGetConfig, fimptype.ServiceNameT(ptr.sourceRn), nil, nil, nil)
 	msg.Source = ptr.sourceRn
