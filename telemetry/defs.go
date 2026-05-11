@@ -20,15 +20,17 @@ const (
 	DomainShouldNeverHappen = "should_never_happen"
 
 	// DomainReboot groups reboot/restart events. Sample heavily — emit only
-	// every 1000th boot (rebootCount % 1000 == 0) so a device stuck in a
-	// crash loop does not flood the pipeline.
+	// every restartMilestoneStep'th boot so a device stuck in a crash loop
+	// does not flood the pipeline.
 	DomainReboot = "reboot"
+
+	EventLoggedOut = "logged_out"
 )
 
 const (
 	EventRebootMilestone = "milestone"
 
-	restartMilestoneStep = 1000
+	restartMilestoneStep = 500
 )
 
 // Event is the payload carried in the FIMP val field.

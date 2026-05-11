@@ -4,7 +4,6 @@ import (
 	"fmt"
 	"os"
 	"os/signal"
-	"runtime/debug"
 	"runtime/pprof"
 	"strings"
 	"sync"
@@ -118,24 +117,18 @@ func (a *app) Wait() error {
 
 // Run starts the application and waits for it to stop.
 func (a *app) Run() error {
+	defer telemetry.RecoverAndEmit(a.telemetry, "run", true)
 	err := a.Start()
 	if err != nil {
 		return err
 	}
 
-	signals := make(chan os.Signal, 1)
-	signal.Notify(signals, syscall.SIGINT, syscall.SIGTERM)
-
-	defer signal.Stop(signals)
-
 	go func() {
-		defer func() {
-			if r := recover(); r != nil {
-				log.Error(string(debug.Stack()))
-				log.Error(r)
-				panic(r)
-			}
-		}()
+		defer telemetry.RecoverAndEmit(a.telemetry, "signal", true)
+
+		signals := make(chan os.Signal, 1)
+		signal.Notify(signals, syscall.SIGINT, syscall.SIGTERM)
+		defer signal.Stop(signals)
 
 		<-signals
 		s := strings.Builder{}
@@ -144,11 +137,14 @@ func (a *app) Run() error {
 		}
 
 		err = a.Stop()
-
 		if err != nil {
 			log.Errorf("[cliff] Stop err: %v", err)
 		}
 	}()
+
+	if a.lifecycle != nil {
+		telemetry.EmitRebootMilestone(a.telemetry, a.lifecycle.RestartsCount())
+	}
 
 	return a.Wait()
 }
@@ -262,7 +258,7 @@ func (a *app) reportAuthLoss(tel telemetry.Telemetry, cause string) {
 		log.WithError(err).Errorf("[cliff] failed to publish app state report on auth loss (%s)", cause)
 	}
 
-	telemetry.Emit(tel, telemetry.DomainAuth, "logged_out", map[string]any{"cause": cause})
+	telemetry.Emit(tel, telemetry.DomainAuth, telemetry.EventLoggedOut, map[string]any{"cause": cause})
 }
 
 // stopAuthLossWatcher stops the auth loss watcher goroutine started by startAuthLossWatcher.

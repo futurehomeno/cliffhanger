@@ -52,6 +52,17 @@ func EmitOnChange(tel Telemetry, domain, event string, data map[string]any, inte
 	}
 }
 
+// EmitRebootMilestone emits a DomainReboot/EventRebootMilestone event when
+// count is a positive multiple of restartMilestoneStep, so callers can call
+// it on every boot and only milestone boots reach the pipeline.
+func EmitRebootMilestone(tel Telemetry, count int) {
+	if count <= 0 || count%restartMilestoneStep != 0 {
+		return
+	}
+
+	Emit(tel, DomainReboot, EventRebootMilestone, map[string]any{"count": count})
+}
+
 func RecoverAndEmit(tel Telemetry, name string, terminate bool) {
 	r := recover()
 	if r == nil {
