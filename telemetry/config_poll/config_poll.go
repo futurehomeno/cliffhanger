@@ -121,6 +121,13 @@ func (ptr *Config) listen(stopCh <-chan struct{}, subscribed bool) {
 		return
 	}
 
+<<<<<<< HEAD
+=======
+	// Register the fan-out channel only after Subscribe lands. Registering
+	// before would let fimpgo push every inbound broker message into msgCh
+	// while ensureSubscribed sleeps, filling the buffer and triggering the
+	// "Channel telemetry-config-poll not read for 10 sec" warnings.
+>>>>>>> 37b6acaff307e293a2a60a358ae68f6998c6c788
 	ptr.mqtt.RegisterChannel(channelName, ptr.msgCh)
 	defer ptr.mqtt.UnregisterChannel(channelName)
 
