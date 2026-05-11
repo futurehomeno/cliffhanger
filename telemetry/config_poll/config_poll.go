@@ -156,7 +156,7 @@ func (ptr *Config) ensureSubscribed(stopCh <-chan struct{}) bool {
 			return true
 		} else {
 			delay := bo.Next()
-			log.WithError(err).Warnf("[cliff] Telemetry config subscribe err: %v", err)
+			log.Warnf("[cliff] Telemetry config subscribe err: %v", err)
 
 			select {
 			case <-stopCh:
@@ -170,7 +170,7 @@ func (ptr *Config) ensureSubscribed(stopCh <-chan struct{}) bool {
 func (ptr *Config) handleConfigReport(payload *fimpgo.FimpMessage) {
 	var cfg configResponseT
 	if err := payload.GetObjectValue(&cfg); err != nil {
-		log.WithError(err).Warnf("[cliff] Telemetry config poll: failed to parse response")
+		log.Warnf("[cliff] Telemetry config config parse err: %v", err)
 
 		return
 	}
