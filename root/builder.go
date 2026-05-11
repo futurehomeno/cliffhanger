@@ -63,45 +63,36 @@ func (b *Builder) WithServiceDiscovery(resourceName fimptype.ResourceNameT, reso
 	return b
 }
 
-// WithLifecycle sets the lifecycle service. Required only for building edge application.
 func (b *Builder) WithLifecycle(l *lifecycle.Lifecycle) *Builder {
 	b.lifecycle = l
 	return b
 }
 
-// WithTelemetry wires a telemetry sink used by the root app — currently for
-// the auth-loss watcher to emit DomainAuth/"logged_out". Optional; when unset
-// the watcher only publishes the FIMP state report.
 func (b *Builder) WithTelemetry(t telemetry.Telemetry) *Builder {
 	b.telemetry = t
 	return b
 }
 
-// WithTopicSubscription sets topic that should be subscribed to.
 func (b *Builder) WithTopicSubscription(topicSubscriptions ...string) *Builder {
 	b.topicSubscriptions = append(b.topicSubscriptions, topicSubscriptions...)
 	return b
 }
 
-// WithRouterOptions sets router options.
 func (b *Builder) WithRouterOptions(options ...router.Option) *Builder {
 	b.routerOptions = append(b.routerOptions, options...)
 	return b
 }
 
-// WithRouting sets MQTT topic routing.
 func (b *Builder) WithRouting(routing ...*router.Routing) *Builder {
 	b.routing = append(b.routing, routing...)
 	return b
 }
 
-// WithTask sets background task to be performed.
 func (b *Builder) WithTask(tasks ...*task.Task) *Builder {
 	b.tasks = append(b.tasks, tasks...)
 	return b
 }
 
-// WithServices sets the application services.
 func (b *Builder) WithServices(services ...Service) *Builder {
 	b.services = append(b.services, services...)
 	return b
@@ -112,7 +103,6 @@ func (b *Builder) WithResetter(resetter ...Resetter) *Builder {
 	return b
 }
 
-// Build builds the root application.
 func (b *Builder) Build() (App, error) {
 	if err := b.check(); err != nil {
 		return nil, err
@@ -121,7 +111,6 @@ func (b *Builder) Build() (App, error) {
 	return b.doBuild(), nil
 }
 
-// doBuild assembles the root application.
 func (b *Builder) doBuild() App {
 	rootApp := &app{
 		lock:  &sync.Mutex{},
