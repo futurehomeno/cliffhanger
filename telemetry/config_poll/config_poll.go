@@ -93,6 +93,12 @@ func (ptr *Config) Start() error {
 	ptr.msgCh = make(fimpgo.MessageCh, 8)
 	stopCh := ptr.stopCh
 
+	ptr.mqtt.RegisterChannelWithFilter(channelName, ptr.msgCh, fimpgo.FimpFilter{
+		Topic:     ConfigResponseTopic,
+		Interface: EvtConfigReport,
+		Service:   "*",
+	})
+
 	subscribed := true
 	if err := ptr.mqtt.Subscribe(ConfigResponseTopic); err != nil {
 		subscribed = false
@@ -109,12 +115,11 @@ func (ptr *Config) Start() error {
 }
 
 func (ptr *Config) listen(stopCh <-chan struct{}, subscribed bool) {
+	defer ptr.mqtt.UnregisterChannel(channelName)
+
 	if !subscribed && !ptr.ensureSubscribed(stopCh) {
 		return
 	}
-
-	ptr.mqtt.RegisterChannel(channelName, ptr.msgCh)
-	defer ptr.mqtt.UnregisterChannel(channelName)
 
 	for {
 		select {
