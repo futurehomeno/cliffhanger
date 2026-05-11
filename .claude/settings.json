@@ -1,0 +1,42 @@
+{
+  "permissions": {
+    "allow": [
+      "Read(//home/budzik/proj/go/**)",
+      "Bash(awk '{print $NF}')",
+      "Bash(wait)",
+      "Bash(grep -E \"^\\(--- FAIL|FAIL\\\\s|=== RUN.*Test[^/]*$\\)\")",
+      "Bash(rm /home/budzik/proj/go/cliffhanger/telemetry/config_pull_test.go)",
+      "Bash(go tool *)",
+      "Bash(git check-ignore *)",
+      "Bash(make generate-mocks *)",
+      "Bash(git add *)",
+      "Bash(git commit -m ' *)",
+      "Bash(git reset *)",
+      "Bash(git checkout *)",
+      "Bash(golangci-lint run *)",
+      "Bash(golangci-lint version *)",
+      "Bash(golangci-lint cache *)",
+      "Bash(go version *)",
+      "Bash(git -C /home/budzik/proj/go/cliffhanger diff --stat main...HEAD)",
+      "Bash(command -v staticcheck)",
+      "Bash(staticcheck -checks U1000 ./...)",
+      "Bash(~/go/bin/deadcode -test ./...)",
+      "Bash(grep -v '_test\\\\.go$')",
+      "Bash(grep -E '_helper\\\\.go$')",
+      "Bash(grep -v '_helper\\\\.go$')",
+      "Bash(xargs git rm --cached -q)",
+      "Bash(git -C /home/budzik/proj/go/cliffhanger show 73dba63 --stat)",
+      "Bash(git -C /home/budzik/proj/go/cliffhanger show 73dba63 -- telemetry/telemetry.go)",
+      "Bash(git stash *)",
+      "Bash(grep -rn \"^// .* responsible for handling the command\\\\.$\" /home/budzik/proj/go/cliffhanger --include=\"*.go\")",
+      "Bash(xargs sed -i '/^\\\\/\\\\/ .* responsible for handling the command\\\\.$/d')",
+      "Bash(grep -rn \"^// .* the service specification\\\\.$\" /home/budzik/proj/go/cliffhanger --include=\"*.go\")",
+      "Bash(grep -v \"^[^:]*:[0-9]*:// .* the service specification\\\\.$\")",
+      "Bash(xargs sed -i '/^\\\\/\\\\/ .* the service specification\\\\.$/d')",
+      "Bash(xargs sed -i '/^\\\\/\\\\/ .* returns interfaces for .*$/d')"
+    ],
+    "additionalDirectories": [
+      "/home/budzik/proj/go/cliffhanger/telemetry"
+    ]
+  }
+}
