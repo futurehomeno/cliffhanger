@@ -9,7 +9,6 @@ import (
 	"github.com/futurehomeno/cliffhanger/router"
 )
 
-// Constants defining routing service, commands and events.
 const (
 	CmdSupParamsGetReport = "cmd.sup_params.get_report"
 	EvtSupParamsReport    = "evt.sup_params.report"
@@ -20,7 +19,6 @@ const (
 	Parameters = "parameters"
 )
 
-// RouteService returns routing for service specific commands.
 func RouteService(serviceRegistry adapter.ServiceRegistry) []*router.Routing {
 	return []*router.Routing{
 		routeCmdSupParamsGetReport(serviceRegistry),
@@ -29,7 +27,6 @@ func RouteService(serviceRegistry adapter.ServiceRegistry) []*router.Routing {
 	}
 }
 
-// routeCmdSupParamsGetReport returns a routing responsible for handling the command.
 func routeCmdSupParamsGetReport(serviceRegistry adapter.ServiceRegistry) *router.Routing {
 	return router.NewRouting(
 		handleCmdSupParamsGetReport(serviceRegistry),
@@ -38,7 +35,6 @@ func routeCmdSupParamsGetReport(serviceRegistry adapter.ServiceRegistry) *router
 	)
 }
 
-// handleCmdSupParamsGetReport returns a handler responsible for handling the command.
 func handleCmdSupParamsGetReport(serviceRegistry adapter.ServiceRegistry) router.MessageHandler {
 	return router.NewMessageHandler(
 		router.MessageProcessorFn(func(message *fimpgo.Message) (*fimpgo.FimpMessage, error) {
@@ -57,7 +53,6 @@ func handleCmdSupParamsGetReport(serviceRegistry adapter.ServiceRegistry) router
 	)
 }
 
-// routeCmdParamSet returns a routing responsible for handling the command.
 func routeCmdParamSet(serviceRegistry adapter.ServiceRegistry) *router.Routing {
 	return router.NewRouting(
 		handleCmdParamSet(serviceRegistry),
@@ -66,7 +61,6 @@ func routeCmdParamSet(serviceRegistry adapter.ServiceRegistry) *router.Routing {
 	)
 }
 
-// handleCmdParamSet returns a handler responsible for handling the command.
 func handleCmdParamSet(serviceRegistry adapter.ServiceRegistry) router.MessageHandler {
 	return router.NewMessageHandler(
 		router.MessageProcessorFn(func(message *fimpgo.Message) (*fimpgo.FimpMessage, error) {
@@ -94,7 +88,6 @@ func handleCmdParamSet(serviceRegistry adapter.ServiceRegistry) router.MessageHa
 	)
 }
 
-// routeCmdParamGetReport returns a routing responsible for handling the command.
 func routeCmdParamGetReport(serviceRegistry adapter.ServiceRegistry) *router.Routing {
 	return router.NewRouting(
 		handleCmdParamGetReport(serviceRegistry),
@@ -103,7 +96,6 @@ func routeCmdParamGetReport(serviceRegistry adapter.ServiceRegistry) *router.Rou
 	)
 }
 
-// handleCmdParamGetReport returns a handler responsible for handling the command.
 func handleCmdParamGetReport(serviceRegistry adapter.ServiceRegistry) router.MessageHandler {
 	return router.NewMessageHandler(
 		router.MessageProcessorFn(func(message *fimpgo.Message) (*fimpgo.FimpMessage, error) {

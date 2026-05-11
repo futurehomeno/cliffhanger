@@ -9,7 +9,6 @@ import (
 	"github.com/futurehomeno/cliffhanger/router"
 )
 
-// Constants defining routing service, commands and events.
 const (
 	CmdBinarySet       = "cmd.binary.set"
 	CmdBinaryGetReport = "cmd.binary.get_report"
@@ -18,7 +17,6 @@ const (
 	OutBinSwitch = "out_bin_switch"
 )
 
-// RouteService returns routing for service specific commands.
 func RouteService(serviceRegistry adapter.ServiceRegistry) []*router.Routing {
 	return []*router.Routing{
 		RouteCmdBinarySet(serviceRegistry),
@@ -26,7 +24,6 @@ func RouteService(serviceRegistry adapter.ServiceRegistry) []*router.Routing {
 	}
 }
 
-// RouteCmdBinarySet returns a routing responsible for handling the command.
 func RouteCmdBinarySet(serviceRegistry adapter.ServiceRegistry) *router.Routing {
 	return router.NewRouting(
 		HandleCmdBinarySet(serviceRegistry),
@@ -35,7 +32,6 @@ func RouteCmdBinarySet(serviceRegistry adapter.ServiceRegistry) *router.Routing 
 	)
 }
 
-// RouteCmdBinaryGetReport returns a routing responsible for handling the command.
 func RouteCmdBinaryGetReport(serviceRegistry adapter.ServiceRegistry) *router.Routing {
 	return router.NewRouting(
 		HandleCmdBinaryGetReport(serviceRegistry),
@@ -44,7 +40,6 @@ func RouteCmdBinaryGetReport(serviceRegistry adapter.ServiceRegistry) *router.Ro
 	)
 }
 
-// HandleCmdBinarySet returns a handler responsible for handling the command.
 func HandleCmdBinarySet(serviceRegistry adapter.ServiceRegistry) router.MessageHandler {
 	return router.NewMessageHandler(
 		router.MessageProcessorFn(func(message *fimpgo.Message) (*fimpgo.FimpMessage, error) {
@@ -78,7 +73,6 @@ func HandleCmdBinarySet(serviceRegistry adapter.ServiceRegistry) router.MessageH
 	)
 }
 
-// HandleCmdBinaryGetReport returns a handler responsible for handling the command.
 func HandleCmdBinaryGetReport(serviceRegistry adapter.ServiceRegistry) router.MessageHandler {
 	return router.NewMessageHandler(
 		router.MessageProcessorFn(func(message *fimpgo.Message) (*fimpgo.FimpMessage, error) {

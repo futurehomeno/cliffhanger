@@ -10,7 +10,6 @@ import (
 	"github.com/futurehomeno/cliffhanger/router"
 )
 
-// Constants defining routing service, commands and events.
 const (
 	CmdMeterGetReport       = "cmd.meter.get_report"
 	EvtMeterReport          = "evt.meter.report"
@@ -29,7 +28,6 @@ const (
 	prefix = "meter_"
 )
 
-// RouteService returns routing for service specific commands.
 func RouteService(serviceRegistry adapter.ServiceRegistry) []*router.Routing {
 	return []*router.Routing{
 		routeCmdMeterGetReport(serviceRegistry),
@@ -39,7 +37,6 @@ func RouteService(serviceRegistry adapter.ServiceRegistry) []*router.Routing {
 	}
 }
 
-// routeCmdMeterGetReport returns a routing responsible for handling the command.
 func routeCmdMeterGetReport(serviceRegistry adapter.ServiceRegistry) *router.Routing {
 	return router.NewRouting(
 		handleCmdMeterGetReport(serviceRegistry),
@@ -48,7 +45,6 @@ func routeCmdMeterGetReport(serviceRegistry adapter.ServiceRegistry) *router.Rou
 	)
 }
 
-// handleCmdMeterGetReport returns a handler responsible for handling the command.
 func handleCmdMeterGetReport(serviceRegistry adapter.ServiceRegistry) router.MessageHandler {
 	return router.NewMessageHandler(
 		router.MessageProcessorFn(func(message *fimpgo.Message) (reply *fimpgo.FimpMessage, err error) {
@@ -81,7 +77,6 @@ func handleCmdMeterGetReport(serviceRegistry adapter.ServiceRegistry) router.Mes
 	)
 }
 
-// routeCmdMeterExportGetReport returns a routing responsible for handling the command.
 func routeCmdMeterExportGetReport(serviceRegistry adapter.ServiceRegistry) *router.Routing {
 	return router.NewRouting(
 		handleCmdMeterExportGetReport(serviceRegistry),
@@ -90,7 +85,6 @@ func routeCmdMeterExportGetReport(serviceRegistry adapter.ServiceRegistry) *rout
 	)
 }
 
-// handleCmdMeterGetReport returns a handler responsible for handling the command.
 func handleCmdMeterExportGetReport(serviceRegistry adapter.ServiceRegistry) router.MessageHandler {
 	return router.NewMessageHandler(
 		router.MessageProcessorFn(func(message *fimpgo.Message) (reply *fimpgo.FimpMessage, err error) {
@@ -123,7 +117,6 @@ func handleCmdMeterExportGetReport(serviceRegistry adapter.ServiceRegistry) rout
 	)
 }
 
-// routeCmdMeterExtGetReport returns a routing responsible for handling the command.
 func routeCmdMeterExtGetReport(serviceRegistry adapter.ServiceRegistry) *router.Routing {
 	return router.NewRouting(
 		handleCmdMeterExtGetReport(serviceRegistry),
@@ -132,7 +125,6 @@ func routeCmdMeterExtGetReport(serviceRegistry adapter.ServiceRegistry) *router.
 	)
 }
 
-// handleCmdMeterExtGetReport returns a handler responsible for handling the command.
 func handleCmdMeterExtGetReport(serviceRegistry adapter.ServiceRegistry) router.MessageHandler {
 	return router.NewMessageHandler(
 		router.MessageProcessorFn(func(message *fimpgo.Message) (reply *fimpgo.FimpMessage, err error) {
@@ -163,7 +155,6 @@ func handleCmdMeterExtGetReport(serviceRegistry adapter.ServiceRegistry) router.
 	)
 }
 
-// routeCmdMeterReset returns a routing responsible for handling the command.
 func routeCmdMeterReset(serviceRegistry adapter.ServiceRegistry) *router.Routing {
 	return router.NewRouting(
 		handleCmdMeterReset(serviceRegistry),
@@ -172,7 +163,6 @@ func routeCmdMeterReset(serviceRegistry adapter.ServiceRegistry) *router.Routing
 	)
 }
 
-// handleCmdMeterReset returns a handler responsible for handling the command.
 func handleCmdMeterReset(serviceRegistry adapter.ServiceRegistry) router.MessageHandler {
 	return router.NewMessageHandler(
 		router.MessageProcessorFn(func(message *fimpgo.Message) (reply *fimpgo.FimpMessage, err error) {

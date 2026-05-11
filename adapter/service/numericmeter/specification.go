@@ -9,21 +9,18 @@ import (
 	"github.com/futurehomeno/cliffhanger/router"
 )
 
-// WithExportUnits adds export units to the service specification.
 func WithExportUnits(exportUnits ...Unit) adapter.SpecificationOption {
 	return adapter.SpecificationOptionFn(func(f *fimptype.Service) {
 		f.Props[PropertySupportedExportUnits] = exportUnits
 	})
 }
 
-// WithExtendedValues adds extended values to the service specification.
 func WithExtendedValues(extendedValues ...Value) adapter.SpecificationOption {
 	return adapter.SpecificationOptionFn(func(f *fimptype.Service) {
 		f.Props[PropertySupportedExtendedValues] = extendedValues
 	})
 }
 
-// WithIsVirtual adds is virtual flag to the service specification.
 func WithIsVirtual() adapter.SpecificationOption {
 	return adapter.SpecificationOptionFn(func(f *fimptype.Service) {
 		f.Props[PropertyIsVirtual] = true

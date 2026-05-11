@@ -10,7 +10,6 @@ import (
 	"github.com/futurehomeno/cliffhanger/types"
 )
 
-// Constants defining routing service, commands and events.
 const (
 	CmdChargeStart              = "cmd.charge.start"
 	CmdChargeStop               = "cmd.charge.stop"
@@ -32,7 +31,6 @@ const (
 	Chargepoint = "chargepoint"
 )
 
-// RouteService returns routing for service specific commands.
 func RouteService(serviceRegistry adapter.ServiceRegistry) []*router.Routing {
 	return []*router.Routing{
 		routeCmdChargeStart(serviceRegistry),
@@ -49,7 +47,6 @@ func RouteService(serviceRegistry adapter.ServiceRegistry) []*router.Routing {
 	}
 }
 
-// routeCmdChargeStart returns a routing responsible for handling the command.
 func routeCmdChargeStart(serviceRegistry adapter.ServiceRegistry) *router.Routing {
 	return router.NewRouting(
 		handleCmdChargeStart(serviceRegistry),
@@ -58,7 +55,6 @@ func routeCmdChargeStart(serviceRegistry adapter.ServiceRegistry) *router.Routin
 	)
 }
 
-// handleCmdChargeStart returns a handler responsible for handling the command.
 func handleCmdChargeStart(serviceRegistry adapter.ServiceRegistry) router.MessageHandler {
 	return router.NewMessageHandler(
 		router.MessageProcessorFn(func(message *fimpgo.Message) (*fimpgo.FimpMessage, error) {
@@ -91,7 +87,6 @@ func handleCmdChargeStart(serviceRegistry adapter.ServiceRegistry) router.Messag
 	)
 }
 
-// routeCmdChargeStop returns a routing responsible for handling the command.
 func routeCmdChargeStop(serviceRegistry adapter.ServiceRegistry) *router.Routing {
 	return router.NewRouting(
 		handleCmdChargeStop(serviceRegistry),
@@ -100,7 +95,6 @@ func routeCmdChargeStop(serviceRegistry adapter.ServiceRegistry) *router.Routing
 	)
 }
 
-// handleCmdChargeStop returns a handler responsible for handling the command.
 func handleCmdChargeStop(serviceRegistry adapter.ServiceRegistry) router.MessageHandler {
 	return router.NewMessageHandler(
 		router.MessageProcessorFn(func(message *fimpgo.Message) (*fimpgo.FimpMessage, error) {
@@ -129,7 +123,6 @@ func handleCmdChargeStop(serviceRegistry adapter.ServiceRegistry) router.Message
 	)
 }
 
-// routeCmdCableLockSet returns a routing responsible for handling the command.
 func routeCmdCableLockSet(serviceRegistry adapter.ServiceRegistry) *router.Routing {
 	return router.NewRouting(
 		handleCmdCableLockSet(serviceRegistry),
@@ -138,7 +131,6 @@ func routeCmdCableLockSet(serviceRegistry adapter.ServiceRegistry) *router.Routi
 	)
 }
 
-// handleCmdCableLockSet returns a handler responsible for handling the command.
 func handleCmdCableLockSet(serviceRegistry adapter.ServiceRegistry) router.MessageHandler {
 	return router.NewMessageHandler(
 		router.MessageProcessorFn(func(message *fimpgo.Message) (*fimpgo.FimpMessage, error) {
@@ -167,7 +159,6 @@ func handleCmdCableLockSet(serviceRegistry adapter.ServiceRegistry) router.Messa
 	)
 }
 
-// routeCmdStateGetReport returns a routing responsible for handling the command.
 func routeCmdStateGetReport(serviceRegistry adapter.ServiceRegistry) *router.Routing {
 	return router.NewRouting(
 		handleCmdStateGetReport(serviceRegistry),
@@ -176,7 +167,6 @@ func routeCmdStateGetReport(serviceRegistry adapter.ServiceRegistry) *router.Rou
 	)
 }
 
-// handleCmdStateGetReport returns a handler responsible for handling the command.
 func handleCmdStateGetReport(serviceRegistry adapter.ServiceRegistry) router.MessageHandler {
 	return router.NewMessageHandler(
 		router.MessageProcessorFn(func(message *fimpgo.Message) (*fimpgo.FimpMessage, error) {
@@ -195,7 +185,6 @@ func handleCmdStateGetReport(serviceRegistry adapter.ServiceRegistry) router.Mes
 	)
 }
 
-// routeCmdCableLockGetReport returns a routing responsible for handling the command.
 func routeCmdCableLockGetReport(serviceRegistry adapter.ServiceRegistry) *router.Routing {
 	return router.NewRouting(
 		handleCmdCableLockGetReport(serviceRegistry),
@@ -204,7 +193,6 @@ func routeCmdCableLockGetReport(serviceRegistry adapter.ServiceRegistry) *router
 	)
 }
 
-// handleCmdCableLockGetReport returns a handler responsible for handling the command.
 func handleCmdCableLockGetReport(serviceRegistry adapter.ServiceRegistry) router.MessageHandler {
 	return router.NewMessageHandler(
 		router.MessageProcessorFn(func(message *fimpgo.Message) (*fimpgo.FimpMessage, error) {
@@ -223,7 +211,6 @@ func handleCmdCableLockGetReport(serviceRegistry adapter.ServiceRegistry) router
 	)
 }
 
-// routeCmdCurrentSessionSetCurrent returns a routing responsible for handling the command.
 func routeCmdCurrentSessionSetCurrent(serviceRegistry adapter.ServiceRegistry) *router.Routing {
 	return router.NewRouting(
 		handleCmdCurrentSessionSetCurrent(serviceRegistry),
@@ -232,7 +219,6 @@ func routeCmdCurrentSessionSetCurrent(serviceRegistry adapter.ServiceRegistry) *
 	)
 }
 
-// handleCmdCurrentSessionSetCurrent returns a handler responsible for handling the command.
 func handleCmdCurrentSessionSetCurrent(serviceRegistry adapter.ServiceRegistry) router.MessageHandler {
 	return router.NewMessageHandler(
 		router.MessageProcessorFn(func(message *fimpgo.Message) (*fimpgo.FimpMessage, error) {
@@ -261,7 +247,6 @@ func handleCmdCurrentSessionSetCurrent(serviceRegistry adapter.ServiceRegistry) 
 	)
 }
 
-// routeCmdCurrentSessionGetReport returns a routing responsible for handling the command.
 func routeCmdCurrentSessionGetReport(serviceRegistry adapter.ServiceRegistry) *router.Routing {
 	return router.NewRouting(
 		handleCmdCurrentSessionGetReport(serviceRegistry),
@@ -270,7 +255,6 @@ func routeCmdCurrentSessionGetReport(serviceRegistry adapter.ServiceRegistry) *r
 	)
 }
 
-// handleCmdCurrentSessionGetReport returns a handler responsible for handling the command.
 func handleCmdCurrentSessionGetReport(serviceRegistry adapter.ServiceRegistry) router.MessageHandler {
 	return router.NewMessageHandler(
 		router.MessageProcessorFn(func(message *fimpgo.Message) (*fimpgo.FimpMessage, error) {
@@ -289,7 +273,6 @@ func handleCmdCurrentSessionGetReport(serviceRegistry adapter.ServiceRegistry) r
 	)
 }
 
-// routeCmdMaxCurrentSet returns a routing responsible for handling the command.
 func routeCmdMaxCurrentSet(serviceRegistry adapter.ServiceRegistry) *router.Routing {
 	return router.NewRouting(
 		handleCmdMaxCurrentSet(serviceRegistry),
@@ -298,7 +281,6 @@ func routeCmdMaxCurrentSet(serviceRegistry adapter.ServiceRegistry) *router.Rout
 	)
 }
 
-// handleCmdMaxCurrentSet returns a handler responsible for handling the command.
 func handleCmdMaxCurrentSet(serviceRegistry adapter.ServiceRegistry) router.MessageHandler {
 	return router.NewMessageHandler(
 		router.MessageProcessorFn(func(message *fimpgo.Message) (*fimpgo.FimpMessage, error) {
@@ -327,7 +309,6 @@ func handleCmdMaxCurrentSet(serviceRegistry adapter.ServiceRegistry) router.Mess
 	)
 }
 
-// routeCmdMaxCurrentGetReport returns a routing responsible for handling the command.
 func routeCmdMaxCurrentGetReport(serviceRegistry adapter.ServiceRegistry) *router.Routing {
 	return router.NewRouting(
 		handleCmdMaxCurrentGetReport(serviceRegistry),
@@ -336,7 +317,6 @@ func routeCmdMaxCurrentGetReport(serviceRegistry adapter.ServiceRegistry) *route
 	)
 }
 
-// handleCmdMaxCurrentGetReport returns a handler responsible for handling the command.
 func handleCmdMaxCurrentGetReport(serviceRegistry adapter.ServiceRegistry) router.MessageHandler {
 	return router.NewMessageHandler(
 		router.MessageProcessorFn(func(message *fimpgo.Message) (*fimpgo.FimpMessage, error) {
@@ -355,7 +335,6 @@ func handleCmdMaxCurrentGetReport(serviceRegistry adapter.ServiceRegistry) route
 	)
 }
 
-// routeCmdPhaseModeSet returns a routing responsible for handling the command.
 func routeCmdPhaseModeSet(serviceRegistry adapter.ServiceRegistry) *router.Routing {
 	return router.NewRouting(
 		handleCmdPhaseModeSet(serviceRegistry),
@@ -364,7 +343,6 @@ func routeCmdPhaseModeSet(serviceRegistry adapter.ServiceRegistry) *router.Routi
 	)
 }
 
-// handleCmdPhaseModeSet returns a handler responsible for handling the command.
 func handleCmdPhaseModeSet(serviceRegistry adapter.ServiceRegistry) router.MessageHandler {
 	return router.NewMessageHandler(
 		router.MessageProcessorFn(func(message *fimpgo.Message) (*fimpgo.FimpMessage, error) {
@@ -393,7 +371,6 @@ func handleCmdPhaseModeSet(serviceRegistry adapter.ServiceRegistry) router.Messa
 	)
 }
 
-// routeCmdPhaseModeGetReport returns a routing responsible for handling the command.
 func routeCmdPhaseModeGetReport(serviceRegistry adapter.ServiceRegistry) *router.Routing {
 	return router.NewRouting(
 		handleCmdPhaseModeGetReport(serviceRegistry),
@@ -402,7 +379,6 @@ func routeCmdPhaseModeGetReport(serviceRegistry adapter.ServiceRegistry) *router
 	)
 }
 
-// handleCmdPhaseModeGetReport returns a handler responsible for handling the command.
 func handleCmdPhaseModeGetReport(serviceRegistry adapter.ServiceRegistry) router.MessageHandler {
 	return router.NewMessageHandler(
 		router.MessageProcessorFn(func(message *fimpgo.Message) (*fimpgo.FimpMessage, error) {

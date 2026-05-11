@@ -8,7 +8,6 @@ import (
 	"github.com/futurehomeno/fimpgo"
 )
 
-// Constants defining routing service, commands and events.
 const (
 	CmdLevelGetReport = "cmd.lvl.get_report"
 	EvtLevelReport    = "evt.lvl.report"
@@ -17,14 +16,12 @@ const (
 	Battery = "battery"
 )
 
-// RouteService returns routing for service specific commands.
 func RouteService(serviceRegistry adapter.ServiceRegistry) []*router.Routing {
 	return []*router.Routing{
 		routeCmdLevelGetReport(serviceRegistry),
 	}
 }
 
-// routeCmdLevelGetReport returns a routing responsible for handling the command.
 func routeCmdLevelGetReport(serviceRegistry adapter.ServiceRegistry) *router.Routing {
 	return router.NewRouting(
 		handleCmdLevelGetReport(serviceRegistry),
@@ -33,7 +30,6 @@ func routeCmdLevelGetReport(serviceRegistry adapter.ServiceRegistry) *router.Rou
 	)
 }
 
-// handleCmdLevelGetReport returns a handler responsible for handling the command.
 func handleCmdLevelGetReport(serviceRegistry adapter.ServiceRegistry) router.MessageHandler {
 	return router.NewMessageHandler(
 		router.MessageProcessorFn(func(message *fimpgo.Message) (*fimpgo.FimpMessage, error) {

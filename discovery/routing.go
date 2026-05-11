@@ -17,7 +17,6 @@ const (
 	EvtDiscoveryReport  = "evt.discovery.report"
 )
 
-// Route returns a routing responsible for handling the command.
 // appLifecycle may be nil; when provided, each reply includes fresh app states.
 func Route(resourceName fimptype.ResourceNameT, resourceType fimptype.ResourceTypeT, packageName, instanceID, version string, appLifecycle *lifecycle.Lifecycle) *router.Routing {
 	return router.NewRouting(
@@ -27,7 +26,6 @@ func Route(resourceName fimptype.ResourceNameT, resourceType fimptype.ResourceTy
 	)
 }
 
-// Handle returns a handler responsible for handling the command.
 // appLifecycle may be nil; when provided, each reply includes fresh app states.
 func Handle(resourceName fimptype.ResourceNameT, resourceType fimptype.ResourceTypeT, packageName, instanceID, version string, appLifecycle *lifecycle.Lifecycle) router.MessageHandler {
 	return router.NewMessageHandler(

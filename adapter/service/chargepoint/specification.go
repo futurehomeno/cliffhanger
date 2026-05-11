@@ -11,42 +11,36 @@ import (
 	"github.com/futurehomeno/cliffhanger/router"
 )
 
-// WithChargingModes adds supported charging modes to the service specification.
 func WithChargingModes(modes ...string) adapter.SpecificationOption {
 	return adapter.SpecificationOptionFn(func(f *fimptype.Service) {
 		f.Props[PropertySupportedChargingModes] = modes
 	})
 }
 
-// WithSupportedMaxCurrent adds supported max current to the service specification.
 func WithSupportedMaxCurrent(current int) adapter.SpecificationOption {
 	return adapter.SpecificationOptionFn(func(f *fimptype.Service) {
 		f.Props[PropertySupportedMaxCurrent] = current
 	})
 }
 
-// WithSupportedPhaseModes adds phases to the service specification.
 func WithSupportedPhaseModes(modes ...types.PhaseMode) adapter.SpecificationOption {
 	return adapter.SpecificationOptionFn(func(f *fimptype.Service) {
 		f.Props[PropertySupportedPhaseModes] = modes
 	})
 }
 
-// WithGridType adds grid type to the service specification.
 func WithGridType(gridType types.GridType) adapter.SpecificationOption {
 	return adapter.SpecificationOptionFn(func(f *fimptype.Service) {
 		f.Props[PropertyGridType] = gridType
 	})
 }
 
-// WithPhases adds phases to the service specification.
 func WithPhases(phases int) adapter.SpecificationOption {
 	return adapter.SpecificationOptionFn(func(f *fimptype.Service) {
 		f.Props[PropertyPhases] = phases
 	})
 }
 
-// Specification creates a service specification.
 func Specification(
 	resourceName,
 	resourceAddress,
@@ -73,7 +67,6 @@ func Specification(
 	return s
 }
 
-// requiredInterfaces returns required interfaces by the service.
 func requiredInterfaces() []fimptype.Interface {
 	return []fimptype.Interface{
 		{
@@ -121,7 +114,6 @@ func requiredInterfaces() []fimptype.Interface {
 	}
 }
 
-// adjustableCableLockInterfaces returns interfaces for adjustable cable lock controller.
 func adjustableCableLockInterfaces() []fimptype.Interface {
 	return []fimptype.Interface{
 		{
@@ -145,7 +137,6 @@ func adjustableCableLockInterfaces() []fimptype.Interface {
 	}
 }
 
-// cableLockAwareInterfaces returns interfaces for cable lock aware controller.
 func cableLockAwareInterfaces() []fimptype.Interface {
 	return []fimptype.Interface{
 		{
@@ -163,7 +154,6 @@ func cableLockAwareInterfaces() []fimptype.Interface {
 	}
 }
 
-// adjustableMaxCurrentInterfaces returns interfaces for adjustable max current controller.
 func adjustableMaxCurrentInterfaces() []fimptype.Interface {
 	return []fimptype.Interface{
 		{
@@ -187,7 +177,6 @@ func adjustableMaxCurrentInterfaces() []fimptype.Interface {
 	}
 }
 
-// adjustableCurrentInterfaces returns interfaces for adjustable current controller.
 func adjustablePhaseModeInterfaces() []fimptype.Interface {
 	return []fimptype.Interface{
 		{
@@ -199,7 +188,6 @@ func adjustablePhaseModeInterfaces() []fimptype.Interface {
 	}
 }
 
-// phaseModeAwareInterfaces returns interfaces for phase mode aware controller.
 func phaseModeAwareInterfaces() []fimptype.Interface {
 	return []fimptype.Interface{
 		{
@@ -217,7 +205,6 @@ func phaseModeAwareInterfaces() []fimptype.Interface {
 	}
 }
 
-// adjustableOfferedCurrentInterfaces returns interfaces for adjustable offered current controller.
 func adjustableOfferedCurrentInterfaces() []fimptype.Interface {
 	return []fimptype.Interface{
 		{

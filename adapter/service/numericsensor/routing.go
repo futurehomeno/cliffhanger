@@ -10,7 +10,6 @@ import (
 	"github.com/futurehomeno/cliffhanger/router"
 )
 
-// Constants defining routing service, commands and events.
 const (
 	CmdSensorGetReport = "cmd.sensor.get_report"
 	EvtSensorReport    = "evt.sensor.report"
@@ -58,14 +57,12 @@ const (
 	prefix = "sensor_"
 )
 
-// RouteService returns routing for service specific commands.
 func RouteService(serviceRegistry adapter.ServiceRegistry) []*router.Routing {
 	return []*router.Routing{
 		RouteCmdSensorGetReport(serviceRegistry),
 	}
 }
 
-// RouteCmdSensorGetReport returns a routing responsible for handling the command.
 func RouteCmdSensorGetReport(serviceRegistry adapter.ServiceRegistry) *router.Routing {
 	return router.NewRouting(
 		HandleCmdSensorGetReport(serviceRegistry),
@@ -74,7 +71,6 @@ func RouteCmdSensorGetReport(serviceRegistry adapter.ServiceRegistry) *router.Ro
 	)
 }
 
-// HandleCmdSensorGetReport returns a handler responsible for handling the command.
 func HandleCmdSensorGetReport(serviceRegistry adapter.ServiceRegistry) router.MessageHandler {
 	return router.NewMessageHandler(
 		router.MessageProcessorFn(func(message *fimpgo.Message) (reply *fimpgo.FimpMessage, err error) {
