@@ -230,6 +230,13 @@ func (s *DefaultStore) SetTelemetry(cfg *types.TelemetryConfig) error {
 	return s.saveStamped()
 }
 
+func (s *DefaultStore) RestartsCount() int {
+	s.lock.RLock()
+	defer s.lock.RUnlock()
+
+	return s.accessor().RestartsCount
+}
+
 func (s *DefaultStore) IncrementRestartsCount() (int, error) {
 	s.lock.Lock()
 	defer s.lock.Unlock()

@@ -25,6 +25,12 @@ const (
 	DomainReboot = "reboot"
 )
 
+const (
+	EventRebootMilestone = "milestone"
+
+	restartMilestoneStep = 1000
+)
+
 // Event is the payload carried in the FIMP val field.
 type Event struct {
 	Event  string         `json:"event"`
