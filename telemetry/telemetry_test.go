@@ -19,9 +19,6 @@ import (
 	"github.com/futurehomeno/cliffhanger/test/suite"
 )
 
-// inMemoryStore wraps a *config.DefaultStore around an in-memory *config.Default
-// so tests can both drive telemetry.New (via store.DefaultStore) and inspect
-// state directly (via store.model / store.saves).
 type inMemoryStore struct {
 	*config.DefaultStore
 	model   *config.Default
@@ -41,6 +38,15 @@ func newStore() *inMemoryStore {
 	)
 
 	return s
+}
+
+func stopTel(t *testing.T, tel telemetry.Telemetry) {
+	t.Helper()
+	t.Cleanup(func() {
+		if stop, ok := tel.(interface{ Stop() }); ok {
+			stop.Stop()
+		}
+	})
 }
 
 func TestNew_NilMQTT_Errors(t *testing.T) { //nolint:paralleltest
@@ -76,11 +82,7 @@ func TestNew_SeedsTelemetryBlock(t *testing.T) { //nolint:paralleltest
 
 	tel, err := telemetry.New(mqtt, "src", store.DefaultStore)
 	require.NoError(t, err)
-	t.Cleanup(func() {
-		if stop, ok := tel.(interface{ Stop() }); ok {
-			stop.Stop()
-		}
-	})
+	stopTel(t, tel)
 
 	assert.NotNil(t, store.model.Telemetry, "New seeds a telemetry block")
 	assert.True(t, store.model.Telemetry.Enabled, "seeded as enabled")
@@ -96,11 +98,7 @@ func TestEnable_TogglesAndPersists(t *testing.T) { //nolint:paralleltest
 
 	tel, err := telemetry.New(mqtt, "src", store.DefaultStore)
 	require.NoError(t, err)
-	t.Cleanup(func() {
-		if stop, ok := tel.(interface{ Stop() }); ok {
-			stop.Stop()
-		}
-	})
+	stopTel(t, tel)
 
 	require.NoError(t, tel.Enable(false))
 	assert.False(t, tel.IsEnabled())
@@ -112,12 +110,6 @@ func TestEnable_TogglesAndPersists(t *testing.T) { //nolint:paralleltest
 	assert.False(t, store.model.Telemetry.EnabledAt.IsZero(), "EnabledAt set on enable")
 }
 
-// TestEnable_RepeatedTrue_ExtendsValidityWindow documents the heartbeat
-// semantics: every Enable(true) refreshes EnabledAt to time.Now(), which is
-// the path cloud config pulls take via applyConfigFromCloud. As long as the
-// cloud keeps confirming "enabled", the validity deadline is pushed
-// forward; the auto-disable timer only fires after one full validity window
-// without a pull.
 func TestEnable_RepeatedTrue_ExtendsValidityWindow(t *testing.T) { //nolint:paralleltest
 	mqtt := suite.DefaultMQTT("cliff_test_enable_extend", "", "", "")
 	require.NoError(t, mqtt.Start(2*time.Second))
@@ -127,17 +119,12 @@ func TestEnable_RepeatedTrue_ExtendsValidityWindow(t *testing.T) { //nolint:para
 
 	tel, err := telemetry.New(mqtt, "src", store.DefaultStore)
 	require.NoError(t, err)
-	t.Cleanup(func() {
-		if stop, ok := tel.(interface{ Stop() }); ok {
-			stop.Stop()
-		}
-	})
+	stopTel(t, tel)
 
 	require.NoError(t, tel.Enable(true))
 	first := store.model.Telemetry.EnabledAt
 	require.False(t, first.IsZero())
 
-	// A measurable gap so the second EnabledAt is provably later.
 	time.Sleep(20 * time.Millisecond)
 
 	require.NoError(t, tel.Enable(true))
@@ -154,11 +141,7 @@ func TestSetValidity_RejectsNonPositive(t *testing.T) { //nolint:paralleltest
 
 	tel, err := telemetry.New(mqtt, "src", newStore().DefaultStore)
 	require.NoError(t, err)
-	t.Cleanup(func() {
-		if stop, ok := tel.(interface{ Stop() }); ok {
-			stop.Stop()
-		}
-	})
+	stopTel(t, tel)
 
 	assert.Error(t, tel.SetValidity(0))
 	assert.Error(t, tel.SetValidity(-time.Second))
@@ -173,11 +156,7 @@ func TestSetValidity_PersistsAndReturned(t *testing.T) { //nolint:paralleltest
 
 	tel, err := telemetry.New(mqtt, "src", store.DefaultStore)
 	require.NoError(t, err)
-	t.Cleanup(func() {
-		if stop, ok := tel.(interface{ Stop() }); ok {
-			stop.Stop()
-		}
-	})
+	stopTel(t, tel)
 
 	savesBefore := store.saves.Load()
 
@@ -187,7 +166,7 @@ func TestSetValidity_PersistsAndReturned(t *testing.T) { //nolint:paralleltest
 	assert.Greater(t, store.saves.Load(), savesBefore, "SetValidity must persist")
 }
 
-func TestSuppressedDomains_PersistsAndClones(t *testing.T) { //nolint:paralleltest
+func TestSuppressed_PersistsAndClones(t *testing.T) { //nolint:paralleltest
 	mqtt := suite.DefaultMQTT("cliff_test_suppress", "", "", "")
 	require.NoError(t, mqtt.Start(2*time.Second))
 	t.Cleanup(mqtt.Stop)
@@ -196,25 +175,32 @@ func TestSuppressedDomains_PersistsAndClones(t *testing.T) { //nolint:parallelte
 
 	tel, err := telemetry.New(mqtt, "src", store.DefaultStore)
 	require.NoError(t, err)
-	t.Cleanup(func() {
-		if stop, ok := tel.(interface{ Stop() }); ok {
-			stop.Stop()
-		}
-	})
+	stopTel(t, tel)
 
-	domains := []string{"a", "b"}
-	require.NoError(t, tel.SetSuppressedDomains(domains))
+	// Set suppressed entry for this app.
+	suppressed := map[string]types.SuppressedEntry{
+		"src": {Domains: []string{"a"}, Events: []string{"b.c"}},
+	}
+	require.NoError(t, tel.SetSuppressed(suppressed))
 
-	got := tel.SuppressedDomains()
-	assert.Equal(t, []string{"a", "b"}, got)
+	got := tel.Suppressed()
+	assert.Equal(t, []string{"a"}, got["src"].Domains)
+	assert.Equal(t, []string{"b.c"}, got["src"].Events)
 
-	// Mutating the caller's input must not affect persisted state.
-	domains[0] = "MUTATED"
-	assert.Equal(t, []string{"a", "b"}, tel.SuppressedDomains())
+	// Mutating caller's input must not affect stored state.
+	suppressed["src"] = types.SuppressedEntry{Domains: []string{"MUTATED"}}
+	got2 := tel.Suppressed()
+	assert.Equal(t, []string{"a"}, got2["src"].Domains)
 
-	// Empty slice clears the list.
-	require.NoError(t, tel.SetSuppressedDomains(nil))
-	assert.Nil(t, tel.SuppressedDomains())
+	// Key absent → nil (no suppression).
+	require.NoError(t, tel.SetSuppressed(map[string]types.SuppressedEntry{}))
+	assert.Nil(t, store.model.Telemetry.Suppressed)
+
+	// Entry with nil Domains+Events → suppress all.
+	require.NoError(t, tel.SetSuppressed(map[string]types.SuppressedEntry{"src": {}}))
+	assert.NotNil(t, store.model.Telemetry.Suppressed)
+	assert.Nil(t, store.model.Telemetry.Suppressed.Domains)
+	assert.Nil(t, store.model.Telemetry.Suppressed.Events)
 }
 
 func TestServiceName_DerivedFromSource(t *testing.T) { //nolint:paralleltest
@@ -224,11 +210,7 @@ func TestServiceName_DerivedFromSource(t *testing.T) { //nolint:paralleltest
 
 	tel, err := telemetry.New(mqtt, "my-app", newStore().DefaultStore)
 	require.NoError(t, err)
-	t.Cleanup(func() {
-		if stop, ok := tel.(interface{ Stop() }); ok {
-			stop.Stop()
-		}
-	})
+	stopTel(t, tel)
 
 	assert.Equal(t, "my-app", string(tel.ServiceName()))
 }
@@ -242,18 +224,12 @@ func TestSaveError_PropagatesToCaller(t *testing.T) { //nolint:paralleltest
 
 	tel, err := telemetry.New(mqtt, "src", store.DefaultStore)
 	require.NoError(t, err)
-	t.Cleanup(func() {
-		if stop, ok := tel.(interface{ Stop() }); ok {
-			stop.Stop()
-		}
-	})
+	stopTel(t, tel)
 
-	// Saves start failing after construction - runtime mutations must
-	// surface the error so FIMP handlers don't ack a failed write.
 	store.saveErr = errors.New("disk")
 
 	assert.Error(t, tel.Enable(true), "Enable must propagate persist failure")
-	assert.Error(t, tel.SetSuppressedDomains([]string{"x"}), "SetSuppressedDomains must propagate persist failure")
+	assert.Error(t, tel.SetSuppressed(map[string]types.SuppressedEntry{"src": {}}), "SetSuppressed must propagate persist failure")
 	assert.Error(t, tel.SetValidity(time.Hour), "SetValidity must propagate persist failure")
 }
 
@@ -263,9 +239,9 @@ func TestEmit_NilTelemetry_NoOp(t *testing.T) { //nolint:paralleltest
 	})
 }
 
-func TestEmitRequired_NilTelemetry_NoOp(t *testing.T) { //nolint:paralleltest
+func TestEmitOnChange_NilTelemetry_NoOp(t *testing.T) { //nolint:paralleltest
 	assert.NotPanics(t, func() {
-		telemetry.EmitRequired(nil, "domain", "event", nil)
+		telemetry.EmitOnChange(nil, "domain", "event", nil, time.Second)
 	})
 }
 
@@ -279,13 +255,8 @@ func TestEmit_Disabled_IsDropped(t *testing.T) { //nolint:paralleltest
 
 	tel, err := telemetry.New(mqtt, "src", store.DefaultStore)
 	require.NoError(t, err)
-	t.Cleanup(func() {
-		if stop, ok := tel.(interface{ Stop() }); ok {
-			stop.Stop()
-		}
-	})
+	stopTel(t, tel)
 
-	// Should not panic, should not publish (no listener required to assert).
 	assert.NotPanics(t, func() {
 		telemetry.Emit(tel, "weather", "temperature", map[string]any{"v": 1})
 	})
@@ -298,23 +269,176 @@ func TestEmit_SuppressedDomain_IsDropped(t *testing.T) { //nolint:paralleltest
 
 	store := newStore()
 	store.model.Telemetry = &types.TelemetryConfig{
-		Enabled:           true,
-		EnabledAt:         time.Now(),
-		Validity:          time.Hour,
-		SuppressedDomains: []string{"weather"},
+		Enabled:    true,
+		EnabledAt:  time.Now(),
+		Validity:   time.Hour,
+		Suppressed: &types.SuppressedEntry{Domains: []string{"weather"}},
 	}
 
 	tel, err := telemetry.New(mqtt, "src", store.DefaultStore)
 	require.NoError(t, err)
-	t.Cleanup(func() {
-		if stop, ok := tel.(interface{ Stop() }); ok {
-			stop.Stop()
-		}
-	})
+	stopTel(t, tel)
 
 	assert.NotPanics(t, func() {
 		telemetry.Emit(tel, "weather", "temperature", nil)
 	})
+}
+
+func TestEmit_SuppressedEvent_IsDropped(t *testing.T) { //nolint:paralleltest
+	mqtt := suite.DefaultMQTT("cliff_test_emit_supp_evt", "", "", "")
+	require.NoError(t, mqtt.Start(2*time.Second))
+	t.Cleanup(mqtt.Stop)
+
+	store := newStore()
+	store.model.Telemetry = &types.TelemetryConfig{
+		Enabled:    true,
+		EnabledAt:  time.Now(),
+		Validity:   time.Hour,
+		Suppressed: &types.SuppressedEntry{Events: []string{"temperature"}},
+	}
+
+	tel, err := telemetry.New(mqtt, "src", store.DefaultStore)
+	require.NoError(t, err)
+	stopTel(t, tel)
+
+	assert.NotPanics(t, func() {
+		telemetry.Emit(tel, "weather", "temperature", nil)
+	})
+}
+
+func TestEmit_EmptySuppressedEntry_DropsAll(t *testing.T) { //nolint:paralleltest
+	mqtt := suite.DefaultMQTT("cliff_test_emit_supp_all", "", "", "")
+	require.NoError(t, mqtt.Start(2*time.Second))
+	t.Cleanup(mqtt.Stop)
+
+	store := newStore()
+	// Both fields nil in entry = suppress all.
+	store.model.Telemetry = &types.TelemetryConfig{
+		Enabled:    true,
+		EnabledAt:  time.Now(),
+		Validity:   time.Hour,
+		Suppressed: &types.SuppressedEntry{},
+	}
+
+	tel, err := telemetry.New(mqtt, "src", store.DefaultStore)
+	require.NoError(t, err)
+	stopTel(t, tel)
+
+	assert.NotPanics(t, func() {
+		telemetry.Emit(tel, "any", "any_event", nil)
+	})
+}
+
+func TestEmit_NilSuppressed_EmitsNormally(t *testing.T) { //nolint:paralleltest
+	mqtt := suite.DefaultMQTT("cliff_test_emit_nil_supp", "", "", "")
+	require.NoError(t, mqtt.Start(2*time.Second))
+	t.Cleanup(mqtt.Stop)
+
+	store := newStore()
+	store.model.Telemetry = &types.TelemetryConfig{
+		Enabled:   true,
+		EnabledAt: time.Now(),
+		Validity:  time.Hour,
+		// Suppressed nil = no suppression
+	}
+
+	tel, err := telemetry.New(mqtt, "src", store.DefaultStore)
+	require.NoError(t, err)
+	stopTel(t, tel)
+
+	customTopic := "pt:j1/mt:evt/rt:app/rn:nil_supp_test/ad:1"
+	tel.SetEvtTopic(customTopic)
+	require.NoError(t, mqtt.Subscribe(customTopic))
+
+	ch := make(fimpgo.MessageCh, 4)
+	mqtt.RegisterChannel("nil_supp_ch", ch)
+	t.Cleanup(func() { mqtt.UnregisterChannel("nil_supp_ch") })
+
+	telemetry.Emit(tel, "weather", "temperature", nil)
+
+	select {
+	case <-ch:
+	case <-time.After(2 * time.Second):
+		t.Fatal("expected message not received — nil Suppressed should emit")
+	}
+}
+
+func TestEmitOnChange_ThrottlesWithinInterval(t *testing.T) { //nolint:paralleltest
+	mqtt := suite.DefaultMQTT("cliff_test_eoc_throttle", "", "", "")
+	require.NoError(t, mqtt.Start(2*time.Second))
+	t.Cleanup(mqtt.Stop)
+
+	store := newStore()
+	store.model.Telemetry = &types.TelemetryConfig{Enabled: true, EnabledAt: time.Now(), Validity: time.Hour}
+
+	tel, err := telemetry.New(mqtt, "src", store.DefaultStore)
+	require.NoError(t, err)
+	stopTel(t, tel)
+
+	customTopic := "pt:j1/mt:evt/rt:app/rn:eoc_throttle/ad:1"
+	tel.SetEvtTopic(customTopic)
+	require.NoError(t, mqtt.Subscribe(customTopic))
+
+	ch := make(fimpgo.MessageCh, 4)
+	mqtt.RegisterChannel("eoc_throttle_ch", ch)
+	t.Cleanup(func() { mqtt.UnregisterChannel("eoc_throttle_ch") })
+
+	telemetry.EmitOnChange(tel, "d", "e", nil, time.Hour) // first: emits
+	telemetry.EmitOnChange(tel, "d", "e", nil, time.Hour) // second: throttled
+
+	// Only one message should arrive.
+	select {
+	case <-ch:
+	case <-time.After(2 * time.Second):
+		t.Fatal("first EmitOnChange should have published")
+	}
+
+	select {
+	case <-ch:
+		t.Fatal("second EmitOnChange should have been throttled")
+	case <-time.After(200 * time.Millisecond):
+	}
+}
+
+func TestEmitOnChange_AllowsAfterInterval(t *testing.T) { //nolint:paralleltest
+	mqtt := suite.DefaultMQTT("cliff_test_eoc_allow", "", "", "")
+	require.NoError(t, mqtt.Start(2*time.Second))
+	t.Cleanup(mqtt.Stop)
+
+	store := newStore()
+	store.model.Telemetry = &types.TelemetryConfig{Enabled: true, EnabledAt: time.Now(), Validity: time.Hour}
+
+	tel, err := telemetry.New(mqtt, "src", store.DefaultStore)
+	require.NoError(t, err)
+	stopTel(t, tel)
+
+	customTopic := "pt:j1/mt:evt/rt:app/rn:eoc_allow/ad:1"
+	tel.SetEvtTopic(customTopic)
+	require.NoError(t, mqtt.Subscribe(customTopic))
+
+	ch := make(fimpgo.MessageCh, 4)
+	mqtt.RegisterChannel("eoc_allow_ch", ch)
+	t.Cleanup(func() { mqtt.UnregisterChannel("eoc_allow_ch") })
+
+	interval := 50 * time.Millisecond
+
+	telemetry.EmitOnChange(tel, "d", "e", nil, interval)
+
+	select {
+	case <-ch:
+	case <-time.After(2 * time.Second):
+		t.Fatal("first EmitOnChange should have published")
+	}
+
+	time.Sleep(2 * interval)
+
+	telemetry.EmitOnChange(tel, "d", "e", nil, interval)
+
+	select {
+	case <-ch:
+	case <-time.After(2 * time.Second):
+		t.Fatal("second EmitOnChange after interval should have published")
+	}
 }
 
 func TestSetEvtTopic_OverrideAndDefault(t *testing.T) { //nolint:paralleltest
@@ -324,16 +448,9 @@ func TestSetEvtTopic_OverrideAndDefault(t *testing.T) { //nolint:paralleltest
 
 	tel, err := telemetry.New(mqtt, "src", newStore().DefaultStore)
 	require.NoError(t, err)
-	t.Cleanup(func() {
-		if stop, ok := tel.(interface{ Stop() }); ok {
-			stop.Stop()
-		}
-	})
+	stopTel(t, tel)
 
-	// Override.
 	assert.NotPanics(t, func() { tel.SetEvtTopic("pt:j1/mt:evt/rt:app/rn:custom/ad:1") })
-
-	// Empty falls back to default - no panic, no error.
 	assert.NotPanics(t, func() { tel.SetEvtTopic("") })
 }
 
@@ -347,13 +464,8 @@ func TestEmit_Enabled_Publishes(t *testing.T) { //nolint:paralleltest
 
 	tel, err := telemetry.New(mqtt, "src", store.DefaultStore)
 	require.NoError(t, err)
-	t.Cleanup(func() {
-		if stop, ok := tel.(interface{ Stop() }); ok {
-			stop.Stop()
-		}
-	})
+	stopTel(t, tel)
 
-	// Use a custom topic so we can confidently subscribe and observe publishing.
 	customTopic := "pt:j1/mt:evt/rt:app/rn:emit_test/ad:1"
 	tel.SetEvtTopic(customTopic)
 
@@ -362,54 +474,9 @@ func TestEmit_Enabled_Publishes(t *testing.T) { //nolint:paralleltest
 
 	mqtt.RegisterChannel("emit_test", make(fimpgo.MessageCh, 4))
 
-	// Easier: just call Emit and assert no panic + give time for broker round-trip.
 	telemetry.Emit(tel, "weather", "temperature", map[string]any{"v": 1})
-	telemetry.Emit(tel, "", "noop", nil) // empty event - publish path returns error, swallowed
+	telemetry.Emit(tel, "", "noop", nil)
 	close(got)
-}
-
-func TestEmitRequired_Enabled_Publishes(t *testing.T) { //nolint:paralleltest
-	mqtt := suite.DefaultMQTT("cliff_test_emit_req_en", "", "", "")
-	require.NoError(t, mqtt.Start(2*time.Second))
-	t.Cleanup(mqtt.Stop)
-
-	store := newStore()
-	store.model.Telemetry = &types.TelemetryConfig{Enabled: true, EnabledAt: time.Now(), Validity: time.Hour}
-
-	tel, err := telemetry.New(mqtt, "src", store.DefaultStore)
-	require.NoError(t, err)
-	t.Cleanup(func() {
-		if stop, ok := tel.(interface{ Stop() }); ok {
-			stop.Stop()
-		}
-	})
-
-	assert.NotPanics(t, func() {
-		telemetry.EmitRequired(tel, "domain", "event", map[string]any{"k": "v"})
-	})
-}
-
-func TestEmitRequired_Disabled_IsDropped(t *testing.T) { //nolint:paralleltest
-	mqtt := suite.DefaultMQTT("cliff_test_emit_req_dis", "", "", "")
-	require.NoError(t, mqtt.Start(2*time.Second))
-	t.Cleanup(mqtt.Stop)
-
-	store := newStore()
-	store.model.Telemetry = &types.TelemetryConfig{Enabled: false}
-
-	tel, err := telemetry.New(mqtt, "src", store.DefaultStore)
-	require.NoError(t, err)
-	t.Cleanup(func() {
-		if stop, ok := tel.(interface{ Stop() }); ok {
-			stop.Stop()
-		}
-	})
-
-	// When telemetry is disabled, even required events are dropped per the
-	// matrix in types/types.go: "Enabled=false: everything is dropped."
-	assert.NotPanics(t, func() {
-		telemetry.EmitRequired(tel, "domain", "event", nil)
-	})
 }
 
 func TestEnable_TinyValidity_TimerDisables(t *testing.T) { //nolint:paralleltest
@@ -418,18 +485,12 @@ func TestEnable_TinyValidity_TimerDisables(t *testing.T) { //nolint:paralleltest
 	t.Cleanup(mqtt.Stop)
 
 	store := newStore()
-	// 50ms validity - the AfterFunc timer fires disableLocked almost immediately.
 	store.model.Telemetry = &types.TelemetryConfig{Enabled: true, EnabledAt: time.Now(), Validity: 50 * time.Millisecond}
 
 	tel, err := telemetry.New(mqtt, "src", store.DefaultStore)
 	require.NoError(t, err)
-	t.Cleanup(func() {
-		if stop, ok := tel.(interface{ Stop() }); ok {
-			stop.Stop()
-		}
-	})
+	stopTel(t, tel)
 
-	// Wait for the timer to fire - disableLocked runs in a goroutine.
 	require.Eventually(t, func() bool {
 		return !tel.IsEnabled()
 	}, time.Second, 10*time.Millisecond, "validity timer should disable telemetry")
@@ -444,7 +505,6 @@ func TestSetValidity_BelowElapsed_DisablesImmediately(t *testing.T) { //nolint:p
 	t.Cleanup(mqtt.Stop)
 
 	store := newStore()
-	// Telemetry was enabled 1 hour ago.
 	store.model.Telemetry = &types.TelemetryConfig{
 		Enabled:   true,
 		EnabledAt: time.Now().Add(-time.Hour),
@@ -453,13 +513,8 @@ func TestSetValidity_BelowElapsed_DisablesImmediately(t *testing.T) { //nolint:p
 
 	tel, err := telemetry.New(mqtt, "src", store.DefaultStore)
 	require.NoError(t, err)
-	t.Cleanup(func() {
-		if stop, ok := tel.(interface{ Stop() }); ok {
-			stop.Stop()
-		}
-	})
+	stopTel(t, tel)
 
-	// New validity smaller than elapsed (1m < 1h) - SetValidity should disable.
 	require.NoError(t, tel.SetValidity(time.Minute))
 	assert.False(t, tel.IsEnabled())
 }
@@ -470,7 +525,6 @@ func TestResumeValidityWindow_ExpiredBeforeStartup_DisablesAtBoot(t *testing.T) 
 	t.Cleanup(mqtt.Stop)
 
 	store := newStore()
-	// EnabledAt 2h ago, validity 1h - already expired before this process started.
 	store.model.Telemetry = &types.TelemetryConfig{
 		Enabled:   true,
 		EnabledAt: time.Now().Add(-2 * time.Hour),
@@ -479,11 +533,7 @@ func TestResumeValidityWindow_ExpiredBeforeStartup_DisablesAtBoot(t *testing.T) 
 
 	tel, err := telemetry.New(mqtt, "src", store.DefaultStore)
 	require.NoError(t, err)
-	t.Cleanup(func() {
-		if stop, ok := tel.(interface{ Stop() }); ok {
-			stop.Stop()
-		}
-	})
+	stopTel(t, tel)
 
 	assert.False(t, tel.IsEnabled(), "expired validity window disables on resume")
 }
@@ -494,7 +544,6 @@ func TestResumeValidityWindow_ClockSkew_NormalizesToNow(t *testing.T) { //nolint
 	t.Cleanup(mqtt.Stop)
 
 	store := newStore()
-	// EnabledAt is in the future - clock skew. Should be normalized to "now".
 	store.model.Telemetry = &types.TelemetryConfig{
 		Enabled:   true,
 		EnabledAt: time.Now().Add(24 * time.Hour),
@@ -503,11 +552,7 @@ func TestResumeValidityWindow_ClockSkew_NormalizesToNow(t *testing.T) { //nolint
 
 	tel, err := telemetry.New(mqtt, "src", store.DefaultStore)
 	require.NoError(t, err)
-	t.Cleanup(func() {
-		if stop, ok := tel.(interface{ Stop() }); ok {
-			stop.Stop()
-		}
-	})
+	stopTel(t, tel)
 
 	assert.True(t, tel.IsEnabled(), "future EnabledAt is normalized rather than treated as expired")
 }
@@ -525,11 +570,7 @@ func TestRouting_EnabledRoundTrip(t *testing.T) { //nolint:paralleltest
 
 					tel, err := telemetry.New(mqtt, "tel_test", store.DefaultStore)
 					require.NoError(t, err)
-					t.Cleanup(func() {
-		if stop, ok := tel.(interface{ Stop() }); ok {
-			stop.Stop()
-		}
-	})
+					stopTel(t, tel)
 
 					return telemetry.Route(tel), nil, nil
 				}),
@@ -573,11 +614,7 @@ func TestRouting_ValidityRoundTrip(t *testing.T) { //nolint:paralleltest
 
 					tel, err := telemetry.New(mqtt, "tel_validity", store.DefaultStore)
 					require.NoError(t, err)
-					t.Cleanup(func() {
-		if stop, ok := tel.(interface{ Stop() }); ok {
-			stop.Stop()
-		}
-	})
+					stopTel(t, tel)
 
 					return telemetry.Route(tel), nil, nil
 				}),
@@ -602,38 +639,41 @@ func TestRouting_ValidityRoundTrip(t *testing.T) { //nolint:paralleltest
 	s.Run(t)
 }
 
-func TestRouting_SuppressedDomainsGet(t *testing.T) { //nolint:paralleltest
+func TestRouting_SuppressedGet(t *testing.T) { //nolint:paralleltest
 	store := newStore()
-	store.model.Telemetry = &types.TelemetryConfig{Enabled: true, EnabledAt: time.Now(), SuppressedDomains: []string{"alpha", "beta"}}
+	store.model.Telemetry = &types.TelemetryConfig{
+		Enabled:    true,
+		EnabledAt:  time.Now(),
+		Suppressed: &types.SuppressedEntry{Domains: []string{"alpha"}, Events: []string{"beta.x"}},
+	}
 
 	s := &suite.Suite{
 		Cases: []*suite.Case{
 			{
-				Name: "suppressed get",
+				Name: "suppressed get/set",
 				Setup: suite.BaseSetup(func(t *testing.T, mqtt *fimpgo.MqttTransport) ([]*router.Routing, []*task.Task, []suite.Mock) {
 					t.Helper()
 
 					tel, err := telemetry.New(mqtt, "tel_supp_get", store.DefaultStore)
 					require.NoError(t, err)
-					t.Cleanup(func() {
-		if stop, ok := tel.(interface{ Stop() }); ok {
-			stop.Stop()
-		}
-	})
+					stopTel(t, tel)
 
 					return telemetry.Route(tel), nil, nil
 				}),
 				Nodes: []*suite.Node{
 					{
-						Command: suite.NullMessage("pt:j1/mt:cmd/rt:app/rn:test/ad:1", "cmd.config.get_telemetry_suppressed_domains", "tel_supp_get"),
+						Command: suite.NullMessage("pt:j1/mt:cmd/rt:app/rn:test/ad:1", "cmd.config.get_telemetry_suppressed", "tel_supp_get"),
 						Expectations: []*suite.Expectation{
-							suite.ExpectStringArray("pt:j1/mt:evt/rt:app/rn:test/ad:1", "evt.config.telemetry_suppressed_domains_report", "tel_supp_get", []string{"alpha", "beta"}),
+							suite.ExpectObject("pt:j1/mt:evt/rt:app/rn:test/ad:1", "evt.config.telemetry_suppressed_report", "tel_supp_get",
+							map[string]types.SuppressedEntry{"tel_supp_get": {Domains: []string{"alpha"}, Events: []string{"beta.x"}}}),
 						},
 					},
 					{
-						Command: suite.StringArrayMessage("pt:j1/mt:cmd/rt:app/rn:test/ad:1", "cmd.config.set_telemetry_suppressed_domains", "tel_supp_get", []string{"gamma"}),
+						Command: suite.ObjectMessage("pt:j1/mt:cmd/rt:app/rn:test/ad:1", "cmd.config.set_telemetry_suppressed", "tel_supp_get",
+							map[string]types.SuppressedEntry{"tel_supp_get": {Domains: []string{"gamma"}, Events: []string{}}}),
 						Expectations: []*suite.Expectation{
-							suite.ExpectStringArray("pt:j1/mt:evt/rt:app/rn:test/ad:1", "evt.config.telemetry_suppressed_domains_report", "tel_supp_get", []string{"gamma"}),
+							suite.ExpectObject("pt:j1/mt:evt/rt:app/rn:test/ad:1", "evt.config.telemetry_suppressed_report", "tel_supp_get",
+								map[string]types.SuppressedEntry{"tel_supp_get": {Domains: []string{"gamma"}, Events: []string{}}}),
 						},
 					},
 				},
@@ -644,11 +684,6 @@ func TestRouting_SuppressedDomainsGet(t *testing.T) { //nolint:paralleltest
 	s.Run(t)
 }
 
-// TestRouting_SetTelemetry_PersistsToStore verifies that each FIMP-driven
-// SET command on telemetry config goes through *DefaultStore.Save(), so the
-// new value survives a restart. Without this assertion the routing tests
-// only prove in-memory round-trip and would miss a regression where Save()
-// is silently dropped from the SET handler path.
 func TestRouting_SetTelemetry_PersistsToStore(t *testing.T) { //nolint:paralleltest
 	store := newStore()
 	store.model.Telemetry = &types.TelemetryConfig{Enabled: true, EnabledAt: time.Now(), Validity: time.Hour}
@@ -668,11 +703,7 @@ func TestRouting_SetTelemetry_PersistsToStore(t *testing.T) { //nolint:parallelt
 
 					tel, err := telemetry.New(mqtt, "tel_persist", store.DefaultStore)
 					require.NoError(t, err)
-					t.Cleanup(func() {
-		if stop, ok := tel.(interface{ Stop() }); ok {
-			stop.Stop()
-		}
-	})
+					stopTel(t, tel)
 
 					return telemetry.Route(tel), nil, nil
 				}),
@@ -688,8 +719,6 @@ func TestRouting_SetTelemetry_PersistsToStore(t *testing.T) { //nolint:parallelt
 						Callbacks: []suite.Callback{
 							func(t *testing.T) {
 								t.Helper()
-								// Suite runs Callbacks right after publish, before the handler reply
-								// has been observed; poll until the SetTelemetry save lands.
 								require.Eventually(t, func() bool {
 									return store.saves.Load() > enableSavesBefore
 								}, time.Second, 10*time.Millisecond, "set_telemetry_enabled must persist")
@@ -714,19 +743,21 @@ func TestRouting_SetTelemetry_PersistsToStore(t *testing.T) { //nolint:parallelt
 						},
 					},
 					{
-						Command: suite.StringArrayMessage("pt:j1/mt:cmd/rt:app/rn:test/ad:1", "cmd.config.set_telemetry_suppressed_domains", "tel_persist", []string{"alpha"}),
+						Command: suite.ObjectMessage("pt:j1/mt:cmd/rt:app/rn:test/ad:1", "cmd.config.set_telemetry_suppressed", "tel_persist",
+							map[string]types.SuppressedEntry{"tel_persist": {Domains: []string{"alpha"}}}),
 						InitCallbacks: []suite.Callback{
 							func(t *testing.T) { t.Helper(); suppSavesBefore = store.saves.Load() },
 						},
 						Expectations: []*suite.Expectation{
-							suite.ExpectStringArray("pt:j1/mt:evt/rt:app/rn:test/ad:1", "evt.config.telemetry_suppressed_domains_report", "tel_persist", []string{"alpha"}),
+							suite.ExpectObject("pt:j1/mt:evt/rt:app/rn:test/ad:1", "evt.config.telemetry_suppressed_report", "tel_persist",
+								map[string]types.SuppressedEntry{"tel_persist": {Domains: []string{"alpha"}}}),
 						},
 						Callbacks: []suite.Callback{
 							func(t *testing.T) {
 								t.Helper()
 								require.Eventually(t, func() bool {
 									return store.saves.Load() > suppSavesBefore
-								}, time.Second, 10*time.Millisecond, "set_telemetry_suppressed_domains must persist")
+								}, time.Second, 10*time.Millisecond, "set_telemetry_suppressed must persist")
 							},
 						},
 					},
@@ -738,12 +769,6 @@ func TestRouting_SetTelemetry_PersistsToStore(t *testing.T) { //nolint:parallelt
 	s.Run(t)
 }
 
-// TestRouting_SetTelemetry_UpdatesConfiguredAt drives a FIMP set command
-// through a real storage.Storage[*config.Default] so the actual storage
-// save path runs - the one that calls SetConfiguredAt before persisting.
-// The trivial save callback used in other tests bypasses this entirely,
-// so this is the only place that proves ConfiguredAt is stamped on
-// every successful save.
 func TestRouting_SetTelemetry_UpdatesConfiguredAt(t *testing.T) { //nolint:paralleltest
 	dir := t.TempDir()
 
@@ -753,8 +778,6 @@ func TestRouting_SetTelemetry_UpdatesConfiguredAt(t *testing.T) { //nolint:paral
 
 	realStorage := cliffstorage.New[*config.Default](cfg, dir, "config.json")
 
-	// DefaultStore.save() delegates to realStorage.Save(), which is what
-	// the production NewDefaultStoreFromStorage adapter does.
 	store := config.NewDefaultStore(
 		func() *config.Default { return cfg },
 		realStorage.Save,
@@ -771,11 +794,7 @@ func TestRouting_SetTelemetry_UpdatesConfiguredAt(t *testing.T) { //nolint:paral
 
 					tel, err := telemetry.New(mqtt, "tel_cfg_at", store)
 					require.NoError(t, err)
-					t.Cleanup(func() {
-		if stop, ok := tel.(interface{ Stop() }); ok {
-			stop.Stop()
-		}
-	})
+					stopTel(t, tel)
 
 					return telemetry.Route(tel), nil, nil
 				}),
@@ -785,8 +804,6 @@ func TestRouting_SetTelemetry_UpdatesConfiguredAt(t *testing.T) { //nolint:paral
 						InitCallbacks: []suite.Callback{
 							func(t *testing.T) {
 								t.Helper()
-								// Capture the existing configured_at (may be empty for a fresh
-								// config) so we can prove the SET stamps a *new* value.
 								configuredAtBefore = parseConfiguredAt(t, cfg.ConfiguredAt)
 							},
 						},
@@ -810,9 +827,6 @@ func TestRouting_SetTelemetry_UpdatesConfiguredAt(t *testing.T) { //nolint:paral
 	s.Run(t)
 }
 
-// parseConfiguredAt returns the parsed ConfiguredAt value or the zero
-// time when the field is empty. Test helper that isolates the RFC3339
-// format detail set by *Default.SetConfiguredAt.
 func parseConfiguredAt(t *testing.T, raw string) time.Time {
 	t.Helper()
 

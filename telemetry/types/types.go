@@ -2,20 +2,26 @@ package types
 
 import "time"
 
+// SuppressedEntry holds the per-service suppression rules sent by the cloud.
+// Nil Domains/Events means suppress all of that dimension; empty means suppress
+// none; a non-empty slice suppresses only the listed values.
+// A nil *SuppressedEntry in TelemetryConfig means no suppression at all.
+type SuppressedEntry struct {
+	Domains []string `json:"domains"`
+	Events  []string `json:"events"`
+}
+
 // TelemetryConfig is the persisted telemetry state. Embedded as an
 // optional pointer in config.Default so a fresh config has no telemetry
 // block at all.
 //
-// Domain verbosity is encoded by the combination of Enabled and
-// SuppressedDomains:
-//   - Enabled=true and the domain is NOT in SuppressedDomains: both
-//     Report/Emit and ReportRequired/EmitRequired publish.
-//   - Enabled=true and the domain IS in SuppressedDomains: only
-//     ReportRequired/EmitRequired publish; Report/Emit are dropped.
-//   - Enabled=false: everything is dropped.
+// Suppression is controlled by the Suppressed field:
+//   - Suppressed == nil: no suppression, all Emit calls publish.
+//   - Suppressed != nil, both Domains and Events are nil: suppress everything.
+//   - Otherwise: suppress if the domain is in Domains OR the event is in Events.
 type TelemetryConfig struct {
-	Enabled           bool          `json:"enabled,omitempty"`
-	EnabledAt         time.Time     `json:"enabled_at"`
-	Validity          time.Duration `json:"validity,omitempty"`
-	SuppressedDomains []string      `json:"suppressed_domains,omitempty"`
+	Enabled   bool             `json:"enabled,omitempty"`
+	EnabledAt time.Time        `json:"enabled_at"`
+	Validity  time.Duration    `json:"validity,omitempty"`
+	Suppressed *SuppressedEntry `json:"suppressed,omitempty"`
 }

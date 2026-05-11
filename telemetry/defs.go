@@ -1,11 +1,8 @@
 package telemetry
 
-import "github.com/futurehomeno/fimpgo/fimptype"
-
 const (
-	MessageType                                    = "evt.telemetry.report"
-	defaultTelemetryEvtTopic                       = "pt:j1/mt:evt/rt:cloud/rn:backend-service/ad:telemetry"
-	Service                  fimptype.ServiceNameT = "telemetry"
+	telemetryInterface      = "evt.telemetry.report"
+	telemetryReportEvtTopic = "pt:j1/mt:evt/rt:cloud/rn:telemetry/ad:report"
 )
 
 // Event is the payload carried in the FIMP val field.
