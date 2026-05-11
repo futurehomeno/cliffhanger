@@ -109,8 +109,11 @@ func (s *DefaultStore) Default() *Default {
 	snap := *s.accessor()
 	if snap.Telemetry != nil {
 		tc := *snap.Telemetry
-		if tc.SuppressedDomains != nil {
-			tc.SuppressedDomains = slices.Clone(tc.SuppressedDomains)
+		if tc.Suppressed != nil {
+			e := *tc.Suppressed
+			e.Domains = slices.Clone(e.Domains)
+			e.Events = slices.Clone(e.Events)
+			tc.Suppressed = &e
 		}
 
 		snap.Telemetry = &tc
@@ -215,13 +218,23 @@ func (s *DefaultStore) SetTelemetry(cfg *types.TelemetryConfig) error {
 	defer s.lock.Unlock()
 
 	clone := *cfg
-	if cfg.SuppressedDomains != nil {
-		clone.SuppressedDomains = slices.Clone(cfg.SuppressedDomains)
+	if cfg.Suppressed != nil {
+		e := *cfg.Suppressed
+		e.Domains = slices.Clone(e.Domains)
+		e.Events = slices.Clone(e.Events)
+		clone.Suppressed = &e
 	}
 
 	s.accessor().Telemetry = &clone
 
 	return s.saveStamped()
+}
+
+func (s *DefaultStore) RestartsCount() int {
+	s.lock.RLock()
+	defer s.lock.RUnlock()
+
+	return s.accessor().RestartsCount
 }
 
 func (s *DefaultStore) IncrementRestartsCount() (int, error) {

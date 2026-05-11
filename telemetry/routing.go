@@ -8,12 +8,13 @@ import (
 
 	"github.com/futurehomeno/cliffhanger/config"
 	"github.com/futurehomeno/cliffhanger/router"
+	"github.com/futurehomeno/cliffhanger/telemetry/types"
 )
 
 const (
-	SettingEnabled           = "telemetry_enabled"
-	SettingValidity          = "telemetry_validity"
-	SettingSuppressedDomains = "telemetry_suppressed_domains"
+	SettingEnabled   = "telemetry_enabled"
+	SettingValidity  = "telemetry_validity"
+	SettingSuppressed = "telemetry_suppressed"
 )
 
 func Route(tel Telemetry, _ ...config.RoutingOption) []*router.Routing {
@@ -26,8 +27,8 @@ func Route(tel Telemetry, _ ...config.RoutingOption) []*router.Routing {
 		RouteCmdTelemetryEnabled(tel),
 		RouteCmdTelemetrySetValidity(tel),
 		RouteCmdTelemetryValidity(tel),
-		RouteCmdTelemetrySetSuppressedDomains(tel),
-		RouteCmdTelemetrySuppressedDomains(tel),
+		RouteCmdTelemetrySetSuppressed(tel),
+		RouteCmdTelemetrySuppressed(tel),
 	}
 }
 
@@ -126,47 +127,47 @@ func RouteCmdTelemetrySetValidity(tel Telemetry) *router.Routing {
 	)
 }
 
-func RouteCmdTelemetrySuppressedDomains(tel Telemetry) *router.Routing {
+func RouteCmdTelemetrySuppressed(tel Telemetry) *router.Routing {
 	return router.NewRouting(
 		router.NewMessageHandler(
 			router.MessageProcessorFn(func(message *fimpgo.Message) (reply *fimpgo.FimpMessage, err error) {
-				return fimpgo.NewStrArrayMessage(
-					fmt.Sprintf("evt.config.%s_report", SettingSuppressedDomains),
+				return fimpgo.NewObjectMessage(
+					fmt.Sprintf("evt.config.%s_report", SettingSuppressed),
 					tel.ServiceName(),
-					tel.SuppressedDomains(),
+					tel.Suppressed(),
 					nil,
 					nil,
 					message.Payload,
 				), nil
 			})),
 		router.ForService(tel.ServiceName()),
-		router.ForType("cmd.config.get_"+SettingSuppressedDomains),
+		router.ForType("cmd.config.get_"+SettingSuppressed),
 	)
 }
 
-func RouteCmdTelemetrySetSuppressedDomains(tel Telemetry) *router.Routing {
+func RouteCmdTelemetrySetSuppressed(tel Telemetry) *router.Routing {
 	return router.NewRouting(
 		router.NewMessageHandler(
 			router.MessageProcessorFn(func(message *fimpgo.Message) (reply *fimpgo.FimpMessage, err error) {
-				domains, err := message.Payload.GetStrArrayValue()
-				if err != nil {
+				var suppressed map[string]types.SuppressedEntry
+				if err := message.Payload.GetObjectValue(&suppressed); err != nil {
 					return nil, err
 				}
 
-				if err := tel.SetSuppressedDomains(domains); err != nil {
+				if err := tel.SetSuppressed(suppressed); err != nil {
 					return nil, err
 				}
 
-				return fimpgo.NewStrArrayMessage(
-					fmt.Sprintf("evt.config.%s_report", SettingSuppressedDomains),
+				return fimpgo.NewObjectMessage(
+					fmt.Sprintf("evt.config.%s_report", SettingSuppressed),
 					tel.ServiceName(),
-					domains,
+					tel.Suppressed(),
 					nil,
 					nil,
 					message.Payload,
 				), nil
 			})),
 		router.ForService(tel.ServiceName()),
-		router.ForType("cmd.config.set_"+SettingSuppressedDomains),
+		router.ForType("cmd.config.set_"+SettingSuppressed),
 	)
 }

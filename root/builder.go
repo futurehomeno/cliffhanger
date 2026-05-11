@@ -12,6 +12,7 @@ import (
 
 	"github.com/futurehomeno/cliffhanger/router"
 	"github.com/futurehomeno/cliffhanger/task"
+	"github.com/futurehomeno/cliffhanger/telemetry"
 )
 
 func NewEdgeAppBuilder() *Builder {
@@ -38,6 +39,7 @@ type Builder struct {
 	instanceID         string
 	version            string
 	lifecycle          *lifecycle.Lifecycle
+	telemetry          telemetry.Telemetry
 	topicSubscriptions []string
 	routing            []*router.Routing
 	routerOptions      []router.Option
@@ -64,6 +66,14 @@ func (b *Builder) WithServiceDiscovery(resourceName fimptype.ResourceNameT, reso
 // WithLifecycle sets the lifecycle service. Required only for building edge application.
 func (b *Builder) WithLifecycle(l *lifecycle.Lifecycle) *Builder {
 	b.lifecycle = l
+	return b
+}
+
+// WithTelemetry wires a telemetry sink used by the root app — currently for
+// the auth-loss watcher to emit DomainAuth/"logged_out". Optional; when unset
+// the watcher only publishes the FIMP state report.
+func (b *Builder) WithTelemetry(t telemetry.Telemetry) *Builder {
+	b.telemetry = t
 	return b
 }
 
@@ -119,6 +129,7 @@ func (b *Builder) doBuild() App {
 
 		mqtt:         b.mqtt,
 		lifecycle:    b.lifecycle,
+		telemetry:    b.telemetry,
 		resourceName: b.resourceName,
 		taskManager:  task.NewManager(b.tasks...),
 		services:     b.services,

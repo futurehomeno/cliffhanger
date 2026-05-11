@@ -10,6 +10,7 @@ import (
 
 	"github.com/futurehomeno/cliffhanger/config"
 	"github.com/futurehomeno/cliffhanger/lifecycle"
+	cliffstorage "github.com/futurehomeno/cliffhanger/storage"
 )
 
 func TestNew_DefaultStates(t *testing.T) {
@@ -253,4 +254,35 @@ func TestNew_WithStore_StoreError_RestartsCountIsZero(t *testing.T) {
 	l := lifecycle.New(store)
 
 	assert.Equal(t, 0, l.RestartsCount())
+}
+
+// TestNew_WithStore_RestartsCountPersistsAcrossProcesses verifies the
+// increment-then-save-then-reload loop end-to-end on a real disk storage:
+// each "process" boots a fresh Storage/Default pair, constructs a Lifecycle,
+// and the persisted counter must advance by exactly 1 each time.
+func TestNew_WithStore_RestartsCountPersistsAcrossProcesses(t *testing.T) {
+	t.Parallel()
+
+	dir := t.TempDir()
+
+	bootOnce := func(t *testing.T) int {
+		t.Helper()
+
+		cfg := &config.Default{}
+		realStorage := cliffstorage.NewState[*config.Default](cfg, dir, "config.json")
+		require.NoError(t, realStorage.Load())
+
+		store := config.NewDefaultStore(
+			func() *config.Default { return cfg },
+			realStorage.Save,
+		)
+
+		l := lifecycle.New(store)
+
+		return l.RestartsCount()
+	}
+
+	for want := 1; want <= 3; want++ {
+		assert.Equal(t, want, bootOnce(t), "boot #%d must see counter == %d", want, want)
+	}
 }

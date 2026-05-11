@@ -4,7 +4,6 @@ import (
 	"fmt"
 	"os"
 	"os/signal"
-	"runtime/debug"
 	"runtime/pprof"
 	"strings"
 	"sync"
@@ -20,6 +19,7 @@ import (
 	"github.com/futurehomeno/cliffhanger/lifecycle"
 	"github.com/futurehomeno/cliffhanger/router"
 	"github.com/futurehomeno/cliffhanger/task"
+	"github.com/futurehomeno/cliffhanger/telemetry"
 	"github.com/futurehomeno/cliffhanger/utils"
 )
 
@@ -59,6 +59,7 @@ type app struct {
 
 	mqtt               *fimpgo.MqttTransport
 	lifecycle          *lifecycle.Lifecycle
+	telemetry          telemetry.Telemetry
 	resourceName       fimptype.ResourceNameT
 	topicSubscriptions []string
 	messageRouter      router.Router
@@ -116,24 +117,18 @@ func (a *app) Wait() error {
 
 // Run starts the application and waits for it to stop.
 func (a *app) Run() error {
+	defer telemetry.RecoverAndEmit(a.telemetry, "run", true)
 	err := a.Start()
 	if err != nil {
 		return err
 	}
 
-	signals := make(chan os.Signal, 1)
-	signal.Notify(signals, syscall.SIGINT, syscall.SIGTERM)
-
-	defer signal.Stop(signals)
-
 	go func() {
-		defer func() {
-			if r := recover(); r != nil {
-				log.Error(string(debug.Stack()))
-				log.Error(r)
-				panic(r)
-			}
-		}()
+		defer telemetry.RecoverAndEmit(a.telemetry, "signal", true)
+
+		signals := make(chan os.Signal, 1)
+		signal.Notify(signals, syscall.SIGINT, syscall.SIGTERM)
+		defer signal.Stop(signals)
 
 		<-signals
 		s := strings.Builder{}
@@ -142,11 +137,14 @@ func (a *app) Run() error {
 		}
 
 		err = a.Stop()
-
 		if err != nil {
 			log.Errorf("[cliff] Stop err: %v", err)
 		}
 	}()
+
+	if a.lifecycle != nil {
+		telemetry.EmitRebootMilestone(a.telemetry, a.lifecycle.RestartsCount())
+	}
 
 	return a.Wait()
 }
@@ -192,7 +190,7 @@ func (a *app) doStart() error {
 		return fmt.Errorf("start task manager err: %w", err)
 	}
 
-	a.startAuthLossWatcher()
+	a.startAuthLossWatcher(a.telemetry)
 
 	log.Info("[cliff] App started")
 
@@ -202,10 +200,20 @@ func (a *app) doStart() error {
 }
 
 // startAuthLossWatcher subscribes to lifecycle auth state changes and publishes
-// evt.app.state_report whenever the auth state transitions to LOST. This guarantees
-// subscribers are notified when an unexpected logout occurs.
-func (a *app) startAuthLossWatcher() {
+// evt.app.state_report whenever the auth state transitions to LOST so subscribers
+// are notified of unexpected logouts; it also emits a telemetry event under
+// DomainAuth/"logged_out" when telemetry is configured.
+//
+// Apps that never participate in the auth lifecycle keep AuthState at the
+// default AuthStateNA. The watcher is skipped for them entirely — no goroutine,
+// no subscription, no per-event filtering. Apps using async auth must set their
+// initial AuthState before Start so this gate detects them.
+func (a *app) startAuthLossWatcher(tel telemetry.Telemetry) {
 	if a.lifecycle == nil || a.mqtt == nil || a.resourceName == "" {
+		return
+	}
+
+	if a.lifecycle.AuthState() == lifecycle.AuthStateNA {
 		return
 	}
 
@@ -220,9 +228,7 @@ func (a *app) startAuthLossWatcher() {
 		defer a.lifecycle.Unsubscribe(subID)
 
 		if a.lifecycle.AuthState() == lifecycle.AuthStateLost {
-			if err := sendAppStateReport(a.mqtt, a.resourceName, fimptype.ServiceNameT(a.resourceName), a.lifecycle); err != nil {
-				log.WithError(err).Error("[cliff] failed to publish app state report on startup auth loss")
-			}
+			a.reportAuthLoss(tel, "startup")
 		}
 
 		for {
@@ -236,15 +242,23 @@ func (a *app) startAuthLossWatcher() {
 					continue
 				}
 
-				if err := sendAppStateReport(a.mqtt, a.resourceName, fimptype.ServiceNameT(a.resourceName), a.lifecycle); err != nil {
-					log.WithError(err).Error("[cliff] failed to publish app state report on auth loss")
-				}
+				a.reportAuthLoss(tel, "transition")
 
 			case <-a.authWatcherStopCh:
 				return
 			}
 		}
 	}()
+}
+
+// reportAuthLoss publishes the FIMP app state report and emits a telemetry
+// event for an observed AuthStateLost transition.
+func (a *app) reportAuthLoss(tel telemetry.Telemetry, cause string) {
+	if err := sendAppStateReport(a.mqtt, a.resourceName, fimptype.ServiceNameT(a.resourceName), a.lifecycle); err != nil {
+		log.WithError(err).Errorf("[cliff] failed to publish app state report on auth loss (%s)", cause)
+	}
+
+	telemetry.Emit(tel, telemetry.DomainAuth, telemetry.EventLoggedOut, map[string]any{"cause": cause})
 }
 
 // stopAuthLossWatcher stops the auth loss watcher goroutine started by startAuthLossWatcher.
