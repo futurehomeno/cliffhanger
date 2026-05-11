@@ -97,8 +97,6 @@ func (ptr *Config) Start() error {
 	ptr.msgCh = make(fimpgo.MessageCh, 8)
 	stopCh := ptr.stopCh
 
-	ptr.mqtt.RegisterChannel(channelName, ptr.msgCh)
-
 	// Try Subscribe synchronously: when the broker is already connected this
 	// avoids the race where an early response is published before the listener
 	// is subscribed. If the broker is not yet up we proceed regardless and let
@@ -106,8 +104,7 @@ func (ptr *Config) Start() error {
 	subscribed := true
 	if err := ptr.mqtt.Subscribe(ConfigResponseTopic); err != nil {
 		subscribed = false
-
-		log.WithError(err).Warnf("[cliff] Telemetry config poll: subscribe deferred (will retry in background)")
+		log.Warnf("[cliff] Subscribe telemetry config topic err: %v", err)
 	}
 
 	go ptr.listen(stopCh, subscribed)
@@ -120,11 +117,16 @@ func (ptr *Config) Start() error {
 }
 
 func (ptr *Config) listen(stopCh <-chan struct{}, subscribed bool) {
-	defer ptr.mqtt.UnregisterChannel(channelName)
-
 	if !subscribed && !ptr.ensureSubscribed(stopCh) {
 		return
 	}
+
+	// Register the fan-out channel only after Subscribe lands. Registering
+	// before would let fimpgo push every inbound broker message into msgCh
+	// while ensureSubscribed sleeps, filling the buffer and triggering the
+	// "Channel telemetry-config-poll not read for 10 sec" warnings.
+	ptr.mqtt.RegisterChannel(channelName, ptr.msgCh)
+	defer ptr.mqtt.UnregisterChannel(channelName)
 
 	for {
 		select {
