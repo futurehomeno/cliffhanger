@@ -106,6 +106,20 @@ func TestStart_BrokerNotConnected_DoesNotFail(t *testing.T) { //nolint:parallelt
 	}
 }
 
+// waitSubscribed blocks until the poller's subscribe-retry loop has landed.
+// Necessary because Subscribe now runs from the listener after a backoff,
+// so a publish racing Start would otherwise be sent before the broker knows
+// our client is interested.
+func waitSubscribed(t *testing.T, cfg *Config) {
+	t.Helper()
+
+	select {
+	case <-cfg.subscribedCh:
+	case <-time.After(5 * time.Second):
+		t.Fatal("subscribe did not land within 5s")
+	}
+}
+
 func TestListen_AppliesConfigOnMessage(t *testing.T) { //nolint:paralleltest
 	mqtt := suite.DefaultMQTT("cliff_cfgpoll_listen", "", "", "")
 	require.NoError(t, mqtt.Start(2*time.Second))
@@ -122,6 +136,8 @@ func TestListen_AppliesConfigOnMessage(t *testing.T) { //nolint:paralleltest
 	require.NoError(t, cfg.Start())
 	t.Cleanup(cfg.Stop)
 
+	waitSubscribed(t, cfg)
+
 	publishConfigResponse(t, mqtt, configResponseT{Enabled: true})
 
 	require.Eventually(t, applied.Load, 2*time.Second, 20*time.Millisecond, "applyConfig must be called with enabled=true")
@@ -136,6 +152,8 @@ func TestListen_SetsLastReceivedAt(t *testing.T) { //nolint:paralleltest
 
 	require.NoError(t, cfg.Start())
 	t.Cleanup(cfg.Stop)
+
+	waitSubscribed(t, cfg)
 
 	before := time.Now()
 

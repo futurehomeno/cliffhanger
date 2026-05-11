@@ -37,7 +37,7 @@ const (
 )
 
 func subscribeBackoff() backoff.Stateful {
-	return backoff.NewStateful(time.Minute, 10*time.Minute, 10*time.Minute, 1, 0)
+	return backoff.NewStateful(3*time.Second, 1*time.Minute, 30*time.Minute, 1, 1)
 }
 
 type configResponseT struct {
@@ -59,6 +59,7 @@ type Config struct {
 	stopped        bool
 	msgCh          fimpgo.MessageCh
 	stopCh         chan struct{}
+	subscribedCh   chan struct{}
 	lastReceivedAt time.Time
 }
 
@@ -90,6 +91,7 @@ func (ptr *Config) Start() error {
 
 	ptr.stopped = false
 	ptr.stopCh = make(chan struct{})
+	ptr.subscribedCh = make(chan struct{})
 	ptr.msgCh = make(fimpgo.MessageCh, 8)
 	stopCh := ptr.stopCh
 
@@ -99,23 +101,17 @@ func (ptr *Config) Start() error {
 		Service:   "*",
 	})
 
-	subscribed := true
-	if err := ptr.mqtt.Subscribe(ConfigResponseTopic); err != nil {
-		subscribed = false
-		log.Warnf("[cliff] Subscribe telemetry config topic err: %v", err)
-	}
-
-	go ptr.listen(stopCh, subscribed)
+	go ptr.listen(stopCh)
 
 	ptr.scheduleLocked(DefaultPollInterval)
 
 	return nil
 }
 
-func (ptr *Config) listen(stopCh <-chan struct{}, subscribed bool) {
+func (ptr *Config) listen(stopCh <-chan struct{}) {
 	defer ptr.mqtt.UnregisterChannel(channelName)
 
-	if !subscribed && !ptr.ensureSubscribed(stopCh) {
+	if !ptr.ensureSubscribed(stopCh) {
 		return
 	}
 
@@ -151,19 +147,22 @@ func (ptr *Config) ensureSubscribed(stopCh <-chan struct{}) bool {
 	bo := subscribeBackoff()
 
 	for {
-		if err := ptr.mqtt.Subscribe(ConfigResponseTopic); err == nil {
-			log.Debug("[cliff] Telemetry config poll started")
-			return true
-		} else {
-			delay := bo.Next()
+		select {
+		case <-stopCh:
+			return false
+		case <-time.After(bo.Next()):
+		}
+
+		if err := ptr.mqtt.Subscribe(ConfigResponseTopic); err != nil {
 			log.Warnf("[cliff] Telemetry config subscribe err: %v", err)
 
-			select {
-			case <-stopCh:
-				return false
-			case <-time.After(delay):
-			}
+			continue
 		}
+
+		close(ptr.subscribedCh)
+		log.Debug("[cliff] Telemetry config poll subscribed")
+
+		return true
 	}
 }
 
@@ -248,7 +247,6 @@ func (ptr *Config) scheduleLocked(delay time.Duration) {
 		if !ptr.lastReceivedAt.IsZero() && time.Since(ptr.lastReceivedAt) < AdditionalRandomPollIntervalRange {
 			ptr.scheduleLocked(ptr.fallbackPoll)
 			ptr.lock.Unlock()
-
 			return
 		}
 
