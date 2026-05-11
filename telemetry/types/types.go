@@ -3,9 +3,9 @@ package types
 import "time"
 
 // SuppressedEntry holds the per-service suppression rules sent by the cloud.
-// Nil Domains/Events means suppress all of that dimension; empty means suppress
-// none; a non-empty slice suppresses only the listed values.
-// A nil *SuppressedEntry in TelemetryConfig means no suppression at all.
+// When both Domains and Events are nil, suppress all telemetry. Otherwise,
+// suppress any emit whose domain is listed in Domains or whose event is listed
+// in Events. A nil *SuppressedEntry in TelemetryConfig means no suppression.
 type SuppressedEntry struct {
 	Domains []string `json:"domains"`
 	Events  []string `json:"events"`

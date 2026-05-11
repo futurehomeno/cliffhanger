@@ -203,6 +203,25 @@ func TestSuppressed_PersistsAndClones(t *testing.T) { //nolint:paralleltest
 	assert.Nil(t, store.model.Telemetry.Suppressed.Events)
 }
 
+func TestSuppressed_NoSuppression_ReturnsEmptyMap(t *testing.T) { //nolint:paralleltest
+	mqtt := suite.DefaultMQTT("cliff_test_supp_empty", "", "", "")
+	require.NoError(t, mqtt.Start(2*time.Second))
+	t.Cleanup(mqtt.Stop)
+
+	store := newStore()
+
+	tel, err := telemetry.New(mqtt, "src", store.DefaultStore)
+	require.NoError(t, err)
+	stopTel(t, tel)
+
+	got := tel.Suppressed()
+	assert.Empty(t, got, "Suppressed() with no suppression must return an empty map, not a zero entry that maps to 'suppress all'")
+
+	// Round-trip must not flip 'no suppression' into 'suppress all'.
+	require.NoError(t, tel.SetSuppressed(got))
+	assert.Nil(t, store.model.Telemetry.Suppressed, "Set(Get()) with no suppression must remain no-suppression")
+}
+
 func TestServiceName_DerivedFromSource(t *testing.T) { //nolint:paralleltest
 	mqtt := suite.DefaultMQTT("cliff_test_svcname", "", "", "")
 	require.NoError(t, mqtt.Start(2*time.Second))
@@ -312,21 +331,64 @@ func TestEmit_EmptySuppressedEntry_DropsAll(t *testing.T) { //nolint:paralleltes
 	t.Cleanup(mqtt.Stop)
 
 	store := newStore()
-	// Both fields nil in entry = suppress all.
-	store.model.Telemetry = &types.TelemetryConfig{
-		Enabled:    true,
-		EnabledAt:  time.Now(),
-		Validity:   time.Hour,
-		Suppressed: &types.SuppressedEntry{},
-	}
+	store.model.Telemetry = &types.TelemetryConfig{Enabled: true, EnabledAt: time.Now(), Validity: time.Hour}
 
 	tel, err := telemetry.New(mqtt, "src", store.DefaultStore)
 	require.NoError(t, err)
 	stopTel(t, tel)
 
-	assert.NotPanics(t, func() {
-		telemetry.Emit(tel, "any", "any_event", nil)
-	})
+	customTopic := "pt:j1/mt:evt/rt:app/rn:supp_all/ad:1"
+	tel.SetEvtTopic(customTopic)
+	require.NoError(t, mqtt.Subscribe(customTopic))
+
+	ch := make(fimpgo.MessageCh, 4)
+	mqtt.RegisterChannel("supp_all_ch", ch)
+	t.Cleanup(func() { mqtt.UnregisterChannel("supp_all_ch") })
+
+	drainCh := func() {
+		for {
+			select {
+			case <-ch:
+			default:
+				return
+			}
+		}
+	}
+
+	assertAllDropped := func(label string) {
+		t.Helper()
+		drainCh()
+		telemetry.Emit(tel, "weather", "temperature", nil)
+		telemetry.Emit(tel, "energy", "consumption", nil)
+		telemetry.Emit(tel, "", "standalone_event", nil)
+		select {
+		case msg := <-ch:
+			t.Fatalf("%s: must drop all emits, got %q/%q", label, msg.Topic, msg.Payload.Interface)
+		case <-time.After(300 * time.Millisecond):
+		}
+	}
+
+	// Both fields nil → suppress all.
+	require.NoError(t, tel.SetSuppressed(map[string]types.SuppressedEntry{"src": {}}))
+	require.NotNil(t, store.model.Telemetry.Suppressed)
+	assert.Nil(t, store.model.Telemetry.Suppressed.Domains)
+	assert.Nil(t, store.model.Telemetry.Suppressed.Events)
+	assertAllDropped("nil Domains+Events")
+
+	// Both fields explicitly empty slices → also suppress all (len == 0 semantics).
+	require.NoError(t, tel.SetSuppressed(map[string]types.SuppressedEntry{"src": {Domains: []string{}, Events: []string{}}}))
+	require.NotNil(t, store.model.Telemetry.Suppressed)
+	assertAllDropped("empty-slice Domains+Events")
+
+	// Sanity check: clearing the entry lets emits through again.
+	require.NoError(t, tel.SetSuppressed(map[string]types.SuppressedEntry{}))
+	assert.Nil(t, store.model.Telemetry.Suppressed, "key absent must clear stored entry")
+	telemetry.Emit(tel, "weather", "temperature", nil)
+	select {
+	case <-ch:
+	case <-time.After(2 * time.Second):
+		t.Fatal("after clearing suppression, emit should publish")
+	}
 }
 
 func TestEmit_NilSuppressed_EmitsNormally(t *testing.T) { //nolint:paralleltest
@@ -360,6 +422,145 @@ func TestEmit_NilSuppressed_EmitsNormally(t *testing.T) { //nolint:paralleltest
 	case <-ch:
 	case <-time.After(2 * time.Second):
 		t.Fatal("expected message not received — nil Suppressed should emit")
+	}
+}
+
+func TestEmit_DomainSuppressedThenUnsuppressed_ResumesEmitting(t *testing.T) { //nolint:paralleltest
+	mqtt := suite.DefaultMQTT("cliff_test_domain_unsuppress", "", "", "")
+	require.NoError(t, mqtt.Start(2*time.Second))
+	t.Cleanup(mqtt.Stop)
+
+	store := newStore()
+	store.model.Telemetry = &types.TelemetryConfig{
+		Enabled:    true,
+		EnabledAt:  time.Now(),
+		Validity:   time.Hour,
+		Suppressed: &types.SuppressedEntry{Domains: []string{"weather"}},
+	}
+
+	tel, err := telemetry.New(mqtt, "src", store.DefaultStore)
+	require.NoError(t, err)
+	stopTel(t, tel)
+
+	customTopic := "pt:j1/mt:evt/rt:app/rn:domain_unsuppress/ad:1"
+	tel.SetEvtTopic(customTopic)
+	require.NoError(t, mqtt.Subscribe(customTopic))
+
+	ch := make(fimpgo.MessageCh, 4)
+	mqtt.RegisterChannel("domain_unsuppress_ch", ch)
+	t.Cleanup(func() { mqtt.UnregisterChannel("domain_unsuppress_ch") })
+
+	telemetry.Emit(tel, "weather", "temperature", nil)
+	select {
+	case <-ch:
+		t.Fatal("emit while domain suppressed should be dropped")
+	case <-time.After(200 * time.Millisecond):
+	}
+
+	require.NoError(t, tel.SetSuppressed(map[string]types.SuppressedEntry{}))
+
+	telemetry.Emit(tel, "weather", "temperature", nil)
+	select {
+	case <-ch:
+	case <-time.After(2 * time.Second):
+		t.Fatal("after unsuppression, emit should publish")
+	}
+}
+
+func TestEmit_EnableDisableEnable_TogglesPublishing(t *testing.T) { //nolint:paralleltest
+	mqtt := suite.DefaultMQTT("cliff_test_toggle_enabled", "", "", "")
+	require.NoError(t, mqtt.Start(2*time.Second))
+	t.Cleanup(mqtt.Stop)
+
+	store := newStore()
+	store.model.Telemetry = &types.TelemetryConfig{Enabled: true, EnabledAt: time.Now(), Validity: time.Hour}
+
+	tel, err := telemetry.New(mqtt, "src", store.DefaultStore)
+	require.NoError(t, err)
+	stopTel(t, tel)
+
+	customTopic := "pt:j1/mt:evt/rt:app/rn:toggle_enabled/ad:1"
+	tel.SetEvtTopic(customTopic)
+	require.NoError(t, mqtt.Subscribe(customTopic))
+
+	ch := make(fimpgo.MessageCh, 4)
+	mqtt.RegisterChannel("toggle_enabled_ch", ch)
+	t.Cleanup(func() { mqtt.UnregisterChannel("toggle_enabled_ch") })
+
+	// Enabled → emits.
+	telemetry.Emit(tel, "weather", "temperature", nil)
+	select {
+	case <-ch:
+	case <-time.After(2 * time.Second):
+		t.Fatal("enabled telemetry must publish")
+	}
+
+	// Disabled → drops.
+	require.NoError(t, tel.Enable(false))
+	telemetry.Emit(tel, "weather", "temperature", nil)
+	select {
+	case <-ch:
+		t.Fatal("disabled telemetry must drop")
+	case <-time.After(200 * time.Millisecond):
+	}
+
+	// Re-enabled → emits again.
+	require.NoError(t, tel.Enable(true))
+	telemetry.Emit(tel, "weather", "temperature", nil)
+	select {
+	case <-ch:
+	case <-time.After(2 * time.Second):
+		t.Fatal("re-enabled telemetry must publish")
+	}
+}
+
+func TestEmit_SuppressedEvent_OtherEventsInSameDomainEmit(t *testing.T) { //nolint:paralleltest
+	mqtt := suite.DefaultMQTT("cliff_test_event_isolated", "", "", "")
+	require.NoError(t, mqtt.Start(2*time.Second))
+	t.Cleanup(mqtt.Stop)
+
+	store := newStore()
+	store.model.Telemetry = &types.TelemetryConfig{
+		Enabled:    true,
+		EnabledAt:  time.Now(),
+		Validity:   time.Hour,
+		Suppressed: &types.SuppressedEntry{Events: []string{"temperature"}},
+	}
+
+	tel, err := telemetry.New(mqtt, "src", store.DefaultStore)
+	require.NoError(t, err)
+	stopTel(t, tel)
+
+	customTopic := "pt:j1/mt:evt/rt:app/rn:event_isolated/ad:1"
+	tel.SetEvtTopic(customTopic)
+	require.NoError(t, mqtt.Subscribe(customTopic))
+
+	ch := make(fimpgo.MessageCh, 4)
+	mqtt.RegisterChannel("event_isolated_ch", ch)
+	t.Cleanup(func() { mqtt.UnregisterChannel("event_isolated_ch") })
+
+	// Suppressed event from the domain → dropped.
+	telemetry.Emit(tel, "weather", "temperature", nil)
+	select {
+	case <-ch:
+		t.Fatal("suppressed event must be dropped")
+	case <-time.After(200 * time.Millisecond):
+	}
+
+	// Other event in the same domain → emitted.
+	telemetry.Emit(tel, "weather", "humidity", nil)
+	select {
+	case <-ch:
+	case <-time.After(2 * time.Second):
+		t.Fatal("non-suppressed event in the same domain must publish")
+	}
+
+	// Yet another event in the same domain → emitted.
+	telemetry.Emit(tel, "weather", "pressure", nil)
+	select {
+	case <-ch:
+	case <-time.After(2 * time.Second):
+		t.Fatal("non-suppressed event in the same domain must publish")
 	}
 }
 

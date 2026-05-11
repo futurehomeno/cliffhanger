@@ -139,7 +139,7 @@ func (ptr *telemetryT) emit(domain, event string, data map[string]any) error {
 	}
 
 	if s := cfg.Suppressed; s != nil {
-		if s.Domains == nil && s.Events == nil {
+		if len(s.Domains) == 0 && len(s.Events) == 0 {
 			return nil
 		}
 
@@ -320,16 +320,20 @@ func (ptr *telemetryT) SetSuppressed(suppressed map[string]types.SuppressedEntry
 	next := ptr.config()
 
 	entry, ok := suppressed[string(ptr.sourceRn)]
-	if !ok {
+
+	switch {
+	case !ok:
+		// dont suppress anything
 		next.Suppressed = nil
-	} else if entry.Domains == nil && entry.Events == nil {
+	case len(entry.Domains) == 0 && len(entry.Events) == 0:
+		// suppresses the whole app
 		next.Suppressed = &types.SuppressedEntry{}
-	} else {
-		e := types.SuppressedEntry{
+	default:
+		// clean all supressions rules
+		next.Suppressed = &types.SuppressedEntry{
 			Domains: slices.Clone(entry.Domains),
 			Events:  slices.Clone(entry.Events),
 		}
-		next.Suppressed = &e
 	}
 
 	if err := ptr.store.SetTelemetry(&next); err != nil {
@@ -341,16 +345,16 @@ func (ptr *telemetryT) SetSuppressed(suppressed map[string]types.SuppressedEntry
 
 func (ptr *telemetryT) Suppressed() map[string]types.SuppressedEntry {
 	s := ptr.config().Suppressed
-
-	var entry types.SuppressedEntry
-	if s != nil {
-		entry = types.SuppressedEntry{
-			Domains: slices.Clone(s.Domains),
-			Events:  slices.Clone(s.Events),
-		}
+	if s == nil {
+		return map[string]types.SuppressedEntry{}
 	}
 
-	return map[string]types.SuppressedEntry{string(ptr.sourceRn): entry}
+	return map[string]types.SuppressedEntry{
+		string(ptr.sourceRn): {
+			Domains: slices.Clone(s.Domains),
+			Events:  slices.Clone(s.Events),
+		},
+	}
 }
 
 func (ptr *telemetryT) resumeValidityWindow() error {

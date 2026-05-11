@@ -119,6 +119,10 @@ func (ptr *Config) listen() {
 				continue
 			}
 
+			if msg.Topic != ConfigResponseTopic {
+				continue
+			}
+
 			switch msg.Payload.Interface {
 			case EvtConfigReport:
 				ptr.handleConfigReport(msg.Payload)
@@ -152,7 +156,7 @@ func (ptr *Config) handleConfigReport(payload *fimpgo.FimpMessage) {
 }
 
 func (ptr *Config) nextUpdate(at string) time.Duration {
-	jitter := time.Duration(rand.Int64N(int64(AdditionalRandomPollIntervalRange)))
+	jitter := time.Duration(rand.Int64N(int64(AdditionalRandomPollIntervalRange))) //nolint:gosec // non-cryptographic jitter
 
 	if at == "" {
 		return ptr.fallbackPoll + jitter
@@ -229,11 +233,13 @@ func (ptr *Config) sendGetConfigCmd() {
 
 	if err := ptr.mqtt.PublishToTopic(ptr.requestTopic, msg); err != nil {
 		log.WithError(err).Warnf("[cliff] Telemetry config poll: send request failed, retrying in %s", ptr.fallbackPoll)
-
-		ptr.lock.Lock()
-		if !ptr.stopped {
-			ptr.scheduleLocked(ptr.fallbackPoll)
-		}
-		ptr.lock.Unlock()
 	}
+
+	// Always schedule a fallback retry; handleConfigReport reschedules sooner
+	// if a response arrives, so polling never stops on lost responses.
+	ptr.lock.Lock()
+	if !ptr.stopped {
+		ptr.scheduleLocked(ptr.fallbackPoll)
+	}
+	ptr.lock.Unlock()
 }

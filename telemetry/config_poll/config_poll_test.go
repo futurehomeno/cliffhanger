@@ -173,6 +173,58 @@ func TestListen_FreshConfigSkipsPoll(t *testing.T) { //nolint:paralleltest
 	assert.Zero(t, pollRequests.Load(), "poll must be skipped when config is fresh")
 }
 
+func TestListen_IgnoresConfigReportOnOtherTopic(t *testing.T) { //nolint:paralleltest
+	mqtt := suite.DefaultMQTT("cliff_cfgpoll_other_topic", "", "", "")
+	require.NoError(t, mqtt.Start(2*time.Second))
+	t.Cleanup(mqtt.Stop)
+
+	var applied atomic.Bool
+
+	cfg := New(mqtt, "src", func(_ bool, _ map[string]types.SuppressedEntry) {
+		applied.Store(true)
+	})
+
+	require.NoError(t, cfg.Start())
+	t.Cleanup(cfg.Stop)
+
+	otherTopic := "pt:j1/mt:evt/rt:cloud/rn:telemetry/ad:other"
+	require.NoError(t, mqtt.Subscribe(otherTopic))
+
+	raw, err := json.Marshal(configResponseT{Enabled: true})
+	require.NoError(t, err)
+
+	msg := &fimpgo.FimpMessage{Interface: EvtConfigReport, ValueType: "object", ValueObj: raw}
+	require.NoError(t, mqtt.PublishToTopic(otherTopic, msg))
+
+	time.Sleep(300 * time.Millisecond)
+	assert.False(t, applied.Load(), "config report from non-canonical topic must be ignored")
+}
+
+func TestSendGetConfigCmd_SuccessReschedulesFallback(t *testing.T) { //nolint:paralleltest
+	mqtt := suite.DefaultMQTT("cliff_cfgpoll_resched", "", "", "")
+	require.NoError(t, mqtt.Start(2*time.Second))
+	t.Cleanup(mqtt.Stop)
+
+	cfg := New(mqtt, "src", func(_ bool, _ map[string]types.SuppressedEntry) {})
+
+	require.NoError(t, cfg.Start())
+	t.Cleanup(cfg.Stop)
+
+	cfg.lock.Lock()
+	if cfg.timer != nil {
+		cfg.timer.Stop()
+		cfg.timer = nil
+	}
+	cfg.lock.Unlock()
+
+	cfg.sendGetConfigCmd()
+
+	cfg.lock.Lock()
+	defer cfg.lock.Unlock()
+
+	assert.NotNil(t, cfg.timer, "sendGetConfigCmd success path must reschedule a fallback retry so polling never stops on lost responses")
+}
+
 func TestNextUpdate_FallsBackWhenEmpty(t *testing.T) { //nolint:paralleltest
 	cfg := newConfig()
 
