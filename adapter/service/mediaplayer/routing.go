@@ -9,7 +9,6 @@ import (
 	"github.com/futurehomeno/cliffhanger/router"
 )
 
-// Constants defining routing service, commands and events.
 const (
 	CmdPlaybackSet       = "cmd.playback.set"
 	CmdPlaybackGetReport = "cmd.playback.get_report"
@@ -48,7 +47,6 @@ func RouteService(adapter adapter.ServiceRegistry) []*router.Routing {
 	}
 }
 
-// routeCmdPlaybackSet returns a routing responsible for handling the command.
 func routeCmdPlaybackSet(registry adapter.ServiceRegistry) *router.Routing {
 	return router.NewRouting(
 		handleCmdPlaybackSet(registry),
@@ -57,7 +55,6 @@ func routeCmdPlaybackSet(registry adapter.ServiceRegistry) *router.Routing {
 	)
 }
 
-// routeCmdPlaybackGetReport returns a routing responsible for handling the command.
 func routeCmdPlaybackGetReport(registry adapter.ServiceRegistry) *router.Routing {
 	return router.NewRouting(
 		handleCmdPlaybackGetReport(registry),
@@ -66,7 +63,6 @@ func routeCmdPlaybackGetReport(registry adapter.ServiceRegistry) *router.Routing
 	)
 }
 
-// routeCmdPlaybackModeSet returns a routing responsible for handling the command.
 func routeCmdPlaybackModeSet(registry adapter.ServiceRegistry) *router.Routing {
 	return router.NewRouting(
 		handleCmdPlaybackModeSet(registry),
@@ -75,7 +71,6 @@ func routeCmdPlaybackModeSet(registry adapter.ServiceRegistry) *router.Routing {
 	)
 }
 
-// routeCmdPlaybackModeGetReport returns a routing responsible for handling the command.
 func routeCmdPlaybackModeGetReport(registry adapter.ServiceRegistry) *router.Routing {
 	return router.NewRouting(
 		handleCmdPlaybackModeGetReport(registry),
@@ -84,7 +79,6 @@ func routeCmdPlaybackModeGetReport(registry adapter.ServiceRegistry) *router.Rou
 	)
 }
 
-// routeCmdVolumeSet returns a routing responsible for handling the command.
 func routeCmdVolumeSet(registry adapter.ServiceRegistry) *router.Routing {
 	return router.NewRouting(
 		handleCmdVolumeSet(registry),
@@ -93,7 +87,6 @@ func routeCmdVolumeSet(registry adapter.ServiceRegistry) *router.Routing {
 	)
 }
 
-// routeCmdVolumeGetReport returns a routing responsible for handling the command.
 func routeCmdVolumeGetReport(registry adapter.ServiceRegistry) *router.Routing {
 	return router.NewRouting(
 		handleCmdVolumeGetReport(registry),
@@ -102,7 +95,6 @@ func routeCmdVolumeGetReport(registry adapter.ServiceRegistry) *router.Routing {
 	)
 }
 
-// routeCmdMuteSet returns a routing responsible for handling the command.
 func routeCmdMuteSet(registry adapter.ServiceRegistry) *router.Routing {
 	return router.NewRouting(
 		handleCmdMuteSet(registry),

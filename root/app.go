@@ -199,21 +199,8 @@ func (a *app) doStart() error {
 	return nil
 }
 
-// startAuthLossWatcher subscribes to lifecycle auth state changes and publishes
-// evt.app.state_report whenever the auth state transitions to LOST so subscribers
-// are notified of unexpected logouts; it also emits a telemetry event under
-// DomainAuth/"logged_out" when telemetry is configured.
-//
-// Apps that never participate in the auth lifecycle keep AuthState at the
-// default AuthStateNA. The watcher is skipped for them entirely — no goroutine,
-// no subscription, no per-event filtering. Apps using async auth must set their
-// initial AuthState before Start so this gate detects them.
 func (a *app) startAuthLossWatcher(tel telemetry.Telemetry) {
 	if a.lifecycle == nil || a.mqtt == nil || a.resourceName == "" {
-		return
-	}
-
-	if a.lifecycle.AuthState() == lifecycle.AuthStateNA {
 		return
 	}
 

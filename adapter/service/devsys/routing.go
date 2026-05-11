@@ -9,21 +9,18 @@ import (
 	"github.com/futurehomeno/cliffhanger/router"
 )
 
-// Constants defining routing service, commands and events.
 const (
 	CmdThingReboot = "cmd.thing.reboot"
 
 	DevSys = "dev_sys"
 )
 
-// RouteService returns routing for service specific commands.
 func RouteService(serviceRegistry adapter.ServiceRegistry) []*router.Routing {
 	return []*router.Routing{
 		routeCmdThingReboot(serviceRegistry),
 	}
 }
 
-// routeCmdThingReboot returns a routing responsible for handling the command.
 func routeCmdThingReboot(serviceRegistry adapter.ServiceRegistry) *router.Routing {
 	return router.NewRouting(
 		handleCmdThingReboot(serviceRegistry),
@@ -32,7 +29,6 @@ func routeCmdThingReboot(serviceRegistry adapter.ServiceRegistry) *router.Routin
 	)
 }
 
-// handleCmdThingReboot returns a handler responsible for handling the command.
 func handleCmdThingReboot(serviceRegistry adapter.ServiceRegistry) router.MessageHandler {
 	return router.NewMessageHandler(
 		router.MessageProcessorFn(func(message *fimpgo.Message) (*fimpgo.FimpMessage, error) {

@@ -71,6 +71,10 @@ func RouteApp[C any](
 
 	authorizable, ok := app.(AuthorizableApp)
 	if ok {
+		if appLifecycle.AuthState() == lifecycle.AuthStateNA {
+			appLifecycle.SetAuthState(lifecycle.AuthStateNotAuthenticated)
+		}
+
 		routing = append(
 			routing,
 			RouteCmdAuthSetTokens(serviceName, appLifecycle, locker, authorizable),
@@ -86,7 +90,6 @@ func RouteApp[C any](
 	return routing
 }
 
-// RouteCmdAppGetState returns a routing responsible for handling the command.
 func RouteCmdAppGetState(serviceName fimptype.ServiceNameT, appLifecycle *lifecycle.Lifecycle) *router.Routing {
 	return router.NewRouting(
 		HandleCmdAppGetState(serviceName, appLifecycle),
@@ -95,7 +98,6 @@ func RouteCmdAppGetState(serviceName fimptype.ServiceNameT, appLifecycle *lifecy
 	)
 }
 
-// HandleCmdAppGetState returns a handler responsible for handling the command.
 func HandleCmdAppGetState(serviceName fimptype.ServiceNameT, appLifecycle *lifecycle.Lifecycle) router.MessageHandler {
 	return router.NewMessageHandler(
 		router.MessageProcessorFn(func(message *fimpgo.Message) (reply *fimpgo.FimpMessage, err error) {
@@ -113,7 +115,6 @@ func HandleCmdAppGetState(serviceName fimptype.ServiceNameT, appLifecycle *lifec
 		}))
 }
 
-// RouteCmdConfigGetExtendedReport returns a routing responsible for handling the command.
 func RouteCmdConfigGetExtendedReport[C any](serviceName fimptype.ServiceNameT, storage storage.Storage[C]) *router.Routing {
 	return router.NewRouting(
 		HandleCmdConfigGetExtendedReport(serviceName, storage),
@@ -122,7 +123,6 @@ func RouteCmdConfigGetExtendedReport[C any](serviceName fimptype.ServiceNameT, s
 	)
 }
 
-// HandleCmdConfigGetExtendedReport returns a handler responsible for handling the command.
 func HandleCmdConfigGetExtendedReport[C any](serviceName fimptype.ServiceNameT, storage storage.Storage[C]) router.MessageHandler {
 	return router.NewMessageHandler(
 		router.MessageProcessorFn(func(message *fimpgo.Message) (reply *fimpgo.FimpMessage, err error) {
@@ -140,7 +140,6 @@ func HandleCmdConfigGetExtendedReport[C any](serviceName fimptype.ServiceNameT, 
 		}))
 }
 
-// RouteCmdAppGetManifest returns a routing responsible for handling the command.
 func RouteCmdAppGetManifest[C any](
 	serviceName fimptype.ServiceNameT,
 	appLifecycle *lifecycle.Lifecycle,
@@ -154,7 +153,6 @@ func RouteCmdAppGetManifest[C any](
 	)
 }
 
-// HandleCmdAppGetManifest returns a handler responsible for handling the command.
 func HandleCmdAppGetManifest[C any](
 	serviceName fimptype.ServiceNameT,
 	appLifecycle *lifecycle.Lifecycle,
@@ -191,7 +189,6 @@ func HandleCmdAppGetManifest[C any](
 	)
 }
 
-// RouteCmdConfigExtendedSet returns a routing responsible for handling the command.
 // Provided locker is optional.
 func RouteCmdConfigExtendedSet[C any](
 	serviceName fimptype.ServiceNameT,
@@ -207,7 +204,6 @@ func RouteCmdConfigExtendedSet[C any](
 	)
 }
 
-// HandleCmdConfigExtendedSet returns a handler responsible for handling the command.
 // Provided locker is optional.
 func HandleCmdConfigExtendedSet[C any](
 	serviceName fimptype.ServiceNameT,
@@ -236,7 +232,6 @@ func HandleCmdConfigExtendedSet[C any](
 	)
 }
 
-// RouteCmdAppUninstall returns a routing responsible for handling the command.
 // Provided locker is optional.
 func RouteCmdAppUninstall(
 	serviceName fimptype.ServiceNameT,
@@ -252,7 +247,6 @@ func RouteCmdAppUninstall(
 	)
 }
 
-// HandleCmdAppUninstall returns a handler responsible for handling the command.
 // Provided locker is optional.
 func HandleCmdAppUninstall(
 	serviceName fimptype.ServiceNameT,
@@ -279,7 +273,6 @@ func HandleCmdAppUninstall(
 	)
 }
 
-// RouteCmdAppReset returns a routing responsible for handling the command.
 // Provided locker is optional.
 func RouteCmdAppReset(
 	serviceName fimptype.ServiceNameT,
@@ -315,7 +308,6 @@ func RouteCmdAppReset(
 	)
 }
 
-// RouteConfigActionCommand returns a routing responsible for handling the command.
 // Provided locker is optional.
 func RouteConfigActionCommand(
 	serviceName fimptype.ServiceNameT, commandName string,
@@ -329,7 +321,6 @@ func RouteConfigActionCommand(
 	)
 }
 
-// HandleConfigActionCommand returns a handler responsible for handling the command.
 // Provided locker is optional.
 func HandleConfigActionCommand(
 	serviceName fimptype.ServiceNameT,
@@ -356,7 +347,6 @@ func HandleConfigActionCommand(
 	)
 }
 
-// LogProvider is a source of recent warn/error log entries for the app error report.
 type LogProvider interface {
 	ErrorsReport() ([]string, error)
 }
@@ -376,7 +366,6 @@ func RouteCmdAppDiagGetReport(serviceName fimptype.ServiceNameT, appLifecycle *l
 	)
 }
 
-// HandleCmdAppDiagGetReport returns a handler responsible for handling the command.
 func HandleCmdAppDiagGetReport(serviceName fimptype.ServiceNameT, appLifecycle *lifecycle.Lifecycle, logProvider LogProvider) router.MessageHandler {
 	return router.NewMessageHandler(
 		router.MessageProcessorFn(func(message *fimpgo.Message) (*fimpgo.FimpMessage, error) {
@@ -402,7 +391,6 @@ func HandleCmdAppDiagGetReport(serviceName fimptype.ServiceNameT, appLifecycle *
 	)
 }
 
-// makeConfigurationReply creates configuration reply for an edge application.
 func makeConfigurationReply(
 	serviceName fimptype.ServiceNameT,
 	messageType string,
@@ -438,7 +426,6 @@ func makeConfigurationReply(
 	)
 }
 
-// RouteCmdAuthLogin returns a routing responsible for handling the command.
 func RouteCmdAuthLogin(
 	serviceName fimptype.ServiceNameT,
 	appLifecycle *lifecycle.Lifecycle,
@@ -452,7 +439,6 @@ func RouteCmdAuthLogin(
 	)
 }
 
-// HandleCmdAuthLogin returns a handler responsible for handling the command.
 func HandleCmdAuthLogin(
 	serviceName fimptype.ServiceNameT,
 	appLifecycle *lifecycle.Lifecycle,
@@ -498,7 +484,6 @@ func HandleCmdAuthLogin(
 		router.WithExternalLock(locker))
 }
 
-// RouteCmdAuthSetTokens returns a routing responsible for handling the command.
 func RouteCmdAuthSetTokens(
 	serviceName fimptype.ServiceNameT,
 	appLifecycle *lifecycle.Lifecycle,
@@ -512,7 +497,6 @@ func RouteCmdAuthSetTokens(
 	)
 }
 
-// HandleCmdAuthSetTokens returns a handler responsible for handling the command.
 func HandleCmdAuthSetTokens(
 	serviceName fimptype.ServiceNameT,
 	appLifecycle *lifecycle.Lifecycle,
@@ -553,7 +537,6 @@ func HandleCmdAuthSetTokens(
 		router.WithExternalLock(locker))
 }
 
-// RouteCmdAuthLogout returns a routing responsible for handling the command.
 func RouteCmdAuthLogout(
 	serviceName fimptype.ServiceNameT,
 	appLifecycle *lifecycle.Lifecycle,
@@ -567,7 +550,6 @@ func RouteCmdAuthLogout(
 	)
 }
 
-// HandleCmdAuthLogout returns a handler responsible for handling the command.
 func HandleCmdAuthLogout(
 	serviceName fimptype.ServiceNameT,
 	appLifecycle *lifecycle.Lifecycle,

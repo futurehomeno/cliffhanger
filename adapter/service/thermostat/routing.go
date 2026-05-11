@@ -9,7 +9,6 @@ import (
 	"github.com/futurehomeno/cliffhanger/router"
 )
 
-// Constants defining routing service, commands and events.
 const (
 	CmdModeGetReport     = "cmd.mode.get_report"
 	CmdModeSet           = "cmd.mode.set"
@@ -23,7 +22,6 @@ const (
 	Thermostat = "thermostat"
 )
 
-// RouteService returns routing for service specific commands.
 func RouteService(serviceRegistry adapter.ServiceRegistry) []*router.Routing {
 	return []*router.Routing{
 		RouteCmdModeSet(serviceRegistry),
@@ -34,7 +32,6 @@ func RouteService(serviceRegistry adapter.ServiceRegistry) []*router.Routing {
 	}
 }
 
-// RouteCmdModeSet returns a routing responsible for handling the command.
 func RouteCmdModeSet(serviceRegistry adapter.ServiceRegistry) *router.Routing {
 	return router.NewRouting(
 		HandleCmdModeSet(serviceRegistry),
@@ -43,7 +40,6 @@ func RouteCmdModeSet(serviceRegistry adapter.ServiceRegistry) *router.Routing {
 	)
 }
 
-// HandleCmdModeSet returns a handler responsible for handling the command.
 func HandleCmdModeSet(serviceRegistry adapter.ServiceRegistry) router.MessageHandler {
 	return router.NewMessageHandler(
 		router.MessageProcessorFn(func(message *fimpgo.Message) (*fimpgo.FimpMessage, error) {
@@ -84,7 +80,6 @@ func HandleCmdModeSet(serviceRegistry adapter.ServiceRegistry) router.MessageHan
 	)
 }
 
-// RouteCmdSetpointSet returns a routing responsible for handling the command.
 func RouteCmdSetpointSet(serviceRegistry adapter.ServiceRegistry) *router.Routing {
 	return router.NewRouting(
 		HandleCmdSetpointSet(serviceRegistry),
@@ -93,7 +88,6 @@ func RouteCmdSetpointSet(serviceRegistry adapter.ServiceRegistry) *router.Routin
 	)
 }
 
-// HandleCmdSetpointSet returns a handler responsible for handling the command.
 func HandleCmdSetpointSet(serviceRegistry adapter.ServiceRegistry) router.MessageHandler {
 	return router.NewMessageHandler(
 		router.MessageProcessorFn(func(message *fimpgo.Message) (*fimpgo.FimpMessage, error) {
@@ -132,7 +126,6 @@ func HandleCmdSetpointSet(serviceRegistry adapter.ServiceRegistry) router.Messag
 	)
 }
 
-// RouteCmdModeGetReport returns a routing responsible for handling the command.
 func RouteCmdModeGetReport(serviceRegistry adapter.ServiceRegistry) *router.Routing {
 	return router.NewRouting(
 		HandleCmdModeGetReport(serviceRegistry),
@@ -141,7 +134,6 @@ func RouteCmdModeGetReport(serviceRegistry adapter.ServiceRegistry) *router.Rout
 	)
 }
 
-// HandleCmdModeGetReport returns a handler responsible for handling the command.
 func HandleCmdModeGetReport(serviceRegistry adapter.ServiceRegistry) router.MessageHandler {
 	return router.NewMessageHandler(
 		router.MessageProcessorFn(func(message *fimpgo.Message) (*fimpgo.FimpMessage, error) {
@@ -165,7 +157,6 @@ func HandleCmdModeGetReport(serviceRegistry adapter.ServiceRegistry) router.Mess
 	)
 }
 
-// RouteCmdSetpointGetReport returns a routing responsible for handling the command.
 func RouteCmdSetpointGetReport(serviceRegistry adapter.ServiceRegistry) *router.Routing {
 	return router.NewRouting(
 		HandleCmdSetpointGetReport(serviceRegistry),
@@ -174,7 +165,6 @@ func RouteCmdSetpointGetReport(serviceRegistry adapter.ServiceRegistry) *router.
 	)
 }
 
-// HandleCmdSetpointGetReport returns a handler responsible for handling the command.
 func HandleCmdSetpointGetReport(serviceRegistry adapter.ServiceRegistry) router.MessageHandler {
 	return router.NewMessageHandler(
 		router.MessageProcessorFn(func(message *fimpgo.Message) (*fimpgo.FimpMessage, error) {
@@ -203,7 +193,6 @@ func HandleCmdSetpointGetReport(serviceRegistry adapter.ServiceRegistry) router.
 	)
 }
 
-// RouteCmdStateGetReport returns a routing responsible for handling the command.
 func RouteCmdStateGetReport(serviceRegistry adapter.ServiceRegistry) *router.Routing {
 	return router.NewRouting(
 		HandleCmdStateGetReport(serviceRegistry),
@@ -212,7 +201,6 @@ func RouteCmdStateGetReport(serviceRegistry adapter.ServiceRegistry) *router.Rou
 	)
 }
 
-// HandleCmdStateGetReport returns a handler responsible for handling the command.
 func HandleCmdStateGetReport(serviceRegistry adapter.ServiceRegistry) router.MessageHandler {
 	return router.NewMessageHandler(
 		router.MessageProcessorFn(func(message *fimpgo.Message) (*fimpgo.FimpMessage, error) {

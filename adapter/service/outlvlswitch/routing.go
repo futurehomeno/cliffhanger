@@ -12,7 +12,6 @@ import (
 	"github.com/futurehomeno/cliffhanger/utils"
 )
 
-// Constants defining routing service, commands and events.
 const (
 	CmdLvlSet       = "cmd.lvl.set"
 	CmdLvlGetReport = "cmd.lvl.get_report"
@@ -24,7 +23,6 @@ const (
 	OutLvlSwitch = "out_lvl_switch"
 )
 
-// RouteService returns routing for service specific commands.
 func RouteService(serviceRegistry adapter.ServiceRegistry) []*router.Routing {
 	return []*router.Routing{
 		RouteCmdLvlSet(serviceRegistry),
@@ -35,7 +33,6 @@ func RouteService(serviceRegistry adapter.ServiceRegistry) []*router.Routing {
 	}
 }
 
-// RouteCmdLvlSet returns a routing responsible for handling the command.
 func RouteCmdLvlSet(serviceRegistry adapter.ServiceRegistry) *router.Routing {
 	return router.NewRouting(
 		HandleCmdLvlSet(serviceRegistry),
@@ -44,7 +41,6 @@ func RouteCmdLvlSet(serviceRegistry adapter.ServiceRegistry) *router.Routing {
 	)
 }
 
-// RouteCmdLvlStart returns a routing responsible for handling the command.
 func RouteCmdLvlStart(serviceRegistry adapter.ServiceRegistry) *router.Routing {
 	return router.NewRouting(
 		HandleCmdLvlStart(serviceRegistry),
@@ -53,7 +49,6 @@ func RouteCmdLvlStart(serviceRegistry adapter.ServiceRegistry) *router.Routing {
 	)
 }
 
-// RouteCmdLvlStop returns a routing responsible for handling the command.
 func RouteCmdLvlStop(serviceRegistry adapter.ServiceRegistry) *router.Routing {
 	return router.NewRouting(
 		HandleCmdLvlStop(serviceRegistry),
@@ -133,7 +128,6 @@ func HandleCmdLvlStop(serviceRegistry adapter.ServiceRegistry) router.MessageHan
 	)
 }
 
-// HandleCmdLvlSet returns a handler responsible for handling the command.
 func HandleCmdLvlSet(serviceRegistry adapter.ServiceRegistry) router.MessageHandler {
 	return router.NewMessageHandler(
 		router.MessageProcessorFn(func(message *fimpgo.Message) (*fimpgo.FimpMessage, error) {
@@ -172,7 +166,6 @@ func HandleCmdLvlSet(serviceRegistry adapter.ServiceRegistry) router.MessageHand
 	)
 }
 
-// RouteCmdBinarySet returns a routing responsible for handling the command.
 func RouteCmdBinarySet(serviceRegistry adapter.ServiceRegistry) *router.Routing {
 	return router.NewRouting(
 		HandleCmdBinarySet(serviceRegistry),
@@ -181,7 +174,6 @@ func RouteCmdBinarySet(serviceRegistry adapter.ServiceRegistry) *router.Routing 
 	)
 }
 
-// HandleCmdBinarySet returns a handler responsible for handling the command.
 func HandleCmdBinarySet(serviceRegistry adapter.ServiceRegistry) router.MessageHandler {
 	return router.NewMessageHandler(
 		router.MessageProcessorFn(func(message *fimpgo.Message) (*fimpgo.FimpMessage, error) {
@@ -215,7 +207,6 @@ func HandleCmdBinarySet(serviceRegistry adapter.ServiceRegistry) router.MessageH
 	)
 }
 
-// RouteCmdLvlGetReport returns a routing responsible for handling the command.
 func RouteCmdLvlGetReport(serviceRegistry adapter.ServiceRegistry) *router.Routing {
 	return router.NewRouting(
 		HandleCmdLvlGetReport(serviceRegistry),
@@ -224,7 +215,6 @@ func RouteCmdLvlGetReport(serviceRegistry adapter.ServiceRegistry) *router.Routi
 	)
 }
 
-// HandleCmdLvlGetReport returns a handler responsible for handling the command.
 func HandleCmdLvlGetReport(serviceRegistry adapter.ServiceRegistry) router.MessageHandler {
 	return router.NewMessageHandler(
 		router.MessageProcessorFn(func(message *fimpgo.Message) (*fimpgo.FimpMessage, error) {

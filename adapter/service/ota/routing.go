@@ -9,7 +9,6 @@ import (
 	"github.com/futurehomeno/cliffhanger/router"
 )
 
-// Constants defining routing service, commands and events.
 const (
 	CmdOTAUpdateStart    = "cmd.ota_update.start"
 	EvtOTAStartReport    = "evt.ota_start.report"
@@ -19,14 +18,12 @@ const (
 	OTA = "ota"
 )
 
-// RouteService returns routing for service specific commands.
 func RouteService(serviceRegistry adapter.ServiceRegistry) []*router.Routing {
 	return []*router.Routing{
 		routeCmdOTAUpdateStart(serviceRegistry),
 	}
 }
 
-// routeCmdOTAUpdateStart returns a routing responsible for handling the command.
 func routeCmdOTAUpdateStart(serviceRegistry adapter.ServiceRegistry) *router.Routing {
 	return router.NewRouting(
 		handleCmdOTAUpdateStart(serviceRegistry),
@@ -35,7 +32,6 @@ func routeCmdOTAUpdateStart(serviceRegistry adapter.ServiceRegistry) *router.Rou
 	)
 }
 
-// handleCmdOTAUpdateStart returns a handler responsible for handling the command.
 func handleCmdOTAUpdateStart(serviceRegistry adapter.ServiceRegistry) router.MessageHandler {
 	return router.NewMessageHandler(
 		router.MessageProcessorFn(func(message *fimpgo.Message) (*fimpgo.FimpMessage, error) {

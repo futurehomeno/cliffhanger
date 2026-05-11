@@ -9,7 +9,6 @@ import (
 	log "github.com/sirupsen/logrus"
 )
 
-// MessageHandler is an interface representing a message handler service.
 type MessageHandler interface {
 	// Handle handles the incoming message and optionally returns a response. If no response is expected a nil message should be returned.
 	Handle(message *fimpgo.Message) (reply *fimpgo.Message)
@@ -23,7 +22,6 @@ func (f MessageHandlerFn) Handle(message *fimpgo.Message) (reply *fimpgo.Message
 	return f(message)
 }
 
-// MessageProcessor is an interface representing a message processor service.
 type MessageProcessor interface {
 	// Process is responsible for processing incoming message and returning response payload and optionally an error.
 	Process(message *fimpgo.Message) (reply *fimpgo.FimpMessage, err error)

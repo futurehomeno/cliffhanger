@@ -24,7 +24,6 @@ const (
 	EvtPingReport              = "evt.ping.report"
 )
 
-// RouteAdapter returns routing for adapter specific commands.
 func RouteAdapter(adapter Adapter) []*router.Routing {
 	return []*router.Routing{
 		routeCmdThingGetInclusionReport(adapter),
@@ -36,7 +35,6 @@ func RouteAdapter(adapter Adapter) []*router.Routing {
 	}
 }
 
-// routeCmdThingGetInclusionReport returns a routing responsible for handling the command.
 func routeCmdThingGetInclusionReport(adapter Adapter) *router.Routing {
 	return router.NewRouting(
 		handleCmdThingGetInclusionReport(adapter),
@@ -45,7 +43,6 @@ func routeCmdThingGetInclusionReport(adapter Adapter) *router.Routing {
 	)
 }
 
-// handleCmdThingGetInclusionReport returns a handler responsible for handling the command.
 func handleCmdThingGetInclusionReport(adapter Adapter) router.MessageHandler {
 	return router.NewMessageHandler(
 		router.MessageProcessorFn(func(message *fimpgo.Message) (reply *fimpgo.FimpMessage, err error) {
@@ -64,7 +61,6 @@ func handleCmdThingGetInclusionReport(adapter Adapter) router.MessageHandler {
 	)
 }
 
-// routeCmdThingDelete returns a routing responsible for handling the command.
 func routeCmdThingDelete(adapter Adapter) *router.Routing {
 	return router.NewRouting(
 		handleCmdThingDelete(adapter),
@@ -73,7 +69,6 @@ func routeCmdThingDelete(adapter Adapter) *router.Routing {
 	)
 }
 
-// handleCmdThingDelete returns a handler responsible for handling the command.
 func handleCmdThingDelete(adapter Adapter) router.MessageHandler {
 	return router.NewMessageHandler(
 		router.MessageProcessorFn(func(message *fimpgo.Message) (reply *fimpgo.FimpMessage, err error) {
@@ -94,7 +89,6 @@ func handleCmdThingDelete(adapter Adapter) router.MessageHandler {
 	)
 }
 
-// routeCmdNetworkReset returns a routing responsible for handling the command.
 func routeCmdNetworkReset(adapter Adapter) *router.Routing {
 	return router.NewRouting(
 		handleCmdNetworkReset(adapter),
@@ -103,7 +97,6 @@ func routeCmdNetworkReset(adapter Adapter) *router.Routing {
 	)
 }
 
-// handleCmdNetworkReset returns a handler responsible for handling the command.
 func handleCmdNetworkReset(adapter Adapter) router.MessageHandler {
 	return router.NewMessageHandler(
 		router.MessageProcessorFn(func(message *fimpgo.Message) (reply *fimpgo.FimpMessage, err error) {
@@ -123,7 +116,6 @@ func handleCmdNetworkReset(adapter Adapter) router.MessageHandler {
 	)
 }
 
-// routeCmdNetworkGetNode returns a routing responsible for handling the command.
 func routeCmdNetworkGetNode(adapter Adapter) *router.Routing {
 	return router.NewRouting(
 		handleCmdNetworkGetNode(adapter),
@@ -132,7 +124,6 @@ func routeCmdNetworkGetNode(adapter Adapter) *router.Routing {
 	)
 }
 
-// handleCmdNetworkGetNode returns a handler responsible for handling the command.
 func handleCmdNetworkGetNode(adapter Adapter) router.MessageHandler {
 	return router.NewMessageHandler(
 		router.MessageProcessorFn(func(message *fimpgo.Message) (reply *fimpgo.FimpMessage, err error) {
@@ -151,7 +142,6 @@ func handleCmdNetworkGetNode(adapter Adapter) router.MessageHandler {
 	)
 }
 
-// routeCmdNetworkGetAllNodes returns a routing responsible for handling the command.
 func routeCmdNetworkGetAllNodes(adapter Adapter) *router.Routing {
 	return router.NewRouting(
 		handleCmdNetworkGetAllNodes(adapter),
@@ -160,7 +150,6 @@ func routeCmdNetworkGetAllNodes(adapter Adapter) *router.Routing {
 	)
 }
 
-// handleCmdNetworkGetAllNodes returns a handler responsible for handling the command.
 func handleCmdNetworkGetAllNodes(adapter Adapter) router.MessageHandler {
 	return router.NewMessageHandler(
 		router.MessageProcessorFn(func(_ *fimpgo.Message) (reply *fimpgo.FimpMessage, err error) {
@@ -174,7 +163,6 @@ func handleCmdNetworkGetAllNodes(adapter Adapter) router.MessageHandler {
 	)
 }
 
-// routeCmdPingSend returns a routing responsible for handling the command.
 func routeCmdPingSend(adapter Adapter) *router.Routing {
 	return router.NewRouting(
 		handleCmdPingSend(adapter),
@@ -183,7 +171,6 @@ func routeCmdPingSend(adapter Adapter) *router.Routing {
 	)
 }
 
-// handleCmdPingSend returns a handler responsible for handling the command.
 func handleCmdPingSend(adapter Adapter) router.MessageHandler {
 	return router.NewMessageHandler(
 		router.MessageProcessorFn(func(message *fimpgo.Message) (reply *fimpgo.FimpMessage, err error) {

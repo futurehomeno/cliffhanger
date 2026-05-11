@@ -9,7 +9,6 @@ import (
 	"github.com/futurehomeno/cliffhanger/router"
 )
 
-// Constants defining routing service, commands and events.
 const (
 	CmdColorSet       = "cmd.color.set"
 	CmdColorGetReport = "cmd.color.get_report"
@@ -18,7 +17,6 @@ const (
 	ColorCtrl = "color_ctrl"
 )
 
-// RouteService returns routing for service specific commands.
 func RouteService(serviceRegistry adapter.ServiceRegistry) []*router.Routing {
 	return []*router.Routing{
 		RouteCmdColorSet(serviceRegistry),
@@ -26,7 +24,6 @@ func RouteService(serviceRegistry adapter.ServiceRegistry) []*router.Routing {
 	}
 }
 
-// RouteCmdColorSet returns a routing responsible for handling the command.
 func RouteCmdColorSet(serviceRegistry adapter.ServiceRegistry) *router.Routing {
 	return router.NewRouting(
 		HandleCmdColorSet(serviceRegistry),
@@ -35,7 +32,6 @@ func RouteCmdColorSet(serviceRegistry adapter.ServiceRegistry) *router.Routing {
 	)
 }
 
-// HandleCmdColorSet returns a handler responsible for handling the command.
 func HandleCmdColorSet(serviceRegistry adapter.ServiceRegistry) router.MessageHandler {
 	return router.NewMessageHandler(
 		router.MessageProcessorFn(func(message *fimpgo.Message) (*fimpgo.FimpMessage, error) {
@@ -69,7 +65,6 @@ func HandleCmdColorSet(serviceRegistry adapter.ServiceRegistry) router.MessageHa
 	)
 }
 
-// RouteCmdColorGetReport returns a routing responsible for handling the command.
 func RouteCmdColorGetReport(serviceRegistry adapter.ServiceRegistry) *router.Routing {
 	return router.NewRouting(
 		HandleCmdColorGetReport(serviceRegistry),
@@ -78,7 +73,6 @@ func RouteCmdColorGetReport(serviceRegistry adapter.ServiceRegistry) *router.Rou
 	)
 }
 
-// HandleCmdColorGetReport returns a handler responsible for handling the command.
 func HandleCmdColorGetReport(serviceRegistry adapter.ServiceRegistry) router.MessageHandler {
 	return router.NewMessageHandler(
 		router.MessageProcessorFn(func(message *fimpgo.Message) (*fimpgo.FimpMessage, error) {

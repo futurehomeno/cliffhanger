@@ -16,14 +16,12 @@ const (
 	SensorPresence = "sensor_presence"
 )
 
-// RouteService returns routing for service specific commands.
 func RouteService(serviceRegistry adapter.ServiceRegistry) []*router.Routing {
 	return []*router.Routing{
 		RouteCmdPresenceGetReport(serviceRegistry),
 	}
 }
 
-// RouteCmdPresenceGetReport returns a routing responsible for handling the command.
 func RouteCmdPresenceGetReport(serviceRegistry adapter.ServiceRegistry) *router.Routing {
 	return router.NewRouting(
 		HandleCmdPresenceGetReport(serviceRegistry),
@@ -32,7 +30,6 @@ func RouteCmdPresenceGetReport(serviceRegistry adapter.ServiceRegistry) *router.
 	)
 }
 
-// HandleCmdPresenceGetReport returns a handler responsible for handling the command.
 func HandleCmdPresenceGetReport(serviceRegistry adapter.ServiceRegistry) router.MessageHandler {
 	return router.NewMessageHandler(
 		router.MessageProcessorFn(func(message *fimpgo.Message) (*fimpgo.FimpMessage, error) {

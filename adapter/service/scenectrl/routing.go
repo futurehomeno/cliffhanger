@@ -9,7 +9,6 @@ import (
 	"github.com/futurehomeno/cliffhanger/router"
 )
 
-// Constants defining routing service, commands and events.
 const (
 	CmdSceneGetReport = "cmd.scene.get_report"
 	CmdSceneSet       = "cmd.scene.set"
@@ -18,7 +17,6 @@ const (
 	SceneCtrl = "scene_ctrl"
 )
 
-// RouteService returns routing for service specific commands.
 func RouteService(serviceRegistry adapter.ServiceRegistry) []*router.Routing {
 	return []*router.Routing{
 		RouteCmdSceneSet(serviceRegistry),
@@ -26,7 +24,6 @@ func RouteService(serviceRegistry adapter.ServiceRegistry) []*router.Routing {
 	}
 }
 
-// RouteCmdSceneSet returns a routing responsible for handling the command.
 func RouteCmdSceneSet(serviceRegistry adapter.ServiceRegistry) *router.Routing {
 	return router.NewRouting(
 		HandleCmdSceneSet(serviceRegistry),
@@ -35,7 +32,6 @@ func RouteCmdSceneSet(serviceRegistry adapter.ServiceRegistry) *router.Routing {
 	)
 }
 
-// HandleCmdSceneSet returns a handler responsible for handling the command.
 func HandleCmdSceneSet(serviceRegistry adapter.ServiceRegistry) router.MessageHandler {
 	return router.NewMessageHandler(
 		router.MessageProcessorFn(func(message *fimpgo.Message) (*fimpgo.FimpMessage, error) {
@@ -69,7 +65,6 @@ func HandleCmdSceneSet(serviceRegistry adapter.ServiceRegistry) router.MessageHa
 	)
 }
 
-// RouteCmdSceneGetReport returns a routing responsible for handling the command.
 func RouteCmdSceneGetReport(serviceRegistry adapter.ServiceRegistry) *router.Routing {
 	return router.NewRouting(
 		HandleCmdSceneGetReport(serviceRegistry),
@@ -78,7 +73,6 @@ func RouteCmdSceneGetReport(serviceRegistry adapter.ServiceRegistry) *router.Rou
 	)
 }
 
-// HandleCmdSceneGetReport returns a handler responsible for handling the command.
 func HandleCmdSceneGetReport(serviceRegistry adapter.ServiceRegistry) router.MessageHandler {
 	return router.NewMessageHandler(
 		router.MessageProcessorFn(func(message *fimpgo.Message) (*fimpgo.FimpMessage, error) {
