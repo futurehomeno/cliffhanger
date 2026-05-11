@@ -81,6 +81,31 @@ func TestStart_SubscribesAndStops(t *testing.T) { //nolint:paralleltest
 	cfg.Stop() // idempotent
 }
 
+// telemetry.New is typically called during routing setup, before the MQTT
+// transport finishes its handshake. Start must not fail in that window — it
+// installs the listener which retries Subscribe in the background until the
+// broker is available, and Stop must unblock that retry loop promptly.
+func TestStart_BrokerNotConnected_DoesNotFail(t *testing.T) { //nolint:paralleltest
+	mqtt := suite.DefaultMQTT("cliff_cfgpoll_disconnected", "", "", "")
+	// deliberately do NOT call mqtt.Start — Subscribe will return "not Connected"
+
+	cfg := New(mqtt, "src", func(_ bool, _ map[string]types.SuppressedEntry) {})
+
+	require.NoError(t, cfg.Start(), "Start must succeed even when the broker is not yet connected")
+
+	done := make(chan struct{})
+	go func() {
+		cfg.Stop()
+		close(done)
+	}()
+
+	select {
+	case <-done:
+	case <-time.After(2 * time.Second):
+		t.Fatal("Stop must unblock the subscribe-retry goroutine via stopCh")
+	}
+}
+
 func TestListen_AppliesConfigOnMessage(t *testing.T) { //nolint:paralleltest
 	mqtt := suite.DefaultMQTT("cliff_cfgpoll_listen", "", "", "")
 	require.NoError(t, mqtt.Start(2*time.Second))
