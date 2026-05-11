@@ -12,7 +12,6 @@ generate-mocks:
 	$(call generate_mocks,"root","Service|Resetter")
 	$(call generate_mocks,"database","Database")
 	$(call generate_mocks,"telemetry","Telemetry")
-	$(call generate_mocks,"telemetry/config_pull","SyncRequester")
 	find ./test/mocks -type f -name "thing_update.go" | xargs rm -rf #removes undesired mocks.
 
 lint:
