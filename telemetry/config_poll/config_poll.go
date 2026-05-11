@@ -36,10 +36,6 @@ const (
 	channelName = "telemetry-config-poll"
 )
 
-// subscribeBackoff yields the retry delay for an unsubscribed listener:
-// first attempt fails → wait 1 minute, every subsequent failure → 10 minutes.
-// MQTT may still be connecting when Start is called, so listen() keeps
-// retrying Subscribe in the background instead of failing New().
 func subscribeBackoff() backoff.Stateful {
 	return backoff.NewStateful(time.Minute, 10*time.Minute, 10*time.Minute, 1, 0)
 }
@@ -97,24 +93,21 @@ func (ptr *Config) Start() error {
 	ptr.msgCh = make(fimpgo.MessageCh, 8)
 	stopCh := ptr.stopCh
 
-	ptr.mqtt.RegisterChannel(channelName, ptr.msgCh)
+	ptr.mqtt.RegisterChannelWithFilter(channelName, ptr.msgCh, fimpgo.FimpFilter{
+		Topic:     ConfigResponseTopic,
+		Interface: EvtConfigReport,
+		Service:   "*",
+	})
 
-	// Try Subscribe synchronously: when the broker is already connected this
-	// avoids the race where an early response is published before the listener
-	// is subscribed. If the broker is not yet up we proceed regardless and let
-	// listen() retry in the background.
 	subscribed := true
 	if err := ptr.mqtt.Subscribe(ConfigResponseTopic); err != nil {
 		subscribed = false
-
-		log.WithError(err).Warnf("[cliff] Telemetry config poll: subscribe deferred (will retry in background)")
+		log.Warnf("[cliff] Subscribe telemetry config topic err: %v", err)
 	}
 
 	go ptr.listen(stopCh, subscribed)
 
 	ptr.scheduleLocked(DefaultPollInterval)
-
-	log.Infof("[cliff] Telemetry config poll started (source=%s)", ptr.sourceRn)
 
 	return nil
 }
@@ -154,20 +147,16 @@ func (ptr *Config) listen(stopCh <-chan struct{}, subscribed bool) {
 	}
 }
 
-// ensureSubscribed keeps trying to subscribe to ConfigResponseTopic until it
-// succeeds or the poller stops. fimpgo only re-subscribes topics that
-// succeeded at least once, so we cannot fall back to its auto-resubscribe on
-// reconnect if the very first Subscribe fails (typical when telemetry.New is
-// called before the broker handshake).
 func (ptr *Config) ensureSubscribed(stopCh <-chan struct{}) bool {
 	bo := subscribeBackoff()
 
 	for {
 		if err := ptr.mqtt.Subscribe(ConfigResponseTopic); err == nil {
+			log.Debug("[cliff] Telemetry config poll started")
 			return true
 		} else {
 			delay := bo.Next()
-			log.WithError(err).Warnf("[cliff] Telemetry config poll: subscribe failed, retry in %s", delay)
+			log.Warnf("[cliff] Telemetry config subscribe err: %v", err)
 
 			select {
 			case <-stopCh:
@@ -181,7 +170,7 @@ func (ptr *Config) ensureSubscribed(stopCh <-chan struct{}) bool {
 func (ptr *Config) handleConfigReport(payload *fimpgo.FimpMessage) {
 	var cfg configResponseT
 	if err := payload.GetObjectValue(&cfg); err != nil {
-		log.WithError(err).Warnf("[cliff] Telemetry config poll: failed to parse response")
+		log.Warnf("[cliff] Telemetry config config parse err: %v", err)
 
 		return
 	}
