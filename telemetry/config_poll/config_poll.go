@@ -109,8 +109,6 @@ func (ptr *Config) Start() error {
 
 	ptr.scheduleLocked(DefaultPollInterval)
 
-	log.Infof("[cliff] Telemetry config poll started")
-
 	return nil
 }
 
@@ -154,10 +152,11 @@ func (ptr *Config) ensureSubscribed(stopCh <-chan struct{}) bool {
 
 	for {
 		if err := ptr.mqtt.Subscribe(ConfigResponseTopic); err == nil {
+			log.Debug("[cliff] Telemetry config poll started")
 			return true
 		} else {
 			delay := bo.Next()
-			log.WithError(err).Warnf("[cliff] Telemetry config poll: subscribe failed, retry in %s", delay)
+			log.WithError(err).Warnf("[cliff] Telemetry config subscribe err: %v", err)
 
 			select {
 			case <-stopCh:
