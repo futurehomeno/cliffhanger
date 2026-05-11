@@ -2,7 +2,7 @@ package telemetry
 
 const (
 	telemetryInterface      = "evt.telemetry.report"
-	telemetryReportEvtTopic = "pt:j1/mt:evt/rt:cloud/rn:telemetry/ad:report"
+	telemetryReportEvtTopic = "pt:j1/mt:rsp/rt:cloud/rn:backend-service/ad:telemetry"
 )
 
 // Event is the payload carried in the FIMP val field.
