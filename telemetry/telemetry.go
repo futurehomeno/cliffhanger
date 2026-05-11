@@ -3,6 +3,7 @@ package telemetry
 import (
 	"errors"
 	"fmt"
+	"runtime/debug"
 	"slices"
 	"sync"
 	"time"
@@ -49,6 +50,23 @@ func EmitOnChange(tel Telemetry, domain, event string, data map[string]any, inte
 	if err := tel.emitOnChange(domain, event, data, interval); err != nil {
 		log.WithError(err).Warnf("[cliff] EmitOnChange event=%q", event)
 	}
+}
+
+func RecoverAndEmit(tel Telemetry, name string, terminate bool) {
+	r := recover()
+	if r == nil {
+		return
+	}
+
+	log.Errorf("[cliff] Panic in %s:\n%s", name, string(debug.Stack()))
+
+	Emit(tel, DomainPanic, name, map[string]any{"terminate": terminate})
+
+	if terminate {
+		panic(r)
+	}
+
+	log.Error(r)
 }
 
 func New(mqtt *fimpgo.MqttTransport, sourceRn fimptype.ResourceNameT, store *config.DefaultStore) (Telemetry, error) {
