@@ -51,7 +51,7 @@ func TestDefaultRoute_BundlesConfigDebugTelemetry(t *testing.T) { //nolint:paral
 		}
 	})
 
-	routes := bootstrap.DefaultRoute("boot_svc", store, tel)
+	routes := bootstrap.DefaultRoute("boot_svc", func() any { return store.Default() }, tel)
 
 	// 1 config-report + 8 debug log routes + 6 telemetry routes = 15.
 	assert.Len(t, routes, 15)
@@ -91,7 +91,7 @@ func TestDefaultRoute_DispatchesConfigDebugAndTelemetry(t *testing.T) { //nolint
 						}
 					})
 
-					return bootstrap.DefaultRoute("boot_svc", store, tel), nil, nil
+					return bootstrap.DefaultRoute("boot_svc", func() any { return store.Default() }, tel), nil, nil
 				}),
 				Nodes: []*suite.Node{
 					{
@@ -113,6 +113,62 @@ func TestDefaultRoute_DispatchesConfigDebugAndTelemetry(t *testing.T) { //nolint
 						Command: suite.NullMessage("pt:j1/mt:cmd/rt:app/rn:test/ad:1", "cmd.config.get_report", "boot_svc"),
 						Expectations: []*suite.Expectation{
 							suite.ExpectMessage("pt:j1/mt:evt/rt:app/rn:test/ad:1", "evt.config.report", "boot_svc"),
+						},
+					},
+				},
+			},
+		},
+	}
+
+	s.Run(t)
+}
+
+func TestDefaultRoute_CustomConfigGetterPayload(t *testing.T) { //nolint:paralleltest
+	dir := t.TempDir()
+
+	cfg := &config.Default{
+		LogLevel:  "info",
+		LogFormat: "text",
+		LogFile:   filepath.Join(dir, "app.log"),
+		Telemetry: &types.TelemetryConfig{Enabled: true, EnabledAt: time.Now(), Validity: time.Hour},
+	}
+	store := config.NewDefaultStore(
+		func() *config.Default { return cfg },
+		func() error { return nil },
+	)
+
+	saved := logrus.GetLevel()
+	t.Cleanup(func() { logrus.SetLevel(saved) })
+
+	require.NoError(t, debug.InitializeLogger(store))
+
+	type customPayload struct {
+		Tag string `json:"tag"`
+	}
+	custom := customPayload{Tag: "custom"}
+
+	s := &suite.Suite{
+		Cases: []*suite.Case{
+			{
+				Name: "custom config getter payload is reported",
+				Setup: suite.BaseSetup(func(t *testing.T, mqtt *fimpgo.MqttTransport) ([]*router.Routing, []*task.Task, []suite.Mock) {
+					t.Helper()
+
+					tel, err := telemetry.New(mqtt, "boot_svc", store)
+					require.NoError(t, err)
+					t.Cleanup(func() {
+						if stop, ok := tel.(interface{ Stop() }); ok {
+							stop.Stop()
+						}
+					})
+
+					return bootstrap.DefaultRoute("boot_svc", func() any { return custom }, tel), nil, nil
+				}),
+				Nodes: []*suite.Node{
+					{
+						Command: suite.NullMessage("pt:j1/mt:cmd/rt:app/rn:test/ad:1", "cmd.config.get_report", "boot_svc"),
+						Expectations: []*suite.Expectation{
+							suite.ExpectObject("pt:j1/mt:evt/rt:app/rn:test/ad:1", "evt.config.report", "boot_svc", &customPayload{Tag: "custom"}),
 						},
 					},
 				},
