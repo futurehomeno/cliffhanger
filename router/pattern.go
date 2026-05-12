@@ -86,17 +86,16 @@ func (tp *TopicPattern) sa() string {
 	return "ad:" + tp.ServiceAddress
 }
 
-// TopicPatternAdapter returns a topic pattern for an adapter useful for subscriptions.
-func TopicPatternAdapter(resourceName fimptype.ResourceNameT) string {
+func TopicPatternAdapter(resourceName fimptype.ResourceNameT, msgType fimptype.MsgTypeT) string {
 	return (&TopicPattern{
 		PayloadType:     fimpgo.DefaultPayload,
+		MessageType:     msgType,
 		ResourceType:    fimptype.ResourceTypeAdapter,
 		ResourceName:    resourceName,
 		ResourceAddress: "1",
 	}).String()
 }
 
-// TopicPatternDevices returns a topic pattern for devices useful for subscriptions.
 func TopicPatternDevices(resourceName fimptype.ResourceNameT) string {
 	return (&TopicPattern{
 		PayloadType:     fimpgo.DefaultPayload,
@@ -106,57 +105,35 @@ func TopicPatternDevices(resourceName fimptype.ResourceNameT) string {
 	}).String()
 }
 
-// TopicPatternApplication returns a topic pattern for application useful for subscriptions.
-func TopicPatternApplication(resourceName fimptype.ResourceNameT) string {
+func TopicPatternDeviceService(serviceName fimptype.ServiceNameT, msgType fimptype.MsgTypeT) string {
+	return (&TopicPattern{
+		PayloadType:  fimpgo.DefaultPayload,
+		MessageType:  msgType,
+		ResourceType: fimptype.ResourceTypeDevice,
+		ServiceName:  serviceName,
+	}).String()
+}
+
+func TopicPatternApplication(resourceName fimptype.ResourceNameT, msgType fimptype.MsgTypeT) string {
 	return (&TopicPattern{
 		PayloadType:     fimpgo.DefaultPayload,
+		MessageType:     msgType,
 		ResourceType:    fimptype.ResourceTypeApp,
 		ResourceName:    resourceName,
 		ResourceAddress: "1",
 	}).String()
 }
 
-// TopicPatternDeviceService returns a topic pattern for all device services of the provided type.
-func TopicPatternDeviceService(serviceName fimptype.ServiceNameT) string {
+func TopicPatternRoomService(serviceName fimptype.ServiceNameT, msgType fimptype.MsgTypeT) string {
 	return (&TopicPattern{
 		PayloadType:  fimpgo.DefaultPayload,
-		ResourceType: fimptype.ResourceTypeDevice,
-		ServiceName:  serviceName,
-	}).String()
-}
-
-// TopicPatternDeviceServiceEvents returns a topic pattern for all device services of the provided type.
-func TopicPatternDeviceServiceEvents(serviceName fimptype.ServiceNameT) string {
-	return (&TopicPattern{
-		PayloadType:  fimpgo.DefaultPayload,
-		MessageType:  fimptype.MsgTypeEvt,
-		ResourceType: fimptype.ResourceTypeDevice,
-		ServiceName:  serviceName,
-	}).String()
-}
-
-// TopicPatternRoomService returns a topic pattern for all device services of the provided type.
-func TopicPatternRoomService(serviceName fimptype.ServiceNameT) string {
-	return (&TopicPattern{
-		PayloadType:  fimpgo.DefaultPayload,
+		MessageType:  msgType,
 		ResourceType: fimptype.ResourceTypeLocation,
 		ResourceName: "room",
 		ServiceName:  serviceName,
 	}).String()
 }
 
-// TopicPatternRoomServiceEvents returns a topic pattern for all device services of the provided type.
-func TopicPatternRoomServiceEvents(serviceName fimptype.ServiceNameT) string {
-	return (&TopicPattern{
-		PayloadType:  fimpgo.DefaultPayload,
-		MessageType:  fimptype.MsgTypeEvt,
-		ResourceType: fimptype.ResourceTypeLocation,
-		ResourceName: "room",
-		ServiceName:  serviceName,
-	}).String()
-}
-
-// CombineTopicPatterns is a helper to easily combine multiple topic pattern slices into one slice.
 func CombineTopicPatterns(patterns ...[]string) []string {
 	var combined []string
 

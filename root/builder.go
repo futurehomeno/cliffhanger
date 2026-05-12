@@ -2,11 +2,15 @@ package root
 
 import (
 	"errors"
+	"fmt"
+	"path/filepath"
 	"sync"
 
 	"github.com/futurehomeno/fimpgo"
 	"github.com/futurehomeno/fimpgo/fimptype"
+	log "github.com/sirupsen/logrus"
 
+	"github.com/futurehomeno/cliffhanger/bootstrap"
 	"github.com/futurehomeno/cliffhanger/discovery"
 	"github.com/futurehomeno/cliffhanger/lifecycle"
 
@@ -108,7 +112,32 @@ func (b *Builder) Build() (App, error) {
 		return nil, err
 	}
 
+	if err := logBootstrapDirs(); err != nil {
+		return nil, err
+	}
+
 	return b.doBuild(), nil
+}
+
+// logBootstrapDirs resolves and logs the working and configuration directories
+// passed via -w / -c flags so every cliffhanger app shows them at startup
+// without each app duplicating the boilerplate.
+func logBootstrapDirs() error {
+	workDir, err := filepath.Abs(bootstrap.GetWorkingDirectory())
+	if err != nil {
+		return fmt.Errorf("get working directory err: %w", err)
+	}
+
+	log.Infof("Working dir=%s", workDir)
+
+	cfgDir, err := filepath.Abs(bootstrap.GetConfigurationDirectory())
+	if err != nil {
+		return fmt.Errorf("get config directory err: %w", err)
+	}
+
+	log.Infof("Config dir=%s", cfgDir)
+
+	return nil
 }
 
 func (b *Builder) doBuild() App {
