@@ -37,6 +37,18 @@ const (
 	EvtAppDiagReport    = "evt.app.diag_report"
 )
 
+type PublicModeler interface {
+	PublicModel() any
+}
+
+func publicConfigState[C any](s storage.Storage[C]) any {
+	if p, ok := any(s).(PublicModeler); ok {
+		return p.PublicModel()
+	}
+
+	return s.Model()
+}
+
 // RouteApp creates routing for an application.
 func RouteApp[C any](
 	serviceName fimptype.ServiceNameT,
@@ -130,7 +142,7 @@ func HandleCmdConfigGetExtendedReport[C any](serviceName fimptype.ServiceNameT, 
 				EvtConfigExtendedReport,
 				serviceName,
 				fimptype.VTypeObject,
-				storage.Model(),
+				publicConfigState(storage),
 				nil,
 				nil,
 				message.Payload,
@@ -179,7 +191,7 @@ func HandleCmdAppGetManifest[C any](
 
 			if mode == "manifest_state" || mode == "full" {
 				m.AppState = *appLifecycle.AllStates()
-				m.ConfigState = configStorage.Model()
+				m.ConfigState = publicConfigState(configStorage)
 			}
 
 			reply := fimpgo.NewMessage(EvtAppManifestReport, serviceName, fimptype.VTypeObject, m, nil, nil, message.Payload)

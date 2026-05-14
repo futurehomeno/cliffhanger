@@ -114,8 +114,8 @@ func build(mqtt *fimpgo.MqttTransport, listener event.Listener, ad adapter.Adapt
 		WithServiceDiscovery("test_app", discovery.ResourceTypeApp, "test_app", "1", "1.0.0").
 		WithLifecycle(lifecycle.New(nil)).
 		WithTopicSubscription(
-			router.TopicPatternAdapter(testServiceName),
-			router.TopicPatternDevices(testServiceName),
+			router.TopicPatternAdapter(testServiceName, fimptype.MsgTypeCmd),
+			router.TopicPatternDevice(testServiceName, fimptype.MsgTypeCmd),
 		).
 		WithRouting(adapter.RouteAdapter(ad)...).
 		WithServices(listener).

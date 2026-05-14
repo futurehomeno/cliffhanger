@@ -2,11 +2,14 @@ package root
 
 import (
 	"errors"
+	"path/filepath"
 	"sync"
 
 	"github.com/futurehomeno/fimpgo"
 	"github.com/futurehomeno/fimpgo/fimptype"
+	log "github.com/sirupsen/logrus"
 
+	"github.com/futurehomeno/cliffhanger/bootstrap"
 	"github.com/futurehomeno/cliffhanger/discovery"
 	"github.com/futurehomeno/cliffhanger/lifecycle"
 
@@ -109,6 +112,20 @@ func (b *Builder) Build() (App, error) {
 	}
 
 	return b.doBuild(), nil
+}
+
+func logBootstrapDirs() {
+	if workDir, err := filepath.Abs(bootstrap.GetWorkingDirectory()); err != nil {
+		log.Warnf("[cliff] Resolve working dir=%s err: %v", bootstrap.GetWorkingDirectory(), err)
+	} else {
+		log.Infof("Working dir=%s", workDir)
+	}
+
+	if cfgDir, err := filepath.Abs(bootstrap.GetConfigurationDirectory()); err != nil {
+		log.Warnf("[cliff] Resolve config dir=%s err: %v", bootstrap.GetConfigurationDirectory(), err)
+	} else {
+		log.Infof("Config dir=%s", cfgDir)
+	}
 }
 
 func (b *Builder) doBuild() App {
