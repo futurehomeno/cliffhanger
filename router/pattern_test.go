@@ -76,24 +76,33 @@ func TestTopicPattern(t *testing.T) {
 func TestTopicPatternHelpers(t *testing.T) {
 	t.Parallel()
 
-	got := router.TopicPatternAdapter("test_resource")
-	assert.Equal(t, "pt:j1/+/rt:ad/rn:test_resource/ad:1", got)
+	got := router.TopicPatternAdapter("test_resource", fimptype.MsgTypeEvt)
+	assert.Equal(t, "pt:j1/mt:evt/rt:ad/rn:test_resource/ad:1", got)
 
-	got = router.TopicPatternDevices("test_resource")
-	assert.Equal(t, "pt:j1/+/rt:dev/rn:test_resource/ad:1/+/+", got)
+	got = router.TopicPatternAdapter("test_resource", fimptype.MsgTypeCmd)
+	assert.Equal(t, "pt:j1/mt:cmd/rt:ad/rn:test_resource/ad:1", got)
 
-	got = router.TopicPatternApplication("test_resource")
-	assert.Equal(t, "pt:j1/+/rt:app/rn:test_resource/ad:1", got)
+	got = router.TopicPatternDevice("test_resource", fimptype.MsgTypeCmd)
+	assert.Equal(t, "pt:j1/mt:cmd/rt:dev/rn:test_resource/ad:1/+/+", got)
 
-	got = router.TopicPatternDeviceService("sensor_temp")
-	assert.Equal(t, "pt:j1/+/rt:dev/+/+/sv:sensor_temp/+", got)
+	got = router.TopicPatternApplication("test_resource", fimptype.MsgTypeEvt)
+	assert.Equal(t, "pt:j1/mt:evt/rt:app/rn:test_resource/ad:1", got)
 
-	got = router.TopicPatternDeviceServiceEvents("sensor_temp")
+	got = router.TopicPatternDeviceService("sensor_temp", fimptype.MsgTypeRsp)
+	assert.Equal(t, "pt:j1/mt:rsp/rt:dev/+/+/sv:sensor_temp/+", got)
+
+	got = router.TopicPatternDeviceService("sensor_temp", fimptype.MsgTypeCmd)
+	assert.Equal(t, "pt:j1/mt:cmd/rt:dev/+/+/sv:sensor_temp/+", got)
+
+	got = router.TopicPatternDeviceService("sensor_temp", fimptype.MsgTypeEvt)
 	assert.Equal(t, "pt:j1/mt:evt/rt:dev/+/+/sv:sensor_temp/+", got)
 
-	got = router.TopicPatternRoomService("sensor_temp")
-	assert.Equal(t, "pt:j1/+/rt:loc/rn:room/+/sv:sensor_temp/+", got)
+	got = router.TopicPatternDeviceService("sensor_temp", fimptype.MsgTypeUnknown)
+	assert.Equal(t, "pt:j1/+/rt:dev/+/+/sv:sensor_temp/+", got)
 
-	got = router.TopicPatternRoomServiceEvents("sensor_temp")
+	got = router.TopicPatternRoomService("sensor_temp", fimptype.MsgTypeEvt)
 	assert.Equal(t, "pt:j1/mt:evt/rt:loc/rn:room/+/sv:sensor_temp/+", got)
+
+	got = router.TopicPatternRoomService("sensor_temp", fimptype.MsgTypeUnknown)
+	assert.Equal(t, "pt:j1/+/rt:loc/rn:room/+/sv:sensor_temp/+", got)
 }

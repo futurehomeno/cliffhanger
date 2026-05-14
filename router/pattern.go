@@ -96,9 +96,10 @@ func TopicPatternAdapter(resourceName fimptype.ResourceNameT, msgType fimptype.M
 	}).String()
 }
 
-func TopicPatternDevices(resourceName fimptype.ResourceNameT) string {
+func TopicPatternDevice(resourceName fimptype.ResourceNameT, msgType fimptype.MsgTypeT) string {
 	return (&TopicPattern{
 		PayloadType:     fimpgo.DefaultPayload,
+		MessageType:     msgType,
 		ResourceType:    fimptype.ResourceTypeDevice,
 		ResourceName:    resourceName,
 		ResourceAddress: "1",
