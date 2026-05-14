@@ -119,9 +119,6 @@ func (b *Builder) Build() (App, error) {
 	return b.doBuild(), nil
 }
 
-// logBootstrapDirs resolves and logs the working and configuration directories
-// passed via -w / -c flags so every cliffhanger app shows them at startup
-// without each app duplicating the boilerplate.
 func logBootstrapDirs() error {
 	workDir, err := filepath.Abs(bootstrap.GetWorkingDirectory())
 	if err != nil {
