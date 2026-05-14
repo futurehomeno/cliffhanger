@@ -157,6 +157,8 @@ func (a *app) doStart() error {
 
 	log.Info("[cliff] Start app")
 
+	logBootstrapDirs()
+
 	if a.lifecycle != nil {
 		a.lifecycle.SetAppHealth(lifecycle.AppHealthStarting, nil)
 	}

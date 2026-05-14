@@ -2,7 +2,6 @@ package root
 
 import (
 	"errors"
-	"fmt"
 	"path/filepath"
 	"sync"
 
@@ -112,29 +111,21 @@ func (b *Builder) Build() (App, error) {
 		return nil, err
 	}
 
-	if err := logBootstrapDirs(); err != nil {
-		return nil, err
-	}
-
 	return b.doBuild(), nil
 }
 
-func logBootstrapDirs() error {
-	workDir, err := filepath.Abs(bootstrap.GetWorkingDirectory())
-	if err != nil {
-		return fmt.Errorf("get working directory err: %w", err)
+func logBootstrapDirs() {
+	if workDir, err := filepath.Abs(bootstrap.GetWorkingDirectory()); err != nil {
+		log.Warnf("[cliff] Resolve working dir=%s err: %v", bootstrap.GetWorkingDirectory(), err)
+	} else {
+		log.Infof("Working dir=%s", workDir)
 	}
 
-	log.Infof("Working dir=%s", workDir)
-
-	cfgDir, err := filepath.Abs(bootstrap.GetConfigurationDirectory())
-	if err != nil {
-		return fmt.Errorf("get config directory err: %w", err)
+	if cfgDir, err := filepath.Abs(bootstrap.GetConfigurationDirectory()); err != nil {
+		log.Warnf("[cliff] Resolve config dir=%s err: %v", bootstrap.GetConfigurationDirectory(), err)
+	} else {
+		log.Infof("Config dir=%s", cfgDir)
 	}
-
-	log.Infof("Config dir=%s", cfgDir)
-
-	return nil
 }
 
 func (b *Builder) doBuild() App {
