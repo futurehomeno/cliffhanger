@@ -19,6 +19,7 @@ type Manifest struct {
 	UIBlocks    []AppUBLock         `json:"ui_blocks"`
 	UIButtons   []UIButton          `json:"ui_buttons"`
 	Auth        AppAuth             `json:"auth"`
+	InitFlow    []string            `json:"init_flow"`
 	Services    []AppService        `json:"services"`
 	AppState    lifecycle.AppStateT `json:"app_state"`
 	ConfigState any                 `json:"config_state"`
