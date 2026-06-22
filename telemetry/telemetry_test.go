@@ -1040,3 +1040,134 @@ func parseConfiguredAt(t *testing.T, raw string) time.Time {
 
 	return parsed
 }
+
+// setupTelChannel creates an enabled telemetry instance publishing to a unique
+// topic and returns it together with a channel receiving its published messages.
+func setupTelChannel(t *testing.T, name string) (telemetry.Telemetry, fimpgo.MessageCh) {
+	t.Helper()
+
+	mqtt := suite.DefaultMQTT("cliff_test_"+name, "", "", "")
+	require.NoError(t, mqtt.Start(2*time.Second))
+	t.Cleanup(mqtt.Stop)
+
+	store := newStore()
+	store.model.Telemetry = &types.TelemetryConfig{Enabled: true, EnabledAt: time.Now(), Validity: time.Hour}
+
+	tel, err := telemetry.New(mqtt, "src", store.DefaultStore)
+	require.NoError(t, err)
+	stopTel(t, tel)
+
+	customTopic := "pt:j1/mt:evt/rt:app/rn:" + name + "/ad:1"
+	tel.SetEvtTopic(customTopic)
+	require.NoError(t, mqtt.Subscribe(customTopic))
+
+	ch := make(fimpgo.MessageCh, 8)
+	mqtt.RegisterChannel(name+"_ch", ch)
+	t.Cleanup(func() { mqtt.UnregisterChannel(name + "_ch") })
+
+	return tel, ch
+}
+
+func assertPublished(t *testing.T, ch fimpgo.MessageCh, msg string) {
+	t.Helper()
+
+	select {
+	case <-ch:
+	case <-time.After(2 * time.Second):
+		t.Fatal(msg)
+	}
+}
+
+func assertNotPublished(t *testing.T, ch fimpgo.MessageCh, msg string) {
+	t.Helper()
+
+	select {
+	case <-ch:
+		t.Fatal(msg)
+	case <-time.After(200 * time.Millisecond):
+	}
+}
+
+func TestEmitIfMore_NilTelemetry_NoOp(t *testing.T) { //nolint:paralleltest
+	assert.NotPanics(t, func() {
+		telemetry.EmitIfMore(nil, "domain", "event", 3, true, nil, time.Second)
+	})
+}
+
+func TestEmitIfMore_BelowThreshold_NotEmitted(t *testing.T) { //nolint:paralleltest
+	tel, ch := setupTelChannel(t, "eim_below")
+
+	data := map[string]any{"v": 1}
+	telemetry.EmitIfMore(tel, "d", "e", 3, false, data, 0)
+	telemetry.EmitIfMore(tel, "d", "e", 3, false, data, 0)
+
+	assertNotPublished(t, ch, "below threshold should not publish")
+}
+
+func TestEmitIfMore_AtThreshold_Emitted(t *testing.T) { //nolint:paralleltest
+	tel, ch := setupTelChannel(t, "eim_at")
+
+	data := map[string]any{"v": 1}
+	telemetry.EmitIfMore(tel, "d", "e", 3, false, data, 0)
+	telemetry.EmitIfMore(tel, "d", "e", 3, false, data, 0)
+	telemetry.EmitIfMore(tel, "d", "e", 3, false, data, 0) // third reaches threshold
+
+	assertPublished(t, ch, "third call should publish at threshold")
+	assertNotPublished(t, ch, "only one publish expected at threshold")
+}
+
+func TestEmitIfMore_Reset_RequiresNAgain(t *testing.T) { //nolint:paralleltest
+	tel, ch := setupTelChannel(t, "eim_reset")
+
+	data := map[string]any{"v": 1}
+	telemetry.EmitIfMore(tel, "d", "e", 2, true, data, 0)
+	telemetry.EmitIfMore(tel, "d", "e", 2, true, data, 0) // emits, then resets counter
+
+	assertPublished(t, ch, "second call should publish")
+
+	telemetry.EmitIfMore(tel, "d", "e", 2, true, data, 0) // first after reset, no emit
+	assertNotPublished(t, ch, "first call after reset should not publish")
+
+	telemetry.EmitIfMore(tel, "d", "e", 2, true, data, 0) // reaches threshold again
+	assertPublished(t, ch, "should publish again after N more occurrences")
+}
+
+func TestEmitIfMore_NoReset_EmitsBeyondThreshold(t *testing.T) { //nolint:paralleltest
+	tel, ch := setupTelChannel(t, "eim_noreset")
+
+	data := map[string]any{"v": 1}
+	telemetry.EmitIfMore(tel, "d", "e", 2, false, data, 0)
+	telemetry.EmitIfMore(tel, "d", "e", 2, false, data, 0) // N: emits
+	assertPublished(t, ch, "Nth call should publish")
+
+	telemetry.EmitIfMore(tel, "d", "e", 2, false, data, 0) // N+1: still emits
+	assertPublished(t, ch, "N+1 call should publish when reset=false")
+}
+
+func TestEmitIfMore_ThrottlesAfterThreshold(t *testing.T) { //nolint:paralleltest
+	tel, ch := setupTelChannel(t, "eim_throttle")
+
+	data := map[string]any{"v": 1}
+	telemetry.EmitIfMore(tel, "d", "e", 2, false, data, time.Hour)
+	telemetry.EmitIfMore(tel, "d", "e", 2, false, data, time.Hour) // N: emits
+	assertPublished(t, ch, "Nth call should publish")
+
+	telemetry.EmitIfMore(tel, "d", "e", 2, false, data, time.Hour) // N+1: throttled
+	assertNotPublished(t, ch, "N+1 call should be throttled within interval")
+}
+
+func TestEmitIfMore_DataChange_ResetsCounter(t *testing.T) { //nolint:paralleltest
+	tel, ch := setupTelChannel(t, "eim_datachange")
+
+	dataA := map[string]any{"v": 1}
+	dataB := map[string]any{"v": 2}
+
+	telemetry.EmitIfMore(tel, "d", "e", 3, false, dataA, 0)
+	telemetry.EmitIfMore(tel, "d", "e", 3, false, dataA, 0)
+	telemetry.EmitIfMore(tel, "d", "e", 3, false, dataB, 0) // data change resets counter
+	assertNotPublished(t, ch, "data change should reset counter, no publish yet")
+
+	telemetry.EmitIfMore(tel, "d", "e", 3, false, dataB, 0)
+	telemetry.EmitIfMore(tel, "d", "e", 3, false, dataB, 0) // third with new data reaches threshold
+	assertPublished(t, ch, "third call with new data should publish")
+}

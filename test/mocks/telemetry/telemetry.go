@@ -425,6 +425,57 @@ func (_c *Telemetry_emit_Call) RunAndReturn(run func(string, string, map[string]
 	return _c
 }
 
+// emitIfMore provides a mock function with given fields: domain, event, threshold, reset, data, interval
+func (_m *Telemetry) emitIfMore(domain string, event string, threshold int, reset bool, data map[string]interface{}, interval time.Duration) error {
+	ret := _m.Called(domain, event, threshold, reset, data, interval)
+
+	if len(ret) == 0 {
+		panic("no return value specified for emitIfMore")
+	}
+
+	var r0 error
+	if rf, ok := ret.Get(0).(func(string, string, int, bool, map[string]interface{}, time.Duration) error); ok {
+		r0 = rf(domain, event, threshold, reset, data, interval)
+	} else {
+		r0 = ret.Error(0)
+	}
+
+	return r0
+}
+
+// Telemetry_emitIfMore_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'emitIfMore'
+type Telemetry_emitIfMore_Call struct {
+	*mock.Call
+}
+
+// emitIfMore is a helper method to define mock.On call
+//   - domain string
+//   - event string
+//   - threshold int
+//   - reset bool
+//   - data map[string]interface{}
+//   - interval time.Duration
+func (_e *Telemetry_Expecter) emitIfMore(domain interface{}, event interface{}, threshold interface{}, reset interface{}, data interface{}, interval interface{}) *Telemetry_emitIfMore_Call {
+	return &Telemetry_emitIfMore_Call{Call: _e.mock.On("emitIfMore", domain, event, threshold, reset, data, interval)}
+}
+
+func (_c *Telemetry_emitIfMore_Call) Run(run func(domain string, event string, threshold int, reset bool, data map[string]interface{}, interval time.Duration)) *Telemetry_emitIfMore_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		run(args[0].(string), args[1].(string), args[2].(int), args[3].(bool), args[4].(map[string]interface{}), args[5].(time.Duration))
+	})
+	return _c
+}
+
+func (_c *Telemetry_emitIfMore_Call) Return(_a0 error) *Telemetry_emitIfMore_Call {
+	_c.Call.Return(_a0)
+	return _c
+}
+
+func (_c *Telemetry_emitIfMore_Call) RunAndReturn(run func(string, string, int, bool, map[string]interface{}, time.Duration) error) *Telemetry_emitIfMore_Call {
+	_c.Call.Return(run)
+	return _c
+}
+
 // emitOnChange provides a mock function with given fields: domain, event, data, interval
 func (_m *Telemetry) emitOnChange(domain string, event string, data map[string]interface{}, interval time.Duration) error {
 	ret := _m.Called(domain, event, data, interval)
