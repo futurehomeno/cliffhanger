@@ -1194,8 +1194,8 @@ func TestEmitIfMore_Clean_ResetsCounter(t *testing.T) { //nolint:paralleltest
 	assertPublished(t, ch, "three in a row after clean should publish")
 }
 
-func TestEmitIfMore_Clean_OnlyTargetsMatchingData(t *testing.T) { //nolint:paralleltest
-	tel, ch := setupTelChannel(t, "eim_clean_specific")
+func TestEmitIfMore_Clean_WipesAllFingerprintsForDomainEvent(t *testing.T) { //nolint:paralleltest
+	tel, ch := setupTelChannel(t, "eim_clean_all")
 
 	dataA := map[string]any{"v": 1}
 	dataB := map[string]any{"v": 2}
@@ -1203,8 +1203,25 @@ func TestEmitIfMore_Clean_OnlyTargetsMatchingData(t *testing.T) { //nolint:paral
 	telemetry.EmitIfMore(tel, "d", "e", 2, false, dataA, 0) // dataA count = 1
 	telemetry.EmitIfMore(tel, "d", "e", 2, false, dataB, 0) // dataB count = 1
 
-	telemetry.EmitIfMore(tel, "d", "e", 0, true, dataA, 0) // clean dataA only
+	telemetry.EmitIfMore(tel, "d", "e", 0, false, nil, 0) // clean: data ignored, wipes all
+
+	telemetry.EmitIfMore(tel, "d", "e", 2, false, dataB, 0) // dataB count = 1 again
+	assertNotPublished(t, ch, "clean must wipe dataB counter too")
 
 	telemetry.EmitIfMore(tel, "d", "e", 2, false, dataB, 0) // dataB count = 2 -> publish
-	assertPublished(t, ch, "cleaning dataA must not affect dataB counter")
+	assertPublished(t, ch, "second failure after clean should publish")
+}
+
+func TestEmitIfMore_Clean_ScopedByDomainEvent(t *testing.T) { //nolint:paralleltest
+	tel, ch := setupTelChannel(t, "eim_clean_scoped")
+
+	data := map[string]any{"v": 1}
+
+	telemetry.EmitIfMore(tel, "d", "e1", 2, false, data, 0)
+	telemetry.EmitIfMore(tel, "d", "e2", 2, false, data, 0)
+
+	telemetry.EmitIfMore(tel, "d", "e1", 0, false, nil, 0) // clean only e1
+
+	telemetry.EmitIfMore(tel, "d", "e2", 2, false, data, 0) // e2 count = 2 -> publish
+	assertPublished(t, ch, "cleaning e1 must not affect e2 counter")
 }

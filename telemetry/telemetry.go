@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"runtime/debug"
 	"slices"
+	"strings"
 	"sync"
 	"time"
 
@@ -232,17 +233,20 @@ func (ptr *telemetryT) emitIfMore(domain, event string, threshold int, reset boo
 		ptr.ifMoreStates = make(map[string]*ifMoreState)
 	}
 
-	// threshold 0 with reset clears the counter for this exact domain/event/data
-	// (e.g. on success), so a later run of failures starts counting from zero again.
-	if threshold == 0 && reset {
-		delete(ptr.ifMoreStates, key)
+	// threshold 0 means "clean all counters for this domain/event" (e.g. on
+	// success). data is ignored so callers don't have to enumerate every
+	// fingerprint they may have produced — wiping by prefix also prevents
+	// unbounded map growth when failure data is high-cardinality.
+	if threshold == 0 {
+		prefix := domain + "/" + event + "/"
+		for k := range ptr.ifMoreStates {
+			if strings.HasPrefix(k, prefix) {
+				delete(ptr.ifMoreStates, k)
+			}
+		}
 		ptr.lock.Unlock()
 
 		return nil
-	}
-
-	if threshold < 1 {
-		threshold = 1
 	}
 
 	st := ptr.ifMoreStates[key]
