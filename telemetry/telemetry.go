@@ -1,6 +1,7 @@
 package telemetry
 
 import (
+	"encoding/json"
 	"errors"
 	"fmt"
 	"runtime/debug"
@@ -22,6 +23,7 @@ const defaultTelemetryValidity = 30 * 24 * time.Hour
 type Telemetry interface {
 	emit(domain, event string, data map[string]any) error
 	emitOnChange(domain, event string, data map[string]any, interval time.Duration) error
+	emitIfMore(domain, event string, threshold int, reset bool, data map[string]any, interval time.Duration) error
 	SetEvtTopic(topic string)
 	Enable(enabled bool) error
 	IsEnabled() bool
@@ -49,6 +51,16 @@ func EmitOnChange(tel Telemetry, domain, event string, data map[string]any, inte
 
 	if err := tel.emitOnChange(domain, event, data, interval); err != nil {
 		log.WithError(err).Warnf("[cliff] EmitOnChange event=%q", event)
+	}
+}
+
+func EmitIfMore(tel Telemetry, domain, event string, threshold int, reset bool, data map[string]any, interval time.Duration) {
+	if tel == nil {
+		return
+	}
+
+	if err := tel.emitIfMore(domain, event, threshold, reset, data, interval); err != nil {
+		log.WithError(err).Warnf("[cliff] EmitIfMore event=%q", event)
 	}
 }
 
@@ -131,8 +143,15 @@ type telemetryT struct {
 	topic          string
 	timer          *time.Timer
 	emitTimestamps map[string]time.Time
+	ifMoreStates   map[string]*ifMoreState
 
 	pullCfg *config_poll.Config
+}
+
+type ifMoreState struct {
+	fingerprint string
+	count       int
+	last        time.Time
 }
 
 func (ptr *telemetryT) Stop() {
@@ -203,6 +222,63 @@ func (ptr *telemetryT) emitOnChange(domain, event string, data map[string]any, i
 	}
 
 	return ptr.emit(domain, event, data)
+}
+
+func (ptr *telemetryT) emitIfMore(domain, event string, threshold int, reset bool, data map[string]any, interval time.Duration) error {
+	if threshold < 1 {
+		threshold = 1
+	}
+
+	key := domain + "/" + event
+	fp := dataFingerprint(data)
+
+	ptr.lock.Lock()
+
+	if ptr.ifMoreStates == nil {
+		ptr.ifMoreStates = make(map[string]*ifMoreState)
+	}
+
+	st := ptr.ifMoreStates[key]
+	if st == nil {
+		st = &ifMoreState{}
+		ptr.ifMoreStates[key] = st
+	}
+
+	if st.fingerprint != fp {
+		st.fingerprint = fp
+		st.count = 0
+		st.last = time.Time{}
+	}
+
+	st.count++
+
+	reached := st.count >= threshold
+	throttled := !st.last.IsZero() && time.Since(st.last) < interval
+	emitNow := reached && !throttled
+
+	if emitNow {
+		st.last = time.Now()
+		if reset {
+			st.count = 0
+		}
+	}
+
+	ptr.lock.Unlock()
+
+	if !emitNow {
+		return nil
+	}
+
+	return ptr.emit(domain, event, data)
+}
+
+func dataFingerprint(data map[string]any) string {
+	b, err := json.Marshal(data)
+	if err != nil {
+		return fmt.Sprintf("%v", data)
+	}
+
+	return string(b)
 }
 
 func (ptr *telemetryT) evtTopic() string {
