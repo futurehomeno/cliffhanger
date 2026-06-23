@@ -225,7 +225,10 @@ func (ptr *telemetryT) emitOnChange(domain, event string, data map[string]any, i
 }
 
 func (ptr *telemetryT) emitIfMore(domain, event string, threshold int, reset bool, data map[string]any, interval time.Duration) error {
-	key := domain + "/" + event + "/" + dataFingerprint(data)
+	// \x00 separator can't appear in JSON-encoded fingerprints or in reasonable
+	// domain/event identifiers, so prefix scans below cannot collide with a
+	// sibling event whose name happens to start the same way.
+	prefix := domain + "\x00" + event + "\x00"
 
 	ptr.lock.Lock()
 
@@ -238,7 +241,6 @@ func (ptr *telemetryT) emitIfMore(domain, event string, threshold int, reset boo
 	// fingerprint they may have produced — wiping by prefix also prevents
 	// unbounded map growth when failure data is high-cardinality.
 	if threshold == 0 {
-		prefix := domain + "/" + event + "/"
 		for k := range ptr.ifMoreStates {
 			if strings.HasPrefix(k, prefix) {
 				delete(ptr.ifMoreStates, k)
@@ -248,6 +250,8 @@ func (ptr *telemetryT) emitIfMore(domain, event string, threshold int, reset boo
 
 		return nil
 	}
+
+	key := prefix + dataFingerprint(data)
 
 	st := ptr.ifMoreStates[key]
 	if st == nil {
