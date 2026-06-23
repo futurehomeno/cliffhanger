@@ -149,9 +149,8 @@ type telemetryT struct {
 }
 
 type ifMoreState struct {
-	fingerprint string
-	count       int
-	last        time.Time
+	count int
+	last  time.Time
 }
 
 func (ptr *telemetryT) Stop() {
@@ -225,12 +224,7 @@ func (ptr *telemetryT) emitOnChange(domain, event string, data map[string]any, i
 }
 
 func (ptr *telemetryT) emitIfMore(domain, event string, threshold int, reset bool, data map[string]any, interval time.Duration) error {
-	if threshold < 1 {
-		threshold = 1
-	}
-
-	key := domain + "/" + event
-	fp := dataFingerprint(data)
+	key := domain + "/" + event + "/" + dataFingerprint(data)
 
 	ptr.lock.Lock()
 
@@ -238,16 +232,23 @@ func (ptr *telemetryT) emitIfMore(domain, event string, threshold int, reset boo
 		ptr.ifMoreStates = make(map[string]*ifMoreState)
 	}
 
+	// threshold 0 with reset clears the counter for this exact domain/event/data
+	// (e.g. on success), so a later run of failures starts counting from zero again.
+	if threshold == 0 && reset {
+		delete(ptr.ifMoreStates, key)
+		ptr.lock.Unlock()
+
+		return nil
+	}
+
+	if threshold < 1 {
+		threshold = 1
+	}
+
 	st := ptr.ifMoreStates[key]
 	if st == nil {
 		st = &ifMoreState{}
 		ptr.ifMoreStates[key] = st
-	}
-
-	if st.fingerprint != fp {
-		st.fingerprint = fp
-		st.count = 0
-		st.last = time.Time{}
 	}
 
 	st.count++
