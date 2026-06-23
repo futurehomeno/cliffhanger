@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"runtime/debug"
 	"slices"
+	"strings"
 	"sync"
 	"time"
 
@@ -149,9 +150,8 @@ type telemetryT struct {
 }
 
 type ifMoreState struct {
-	fingerprint string
-	count       int
-	last        time.Time
+	count int
+	last  time.Time
 }
 
 func (ptr *telemetryT) Stop() {
@@ -225,12 +225,10 @@ func (ptr *telemetryT) emitOnChange(domain, event string, data map[string]any, i
 }
 
 func (ptr *telemetryT) emitIfMore(domain, event string, threshold int, reset bool, data map[string]any, interval time.Duration) error {
-	if threshold < 1 {
-		threshold = 1
-	}
-
-	key := domain + "/" + event
-	fp := dataFingerprint(data)
+	// \x00 separator can't appear in JSON-encoded fingerprints or in reasonable
+	// domain/event identifiers, so prefix scans below cannot collide with a
+	// sibling event whose name happens to start the same way.
+	prefix := domain + "\x00" + event + "\x00"
 
 	ptr.lock.Lock()
 
@@ -238,16 +236,27 @@ func (ptr *telemetryT) emitIfMore(domain, event string, threshold int, reset boo
 		ptr.ifMoreStates = make(map[string]*ifMoreState)
 	}
 
+	// threshold 0 means "clean all counters for this domain/event" (e.g. on
+	// success). data is ignored so callers don't have to enumerate every
+	// fingerprint they may have produced — wiping by prefix also prevents
+	// unbounded map growth when failure data is high-cardinality.
+	if threshold == 0 {
+		for k := range ptr.ifMoreStates {
+			if strings.HasPrefix(k, prefix) {
+				delete(ptr.ifMoreStates, k)
+			}
+		}
+		ptr.lock.Unlock()
+
+		return nil
+	}
+
+	key := prefix + dataFingerprint(data)
+
 	st := ptr.ifMoreStates[key]
 	if st == nil {
 		st = &ifMoreState{}
 		ptr.ifMoreStates[key] = st
-	}
-
-	if st.fingerprint != fp {
-		st.fingerprint = fp
-		st.count = 0
-		st.last = time.Time{}
 	}
 
 	st.count++

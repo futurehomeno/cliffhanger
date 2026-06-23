@@ -1156,18 +1156,72 @@ func TestEmitIfMore_ThrottlesAfterThreshold(t *testing.T) { //nolint:paralleltes
 	assertNotPublished(t, ch, "N+1 call should be throttled within interval")
 }
 
-func TestEmitIfMore_DataChange_ResetsCounter(t *testing.T) { //nolint:paralleltest
+func TestEmitIfMore_DataChange_IndependentCounters(t *testing.T) { //nolint:paralleltest
 	tel, ch := setupTelChannel(t, "eim_datachange")
 
 	dataA := map[string]any{"v": 1}
 	dataB := map[string]any{"v": 2}
 
 	telemetry.EmitIfMore(tel, "d", "e", 3, false, dataA, 0)
-	telemetry.EmitIfMore(tel, "d", "e", 3, false, dataA, 0)
-	telemetry.EmitIfMore(tel, "d", "e", 3, false, dataB, 0) // data change resets counter
-	assertNotPublished(t, ch, "data change should reset counter, no publish yet")
+	telemetry.EmitIfMore(tel, "d", "e", 3, false, dataA, 0) // dataA count = 2
+	telemetry.EmitIfMore(tel, "d", "e", 3, false, dataB, 0) // dataB has its own counter
+	assertNotPublished(t, ch, "different data keeps its own counter, no publish yet")
 
 	telemetry.EmitIfMore(tel, "d", "e", 3, false, dataB, 0)
-	telemetry.EmitIfMore(tel, "d", "e", 3, false, dataB, 0) // third with new data reaches threshold
-	assertPublished(t, ch, "third call with new data should publish")
+	telemetry.EmitIfMore(tel, "d", "e", 3, false, dataB, 0) // dataB reaches threshold
+	assertPublished(t, ch, "third call with dataB should publish")
+
+	telemetry.EmitIfMore(tel, "d", "e", 3, false, dataA, 0) // dataA was preserved at 2, now 3
+	assertPublished(t, ch, "dataA counter must be unaffected by dataB calls")
+}
+
+func TestEmitIfMore_Clean_ResetsCounter(t *testing.T) { //nolint:paralleltest
+	tel, ch := setupTelChannel(t, "eim_clean")
+
+	data := map[string]any{"v": 1}
+
+	telemetry.EmitIfMore(tel, "d", "e", 3, false, data, 0)
+	telemetry.EmitIfMore(tel, "d", "e", 3, false, data, 0) // two failures in a row
+
+	telemetry.EmitIfMore(tel, "d", "e", 0, true, data, 0) // success: clean the counter
+	assertNotPublished(t, ch, "clean must not publish")
+
+	telemetry.EmitIfMore(tel, "d", "e", 3, false, data, 0)
+	telemetry.EmitIfMore(tel, "d", "e", 3, false, data, 0)
+	assertNotPublished(t, ch, "two failures after clean must not reach threshold")
+
+	telemetry.EmitIfMore(tel, "d", "e", 3, false, data, 0) // third in a row after clean
+	assertPublished(t, ch, "three in a row after clean should publish")
+}
+
+func TestEmitIfMore_Clean_WipesAllFingerprintsForDomainEvent(t *testing.T) { //nolint:paralleltest
+	tel, ch := setupTelChannel(t, "eim_clean_all")
+
+	dataA := map[string]any{"v": 1}
+	dataB := map[string]any{"v": 2}
+
+	telemetry.EmitIfMore(tel, "d", "e", 2, false, dataA, 0) // dataA count = 1
+	telemetry.EmitIfMore(tel, "d", "e", 2, false, dataB, 0) // dataB count = 1
+
+	telemetry.EmitIfMore(tel, "d", "e", 0, false, nil, 0) // clean: data ignored, wipes all
+
+	telemetry.EmitIfMore(tel, "d", "e", 2, false, dataB, 0) // dataB count = 1 again
+	assertNotPublished(t, ch, "clean must wipe dataB counter too")
+
+	telemetry.EmitIfMore(tel, "d", "e", 2, false, dataB, 0) // dataB count = 2 -> publish
+	assertPublished(t, ch, "second failure after clean should publish")
+}
+
+func TestEmitIfMore_Clean_ScopedByDomainEvent(t *testing.T) { //nolint:paralleltest
+	tel, ch := setupTelChannel(t, "eim_clean_scoped")
+
+	data := map[string]any{"v": 1}
+
+	telemetry.EmitIfMore(tel, "d", "e1", 2, false, data, 0)
+	telemetry.EmitIfMore(tel, "d", "e2", 2, false, data, 0)
+
+	telemetry.EmitIfMore(tel, "d", "e1", 0, false, nil, 0) // clean only e1
+
+	telemetry.EmitIfMore(tel, "d", "e2", 2, false, data, 0) // e2 count = 2 -> publish
+	assertPublished(t, ch, "cleaning e1 must not affect e2 counter")
 }
