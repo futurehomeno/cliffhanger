@@ -1243,3 +1243,17 @@ func TestResetEventCounters_Scope_IsolatesByField(t *testing.T) { //nolint:paral
 	telemetry.EmitIfMore(tel, "d", "e", 2, false, dataX, 0) // device 1 count = 1 again (was cleared)
 	assertNotPublished(t, ch, "device 1 counter should have been cleared")
 }
+
+func TestResetEventCounters_Scope_MatchesAcrossNumericTypes(t *testing.T) { //nolint:paralleltest
+	tel, ch := setupTelChannel(t, "rec_scope_jsontype")
+
+	data := map[string]any{"device_id": 7} // stored as int
+
+	telemetry.EmitIfMore(tel, "d", "e", 2, false, data, 0) // count = 1
+
+	// scope uses a different numeric type, as a JSON-decoded config value would
+	telemetry.ResetEventCounters(tel, "d", "e", map[string]any{"device_id": float64(7)})
+
+	telemetry.EmitIfMore(tel, "d", "e", 2, false, data, 0) // count = 1 again (was cleared)
+	assertNotPublished(t, ch, "reset must match across numeric types via JSON semantics")
+}

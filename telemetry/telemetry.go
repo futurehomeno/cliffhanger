@@ -4,7 +4,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	"reflect"
+	"maps"
 	"runtime/debug"
 	"slices"
 	"strings"
@@ -259,7 +259,7 @@ func (ptr *telemetryT) emitIfMore(domain, event string, threshold int, reset boo
 
 	st := ptr.ifMoreStates[key]
 	if st == nil {
-		st = &ifMoreState{data: data}
+		st = &ifMoreState{data: maps.Clone(data)}
 		ptr.ifMoreStates[key] = st
 	}
 
@@ -300,11 +300,14 @@ func (ptr *telemetryT) resetEventCounters(domain, event string, scope map[string
 	return nil
 }
 
-// matchScope reports whether stored contains every key/value pair in scope. A
-// nil/empty scope matches everything, so a scopeless reset wipes all counters.
+// matchScope reports whether stored contains every key/value pair in scope,
+// compared with the same JSON semantics used to bucket counters so a scope
+// value need not match the stored value's exact Go type. A nil/empty scope
+// matches everything, so a scopeless reset wipes all counters.
 func matchScope(stored, scope map[string]any) bool {
 	for k, v := range scope {
-		if sv, ok := stored[k]; !ok || !reflect.DeepEqual(sv, v) {
+		sv, ok := stored[k]
+		if !ok || dataFingerprint(map[string]any{k: sv}) != dataFingerprint(map[string]any{k: v}) {
 			return false
 		}
 	}
