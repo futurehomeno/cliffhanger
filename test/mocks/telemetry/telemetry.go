@@ -476,6 +476,54 @@ func (_c *Telemetry_emitIfMore_Call) RunAndReturn(run func(string, string, int, 
 	return _c
 }
 
+// resetEventCounters provides a mock function with given fields: domain, event, scope
+func (_m *Telemetry) resetEventCounters(domain string, event string, scope map[string]interface{}) error {
+	ret := _m.Called(domain, event, scope)
+
+	if len(ret) == 0 {
+		panic("no return value specified for resetEventCounters")
+	}
+
+	var r0 error
+	if rf, ok := ret.Get(0).(func(string, string, map[string]interface{}) error); ok {
+		r0 = rf(domain, event, scope)
+	} else {
+		r0 = ret.Error(0)
+	}
+
+	return r0
+}
+
+// Telemetry_resetEventCounters_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'resetEventCounters'
+type Telemetry_resetEventCounters_Call struct {
+	*mock.Call
+}
+
+// resetEventCounters is a helper method to define mock.On call
+//   - domain string
+//   - event string
+//   - scope map[string]interface{}
+func (_e *Telemetry_Expecter) resetEventCounters(domain interface{}, event interface{}, scope interface{}) *Telemetry_resetEventCounters_Call {
+	return &Telemetry_resetEventCounters_Call{Call: _e.mock.On("resetEventCounters", domain, event, scope)}
+}
+
+func (_c *Telemetry_resetEventCounters_Call) Run(run func(domain string, event string, scope map[string]interface{})) *Telemetry_resetEventCounters_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		run(args[0].(string), args[1].(string), args[2].(map[string]interface{}))
+	})
+	return _c
+}
+
+func (_c *Telemetry_resetEventCounters_Call) Return(_a0 error) *Telemetry_resetEventCounters_Call {
+	_c.Call.Return(_a0)
+	return _c
+}
+
+func (_c *Telemetry_resetEventCounters_Call) RunAndReturn(run func(string, string, map[string]interface{}) error) *Telemetry_resetEventCounters_Call {
+	_c.Call.Return(run)
+	return _c
+}
+
 // emitOnChange provides a mock function with given fields: domain, event, data, interval
 func (_m *Telemetry) emitOnChange(domain string, event string, data map[string]interface{}, interval time.Duration) error {
 	ret := _m.Called(domain, event, data, interval)
