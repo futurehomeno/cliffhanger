@@ -1175,6 +1175,18 @@ func TestEmitIfMore_DataChange_IndependentCounters(t *testing.T) { //nolint:para
 	assertPublished(t, ch, "dataA counter must be unaffected by dataB calls")
 }
 
+func TestEmitIfMore_ThresholdBelowOne_NeverPublishes(t *testing.T) { //nolint:paralleltest
+	tel, ch := setupTelChannel(t, "eim_threshold_sub1")
+
+	data := map[string]any{"v": 1}
+	for i := 0; i < 5; i++ {
+		telemetry.EmitIfMore(tel, "d", "e", 0, true, data, 0)
+		telemetry.EmitIfMore(tel, "d", "e", -1, true, data, 0)
+	}
+
+	assertNotPublished(t, ch, "threshold < 1 must never publish (use ResetEventCounters to reset)")
+}
+
 func TestResetEventCounters_ResetsCounter(t *testing.T) { //nolint:paralleltest
 	tel, ch := setupTelChannel(t, "rec_reset")
 
@@ -1204,6 +1216,9 @@ func TestResetEventCounters_NilScope_WipesAllFingerprints(t *testing.T) { //noli
 	telemetry.EmitIfMore(tel, "d", "e", 2, false, dataB, 0) // dataB count = 1
 
 	telemetry.ResetEventCounters(tel, "d", "e", nil) // nil scope wipes all fingerprints
+
+	telemetry.EmitIfMore(tel, "d", "e", 2, false, dataA, 0) // dataA count = 1 again (was wiped; else 2 -> publish)
+	assertNotPublished(t, ch, "reset must wipe dataA counter")
 
 	telemetry.EmitIfMore(tel, "d", "e", 2, false, dataB, 0) // dataB count = 1 again
 	assertNotPublished(t, ch, "reset must wipe dataB counter too")
