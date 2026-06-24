@@ -1175,27 +1175,27 @@ func TestEmitIfMore_DataChange_IndependentCounters(t *testing.T) { //nolint:para
 	assertPublished(t, ch, "dataA counter must be unaffected by dataB calls")
 }
 
-func TestEmitIfMore_Clean_ResetsCounter(t *testing.T) { //nolint:paralleltest
-	tel, ch := setupTelChannel(t, "eim_clean")
+func TestResetEventCounters_ResetsCounter(t *testing.T) { //nolint:paralleltest
+	tel, ch := setupTelChannel(t, "rec_reset")
 
 	data := map[string]any{"v": 1}
 
 	telemetry.EmitIfMore(tel, "d", "e", 3, false, data, 0)
 	telemetry.EmitIfMore(tel, "d", "e", 3, false, data, 0) // two failures in a row
 
-	telemetry.EmitIfMore(tel, "d", "e", 0, true, data, 0) // success: clean the counter
-	assertNotPublished(t, ch, "clean must not publish")
+	telemetry.ResetEventCounters(tel, "d", "e", nil) // success: clean the counter
+	assertNotPublished(t, ch, "reset must not publish")
 
 	telemetry.EmitIfMore(tel, "d", "e", 3, false, data, 0)
 	telemetry.EmitIfMore(tel, "d", "e", 3, false, data, 0)
-	assertNotPublished(t, ch, "two failures after clean must not reach threshold")
+	assertNotPublished(t, ch, "two failures after reset must not reach threshold")
 
-	telemetry.EmitIfMore(tel, "d", "e", 3, false, data, 0) // third in a row after clean
-	assertPublished(t, ch, "three in a row after clean should publish")
+	telemetry.EmitIfMore(tel, "d", "e", 3, false, data, 0) // third in a row after reset
+	assertPublished(t, ch, "three in a row after reset should publish")
 }
 
-func TestEmitIfMore_Clean_WipesAllFingerprintsForDomainEvent(t *testing.T) { //nolint:paralleltest
-	tel, ch := setupTelChannel(t, "eim_clean_all")
+func TestResetEventCounters_NilScope_WipesAllFingerprints(t *testing.T) { //nolint:paralleltest
+	tel, ch := setupTelChannel(t, "rec_wipe_all")
 
 	dataA := map[string]any{"v": 1}
 	dataB := map[string]any{"v": 2}
@@ -1203,25 +1203,43 @@ func TestEmitIfMore_Clean_WipesAllFingerprintsForDomainEvent(t *testing.T) { //n
 	telemetry.EmitIfMore(tel, "d", "e", 2, false, dataA, 0) // dataA count = 1
 	telemetry.EmitIfMore(tel, "d", "e", 2, false, dataB, 0) // dataB count = 1
 
-	telemetry.EmitIfMore(tel, "d", "e", 0, false, nil, 0) // clean: data ignored, wipes all
+	telemetry.ResetEventCounters(tel, "d", "e", nil) // nil scope wipes all fingerprints
 
 	telemetry.EmitIfMore(tel, "d", "e", 2, false, dataB, 0) // dataB count = 1 again
-	assertNotPublished(t, ch, "clean must wipe dataB counter too")
+	assertNotPublished(t, ch, "reset must wipe dataB counter too")
 
 	telemetry.EmitIfMore(tel, "d", "e", 2, false, dataB, 0) // dataB count = 2 -> publish
-	assertPublished(t, ch, "second failure after clean should publish")
+	assertPublished(t, ch, "second failure after reset should publish")
 }
 
-func TestEmitIfMore_Clean_ScopedByDomainEvent(t *testing.T) { //nolint:paralleltest
-	tel, ch := setupTelChannel(t, "eim_clean_scoped")
+func TestResetEventCounters_ScopedByDomainEvent(t *testing.T) { //nolint:paralleltest
+	tel, ch := setupTelChannel(t, "rec_scoped_event")
 
 	data := map[string]any{"v": 1}
 
 	telemetry.EmitIfMore(tel, "d", "e1", 2, false, data, 0)
 	telemetry.EmitIfMore(tel, "d", "e2", 2, false, data, 0)
 
-	telemetry.EmitIfMore(tel, "d", "e1", 0, false, nil, 0) // clean only e1
+	telemetry.ResetEventCounters(tel, "d", "e1", nil) // reset only e1
 
 	telemetry.EmitIfMore(tel, "d", "e2", 2, false, data, 0) // e2 count = 2 -> publish
-	assertPublished(t, ch, "cleaning e1 must not affect e2 counter")
+	assertPublished(t, ch, "resetting e1 must not affect e2 counter")
+}
+
+func TestResetEventCounters_Scope_IsolatesByField(t *testing.T) { //nolint:paralleltest
+	tel, ch := setupTelChannel(t, "rec_scope_field")
+
+	dataX := map[string]any{"device_id": 1, "category": "io"}
+	dataY := map[string]any{"device_id": 2, "category": "io"}
+
+	telemetry.EmitIfMore(tel, "d", "e", 2, false, dataX, 0) // device 1 count = 1
+	telemetry.EmitIfMore(tel, "d", "e", 2, false, dataY, 0) // device 2 count = 1
+
+	telemetry.ResetEventCounters(tel, "d", "e", map[string]any{"device_id": 1}) // reset only device 1
+
+	telemetry.EmitIfMore(tel, "d", "e", 2, false, dataY, 0) // device 2 count = 2 -> publish
+	assertPublished(t, ch, "resetting device 1 must not clear device 2 counter")
+
+	telemetry.EmitIfMore(tel, "d", "e", 2, false, dataX, 0) // device 1 count = 1 again (was cleared)
+	assertNotPublished(t, ch, "device 1 counter should have been cleared")
 }

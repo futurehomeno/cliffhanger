@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"reflect"
 	"runtime/debug"
 	"slices"
 	"strings"
@@ -25,6 +26,7 @@ type Telemetry interface {
 	emit(domain, event string, data map[string]any) error
 	emitOnChange(domain, event string, data map[string]any, interval time.Duration) error
 	emitIfMore(domain, event string, threshold int, reset bool, data map[string]any, interval time.Duration) error
+	resetEventCounters(domain, event string, scope map[string]any) error
 	SetEvtTopic(topic string)
 	Enable(enabled bool) error
 	IsEnabled() bool
@@ -62,6 +64,21 @@ func EmitIfMore(tel Telemetry, domain, event string, threshold int, reset bool, 
 
 	if err := tel.emitIfMore(domain, event, threshold, reset, data, interval); err != nil {
 		log.WithError(err).Warnf("[cliff] EmitIfMore event=%q", event)
+	}
+}
+
+// ResetEventCounters clears EmitIfMore counters for the given domain/event. A
+// nil scope clears every counter for the event; a non-nil scope clears only the
+// counters whose data contains all of its key/value pairs, so a success can
+// reset just its own subject — e.g. {"device_id": 7} leaves other devices'
+// counters intact.
+func ResetEventCounters(tel Telemetry, domain, event string, scope map[string]any) {
+	if tel == nil {
+		return
+	}
+
+	if err := tel.resetEventCounters(domain, event, scope); err != nil {
+		log.WithError(err).Warnf("[cliff] ResetEventCounters event=%q", event)
 	}
 }
 
@@ -152,6 +169,7 @@ type telemetryT struct {
 type ifMoreState struct {
 	count int
 	last  time.Time
+	data  map[string]any
 }
 
 func (ptr *telemetryT) Stop() {
@@ -225,10 +243,13 @@ func (ptr *telemetryT) emitOnChange(domain, event string, data map[string]any, i
 }
 
 func (ptr *telemetryT) emitIfMore(domain, event string, threshold int, reset bool, data map[string]any, interval time.Duration) error {
-	// \x00 separator can't appear in JSON-encoded fingerprints or in reasonable
-	// domain/event identifiers, so prefix scans below cannot collide with a
-	// sibling event whose name happens to start the same way.
-	prefix := domain + "\x00" + event + "\x00"
+	if threshold < 1 {
+		return nil
+	}
+
+	// \x00 separates the domain/event boundary from the data fingerprint so a
+	// sibling event whose name shares this one's prefix can't collide with it.
+	key := domain + "\x00" + event + "\x00" + dataFingerprint(data)
 
 	ptr.lock.Lock()
 
@@ -236,26 +257,9 @@ func (ptr *telemetryT) emitIfMore(domain, event string, threshold int, reset boo
 		ptr.ifMoreStates = make(map[string]*ifMoreState)
 	}
 
-	// threshold 0 means "clean all counters for this domain/event" (e.g. on
-	// success). data is ignored so callers don't have to enumerate every
-	// fingerprint they may have produced — wiping by prefix also prevents
-	// unbounded map growth when failure data is high-cardinality.
-	if threshold == 0 {
-		for k := range ptr.ifMoreStates {
-			if strings.HasPrefix(k, prefix) {
-				delete(ptr.ifMoreStates, k)
-			}
-		}
-		ptr.lock.Unlock()
-
-		return nil
-	}
-
-	key := prefix + dataFingerprint(data)
-
 	st := ptr.ifMoreStates[key]
 	if st == nil {
-		st = &ifMoreState{}
+		st = &ifMoreState{data: data}
 		ptr.ifMoreStates[key] = st
 	}
 
@@ -279,6 +283,33 @@ func (ptr *telemetryT) emitIfMore(domain, event string, threshold int, reset boo
 	}
 
 	return ptr.emit(domain, event, data)
+}
+
+func (ptr *telemetryT) resetEventCounters(domain, event string, scope map[string]any) error {
+	prefix := domain + "\x00" + event + "\x00"
+
+	ptr.lock.Lock()
+	defer ptr.lock.Unlock()
+
+	for k, st := range ptr.ifMoreStates {
+		if strings.HasPrefix(k, prefix) && matchScope(st.data, scope) {
+			delete(ptr.ifMoreStates, k)
+		}
+	}
+
+	return nil
+}
+
+// matchScope reports whether stored contains every key/value pair in scope. A
+// nil/empty scope matches everything, so a scopeless reset wipes all counters.
+func matchScope(stored, scope map[string]any) bool {
+	for k, v := range scope {
+		if sv, ok := stored[k]; !ok || !reflect.DeepEqual(sv, v) {
+			return false
+		}
+	}
+
+	return true
 }
 
 func dataFingerprint(data map[string]any) string {
