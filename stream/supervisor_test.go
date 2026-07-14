@@ -45,6 +45,46 @@ func TestSupervisor(t *testing.T) {
 	assert.Equal(t, total, calls.Load(), "no reconnects after stop")
 }
 
+func TestSupervisor_StartDuringStop(t *testing.T) {
+	t.Parallel()
+
+	release := make(chan struct{})
+
+	var calls atomic.Int32
+
+	connect := func(ctx context.Context, connected func()) error {
+		calls.Add(1)
+		connected()
+		<-ctx.Done()
+		<-release
+
+		return nil
+	}
+
+	s := stream.NewSupervisor(connect, backoff.NewStateful(time.Hour, time.Hour, time.Hour, 1, 1))
+
+	assert.NoError(t, s.Start())
+	assert.Eventually(t, func() bool { return calls.Load() == 1 }, time.Second, time.Millisecond)
+
+	stopped := make(chan struct{})
+
+	go func() {
+		assert.NoError(t, s.Stop())
+		close(stopped)
+	}()
+
+	time.Sleep(20 * time.Millisecond)
+	assert.Error(t, s.Start(), "start must fail until the previous connection loop has fully exited")
+	assert.Equal(t, int32(1), calls.Load(), "no overlapping connection may be started")
+
+	close(release)
+	<-stopped
+
+	assert.NoError(t, s.Start(), "start should succeed after stop has completed")
+	assert.Eventually(t, func() bool { return calls.Load() == 2 }, time.Second, time.Millisecond)
+	assert.NoError(t, s.Stop())
+}
+
 func TestSupervisor_ReconnectsAfterFailure(t *testing.T) {
 	t.Parallel()
 

@@ -332,11 +332,6 @@ func (s *storage[T]) writeFile(path string, data []byte) (err error) {
 		return err
 	}
 
-	// Enforce permissions also on files created before this mode was configured, regardless of umask.
-	if err = file.Chmod(s.fileMode()); err != nil {
-		return err
-	}
-
 	defer func() {
 		closeErr := file.Close()
 
@@ -347,6 +342,11 @@ func (s *storage[T]) writeFile(path string, data []byte) (err error) {
 
 		err = closeErr
 	}()
+
+	// Enforce permissions also on files created before this mode was configured, regardless of umask.
+	if err = file.Chmod(s.fileMode()); err != nil {
+		return err
+	}
 
 	if _, err = file.Write(data); err != nil {
 		return
