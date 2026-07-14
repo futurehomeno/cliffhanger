@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"io"
 	"net/http"
@@ -11,6 +12,7 @@ import (
 
 	log "github.com/sirupsen/logrus"
 
+	"github.com/futurehomeno/cliffhanger/httpclient"
 	"github.com/futurehomeno/cliffhanger/hub"
 )
 
@@ -107,6 +109,11 @@ func (c *proxyClient) getToken(request any, url string) (*OAuth2TokenResponse, e
 			return response, nil
 		}
 
+		// An authorization rejection is definitive, retrying would not change the outcome.
+		if errors.Is(err, httpclient.ErrUnauthorized) {
+			return nil, err
+		}
+
 		if i < c.cfg.Retry {
 			log.Errorf("proxy proxyClient: Partner API is not responding with success, retrying in %s...", c.cfg.RetryDelay.String())
 
@@ -130,7 +137,7 @@ func (c *proxyClient) requestToken(r *http.Request) (*OAuth2TokenResponse, error
 	}()
 
 	if response.StatusCode != 200 {
-		return nil, fmt.Errorf("proxy proxyClient: failed to retrieve token from partner API, received status code: %d", response.StatusCode)
+		return nil, fmt.Errorf("proxy proxyClient: failed to retrieve token from partner API: %w", httpclient.ErrorFromResponse(response))
 	}
 
 	responseData, err := io.ReadAll(response.Body)
