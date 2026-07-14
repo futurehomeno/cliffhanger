@@ -123,6 +123,26 @@ func TestConnectivityChecker_Check(t *testing.T) { //nolint:funlen
 	}
 }
 
+func TestConnectivityChecker_RepairsStrandedAppHealth(t *testing.T) {
+	t.Parallel()
+
+	lc := lifecycle.New(nil)
+	// A transient failure during authorization strands the app in NOT_CONFIGURED;
+	// the periodic check task does not run in this state, so the successful
+	// recheck must repair the app health, not just connectivity.
+	lc.SetAppHealth(lifecycle.AppHealthNotConfigured, nil)
+	lc.SetConfigState(lifecycle.ConfigStateNotConfigured)
+
+	checker := app.NewConnectivityChecker(func() error { return nil }, lc, nil, app.CheckerConfig{})
+
+	assert.NoError(t, checker.Check())
+
+	assert.Equal(t, lifecycle.AppHealthRunning, lc.AppHealth())
+	assert.Equal(t, lifecycle.ConfigStateConfigured, lc.ConfigState())
+	assert.Equal(t, lifecycle.ConnStateConnected, lc.ConnectionState())
+	assert.Equal(t, lifecycle.AuthStateAuthenticated, lc.AuthState())
+}
+
 func TestConnectivityChecker_Recheck(t *testing.T) {
 	t.Parallel()
 

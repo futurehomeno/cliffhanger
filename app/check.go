@@ -88,6 +88,7 @@ func (c *ConnectivityChecker) Check() error {
 	if err == nil {
 		c.Cancel()
 		c.apply(lifecycle.AuthStateAuthenticated, lifecycle.ConnStateConnected)
+		c.repairAppHealth()
 
 		return nil
 	}
@@ -131,6 +132,20 @@ func (c *ConnectivityChecker) Cancel() {
 		c.timer.Stop()
 		c.timer = nil
 	}
+}
+
+// repairAppHealth restores the running and configured states after a successful probe.
+// A transient failure during authorization may have left the app NOT_CONFIGURED, and the
+// periodic check task does not run while the app is not RUNNING (task.WhenAppIsRunning),
+// so a successful recheck is the only opportunity to repair that state. A successful
+// probe proves valid credentials, which is what configured means for these adapters.
+func (c *ConnectivityChecker) repairAppHealth() {
+	if c.lc.AppHealth() == lifecycle.AppHealthRunning {
+		return
+	}
+
+	c.lc.SetAppHealth(lifecycle.AppHealthRunning, nil)
+	c.lc.SetConfigState(lifecycle.ConfigStateConfigured)
 }
 
 // rateLimitDelay honors a server-requested Retry-After delay if it exceeds the configured one.
