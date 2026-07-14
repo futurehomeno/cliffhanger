@@ -179,6 +179,9 @@ func TestConnectivityChecker_ConcurrentChecks(t *testing.T) {
 	}
 
 	wg.Wait()
+
+	assert.Positive(t, calls.Load())
+
 	checker.Cancel()
 }
 
