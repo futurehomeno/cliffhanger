@@ -3,6 +3,7 @@ package app_test
 import (
 	"errors"
 	"fmt"
+	"sync"
 	"sync/atomic"
 	"testing"
 	"time"
@@ -111,7 +112,7 @@ func TestConnectivityChecker_Check(t *testing.T) { //nolint:funlen
 			})
 
 			for range errs {
-				assert.NoError(t, checker.Check())
+				assert.NoError(t, checker.CheckNow())
 			}
 
 			checker.Cancel()
@@ -121,6 +122,64 @@ func TestConnectivityChecker_Check(t *testing.T) { //nolint:funlen
 			assert.Equal(t, tc.wantReports, reporter.reports.Load())
 		})
 	}
+}
+
+func TestConnectivityChecker_PendingRecheckSkipsPeriodicProbe(t *testing.T) {
+	t.Parallel()
+
+	var calls atomic.Int32
+
+	probe := func() error {
+		calls.Add(1)
+
+		return errors.New("probe err")
+	}
+
+	checker := app.NewConnectivityChecker(probe, lifecycle.New(nil), nil, app.CheckerConfig{
+		RecheckBackoff: backoff.New(time.Hour, time.Hour, time.Hour, 1, 1),
+	})
+
+	assert.NoError(t, checker.Check())
+	assert.NoError(t, checker.Check())
+	assert.Equal(t, int32(1), calls.Load(), "periodic probe should be skipped while a recheck is pending")
+
+	checker.Cancel()
+
+	assert.NoError(t, checker.Check())
+	assert.Equal(t, int32(2), calls.Load(), "probe should resume once the pending recheck is canceled")
+}
+
+func TestConnectivityChecker_ConcurrentChecks(t *testing.T) {
+	t.Parallel()
+
+	var calls atomic.Int32
+
+	probe := func() error {
+		if calls.Add(1)%2 == 0 {
+			return errors.New("probe err")
+		}
+
+		return nil
+	}
+
+	checker := app.NewConnectivityChecker(probe, lifecycle.New(nil), &fakeReporter{}, app.CheckerConfig{
+		RecheckBackoff: backoff.New(time.Hour, time.Hour, time.Hour, 1, 1),
+	})
+
+	var wg sync.WaitGroup
+
+	for range 8 {
+		wg.Add(1)
+
+		go func() {
+			defer wg.Done()
+
+			assert.NoError(t, checker.Check())
+		}()
+	}
+
+	wg.Wait()
+	checker.Cancel()
 }
 
 func TestConnectivityChecker_Recheck(t *testing.T) {

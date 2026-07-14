@@ -58,6 +58,9 @@ type ConnectivityChecker struct {
 	reporter ConnectivityReporter
 	warnLog  utils.Throttle
 
+	// checkMu serializes Check so overlapping periodic and recheck probes cannot interleave state changes.
+	checkMu sync.Mutex
+
 	mu       sync.Mutex
 	timer    *time.Timer
 	failures uint32
@@ -84,6 +87,14 @@ func (c *ConnectivityChecker) CheckInterval() time.Duration {
 }
 
 func (c *ConnectivityChecker) Check() error {
+	c.checkMu.Lock()
+	defer c.checkMu.Unlock()
+
+	// A pending recheck honors its backoff or Retry-After delay, so the periodic probe is skipped.
+	if c.pending() {
+		return nil
+	}
+
 	err := c.probe()
 	if err == nil {
 		c.Cancel()
@@ -131,6 +142,13 @@ func (c *ConnectivityChecker) Cancel() {
 		c.timer.Stop()
 		c.timer = nil
 	}
+}
+
+func (c *ConnectivityChecker) pending() bool {
+	c.mu.Lock()
+	defer c.mu.Unlock()
+
+	return c.timer != nil
 }
 
 // rateLimitDelay honors a server-requested Retry-After delay if it exceeds the configured one.
