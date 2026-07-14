@@ -1,0 +1,77 @@
+package app
+
+import (
+	"fmt"
+
+	"github.com/futurehomeno/cliffhanger/lifecycle"
+)
+
+// ThingDestroyer destroys all things of an application. It is satisfied by adapter.Adapter.
+type ThingDestroyer interface {
+	DestroyAllThings() error
+}
+
+// Reset destroys all things, resets the configuration and marks the application as not
+// configured. Optional teardown hooks run first, e.g. to cancel checks or close connections.
+func Reset(appLifecycle *lifecycle.Lifecycle, things ThingDestroyer, resetConfig func() error, teardown ...func()) error {
+	for _, fn := range teardown {
+		fn()
+	}
+
+	if err := things.DestroyAllThings(); err != nil {
+		return fmt.Errorf("destroy things: %w", err)
+	}
+
+	if err := resetConfig(); err != nil {
+		return fmt.Errorf("reset configuration: %w", err)
+	}
+
+	appLifecycle.MarkNotConfigured()
+
+	return nil
+}
+
+// Logout clears credentials and marks the application as not configured.
+// Optional teardown hooks run first, e.g. to cancel checks or close connections.
+func Logout(appLifecycle *lifecycle.Lifecycle, clearCredentials func() error, teardown ...func()) error {
+	for _, fn := range teardown {
+		fn()
+	}
+
+	if err := clearCredentials(); err != nil {
+		return fmt.Errorf("clear credentials: %w", err)
+	}
+
+	appLifecycle.MarkNotConfigured()
+
+	return nil
+}
+
+// Authorize persists new credentials and promotes the application to running if the
+// subsequent check confirms connectivity. Check failures are reported through
+// lifecycle states rather than an error, matching CheckableApp semantics.
+func Authorize(appLifecycle *lifecycle.Lifecycle, persistCredentials, check func() error) error {
+	if err := persistCredentials(); err != nil {
+		return fmt.Errorf("persist credentials: %w", err)
+	}
+
+	if err := check(); err != nil {
+		return err
+	}
+
+	if appLifecycle.ConnectionState() == lifecycle.ConnStateConnected {
+		appLifecycle.MarkRunning()
+	}
+
+	return nil
+}
+
+// ConfigModel casts the model provided to Configure to the application configuration type.
+func ConfigModel[T any](model any) (T, error) {
+	cfg, ok := model.(T)
+	if !ok {
+		return cfg, fmt.Errorf("expected configuration model of type %T, got %T", cfg, model)
+	}
+
+	return cfg, nil
+}
