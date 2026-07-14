@@ -58,12 +58,24 @@ func ErrorFromResponse(resp *http.Response) error {
 	return ErrorFromStatus(resp.StatusCode)
 }
 
-// RetryAfter returns the delay the server asks for via the Retry-After header (seconds), or 0.
+// RetryAfter returns the delay the server asks for via the Retry-After header
+// (delta-seconds or HTTP-date form), or 0.
 func RetryAfter(resp *http.Response) time.Duration {
-	secs, err := strconv.Atoi(resp.Header.Get("Retry-After"))
-	if err != nil || secs <= 0 {
-		return 0
+	header := resp.Header.Get("Retry-After")
+
+	if secs, err := strconv.Atoi(header); err == nil {
+		if secs <= 0 {
+			return 0
+		}
+
+		return time.Duration(secs) * time.Second
 	}
 
-	return time.Duration(secs) * time.Second
+	if date, err := http.ParseTime(header); err == nil {
+		if delay := time.Until(date); delay > 0 {
+			return delay
+		}
+	}
+
+	return 0
 }
