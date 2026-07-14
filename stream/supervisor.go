@@ -65,10 +65,14 @@ func (s *Supervisor) Stop() error {
 
 	s.stop()
 	done := s.done
-	s.done = nil
 	s.mu.Unlock()
 
 	<-done
+
+	// Cleared only after the goroutine exited, so a concurrent Start cannot overlap connections.
+	s.mu.Lock()
+	s.done = nil
+	s.mu.Unlock()
 
 	return nil
 }
