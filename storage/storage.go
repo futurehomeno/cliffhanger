@@ -16,6 +16,9 @@ const (
 	dataDirectory     = "data"
 	defaultsDirectory = "defaults"
 	backupExtension   = ".bak"
+
+	configFileMode os.FileMode = 0o644
+	secretFileMode os.FileMode = 0o640
 )
 
 // Storage is an interface representing a service responsible for loading JSON configuration from provided location.
@@ -34,6 +37,30 @@ func New[T any](model T, workDir string, name string) Storage[T] {
 		backupPath:   filepath.Join(workDir, dataDirectory, name) + backupExtension,
 		defaultsPath: filepath.Join(workDir, defaultsDirectory, name),
 		model:        model,
+	}
+}
+
+// NewSecrets creates a storage service for credentials and other secrets, conventionally
+// data/secrets.json, written with 0640 permissions unlike the world-readable configuration
+// and without a defaults file.
+func NewSecrets[T any](model T, workDir string, name string) Storage[T] {
+	return &storage[T]{
+		lock:       &sync.Mutex{},
+		dataPath:   filepath.Join(workDir, dataDirectory, name),
+		backupPath: filepath.Join(workDir, dataDirectory, name) + backupExtension,
+		model:      model,
+		mode:       secretFileMode,
+	}
+}
+
+// NewCanonicalSecrets creates a secrets storage service following the canonical layout of core applications.
+func NewCanonicalSecrets[T any](model T, workDir string, name string) Storage[T] {
+	return &storage[T]{
+		lock:       &sync.Mutex{},
+		dataPath:   filepath.Join(workDir, name),
+		backupPath: filepath.Join(workDir, name) + backupExtension,
+		model:      model,
+		mode:       secretFileMode,
 	}
 }
 
@@ -75,6 +102,15 @@ type storage[T any] struct {
 	backupPath   string
 	defaultsPath string
 	model        T
+	mode         os.FileMode
+}
+
+func (s *storage[T]) fileMode() os.FileMode {
+	if s.mode == 0 {
+		return configFileMode
+	}
+
+	return s.mode
 }
 
 func (s *storage[T]) Model() T {
@@ -291,8 +327,13 @@ func (s *storage[T]) loadFile(path string) error {
 }
 
 func (s *storage[T]) writeFile(path string, data []byte) (err error) {
-	file, err := os.OpenFile(path, os.O_WRONLY|os.O_CREATE|os.O_TRUNC, 0664) //nolint:gofumpt,gosec
+	file, err := os.OpenFile(path, os.O_WRONLY|os.O_CREATE|os.O_TRUNC, s.fileMode()) //nolint:gosec
 	if err != nil {
+		return err
+	}
+
+	// Enforce permissions also on files created before this mode was configured, regardless of umask.
+	if err = file.Chmod(s.fileMode()); err != nil {
 		return err
 	}
 
