@@ -85,6 +85,26 @@ func TestSupervisor_StartDuringStop(t *testing.T) {
 	assert.NoError(t, s.Stop())
 }
 
+func TestSupervisor_StopDuringBackoffWait(t *testing.T) {
+	t.Parallel()
+
+	var calls atomic.Int32
+
+	connect := func(context.Context, func()) error {
+		calls.Add(1)
+
+		return errors.New("connection err")
+	}
+
+	s := stream.NewSupervisor(connect, backoff.NewStateful(time.Hour, time.Hour, time.Hour, 1, 1))
+
+	assert.NoError(t, s.Start())
+	assert.Eventually(t, func() bool { return calls.Load() == 1 }, time.Second, time.Millisecond)
+
+	assert.NoError(t, s.Stop())
+	assert.Equal(t, int32(1), calls.Load(), "stop during the backoff wait must not dial again")
+}
+
 func TestSupervisor_ReconnectsAfterFailure(t *testing.T) {
 	t.Parallel()
 

@@ -124,6 +124,11 @@ func (s *Supervisor) run(ctx context.Context, done chan struct{}) {
 		}
 
 		cancel()
+
+		// connCtx.Done may have won the select over its cancelled parent - do not dial again.
+		if ctx.Err() != nil {
+			return
+		}
 	}
 }
 
