@@ -92,7 +92,9 @@ func (s *Service[C]) PublicModel() any {
 	return s.redact(s.Model())
 }
 
-// Get reads a setting from the model under read lock.
+// Get reads a setting from the model under read lock. The accessor should return
+// a value type or a copy: a returned reference type aliases the live model after
+// the lock is released.
 func Get[C, V any](s *Service[C], get func(model C) V) V {
 	s.defaultStore.lock.RLock()
 	defer s.defaultStore.lock.RUnlock()
