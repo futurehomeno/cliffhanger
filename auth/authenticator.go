@@ -144,7 +144,7 @@ func (a *Authenticator) AccessToken() (string, error) {
 	a.unauthorizedSince = time.Time{}
 
 	newCreds := response.Credentials()
-	if newCreds.RefreshToken == "" {
+	if newCreds.RefreshToken == "" || newCreds.RefreshToken == creds.RefreshToken {
 		newCreds.RefreshToken = creds.RefreshToken
 		newCreds.RefreshExpiresAt = creds.RefreshExpiresAt
 	}

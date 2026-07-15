@@ -103,6 +103,21 @@ func TestAuthenticator_AccessToken(t *testing.T) {
 		assert.Equal(t, creds.RefreshExpiresAt, store.creds.RefreshExpiresAt, "carried over refresh token should keep its expiry")
 	})
 
+	t.Run("refresh returning same token preserves refresh expiry", func(t *testing.T) {
+		t.Parallel()
+
+		creds := expiredCreds()
+		creds.RefreshExpiresAt = time.Now().Add(time.Hour)
+
+		store := &fakeStore{creds: creds}
+		exchanger := &fakeExchanger{response: &auth.OAuth2TokenResponse{AccessToken: "fresh", RefreshToken: creds.RefreshToken, ExpiresIn: 3600}}
+		a := auth.NewAuthenticator(store, exchanger, auth.AuthenticatorConfig{})
+
+		_, err := a.AccessToken()
+		assert.NoError(t, err)
+		assert.Equal(t, creds.RefreshExpiresAt, store.creds.RefreshExpiresAt, "explicitly returned same token is a carry-over and should keep its expiry")
+	})
+
 	t.Run("refresh with rotated token clears refresh expiry", func(t *testing.T) {
 		t.Parallel()
 
