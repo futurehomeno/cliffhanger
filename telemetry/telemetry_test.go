@@ -866,7 +866,7 @@ func TestRouting_SuppressedGet(t *testing.T) { //nolint:paralleltest
 						Command: suite.NullMessage("pt:j1/mt:cmd/rt:app/rn:test/ad:1", "cmd.config.get_telemetry_suppressed", "tel_supp_get"),
 						Expectations: []*suite.Expectation{
 							suite.ExpectObject("pt:j1/mt:evt/rt:app/rn:test/ad:1", "evt.config.telemetry_suppressed_report", "tel_supp_get",
-							map[string]types.SuppressedEntry{"tel_supp_get": {Domains: []string{"alpha"}, Events: []string{"beta.x"}}}),
+								map[string]types.SuppressedEntry{"tel_supp_get": {Domains: []string{"alpha"}, Events: []string{"beta.x"}}}),
 						},
 					},
 					{
@@ -1175,6 +1175,18 @@ func TestEmitIfMore_DataChange_IndependentCounters(t *testing.T) { //nolint:para
 	assertPublished(t, ch, "dataA counter must be unaffected by dataB calls")
 }
 
+func TestEmitIfMore_ThresholdBelowOne_NeverPublishes(t *testing.T) { //nolint:paralleltest
+	tel, ch := setupTelChannel(t, "eim_threshold_sub1")
+
+	data := map[string]any{"v": 1}
+	for i := 0; i < 5; i++ {
+		telemetry.EmitIfMore(tel, "d", "e", 0, true, data, 0)
+		telemetry.EmitIfMore(tel, "d", "e", -1, true, data, 0)
+	}
+
+	assertNotPublished(t, ch, "threshold < 1 must never publish (use ResetEventCounters to reset)")
+}
+
 func TestResetEventCounters_ResetsCounter(t *testing.T) { //nolint:paralleltest
 	tel, ch := setupTelChannel(t, "rec_reset")
 
@@ -1204,6 +1216,9 @@ func TestResetEventCounters_NilScope_WipesAllFingerprints(t *testing.T) { //noli
 	telemetry.EmitIfMore(tel, "d", "e", 2, false, dataB, 0) // dataB count = 1
 
 	telemetry.ResetEventCounters(tel, "d", "e", nil) // nil scope wipes all fingerprints
+
+	telemetry.EmitIfMore(tel, "d", "e", 2, false, dataA, 0) // dataA count = 1 again (was wiped; else 2 -> publish)
+	assertNotPublished(t, ch, "reset must wipe dataA counter")
 
 	telemetry.EmitIfMore(tel, "d", "e", 2, false, dataB, 0) // dataB count = 1 again
 	assertNotPublished(t, ch, "reset must wipe dataB counter too")
