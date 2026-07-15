@@ -37,17 +37,17 @@ func TestNewJSONRequest(t *testing.T) {
 func TestErrorFromResponse(t *testing.T) {
 	t.Parallel()
 
-	status := func(code int) *http.Response {
-		return &http.Response{StatusCode: code, Header: http.Header{}}
+	errFor := func(code int) error {
+		return httpclient.ErrorFromResponse(&http.Response{StatusCode: code, Header: http.Header{}})
 	}
 
-	assert.NoError(t, httpclient.ErrorFromResponse(status(http.StatusOK)))
-	assert.NoError(t, httpclient.ErrorFromResponse(status(http.StatusNoContent)))
-	assert.ErrorIs(t, httpclient.ErrorFromResponse(status(http.StatusUnauthorized)), httpclient.ErrUnauthorized)
-	assert.ErrorIs(t, httpclient.ErrorFromResponse(status(http.StatusForbidden)), httpclient.ErrUnauthorized)
-	assert.ErrorIs(t, httpclient.ErrorFromResponse(status(http.StatusNotFound)), httpclient.ErrNotFound)
-	assert.ErrorIs(t, httpclient.ErrorFromResponse(status(http.StatusTooManyRequests)), httpclient.ErrTooManyRequests)
-	assert.Error(t, httpclient.ErrorFromResponse(status(http.StatusBadGateway)))
+	assert.NoError(t, errFor(http.StatusOK))
+	assert.NoError(t, errFor(http.StatusNoContent))
+	assert.ErrorIs(t, errFor(http.StatusUnauthorized), httpclient.ErrUnauthorized)
+	assert.ErrorIs(t, errFor(http.StatusForbidden), httpclient.ErrUnauthorized)
+	assert.ErrorIs(t, errFor(http.StatusNotFound), httpclient.ErrNotFound)
+	assert.ErrorIs(t, errFor(http.StatusTooManyRequests), httpclient.ErrTooManyRequests)
+	assert.Error(t, errFor(http.StatusBadGateway))
 }
 
 func TestErrorFromResponse_RetryAfter(t *testing.T) {
