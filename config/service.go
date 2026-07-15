@@ -10,6 +10,8 @@ import (
 // The configuration model must embed Default, exposed through the defaults accessor.
 // The optional redact function strips credentials for public reporting, satisfying app.PublicModeler.
 // Service shares the DefaultStore lock, since both mutate the same underlying model.
+// The lock is not reentrant: callbacks passed to Update, Persist and Migrate must not
+// call back into Service or DefaultStore methods.
 type Service[C any] struct {
 	storage.Storage[C]
 
