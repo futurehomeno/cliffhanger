@@ -48,8 +48,9 @@ func Logout(appLifecycle *lifecycle.Lifecycle, clearCredentials func() error, te
 }
 
 // Authorize persists new credentials and promotes the application to running if the
-// subsequent check confirms connectivity. Check failures are reported through
-// lifecycle states rather than an error, matching CheckableApp semantics.
+// subsequent check confirms connectivity. Connectivity failures are reported through
+// lifecycle states set by check itself, matching CheckableApp semantics; an error
+// returned by check is a hard failure that aborts promotion and is propagated.
 func Authorize(appLifecycle *lifecycle.Lifecycle, persistCredentials, check func() error) error {
 	if err := persistCredentials(); err != nil {
 		return fmt.Errorf("persist credentials: %w", err)

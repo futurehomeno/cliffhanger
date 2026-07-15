@@ -82,6 +82,10 @@ func TestAuthorize(t *testing.T) {
 	assert.NoError(t, err)
 	assert.NotEqual(t, lifecycle.AppHealthRunning, lc.AppHealth(), "should not promote when check left the app disconnected")
 
+	err = app.Authorize(lc, func() error { return nil }, func() error { return errors.New("check err") })
+	assert.Error(t, err, "hard check failure should be propagated")
+	assert.NotEqual(t, lifecycle.AppHealthRunning, lc.AppHealth())
+
 	err = app.Authorize(lc, func() error { return nil }, func() error {
 		lc.SetConnState(lifecycle.ConnStateConnected)
 

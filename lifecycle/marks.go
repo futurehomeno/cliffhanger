@@ -1,5 +1,8 @@
 package lifecycle
 
+// The Mark* bundles target cloud adapters with authentication. Applications keeping
+// auth or connectivity at AuthStateNA/ConnStateNA should set states individually instead.
+
 // MarkNotConfigured sets the state bundle of an unconfigured application,
 // as done on uninstall, reset and logout.
 func (l *Lifecycle) MarkNotConfigured() {
