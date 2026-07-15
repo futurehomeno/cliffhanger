@@ -1,6 +1,7 @@
 package config_test
 
 import (
+	"sync"
 	"testing"
 	"time"
 
@@ -108,6 +109,32 @@ func TestService_DefaultStore(t *testing.T) {
 
 	assert.NoError(t, srv.DefaultStore().SetLevel("debug"))
 	assert.Equal(t, "debug", srv.Model().LogLevel)
+}
+
+func TestService_ConcurrentAccess(t *testing.T) {
+	t.Parallel()
+
+	srv := newTestService(t)
+
+	var wg sync.WaitGroup
+
+	for range 20 {
+		wg.Add(2)
+
+		go func() {
+			defer wg.Done()
+
+			assert.NoError(t, srv.Update(func(c *testConfig) { c.Name = "test" }))
+		}()
+
+		go func() {
+			defer wg.Done()
+
+			assert.NoError(t, srv.DefaultStore().SetLevel("debug"))
+		}()
+	}
+
+	wg.Wait()
 }
 
 func TestBackoffConfig_Stateful(t *testing.T) {
