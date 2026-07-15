@@ -33,9 +33,8 @@ func (s *Service[C]) Update(fn func(model C)) error {
 	defer s.defaultStore.lock.Unlock()
 
 	fn(s.Model())
-	s.defaultStore.accessor().SetConfiguredAt(time.Now())
 
-	return s.Save()
+	return s.defaultStore.saveStamped()
 }
 
 // Persist applies fn to the model under lock and saves without stamping the configuration

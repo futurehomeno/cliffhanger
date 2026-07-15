@@ -8,54 +8,30 @@ import (
 	"net/http"
 )
 
-// RequestBuilder builds an HTTP request with optional JSON body and headers.
-type RequestBuilder struct {
-	method  string
-	url     string
-	body    any
-	headers map[string]string
-}
+// NewJSONRequest builds an HTTP request, encoding a non-nil body as JSON with the
+// Content-Type header set accordingly, and applying the provided headers.
+func NewJSONRequest(ctx context.Context, method, url string, body any, headers map[string]string) (*http.Request, error) {
+	var reader io.Reader
 
-func NewRequest(method, url string) *RequestBuilder {
-	return &RequestBuilder{
-		method:  method,
-		url:     url,
-		headers: make(map[string]string),
-	}
-}
-
-// WithJSONBody sets the request body to the JSON encoding of v and the Content-Type header accordingly.
-func (b *RequestBuilder) WithJSONBody(v any) *RequestBuilder {
-	b.body = v
-	b.headers["Content-Type"] = "application/json"
-
-	return b
-}
-
-func (b *RequestBuilder) WithHeader(key, value string) *RequestBuilder {
-	b.headers[key] = value
-
-	return b
-}
-
-func (b *RequestBuilder) Build(ctx context.Context) (*http.Request, error) {
-	var body io.Reader
-
-	if b.body != nil {
-		data, err := json.Marshal(b.body)
+	if body != nil {
+		data, err := json.Marshal(body)
 		if err != nil {
 			return nil, err
 		}
 
-		body = bytes.NewReader(data)
+		reader = bytes.NewReader(data)
 	}
 
-	req, err := http.NewRequestWithContext(ctx, b.method, b.url, body)
+	req, err := http.NewRequestWithContext(ctx, method, url, reader)
 	if err != nil {
 		return nil, err
 	}
 
-	for key, value := range b.headers {
+	if body != nil {
+		req.Header.Set("Content-Type", "application/json")
+	}
+
+	for key, value := range headers {
 		req.Header.Set(key, value)
 	}
 

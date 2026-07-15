@@ -12,13 +12,11 @@ import (
 	"github.com/futurehomeno/cliffhanger/httpclient"
 )
 
-func TestRequestBuilder(t *testing.T) {
+func TestNewJSONRequest(t *testing.T) {
 	t.Parallel()
 
-	req, err := httpclient.NewRequest(http.MethodPost, "https://example.com/api").
-		WithJSONBody(map[string]string{"key": "value"}).
-		WithHeader("Authorization", "Bearer token").
-		Build(context.Background())
+	req, err := httpclient.NewJSONRequest(context.Background(), http.MethodPost, "https://example.com/api",
+		map[string]string{"key": "value"}, map[string]string{"Authorization": "Bearer token"})
 
 	assert.NoError(t, err)
 	assert.Equal(t, http.MethodPost, req.Method)
@@ -30,58 +28,54 @@ func TestRequestBuilder(t *testing.T) {
 	assert.NoError(t, err)
 	assert.JSONEq(t, `{"key":"value"}`, string(body))
 
-	req, err = httpclient.NewRequest(http.MethodGet, "https://example.com").Build(context.Background())
+	req, err = httpclient.NewJSONRequest(context.Background(), http.MethodGet, "https://example.com", nil, nil)
 	assert.NoError(t, err)
 	assert.Nil(t, req.Body)
-}
-
-func TestErrorFromStatus(t *testing.T) {
-	t.Parallel()
-
-	assert.NoError(t, httpclient.ErrorFromStatus(http.StatusOK))
-	assert.NoError(t, httpclient.ErrorFromStatus(http.StatusNoContent))
-	assert.ErrorIs(t, httpclient.ErrorFromStatus(http.StatusUnauthorized), httpclient.ErrUnauthorized)
-	assert.ErrorIs(t, httpclient.ErrorFromStatus(http.StatusForbidden), httpclient.ErrUnauthorized)
-	assert.ErrorIs(t, httpclient.ErrorFromStatus(http.StatusNotFound), httpclient.ErrNotFound)
-	assert.ErrorIs(t, httpclient.ErrorFromStatus(http.StatusTooManyRequests), httpclient.ErrTooManyRequests)
-	assert.Error(t, httpclient.ErrorFromStatus(http.StatusBadGateway))
+	assert.Empty(t, req.Header.Get("Content-Type"))
 }
 
 func TestErrorFromResponse(t *testing.T) {
 	t.Parallel()
 
-	resp := &http.Response{StatusCode: http.StatusTooManyRequests, Header: http.Header{}}
-	resp.Header.Set("Retry-After", "30")
+	status := func(code int) *http.Response {
+		return &http.Response{StatusCode: code, Header: http.Header{}}
+	}
 
-	err := httpclient.ErrorFromResponse(resp)
-	assert.ErrorIs(t, err, httpclient.ErrTooManyRequests)
-
-	var rateLimitErr *httpclient.TooManyRequestsError
-
-	assert.ErrorAs(t, err, &rateLimitErr)
-	assert.Equal(t, 30*time.Second, rateLimitErr.RetryAfter)
-
-	assert.NoError(t, httpclient.ErrorFromResponse(&http.Response{StatusCode: http.StatusOK}))
-	assert.ErrorIs(t, httpclient.ErrorFromResponse(&http.Response{StatusCode: http.StatusForbidden}), httpclient.ErrUnauthorized)
+	assert.NoError(t, httpclient.ErrorFromResponse(status(http.StatusOK)))
+	assert.NoError(t, httpclient.ErrorFromResponse(status(http.StatusNoContent)))
+	assert.ErrorIs(t, httpclient.ErrorFromResponse(status(http.StatusUnauthorized)), httpclient.ErrUnauthorized)
+	assert.ErrorIs(t, httpclient.ErrorFromResponse(status(http.StatusForbidden)), httpclient.ErrUnauthorized)
+	assert.ErrorIs(t, httpclient.ErrorFromResponse(status(http.StatusNotFound)), httpclient.ErrNotFound)
+	assert.ErrorIs(t, httpclient.ErrorFromResponse(status(http.StatusTooManyRequests)), httpclient.ErrTooManyRequests)
+	assert.Error(t, httpclient.ErrorFromResponse(status(http.StatusBadGateway)))
 }
 
-func TestRetryAfter(t *testing.T) {
+func TestErrorFromResponse_RetryAfter(t *testing.T) {
 	t.Parallel()
 
-	resp := &http.Response{Header: http.Header{}}
-	assert.Equal(t, time.Duration(0), httpclient.RetryAfter(resp))
+	rateLimited := func(retryAfter string) time.Duration {
+		resp := &http.Response{StatusCode: http.StatusTooManyRequests, Header: http.Header{}}
+		if retryAfter != "" {
+			resp.Header.Set("Retry-After", retryAfter)
+		}
 
-	resp.Header.Set("Retry-After", "30")
-	assert.Equal(t, 30*time.Second, httpclient.RetryAfter(resp))
+		var rateLimitErr *httpclient.TooManyRequestsError
 
-	resp.Header.Set("Retry-After", "invalid")
-	assert.Equal(t, time.Duration(0), httpclient.RetryAfter(resp))
+		err := httpclient.ErrorFromResponse(resp)
+		assert.ErrorIs(t, err, httpclient.ErrTooManyRequests)
+		assert.ErrorAs(t, err, &rateLimitErr)
 
-	resp.Header.Set("Retry-After", time.Now().Add(2*time.Minute).UTC().Format(http.TimeFormat))
-	delay := httpclient.RetryAfter(resp)
+		return rateLimitErr.RetryAfter
+	}
+
+	assert.Equal(t, time.Duration(0), rateLimited(""))
+	assert.Equal(t, 30*time.Second, rateLimited("30"))
+	assert.Equal(t, time.Duration(0), rateLimited("invalid"))
+	assert.Equal(t, time.Duration(0), rateLimited("-5"))
+
+	delay := rateLimited(time.Now().Add(2 * time.Minute).UTC().Format(http.TimeFormat))
 	assert.Greater(t, delay, time.Minute)
 	assert.LessOrEqual(t, delay, 2*time.Minute)
 
-	resp.Header.Set("Retry-After", time.Now().Add(-time.Minute).UTC().Format(http.TimeFormat))
-	assert.Equal(t, time.Duration(0), httpclient.RetryAfter(resp))
+	assert.Equal(t, time.Duration(0), rateLimited(time.Now().Add(-time.Minute).UTC().Format(http.TimeFormat)))
 }

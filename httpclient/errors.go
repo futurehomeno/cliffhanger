@@ -31,9 +31,9 @@ func (e *TooManyRequestsError) Is(target error) bool {
 	return target == ErrTooManyRequests
 }
 
-// ErrorFromStatus maps an HTTP status code to a shared sentinel error.
+// errorFromStatus maps an HTTP status code to a shared sentinel error.
 // It returns nil for success codes and a generic error for other failures.
-func ErrorFromStatus(statusCode int) error {
+func errorFromStatus(statusCode int) error {
 	switch {
 	case statusCode < http.StatusMultipleChoices:
 		return nil
@@ -48,19 +48,19 @@ func ErrorFromStatus(statusCode int) error {
 	}
 }
 
-// ErrorFromResponse maps the response status like ErrorFromStatus, carrying
+// ErrorFromResponse maps the response status to a shared sentinel error, carrying
 // the Retry-After delay in a TooManyRequestsError when rate limited.
 func ErrorFromResponse(resp *http.Response) error {
 	if resp.StatusCode == http.StatusTooManyRequests {
-		return &TooManyRequestsError{RetryAfter: RetryAfter(resp)}
+		return &TooManyRequestsError{RetryAfter: retryAfter(resp)}
 	}
 
-	return ErrorFromStatus(resp.StatusCode)
+	return errorFromStatus(resp.StatusCode)
 }
 
-// RetryAfter returns the delay the server asks for via the Retry-After header
+// retryAfter returns the delay the server asks for via the Retry-After header
 // (delta-seconds or HTTP-date form), or 0.
-func RetryAfter(resp *http.Response) time.Duration {
+func retryAfter(resp *http.Response) time.Duration {
 	header := resp.Header.Get("Retry-After")
 
 	if secs, err := strconv.Atoi(header); err == nil {
