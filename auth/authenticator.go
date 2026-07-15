@@ -146,6 +146,7 @@ func (a *Authenticator) AccessToken() (string, error) {
 	newCreds := response.Credentials()
 	if newCreds.RefreshToken == "" {
 		newCreds.RefreshToken = creds.RefreshToken
+		newCreds.RefreshExpiresAt = creds.RefreshExpiresAt
 	}
 
 	if err := a.store.SetCredentials(newCreds); err != nil {

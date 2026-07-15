@@ -88,6 +88,37 @@ func TestAuthenticator_AccessToken(t *testing.T) {
 		assert.True(t, store.creds.ExpiresAt.After(time.Now()))
 	})
 
+	t.Run("refresh without rotated token preserves refresh expiry", func(t *testing.T) {
+		t.Parallel()
+
+		creds := expiredCreds()
+		creds.RefreshExpiresAt = time.Now().Add(time.Hour)
+
+		store := &fakeStore{creds: creds}
+		exchanger := &fakeExchanger{response: &auth.OAuth2TokenResponse{AccessToken: "fresh", ExpiresIn: 3600}}
+		a := auth.NewAuthenticator(store, exchanger, auth.AuthenticatorConfig{})
+
+		_, err := a.AccessToken()
+		assert.NoError(t, err)
+		assert.Equal(t, creds.RefreshExpiresAt, store.creds.RefreshExpiresAt, "carried over refresh token should keep its expiry")
+	})
+
+	t.Run("refresh with rotated token clears refresh expiry", func(t *testing.T) {
+		t.Parallel()
+
+		creds := expiredCreds()
+		creds.RefreshExpiresAt = time.Now().Add(time.Hour)
+
+		store := &fakeStore{creds: creds}
+		exchanger := &fakeExchanger{response: &auth.OAuth2TokenResponse{AccessToken: "fresh", RefreshToken: "rotated", ExpiresIn: 3600}}
+		a := auth.NewAuthenticator(store, exchanger, auth.AuthenticatorConfig{})
+
+		_, err := a.AccessToken()
+		assert.NoError(t, err)
+		assert.Equal(t, "rotated", store.creds.RefreshToken)
+		assert.True(t, store.creds.RefreshExpiresAt.IsZero(), "rotated refresh token must not inherit the old expiry")
+	})
+
 	t.Run("rejected refresh token clears credentials and reports auth loss", func(t *testing.T) {
 		t.Parallel()
 
