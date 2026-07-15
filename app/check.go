@@ -106,6 +106,7 @@ func (c *ConnectivityChecker) check() {
 	if err == nil {
 		c.Cancel()
 		c.apply(lifecycle.AuthStateAuthenticated, lifecycle.ConnStateConnected)
+		c.repairAppHealth()
 
 		return
 	}
