@@ -208,7 +208,10 @@ func (a *app) startAuthLossWatcher(tel telemetry.Telemetry) {
 
 	const subID = "auth_lost"
 
-	ch := a.lifecycle.Subscribe(subID, 5)
+	// Buffered generously: while this watcher blocks in an MQTT publish, a burst of
+	// state changes (conn flapping) must not fill the channel and evict the auth-loss
+	// event via the bus's non-blocking send before the watcher observes it.
+	ch := a.lifecycle.Subscribe(subID, 32)
 	a.authWatcherStopCh = make(chan struct{})
 	a.authWatcherDoneCh = make(chan struct{})
 
