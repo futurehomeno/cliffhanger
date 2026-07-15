@@ -1,8 +1,9 @@
 package config
 
 import (
-	"github.com/futurehomeno/cliffhanger/event"
 	"github.com/futurehomeno/fimpgo/fimptype"
+
+	"github.com/futurehomeno/cliffhanger/event"
 )
 
 const (
@@ -20,6 +21,13 @@ func NewConfigurationChangeEvent(service fimptype.ServiceNameT, setting string) 
 type configurationChange struct {
 	Service fimptype.ServiceNameT
 	Setting string
+}
+
+// PublishConfigurationChanges publishes a configuration change event for every changed setting.
+func PublishConfigurationChanges(eventManager event.Manager, service fimptype.ServiceNameT, settings ...string) {
+	for _, setting := range settings {
+		eventManager.Publish(NewConfigurationChangeEvent(service, setting))
+	}
 }
 
 func WaitForConfigurationUpdate(service fimptype.ServiceNameT, setting string) event.Filter {
