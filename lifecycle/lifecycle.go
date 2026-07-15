@@ -208,6 +208,10 @@ func (l *Lifecycle) SetConnAndAuthState(connectionState, authState State) {
 	l.lock.Lock()
 	defer l.lock.Unlock()
 
+	if connectionState == l.connectionState && authState == l.authState {
+		return
+	}
+
 	l.connectionState = connectionState
 	l.authState = authState
 
