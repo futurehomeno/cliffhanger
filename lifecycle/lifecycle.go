@@ -200,6 +200,24 @@ func (l *Lifecycle) SetConnState(connectionState State) {
 	l.emitStateChangeEvent(StateTypeConnState, connectionState, nil)
 }
 
+// SetConnAndAuthState sets the connection and auth states atomically and emits a single
+// auth-state event. Subscribers reacting to the auth event (e.g. the auth-loss watcher)
+// then read a consistent bundle, and the trigger cannot be evicted from their buffer by a
+// separate connection event.
+func (l *Lifecycle) SetConnAndAuthState(connectionState, authState State) {
+	l.lock.Lock()
+	defer l.lock.Unlock()
+
+	if connectionState == l.connectionState && authState == l.authState {
+		return
+	}
+
+	l.connectionState = connectionState
+	l.authState = authState
+
+	l.emitStateChangeEvent(StateTypeAuthState, authState, nil)
+}
+
 func (l *Lifecycle) AppHealth() State {
 	l.lock.RLock()
 	defer l.lock.RUnlock()
