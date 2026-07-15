@@ -140,9 +140,6 @@ func (a *Authenticator) AccessToken() (string, error) {
 		return "", fmt.Errorf("exchange refresh token: %w", err)
 	}
 
-	a.cfg.Backoff.Reset()
-	a.unauthorizedSince = time.Time{}
-
 	newCreds := response.Credentials()
 	if newCreds.RefreshToken == "" || newCreds.RefreshToken == creds.RefreshToken {
 		newCreds.RefreshToken = creds.RefreshToken
@@ -152,6 +149,9 @@ func (a *Authenticator) AccessToken() (string, error) {
 	if err := a.store.SetCredentials(newCreds); err != nil {
 		return "", fmt.Errorf("store credentials: %w", err)
 	}
+
+	a.cfg.Backoff.Reset()
+	a.unauthorizedSince = time.Time{}
 
 	return newCreds.AccessToken, nil
 }
