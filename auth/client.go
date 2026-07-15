@@ -117,6 +117,12 @@ func (c *proxyClient) getToken(request any, url string) (*OAuth2TokenResponse, e
 			return nil, err
 		}
 
+		// A rate-limited endpoint must not be hammered on a local delay; the caller's
+		// backoff paces the next attempt.
+		if errors.Is(err, httpclient.ErrTooManyRequests) {
+			return nil, err
+		}
+
 		if i < c.cfg.Retry {
 			log.Errorf("proxy proxyClient: Partner API is not responding with success, retrying in %s...", c.cfg.RetryDelay.String())
 

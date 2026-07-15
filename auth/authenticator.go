@@ -140,7 +140,8 @@ func (a *Authenticator) AccessToken() (string, error) {
 		return "", fmt.Errorf("exchange refresh token: %w", err)
 	}
 
-	a.cfg.Backoff.Reset()
+	// The server accepted the refresh token, refuting any rejection streak regardless
+	// of whether persistence below succeeds.
 	a.unauthorizedSince = time.Time{}
 
 	newCreds := response.Credentials()
@@ -152,6 +153,8 @@ func (a *Authenticator) AccessToken() (string, error) {
 	if err := a.store.SetCredentials(newCreds); err != nil {
 		return "", fmt.Errorf("store credentials: %w", err)
 	}
+
+	a.cfg.Backoff.Reset()
 
 	return newCreds.AccessToken, nil
 }
