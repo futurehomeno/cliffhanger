@@ -76,4 +76,12 @@ func TestRetryAfter(t *testing.T) {
 
 	resp.Header.Set("Retry-After", "invalid")
 	assert.Equal(t, time.Duration(0), httpclient.RetryAfter(resp))
+
+	resp.Header.Set("Retry-After", time.Now().Add(2*time.Minute).UTC().Format(http.TimeFormat))
+	delay := httpclient.RetryAfter(resp)
+	assert.Greater(t, delay, time.Minute)
+	assert.LessOrEqual(t, delay, 2*time.Minute)
+
+	resp.Header.Set("Retry-After", time.Now().Add(-time.Minute).UTC().Format(http.TimeFormat))
+	assert.Equal(t, time.Duration(0), httpclient.RetryAfter(resp))
 }
