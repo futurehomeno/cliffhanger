@@ -102,7 +102,9 @@ func TestApp_Reset(t *testing.T) { //nolint:paralleltest
 				Setup: suite.ServiceSetup(func(t *testing.T) (service suite.Service, mocks []suite.Mock) {
 					t.Helper()
 
-					mqtt := suite.DefaultMQTT("root_app", "", "", "")
+					// A distinct client ID keeps a late auto-reconnect of the previous test's
+					// client from taking over this session mid-subscribe.
+					mqtt := suite.DefaultMQTT("root_app_reset", "", "", "")
 
 					resetter := mockedroot.NewResetter(t).MockReset(nil)
 

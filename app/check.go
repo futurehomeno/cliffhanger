@@ -58,9 +58,13 @@ type ConnectivityChecker struct {
 	reporter ConnectivityReporter
 	warnLog  utils.Throttle
 
-	mu       sync.Mutex
-	timer    *time.Timer
-	failures uint32
+	// checkMu serializes Check so overlapping periodic and recheck probes cannot interleave state changes.
+	checkMu sync.Mutex
+
+	mu        sync.Mutex
+	timer     *time.Timer
+	failures  uint32
+	cancelled bool
 }
 
 func NewConnectivityChecker(
@@ -84,19 +88,45 @@ func (c *ConnectivityChecker) CheckInterval() time.Duration {
 }
 
 func (c *ConnectivityChecker) Check() error {
+	c.checkMu.Lock()
+	defer c.checkMu.Unlock()
+
+	// A pending recheck honors its backoff or Retry-After delay, so the periodic probe is skipped.
+	if c.pending() {
+		return nil
+	}
+
+	c.check()
+
+	return nil
+}
+
+// check performs the probe and applies its outcome; the caller must hold checkMu.
+func (c *ConnectivityChecker) check() {
+	c.mu.Lock()
+	c.cancelled = false
+	c.mu.Unlock()
+
 	err := c.probe()
+
+	// A Cancel during the probe (logout or reset) makes its result stale, so it is discarded.
+	if c.stale() {
+		return
+	}
+
 	if err == nil {
 		c.Cancel()
 		c.apply(lifecycle.AuthStateAuthenticated, lifecycle.ConnStateConnected)
+		c.repairAppHealth()
 
-		return nil
+		return
 	}
 
 	if errors.Is(err, httpclient.ErrUnauthorized) {
 		c.Cancel()
 		c.apply(lifecycle.AuthStateLost, lifecycle.ConnStateDisconnected)
 
-		return nil
+		return
 	}
 
 	// A rate limit does not mean connectivity is lost, so the connectivity state is left untouched.
@@ -104,7 +134,7 @@ func (c *ConnectivityChecker) Check() error {
 		c.Cancel()
 		c.schedule(c.rateLimitDelay(err))
 
-		return nil
+		return
 	}
 
 	c.warnLog.Do(err.Error(), func() { log.Warnf("[app] Check probe err: %v", err) })
@@ -115,15 +145,15 @@ func (c *ConnectivityChecker) Check() error {
 	}
 
 	c.schedule(c.cfg.RecheckBackoff.Delay(failures))
-
-	return nil
 }
 
-// Cancel stops a pending recheck and clears the failure counter; call it on logout and reset.
+// Cancel stops a pending recheck, discards the result of an in-flight probe and
+// clears the failure counter; call it on logout and reset.
 func (c *ConnectivityChecker) Cancel() {
 	c.mu.Lock()
 	defer c.mu.Unlock()
 
+	c.cancelled = true
 	c.failures = 0
 	c.warnLog.Reset()
 
@@ -133,16 +163,42 @@ func (c *ConnectivityChecker) Cancel() {
 	}
 }
 
-// rateLimitDelay honors a server-requested Retry-After delay if it exceeds the configured one.
-func (c *ConnectivityChecker) rateLimitDelay(err error) time.Duration {
-	delay := c.cfg.RateLimitDelay
+// repairAppHealth restores the running and configured states after a successful probe.
+// A transient failure during authorization may have left the app NOT_CONFIGURED, and the
+// periodic check task does not run while the app is not RUNNING (task.WhenAppIsRunning),
+// so a successful recheck is the only opportunity to repair that state. A successful
+// probe proves valid credentials, which is what configured means for these adapters.
+func (c *ConnectivityChecker) repairAppHealth() {
+	if c.lc.AppHealth() == lifecycle.AppHealthRunning {
+		return
+	}
 
+	c.lc.SetAppHealth(lifecycle.AppHealthRunning, nil)
+	c.lc.SetConfigState(lifecycle.ConfigStateConfigured)
+}
+
+func (c *ConnectivityChecker) pending() bool {
+	c.mu.Lock()
+	defer c.mu.Unlock()
+
+	return c.timer != nil
+}
+
+func (c *ConnectivityChecker) stale() bool {
+	c.mu.Lock()
+	defer c.mu.Unlock()
+
+	return c.cancelled
+}
+
+// rateLimitDelay honors a server-requested Retry-After delay, falling back to the configured one.
+func (c *ConnectivityChecker) rateLimitDelay(err error) time.Duration {
 	var rateLimitErr *httpclient.TooManyRequestsError
-	if errors.As(err, &rateLimitErr) && rateLimitErr.RetryAfter > delay {
+	if errors.As(err, &rateLimitErr) && rateLimitErr.RetryAfter > 0 {
 		return rateLimitErr.RetryAfter
 	}
 
-	return delay
+	return c.cfg.RateLimitDelay
 }
 
 // apply sets the provided lifecycle states (empty auth leaves it untouched) and
@@ -186,6 +242,11 @@ func (c *ConnectivityChecker) schedule(delay time.Duration) {
 	var timer *time.Timer
 
 	timer = time.AfterFunc(delay, func() {
+		// checkMu is taken before clearing the timer so a periodic Check cannot
+		// slip into the gap and probe back-to-back with this recheck.
+		c.checkMu.Lock()
+		defer c.checkMu.Unlock()
+
 		c.mu.Lock()
 		if c.timer != timer {
 			c.mu.Unlock()
@@ -195,7 +256,7 @@ func (c *ConnectivityChecker) schedule(delay time.Duration) {
 		c.timer = nil
 		c.mu.Unlock()
 
-		_ = c.Check()
+		c.check()
 	})
 	c.timer = timer
 }
