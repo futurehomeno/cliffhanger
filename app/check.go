@@ -61,9 +61,10 @@ type ConnectivityChecker struct {
 	// checkMu serializes Check so overlapping periodic and recheck probes cannot interleave state changes.
 	checkMu sync.Mutex
 
-	mu       sync.Mutex
-	timer    *time.Timer
-	failures uint32
+	mu        sync.Mutex
+	timer     *time.Timer
+	failures  uint32
+	cancelled bool
 }
 
 func NewConnectivityChecker(
@@ -102,7 +103,17 @@ func (c *ConnectivityChecker) Check() error {
 
 // check performs the probe and applies its outcome; the caller must hold checkMu.
 func (c *ConnectivityChecker) check() {
+	c.mu.Lock()
+	c.cancelled = false
+	c.mu.Unlock()
+
 	err := c.probe()
+
+	// A Cancel during the probe (logout or reset) makes its result stale, so it is discarded.
+	if c.stale() {
+		return
+	}
+
 	if err == nil {
 		c.Cancel()
 		c.apply(lifecycle.AuthStateAuthenticated, lifecycle.ConnStateConnected)
@@ -136,11 +147,13 @@ func (c *ConnectivityChecker) check() {
 	c.schedule(c.cfg.RecheckBackoff.Delay(failures))
 }
 
-// Cancel stops a pending recheck and clears the failure counter; call it on logout and reset.
+// Cancel stops a pending recheck, discards the result of an in-flight probe and
+// clears the failure counter; call it on logout and reset.
 func (c *ConnectivityChecker) Cancel() {
 	c.mu.Lock()
 	defer c.mu.Unlock()
 
+	c.cancelled = true
 	c.failures = 0
 	c.warnLog.Reset()
 
@@ -171,16 +184,21 @@ func (c *ConnectivityChecker) pending() bool {
 	return c.timer != nil
 }
 
-// rateLimitDelay honors a server-requested Retry-After delay if it exceeds the configured one.
-func (c *ConnectivityChecker) rateLimitDelay(err error) time.Duration {
-	delay := c.cfg.RateLimitDelay
+func (c *ConnectivityChecker) stale() bool {
+	c.mu.Lock()
+	defer c.mu.Unlock()
 
+	return c.cancelled
+}
+
+// rateLimitDelay honors a server-requested Retry-After delay, falling back to the configured one.
+func (c *ConnectivityChecker) rateLimitDelay(err error) time.Duration {
 	var rateLimitErr *httpclient.TooManyRequestsError
-	if errors.As(err, &rateLimitErr) && rateLimitErr.RetryAfter > delay {
+	if errors.As(err, &rateLimitErr) && rateLimitErr.RetryAfter > 0 {
 		return rateLimitErr.RetryAfter
 	}
 
-	return delay
+	return c.cfg.RateLimitDelay
 }
 
 // apply sets the provided lifecycle states (empty auth leaves it untouched) and

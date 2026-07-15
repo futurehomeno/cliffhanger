@@ -144,6 +144,68 @@ func TestConnectivityChecker_RepairsStrandedAppHealth(t *testing.T) {
 	assert.Equal(t, lifecycle.AuthStateAuthenticated, lc.AuthState())
 }
 
+func TestConnectivityChecker_CancelDiscardsInFlightProbe(t *testing.T) {
+	t.Parallel()
+
+	entered := make(chan struct{})
+	release := make(chan struct{})
+
+	probe := func() error {
+		close(entered)
+		<-release
+
+		return nil
+	}
+
+	lc := lifecycle.New(nil)
+	reporter := &fakeReporter{}
+	checker := app.NewConnectivityChecker(probe, lc, reporter, app.CheckerConfig{})
+
+	wantAuth, wantConn := lc.AuthState(), lc.ConnectionState()
+
+	done := make(chan struct{})
+
+	go func() {
+		defer close(done)
+
+		assert.NoError(t, checker.Check())
+	}()
+
+	<-entered
+	checker.Cancel()
+	close(release)
+	<-done
+
+	assert.Equal(t, wantAuth, lc.AuthState(), "stale probe result should not change the auth state")
+	assert.Equal(t, wantConn, lc.ConnectionState(), "stale probe result should not change the connectivity state")
+	assert.Equal(t, int32(0), reporter.reports.Load())
+}
+
+func TestConnectivityChecker_ShortRetryAfterHonored(t *testing.T) {
+	t.Parallel()
+
+	var calls atomic.Int32
+
+	probe := func() error {
+		if calls.Add(1) == 1 {
+			return &httpclient.TooManyRequestsError{RetryAfter: time.Millisecond}
+		}
+
+		return nil
+	}
+
+	checker := app.NewConnectivityChecker(probe, lifecycle.New(nil), nil, app.CheckerConfig{
+		RateLimitDelay: time.Hour,
+	})
+
+	assert.NoError(t, checker.Check())
+
+	assert.Eventually(t, func() bool { return calls.Load() >= 2 }, time.Second, 5*time.Millisecond,
+		"recheck should honor a server Retry-After shorter than the configured fallback delay")
+
+	checker.Cancel()
+}
+
 func TestConnectivityChecker_PendingRecheckSkipsPeriodicProbe(t *testing.T) {
 	t.Parallel()
 
