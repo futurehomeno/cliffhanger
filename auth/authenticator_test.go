@@ -149,6 +149,59 @@ func TestAuthenticator_AccessToken(t *testing.T) {
 		assert.Contains(t, lossReason, "refresh token rejected")
 	})
 
+	t.Run("auth loss resets backoff state for the next login", func(t *testing.T) {
+		t.Parallel()
+
+		store := &fakeStore{creds: expiredCreds()}
+		exchanger := &fakeExchanger{err: httpclient.ErrUnauthorized}
+		a := auth.NewAuthenticator(store, exchanger, auth.AuthenticatorConfig{
+			Backoff: backoff.NewStateful(time.Hour, time.Hour, time.Hour, 0, 0),
+		})
+
+		_, err := a.AccessToken()
+		assert.Error(t, err)
+
+		store.creds = expiredCreds()
+		exchanger.err = nil
+		exchanger.response = &auth.OAuth2TokenResponse{AccessToken: "fresh", ExpiresIn: 3600}
+
+		token, err := a.AccessToken()
+		assert.NoError(t, err, "re-login after auth loss should not be suppressed by stale backoff")
+		assert.Equal(t, "fresh", token)
+	})
+
+	t.Run("auth loss resets grace state for the next login", func(t *testing.T) {
+		t.Parallel()
+
+		creds := validCreds()
+		creds.ExpiresAt = time.Now().Add(time.Minute)
+
+		store := &fakeStore{creds: creds}
+		exchanger := &fakeExchanger{err: httpclient.ErrUnauthorized}
+		a := auth.NewAuthenticator(store, exchanger, auth.AuthenticatorConfig{
+			RefreshLead:       5 * time.Minute,
+			UnauthorizedGrace: 50 * time.Millisecond,
+			Backoff:           backoff.NewTolerantFixed(10, 0),
+		})
+
+		_, err := a.AccessToken()
+		assert.NoError(t, err, "first rejection should start the grace window")
+
+		time.Sleep(100 * time.Millisecond)
+
+		doomed := expiredCreds()
+		doomed.RefreshExpiresAt = time.Now().Add(-time.Minute)
+		store.creds = doomed
+
+		_, err = a.AccessToken()
+		assert.Error(t, err, "locally expired refresh token should conclude auth loss")
+
+		store.creds = creds
+		token, err := a.AccessToken()
+		assert.NoError(t, err, "rejection after re-login should be tolerated by a fresh grace window")
+		assert.Equal(t, "access", token)
+	})
+
 	t.Run("transient refresh failure keeps still valid token", func(t *testing.T) {
 		t.Parallel()
 

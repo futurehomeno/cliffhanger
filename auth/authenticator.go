@@ -171,6 +171,9 @@ func (a *Authenticator) withinUnauthorizedGrace() bool {
 func (a *Authenticator) authLost(reason string) {
 	log.Warnf("[auth] Authorization lost: %s", reason)
 
+	a.cfg.Backoff.Reset()
+	a.unauthorizedSince = time.Time{}
+
 	if err := a.store.ClearCredentials(); err != nil {
 		log.Errorf("[auth] Clear credentials err: %v", err)
 	}
