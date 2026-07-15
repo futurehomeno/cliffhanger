@@ -89,3 +89,36 @@ func TestTransport_Redirects(t *testing.T) {
 	assert.NoError(t, resp.Body.Close())
 	assert.Equal(t, "Bearer token", sameAuth, "bearer should survive a same host redirect")
 }
+
+type roundTripFunc func(*http.Request) (*http.Response, error)
+
+func (f roundTripFunc) RoundTrip(r *http.Request) (*http.Response, error) { return f(r) }
+
+// A same-host scheme downgrade cannot be reproduced with httptest servers, as they
+// always differ in port, so the redirect hop is built by hand.
+func TestTransport_SchemeDowngrade(t *testing.T) {
+	t.Parallel()
+
+	gotAuth := "unset"
+	transport := &auth.Transport{
+		Source: staticToken("token"),
+		Base: roundTripFunc(func(r *http.Request) (*http.Response, error) {
+			gotAuth = r.Header.Get("Authorization")
+
+			return &http.Response{StatusCode: http.StatusOK, Body: http.NoBody}, nil
+		}),
+	}
+
+	first, err := http.NewRequestWithContext(context.Background(), http.MethodGet, "https://api.example.com/a", nil)
+	assert.NoError(t, err)
+
+	hop, err := http.NewRequestWithContext(context.Background(), http.MethodGet, "http://api.example.com/a", nil)
+	assert.NoError(t, err)
+
+	hop.Response = &http.Response{Request: first}
+
+	resp, err := transport.RoundTrip(hop)
+	assert.NoError(t, err)
+	assert.NoError(t, resp.Body.Close())
+	assert.Empty(t, gotAuth, "bearer must not be sent over plaintext after a scheme downgrade")
+}

@@ -25,13 +25,13 @@ func (t *Transport) RoundTrip(req *http.Request) (*http.Response, error) {
 		base = http.DefaultTransport
 	}
 
-	// The bearer must not leak to another host on a redirect hop.
+	// The bearer must not leak to another host or onto plaintext on a redirect hop.
 	first := req
 	for first.Response != nil {
 		first = first.Response.Request
 	}
 
-	if first.URL.Host != req.URL.Host {
+	if first.URL.Host != req.URL.Host || (first.URL.Scheme == "https" && req.URL.Scheme != "https") {
 		return base.RoundTrip(req)
 	}
 
