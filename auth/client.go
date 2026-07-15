@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"io"
 	"net/http"
@@ -11,6 +12,7 @@ import (
 
 	log "github.com/sirupsen/logrus"
 
+	"github.com/futurehomeno/cliffhanger/httpclient"
 	"github.com/futurehomeno/cliffhanger/hub"
 )
 
@@ -102,9 +104,23 @@ func (c *proxyClient) getToken(request any, url string) (*OAuth2TokenResponse, e
 	for i := 0; i <= c.cfg.Retry; i++ {
 		var response *OAuth2TokenResponse
 
+		// Each attempt drains the body, so it must be replaced before sending.
+		r.Body = io.NopCloser(bytes.NewReader(requestData))
+
 		response, err = c.requestToken(r)
 		if err == nil {
 			return response, nil
+		}
+
+		// An authorization rejection is definitive, retrying would not change the outcome.
+		if errors.Is(err, httpclient.ErrUnauthorized) {
+			return nil, err
+		}
+
+		// A rate-limited endpoint must not be hammered on a local delay; the caller's
+		// backoff paces the next attempt.
+		if errors.Is(err, httpclient.ErrTooManyRequests) {
+			return nil, err
 		}
 
 		if i < c.cfg.Retry {
@@ -130,7 +146,7 @@ func (c *proxyClient) requestToken(r *http.Request) (*OAuth2TokenResponse, error
 	}()
 
 	if response.StatusCode != 200 {
-		return nil, fmt.Errorf("proxy proxyClient: failed to retrieve token from partner API, received status code: %d", response.StatusCode)
+		return nil, fmt.Errorf("proxy proxyClient: failed to retrieve token from partner API: %w", httpclient.ErrorFromResponse(response))
 	}
 
 	responseData, err := io.ReadAll(response.Body)
