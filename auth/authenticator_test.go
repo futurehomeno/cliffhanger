@@ -168,6 +168,40 @@ func TestAuthenticator_AccessToken(t *testing.T) {
 		assert.Equal(t, 1, b.resets)
 	})
 
+	t.Run("successful exchange clears grace state even when persistence fails", func(t *testing.T) {
+		t.Parallel()
+
+		creds := validCreds()
+		creds.ExpiresAt = time.Now().Add(time.Minute)
+
+		store := &fakeStore{creds: creds}
+		exchanger := &fakeExchanger{err: httpclient.ErrUnauthorized}
+		a := auth.NewAuthenticator(store, exchanger, auth.AuthenticatorConfig{
+			RefreshLead:       5 * time.Minute,
+			UnauthorizedGrace: 50 * time.Millisecond,
+			Backoff:           backoff.NewTolerantFixed(10, 0),
+		})
+
+		_, err := a.AccessToken()
+		assert.NoError(t, err, "first rejection should start the grace window")
+
+		exchanger.err = nil
+		exchanger.response = &auth.OAuth2TokenResponse{AccessToken: "fresh", ExpiresIn: 3600}
+		store.setErr = errors.New("disk full")
+
+		_, err = a.AccessToken()
+		assert.Error(t, err, "persistence failure should surface")
+
+		time.Sleep(100 * time.Millisecond)
+
+		exchanger.err = httpclient.ErrUnauthorized
+
+		token, err := a.AccessToken()
+		assert.NoError(t, err, "the accepted exchange should have refuted the rejection streak")
+		assert.Equal(t, "access", token)
+		assert.False(t, store.creds.Empty(), "credentials should be kept within the fresh grace window")
+	})
+
 	t.Run("rejected refresh token clears credentials and reports auth loss", func(t *testing.T) {
 		t.Parallel()
 
