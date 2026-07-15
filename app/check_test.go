@@ -231,6 +231,58 @@ func TestConnectivityChecker_PendingRecheckSkipsPeriodicProbe(t *testing.T) {
 	assert.Equal(t, int32(2), calls.Load(), "probe should resume once the pending recheck is canceled")
 }
 
+func TestConnectivityChecker_CheckNowProbesDespitePendingRecheck(t *testing.T) {
+	t.Parallel()
+
+	var calls atomic.Int32
+
+	probe := func() error {
+		calls.Add(1)
+
+		return errors.New("probe err")
+	}
+
+	checker := app.NewConnectivityChecker(probe, lifecycle.New(nil), nil, app.CheckerConfig{
+		RecheckBackoff: backoff.New(time.Hour, time.Hour, time.Hour, 1, 1),
+	})
+
+	assert.NoError(t, checker.Check())
+	assert.NoError(t, checker.CheckNow())
+	assert.Equal(t, int32(2), calls.Load(), "CheckNow must probe immediately instead of honoring the pending recheck delay")
+
+	checker.Cancel()
+}
+
+func TestConnectivityChecker_AuthLossEventCarriesUpdatedConnState(t *testing.T) {
+	t.Parallel()
+
+	lc := lifecycle.New(nil)
+	lc.SetAuthState(lifecycle.AuthStateAuthenticated)
+	lc.SetConnState(lifecycle.ConnStateConnected)
+
+	events := lc.Subscribe("test", 10)
+	defer lc.Unsubscribe("test")
+
+	checker := app.NewConnectivityChecker(func() error { return httpclient.ErrUnauthorized }, lc, nil, app.CheckerConfig{})
+	assert.NoError(t, checker.Check())
+
+	for {
+		select {
+		case event := <-events:
+			if event.Type != lifecycle.StateTypeAuthState || event.State != lifecycle.AuthStateLost {
+				continue
+			}
+
+			assert.Equal(t, lifecycle.ConnStateDisconnected, lc.ConnectionState(),
+				"an auth-loss observer must not see the outdated connection state")
+
+			return
+		case <-time.After(time.Second):
+			t.Fatal("timed out waiting for the auth-loss event")
+		}
+	}
+}
+
 func TestConnectivityChecker_ConcurrentChecks(t *testing.T) {
 	t.Parallel()
 

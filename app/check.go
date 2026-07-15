@@ -96,17 +96,31 @@ func (c *ConnectivityChecker) Check() error {
 		return nil
 	}
 
+	c.mu.Lock()
+	c.cancelled = false
+	c.mu.Unlock()
+
 	c.check()
 
 	return nil
 }
 
-// check performs the probe and applies its outcome; the caller must hold checkMu.
-func (c *ConnectivityChecker) check() {
+// CheckNow cancels any pending recheck delay and probes immediately. Use it when fresh
+// credentials must be validated right away, e.g. as the check callback of Authorize.
+func (c *ConnectivityChecker) CheckNow() error {
 	c.mu.Lock()
-	c.cancelled = false
+	if c.timer != nil {
+		c.timer.Stop()
+		c.timer = nil
+	}
 	c.mu.Unlock()
 
+	return c.Check()
+}
+
+// check performs the probe and applies its outcome; the caller must hold checkMu
+// and have cleared the cancelled flag while committing to this probe.
+func (c *ConnectivityChecker) check() {
 	err := c.probe()
 
 	// A Cancel during the probe (logout or reset) makes its result stale, so it is discarded.
@@ -206,14 +220,16 @@ func (c *ConnectivityChecker) rateLimitDelay(err error) time.Duration {
 func (c *ConnectivityChecker) apply(auth, conn lifecycle.State) {
 	changed := false
 
-	if auth != "" && c.lc.AuthState() != auth {
-		c.lc.SetAuthState(auth)
+	// Connection state goes first: the auth-loss watcher reacts to the auth event and
+	// must not report it together with an outdated connection state.
+	if c.lc.ConnectionState() != conn {
+		c.lc.SetConnState(conn)
 
 		changed = true
 	}
 
-	if c.lc.ConnectionState() != conn {
-		c.lc.SetConnState(conn)
+	if auth != "" && c.lc.AuthState() != auth {
+		c.lc.SetAuthState(auth)
 
 		changed = true
 	}
@@ -254,6 +270,9 @@ func (c *ConnectivityChecker) schedule(delay time.Duration) {
 			return
 		}
 		c.timer = nil
+		// Cleared in the same critical section that commits this recheck, so a Cancel
+		// racing the firing timer is either seen here or discarded later via stale().
+		c.cancelled = false
 		c.mu.Unlock()
 
 		c.check()
