@@ -20,6 +20,21 @@ type Transport struct {
 }
 
 func (t *Transport) RoundTrip(req *http.Request) (*http.Response, error) {
+	base := t.Base
+	if base == nil {
+		base = http.DefaultTransport
+	}
+
+	// The bearer must not leak to another host or onto plaintext on a redirect hop.
+	first := req
+	for first.Response != nil {
+		first = first.Response.Request
+	}
+
+	if first.URL.Host != req.URL.Host || (first.URL.Scheme == "https" && req.URL.Scheme != "https") {
+		return base.RoundTrip(req)
+	}
+
 	token, err := t.Source.AccessToken()
 	if err != nil {
 		return nil, err
@@ -29,11 +44,6 @@ func (t *Transport) RoundTrip(req *http.Request) (*http.Response, error) {
 	clone.Header = req.Header.Clone()
 	clone.Header.Set("Authorization", "Bearer "+token)
 	req = &clone
-
-	base := t.Base
-	if base == nil {
-		base = http.DefaultTransport
-	}
 
 	resp, err := base.RoundTrip(req)
 	if err == nil && resp.StatusCode == http.StatusUnauthorized && t.OnUnauthorized != nil {

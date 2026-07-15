@@ -104,6 +104,9 @@ func (c *proxyClient) getToken(request any, url string) (*OAuth2TokenResponse, e
 	for i := 0; i <= c.cfg.Retry; i++ {
 		var response *OAuth2TokenResponse
 
+		// Each attempt drains the body, so it must be replaced before sending.
+		r.Body = io.NopCloser(bytes.NewReader(requestData))
+
 		response, err = c.requestToken(r)
 		if err == nil {
 			return response, nil
