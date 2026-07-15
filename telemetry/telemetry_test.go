@@ -866,7 +866,7 @@ func TestRouting_SuppressedGet(t *testing.T) { //nolint:paralleltest
 						Command: suite.NullMessage("pt:j1/mt:cmd/rt:app/rn:test/ad:1", "cmd.config.get_telemetry_suppressed", "tel_supp_get"),
 						Expectations: []*suite.Expectation{
 							suite.ExpectObject("pt:j1/mt:evt/rt:app/rn:test/ad:1", "evt.config.telemetry_suppressed_report", "tel_supp_get",
-							map[string]types.SuppressedEntry{"tel_supp_get": {Domains: []string{"alpha"}, Events: []string{"beta.x"}}}),
+								map[string]types.SuppressedEntry{"tel_supp_get": {Domains: []string{"alpha"}, Events: []string{"beta.x"}}}),
 						},
 					},
 					{
