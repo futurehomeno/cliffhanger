@@ -60,6 +60,7 @@ type AuthenticatorConfig struct {
 	Backoff backoff.Stateful
 	// OnAuthLoss is invoked when the refresh token is rejected and credentials are cleared,
 	// e.g. to mark the lifecycle auth state as lost and publish a logout event.
+	// It runs with the internal lock held, so it must not call back into the Authenticator.
 	OnAuthLoss func(reason string)
 	// UnauthorizedGrace tolerates rejected refresh attempts for this long before concluding
 	// authorization loss, for APIs known to return spurious rejections on valid tokens.
