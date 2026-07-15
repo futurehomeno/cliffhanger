@@ -150,6 +150,20 @@ func (c *ConnectivityChecker) Cancel() {
 	}
 }
 
+// repairAppHealth restores the running and configured states after a successful probe.
+// A transient failure during authorization may have left the app NOT_CONFIGURED, and the
+// periodic check task does not run while the app is not RUNNING (task.WhenAppIsRunning),
+// so a successful recheck is the only opportunity to repair that state. A successful
+// probe proves valid credentials, which is what configured means for these adapters.
+func (c *ConnectivityChecker) repairAppHealth() {
+	if c.lc.AppHealth() == lifecycle.AppHealthRunning {
+		return
+	}
+
+	c.lc.SetAppHealth(lifecycle.AppHealthRunning, nil)
+	c.lc.SetConfigState(lifecycle.ConfigStateConfigured)
+}
+
 func (c *ConnectivityChecker) pending() bool {
 	c.mu.Lock()
 	defer c.mu.Unlock()
