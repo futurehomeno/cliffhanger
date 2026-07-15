@@ -220,12 +220,19 @@ func (c *ConnectivityChecker) rateLimitDelay(err error) time.Duration {
 func (c *ConnectivityChecker) apply(auth, conn lifecycle.State) {
 	changed := false
 
-	// Connection state goes first: the auth-loss watcher reacts to the auth event and
-	// must not report it together with an outdated connection state.
-	if c.lc.ConnectionState() != conn {
-		c.lc.SetConnState(conn)
+	// AuthStateLost triggers the auth-loss watcher, which reports the whole state bundle.
+	// Set both states atomically and emit once so it observes a consistent bundle and the
+	// trigger is not evicted from its buffer by a separate connection event.
+	if auth == lifecycle.AuthStateLost {
+		if c.lc.ConnectionState() != conn || c.lc.AuthState() != auth {
+			c.lc.SetConnAndAuthState(conn, auth)
 
-		changed = true
+			changed = true
+		}
+
+		c.report(changed)
+
+		return
 	}
 
 	if auth != "" && c.lc.AuthState() != auth {
@@ -234,6 +241,17 @@ func (c *ConnectivityChecker) apply(auth, conn lifecycle.State) {
 		changed = true
 	}
 
+	if c.lc.ConnectionState() != conn {
+		c.lc.SetConnState(conn)
+
+		changed = true
+	}
+
+	c.report(changed)
+}
+
+// report broadcasts node availability when a state change occurred.
+func (c *ConnectivityChecker) report(changed bool) {
 	if !changed || c.reporter == nil {
 		return
 	}

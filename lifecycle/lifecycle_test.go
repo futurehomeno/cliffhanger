@@ -138,6 +138,27 @@ func TestSetAuthState_EmitsEvent(t *testing.T) {
 	assert.Equal(t, lifecycle.AuthStateAuthenticated, event.State)
 }
 
+func TestSetConnAndAuthState_EmitsSingleAuthEventWithBothStatesApplied(t *testing.T) {
+	t.Parallel()
+
+	l := lifecycle.New(nil)
+	l.SetAuthState(lifecycle.AuthStateAuthenticated)
+	l.SetConnState(lifecycle.ConnStateConnected)
+
+	ch := l.Subscribe("test", 5)
+
+	l.SetConnAndAuthState(lifecycle.ConnStateDisconnected, lifecycle.AuthStateLost)
+
+	event := <-ch
+	assert.Equal(t, lifecycle.StateTypeAuthState, event.Type, "a single auth event carries the transition")
+	assert.Equal(t, lifecycle.AuthStateLost, event.State)
+	assert.Equal(t, lifecycle.ConnStateDisconnected, l.ConnectionState(),
+		"both states are applied before the event, so an observer sees a consistent bundle")
+	assert.Equal(t, lifecycle.AuthStateLost, l.AuthState())
+
+	assert.Empty(t, ch, "no separate connection event competes for the subscriber buffer")
+}
+
 func TestSetConnectionState_EmitsEvent(t *testing.T) {
 	t.Parallel()
 
