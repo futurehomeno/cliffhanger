@@ -253,6 +253,39 @@ func TestConnectivityChecker_CheckNowProbesDespitePendingRecheck(t *testing.T) {
 	checker.Cancel()
 }
 
+// CheckNow takes checkMu before clearing the timer; run it against concurrent Check and
+// Cancel to guard that lock order against deadlock and data races (with -race).
+func TestConnectivityChecker_CheckNowConcurrentWithCheckAndCancel(t *testing.T) {
+	t.Parallel()
+
+	var calls atomic.Int32
+
+	probe := func() error {
+		calls.Add(1)
+
+		return errors.New("probe err")
+	}
+
+	checker := app.NewConnectivityChecker(probe, lifecycle.New(nil), nil, app.CheckerConfig{
+		RecheckBackoff: backoff.New(time.Hour, time.Hour, time.Hour, 1, 1),
+	})
+
+	var wg sync.WaitGroup
+
+	for range 50 {
+		wg.Add(3)
+
+		go func() { defer wg.Done(); _ = checker.Check() }()
+		go func() { defer wg.Done(); _ = checker.CheckNow() }()
+		go func() { defer wg.Done(); checker.Cancel() }()
+	}
+
+	wg.Wait()
+	checker.Cancel()
+
+	assert.Positive(t, calls.Load(), "concurrent CheckNow/Check must still probe, never deadlock")
+}
+
 func TestConnectivityChecker_AuthLossEventCarriesUpdatedConnState(t *testing.T) {
 	t.Parallel()
 

@@ -108,14 +108,23 @@ func (c *ConnectivityChecker) Check() error {
 // CheckNow cancels any pending recheck delay and probes immediately. Use it when fresh
 // credentials must be validated right away, e.g. as the check callback of Authorize.
 func (c *ConnectivityChecker) CheckNow() error {
+	c.checkMu.Lock()
+	defer c.checkMu.Unlock()
+
+	// Clear any pending recheck within checkMu and probe unconditionally: delegating to
+	// Check would re-read pending() in a separate section, letting a concurrent probe that
+	// just failed schedule a new timer in the gap and turn this into a silent no-op.
 	c.mu.Lock()
 	if c.timer != nil {
 		c.timer.Stop()
 		c.timer = nil
 	}
+	c.cancelled = false
 	c.mu.Unlock()
 
-	return c.Check()
+	c.check()
+
+	return nil
 }
 
 // check performs the probe and applies its outcome; the caller must hold checkMu
