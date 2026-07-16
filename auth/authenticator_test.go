@@ -360,4 +360,34 @@ func TestAuthenticator_AccessToken(t *testing.T) {
 		assert.True(t, store.creds.Empty(), "auth loss should clear credentials rather than stay suspended by backoff")
 		assert.Contains(t, lossReason, "grace elapsed during backoff")
 	})
+
+	t.Run("backoff auth loss ignores credentials replaced after the rejection", func(t *testing.T) {
+		t.Parallel()
+
+		creds := validCreds()
+		creds.ExpiresAt = time.Now().Add(-time.Minute)
+
+		store := &fakeStore{creds: creds}
+		a := auth.NewAuthenticator(store, &fakeExchanger{err: httpclient.ErrUnauthorized}, auth.AuthenticatorConfig{
+			UnauthorizedGrace: 50 * time.Millisecond,
+			Backoff:           backoff.NewTolerantFixed(0, time.Hour),
+		})
+
+		_, err := a.AccessToken()
+		assert.Error(t, err, "first 401 starts the grace window for the rejected refresh token")
+
+		// Re-authorization out-of-band: fresh credentials with a new refresh token, set
+		// directly on the store (e.g. a manual set-tokens command), bypassing the exchange.
+		fresh := validCreds()
+		fresh.RefreshToken = "refresh-2"
+		fresh.ExpiresAt = time.Now().Add(-time.Minute)
+		store.creds = fresh
+
+		time.Sleep(100 * time.Millisecond)
+
+		_, err = a.AccessToken()
+		assert.Error(t, err, "the replaced credentials still need a refresh that backoff suspends")
+		assert.False(t, store.creds.Empty(),
+			"a stale rejection streak from the old token must not clear the replaced credentials")
+	})
 }

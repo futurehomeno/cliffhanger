@@ -87,6 +87,7 @@ type Authenticator struct {
 
 	mu                sync.Mutex
 	unauthorizedSince time.Time
+	unauthorizedToken string
 }
 
 func NewAuthenticator(store CredentialsStore, exchanger TokenExchanger, cfg AuthenticatorConfig) *Authenticator {
@@ -123,8 +124,10 @@ func (a *Authenticator) AccessToken() (string, error) {
 
 		// A rejection streak that outlived the grace period concludes auth loss even while
 		// backoff suppresses new exchanges. unauthorizedSince is only set by a real 401/403,
-		// so a transient (non-auth) backoff is left alone to keep retrying.
-		if !a.unauthorizedSince.IsZero() && !a.withinUnauthorizedGrace() {
+		// so a transient (non-auth) backoff is left alone to keep retrying. The streak is tied
+		// to the rejected refresh token, so credentials replaced out-of-band are not concluded
+		// lost on a stale timestamp they never triggered.
+		if !a.unauthorizedSince.IsZero() && a.unauthorizedToken == creds.RefreshToken && !a.withinUnauthorizedGrace() {
 			a.authLost("refresh token rejected, grace elapsed during backoff")
 
 			return "", errors.New("refresh token rejected, re-login required")
@@ -137,10 +140,16 @@ func (a *Authenticator) AccessToken() (string, error) {
 	if err != nil {
 		a.cfg.Backoff.Fail()
 
-		if errors.Is(err, httpclient.ErrUnauthorized) && !a.withinUnauthorizedGrace() {
-			a.authLost(fmt.Sprintf("refresh token rejected: %v", err))
+		if errors.Is(err, httpclient.ErrUnauthorized) {
+			if a.unauthorizedSince.IsZero() {
+				a.unauthorizedToken = creds.RefreshToken
+			}
 
-			return "", err
+			if !a.withinUnauthorizedGrace() {
+				a.authLost(fmt.Sprintf("refresh token rejected: %v", err))
+
+				return "", err
+			}
 		}
 
 		// A transient refresh failure does not invalidate a token that is still valid.
@@ -154,6 +163,7 @@ func (a *Authenticator) AccessToken() (string, error) {
 	// The server accepted the refresh token, refuting any rejection streak regardless
 	// of whether persistence below succeeds.
 	a.unauthorizedSince = time.Time{}
+	a.unauthorizedToken = ""
 
 	newCreds := response.Credentials()
 	if newCreds.RefreshToken == "" || newCreds.RefreshToken == creds.RefreshToken {
@@ -187,6 +197,7 @@ func (a *Authenticator) authLost(reason string) {
 
 	a.cfg.Backoff.Reset()
 	a.unauthorizedSince = time.Time{}
+	a.unauthorizedToken = ""
 
 	if err := a.store.ClearCredentials(); err != nil {
 		log.Errorf("[auth] Clear credentials err: %v", err)
