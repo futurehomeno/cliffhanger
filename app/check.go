@@ -106,7 +106,8 @@ func (c *ConnectivityChecker) Check() error {
 }
 
 // CheckNow cancels any pending recheck delay and probes immediately. Use it when fresh
-// credentials must be validated right away, e.g. as the check callback of Authorize.
+// credentials must be validated right away, e.g. as the check callback of Authorize. The
+// failure counter is reset so a prior streak cannot trip MaxRechecks on the first probe.
 func (c *ConnectivityChecker) CheckNow() error {
 	c.checkMu.Lock()
 	defer c.checkMu.Unlock()
@@ -120,6 +121,7 @@ func (c *ConnectivityChecker) CheckNow() error {
 		c.timer = nil
 	}
 	c.cancelled = false
+	c.failures = 0
 	c.mu.Unlock()
 
 	c.check()

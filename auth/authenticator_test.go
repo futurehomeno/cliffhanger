@@ -321,9 +321,11 @@ func TestAuthenticator_AccessToken(t *testing.T) {
 	t.Run("backoff suspends refresh attempts", func(t *testing.T) {
 		t.Parallel()
 
+		store := &fakeStore{creds: expiredCreds()}
 		exchanger := &fakeExchanger{err: errors.New("proxy down")}
-		a := auth.NewAuthenticator(&fakeStore{creds: expiredCreds()}, exchanger, auth.AuthenticatorConfig{
-			Backoff: backoff.NewStateful(time.Hour, time.Hour, time.Hour, 1, 1),
+		a := auth.NewAuthenticator(store, exchanger, auth.AuthenticatorConfig{
+			UnauthorizedGrace: time.Nanosecond,
+			Backoff:           backoff.NewStateful(time.Hour, time.Hour, time.Hour, 1, 1),
 		})
 
 		_, err := a.AccessToken()
@@ -331,5 +333,31 @@ func TestAuthenticator_AccessToken(t *testing.T) {
 		_, err = a.AccessToken()
 		assert.Error(t, err)
 		assert.Equal(t, 1, exchanger.calls, "second attempt should be suspended by backoff")
+		assert.False(t, store.creds.Empty(), "a transient (non-401) backoff must not conclude auth loss even past grace")
+	})
+
+	t.Run("backoff concludes auth loss once grace elapses", func(t *testing.T) {
+		t.Parallel()
+
+		creds := validCreds()
+		creds.ExpiresAt = time.Now().Add(-time.Minute)
+
+		store := &fakeStore{creds: creds}
+		lossReason := ""
+		a := auth.NewAuthenticator(store, &fakeExchanger{err: httpclient.ErrUnauthorized}, auth.AuthenticatorConfig{
+			UnauthorizedGrace: 50 * time.Millisecond,
+			Backoff:           backoff.NewTolerantFixed(0, time.Hour),
+			OnAuthLoss:        func(reason string) { lossReason = reason },
+		})
+
+		_, err := a.AccessToken()
+		assert.Error(t, err, "first 401 starts the grace window and the backoff streak")
+
+		time.Sleep(100 * time.Millisecond)
+
+		_, err = a.AccessToken()
+		assert.Error(t, err, "expired credentials must not linger once grace elapses under backoff")
+		assert.True(t, store.creds.Empty(), "auth loss should clear credentials rather than stay suspended by backoff")
+		assert.Contains(t, lossReason, "grace elapsed during backoff")
 	})
 }

@@ -121,6 +121,15 @@ func (a *Authenticator) AccessToken() (string, error) {
 			return creds.AccessToken, nil
 		}
 
+		// A rejection streak that outlived the grace period concludes auth loss even while
+		// backoff suppresses new exchanges. unauthorizedSince is only set by a real 401/403,
+		// so a transient (non-auth) backoff is left alone to keep retrying.
+		if !a.unauthorizedSince.IsZero() && !a.withinUnauthorizedGrace() {
+			a.authLost("refresh token rejected, grace elapsed during backoff")
+
+			return "", errors.New("refresh token rejected, re-login required")
+		}
+
 		return "", errors.New("token refresh suspended by backoff")
 	}
 
