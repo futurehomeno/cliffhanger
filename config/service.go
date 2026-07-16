@@ -80,6 +80,10 @@ func (s *Service[C]) DefaultStore() *DefaultStore {
 
 // PublicModel returns the redacted configuration for public reporting, or the full model
 // if no redact function was provided.
+//
+// For a reference-type model the no-redactor path aliases the live config once the read lock
+// is released, so a concurrent Update can race a caller that marshals the result. Pass a
+// redact function that returns a copy (even one that redacts nothing) for such configs.
 func (s *Service[C]) PublicModel() any {
 	s.defaultStore.lock.RLock()
 	defer s.defaultStore.lock.RUnlock()
