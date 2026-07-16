@@ -33,9 +33,8 @@ func (s *Service[C]) Update(fn func(model C)) error {
 	defer s.defaultStore.lock.Unlock()
 
 	fn(s.Model())
-	s.defaultStore.accessor().SetConfiguredAt(time.Now())
 
-	return s.Save()
+	return s.defaultStore.saveStamped()
 }
 
 // Persist applies fn to the model under lock and saves without stamping the configuration
@@ -81,6 +80,10 @@ func (s *Service[C]) DefaultStore() *DefaultStore {
 
 // PublicModel returns the redacted configuration for public reporting, or the full model
 // if no redact function was provided.
+//
+// For a reference-type model the no-redactor path aliases the live config once the read lock
+// is released, so a concurrent Update can race a caller that marshals the result. Pass a
+// redact function that returns a copy (even one that redacts nothing) for such configs.
 func (s *Service[C]) PublicModel() any {
 	s.defaultStore.lock.RLock()
 	defer s.defaultStore.lock.RUnlock()

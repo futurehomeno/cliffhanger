@@ -19,11 +19,6 @@ func TestLifecycle_Marks(t *testing.T) {
 	assert.Equal(t, lifecycle.ConnStateConnected, lc.ConnectionState())
 	assert.Equal(t, lifecycle.AuthStateAuthenticated, lc.AuthState())
 
-	lc.MarkAuthLost()
-	assert.Equal(t, lifecycle.AuthStateLost, lc.AuthState())
-	assert.Equal(t, lifecycle.ConnStateDisconnected, lc.ConnectionState())
-	assert.Equal(t, lifecycle.AppHealthRunning, lc.AppHealth(), "auth loss should not change app health")
-
 	lc.MarkNotConfigured()
 	assert.Equal(t, lifecycle.AppHealthNotConfigured, lc.AppHealth())
 	assert.Equal(t, lifecycle.ConfigStateNotConfigured, lc.ConfigState())

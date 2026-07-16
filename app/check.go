@@ -96,17 +96,40 @@ func (c *ConnectivityChecker) Check() error {
 		return nil
 	}
 
+	c.mu.Lock()
+	c.cancelled = false
+	c.mu.Unlock()
+
 	c.check()
 
 	return nil
 }
 
-// check performs the probe and applies its outcome; the caller must hold checkMu.
-func (c *ConnectivityChecker) check() {
+// CheckNow cancels any pending recheck delay and probes immediately. Use it when fresh
+// credentials must be validated right away, e.g. as the check callback of Authorize.
+func (c *ConnectivityChecker) CheckNow() error {
+	c.checkMu.Lock()
+	defer c.checkMu.Unlock()
+
+	// Clear any pending recheck within checkMu and probe unconditionally: delegating to
+	// Check would re-read pending() in a separate section, letting a concurrent probe that
+	// just failed schedule a new timer in the gap and turn this into a silent no-op.
 	c.mu.Lock()
+	if c.timer != nil {
+		c.timer.Stop()
+		c.timer = nil
+	}
 	c.cancelled = false
 	c.mu.Unlock()
 
+	c.check()
+
+	return nil
+}
+
+// check performs the probe and applies its outcome; the caller must hold checkMu
+// and have cleared the cancelled flag while committing to this probe.
+func (c *ConnectivityChecker) check() {
 	err := c.probe()
 
 	// A Cancel during the probe (logout or reset) makes its result stale, so it is discarded.
@@ -206,6 +229,21 @@ func (c *ConnectivityChecker) rateLimitDelay(err error) time.Duration {
 func (c *ConnectivityChecker) apply(auth, conn lifecycle.State) {
 	changed := false
 
+	// AuthStateLost triggers the auth-loss watcher, which reports the whole state bundle.
+	// Set both states atomically and emit once so it observes a consistent bundle and the
+	// trigger is not evicted from its buffer by a separate connection event.
+	if auth == lifecycle.AuthStateLost {
+		if c.lc.ConnectionState() != conn || c.lc.AuthState() != auth {
+			c.lc.SetConnAndAuthState(conn, auth)
+
+			changed = true
+		}
+
+		c.report(changed)
+
+		return
+	}
+
 	if auth != "" && c.lc.AuthState() != auth {
 		c.lc.SetAuthState(auth)
 
@@ -218,6 +256,11 @@ func (c *ConnectivityChecker) apply(auth, conn lifecycle.State) {
 		changed = true
 	}
 
+	c.report(changed)
+}
+
+// report broadcasts node availability when a state change occurred.
+func (c *ConnectivityChecker) report(changed bool) {
 	if !changed || c.reporter == nil {
 		return
 	}
@@ -254,6 +297,9 @@ func (c *ConnectivityChecker) schedule(delay time.Duration) {
 			return
 		}
 		c.timer = nil
+		// Cleared in the same critical section that commits this recheck, so a Cancel
+		// racing the firing timer is either seen here or discarded later via stale().
+		c.cancelled = false
 		c.mu.Unlock()
 
 		c.check()

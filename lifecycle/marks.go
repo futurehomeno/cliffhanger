@@ -19,10 +19,3 @@ func (l *Lifecycle) MarkRunning() {
 	l.SetConnState(ConnStateConnected)
 	l.SetAuthState(AuthStateAuthenticated)
 }
-
-// MarkAuthLost sets the state bundle of an application that lost authorization to its
-// third party API, which for cloud adapters also means connectivity is lost.
-func (l *Lifecycle) MarkAuthLost() {
-	l.SetAuthState(AuthStateLost)
-	l.SetConnState(ConnStateDisconnected)
-}
