@@ -73,20 +73,6 @@ func TestConnectivityChecker_Check(t *testing.T) { //nolint:funlen
 			wantConn:    lifecycle.ConnStateConnected,
 			wantReports: 1,
 		},
-		{
-			name:        "second consecutive failure disconnects",
-			probeErrs:   []error{nil, probeErr, probeErr},
-			wantAuth:    lifecycle.AuthStateAuthenticated,
-			wantConn:    lifecycle.ConnStateDisconnected,
-			wantReports: 2,
-		},
-		{
-			name:        "recovery after failure reconnects",
-			probeErrs:   []error{nil, probeErr, probeErr, nil},
-			wantAuth:    lifecycle.AuthStateAuthenticated,
-			wantConn:    lifecycle.ConnStateConnected,
-			wantReports: 3,
-		},
 	}
 
 	for _, tc := range testCases {
@@ -253,6 +239,30 @@ func TestConnectivityChecker_CheckNowProbesDespitePendingRecheck(t *testing.T) {
 	checker.Cancel()
 }
 
+func TestConnectivityChecker_CheckNowClearsPriorFailureStreak(t *testing.T) {
+	t.Parallel()
+
+	probe := func() error { return errors.New("probe err") }
+
+	lc := lifecycle.New(nil)
+	lc.SetConnState(lifecycle.ConnStateConnected)
+
+	reporter := &fakeReporter{}
+	checker := app.NewConnectivityChecker(probe, lc, reporter, app.CheckerConfig{
+		MaxRechecks:    1,
+		RecheckBackoff: backoff.New(time.Hour, time.Hour, time.Hour, 1, 1),
+	})
+
+	assert.NoError(t, checker.Check(), "a single background failure builds a streak but stays under MaxRechecks")
+
+	assert.NoError(t, checker.CheckNow())
+	assert.Equal(t, lifecycle.ConnStateConnected, lc.ConnectionState(),
+		"CheckNow resets the streak, so one failure on fresh credentials must not trip MaxRechecks")
+	assert.Equal(t, int32(0), reporter.reports.Load(), "no disconnection report should be published")
+
+	checker.Cancel()
+}
+
 // CheckNow takes checkMu before clearing the timer; run it against concurrent Check and
 // Cancel to guard that lock order against deadlock and data races (with -race).
 func TestConnectivityChecker_CheckNowConcurrentWithCheckAndCancel(t *testing.T) {
@@ -352,25 +362,32 @@ func TestConnectivityChecker_ConcurrentChecks(t *testing.T) {
 	checker.Cancel()
 }
 
-func TestConnectivityChecker_Recheck(t *testing.T) {
+func TestConnectivityChecker_DisconnectsAfterConsecutiveFailuresThenReconnects(t *testing.T) {
 	t.Parallel()
 
-	var calls atomic.Int32
+	var recovered atomic.Bool
 
 	probe := func() error {
-		calls.Add(1)
+		if recovered.Load() {
+			return nil
+		}
 
 		return errors.New("probe err")
 	}
 
-	checker := app.NewConnectivityChecker(probe, lifecycle.New(nil), nil, app.CheckerConfig{
+	lc := lifecycle.New(nil)
+	checker := app.NewConnectivityChecker(probe, lc, &fakeReporter{}, app.CheckerConfig{
+		MaxRechecks:    1,
 		RecheckBackoff: backoff.New(time.Millisecond, time.Millisecond, time.Millisecond, 1, 1),
 	})
 
 	assert.NoError(t, checker.Check())
+	assert.Eventually(t, func() bool { return lc.ConnectionState() == lifecycle.ConnStateDisconnected },
+		time.Second, 5*time.Millisecond, "more than MaxRechecks consecutive failures should report disconnection")
 
-	assert.Eventually(t, func() bool { return calls.Load() >= 2 }, time.Second, 5*time.Millisecond,
-		"scheduled recheck should re-run the probe")
+	recovered.Store(true)
+	assert.Eventually(t, func() bool { return lc.ConnectionState() == lifecycle.ConnStateConnected },
+		time.Second, 5*time.Millisecond, "a successful recheck should reconnect")
 
 	checker.Cancel()
 }
