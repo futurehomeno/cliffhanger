@@ -141,7 +141,11 @@ func (a *Authenticator) AccessToken() (string, error) {
 		a.cfg.Backoff.Fail()
 
 		if errors.Is(err, httpclient.ErrUnauthorized) {
-			if a.unauthorizedSince.IsZero() {
+			// A refresh token different from the one that started the streak gets its own grace
+			// window, so credentials replaced out-of-band are not concluded lost on the elapsed
+			// grace of a token they never shared.
+			if a.unauthorizedSince.IsZero() || a.unauthorizedToken != creds.RefreshToken {
+				a.unauthorizedSince = time.Time{}
 				a.unauthorizedToken = creds.RefreshToken
 			}
 

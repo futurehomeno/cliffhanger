@@ -390,4 +390,34 @@ func TestAuthenticator_AccessToken(t *testing.T) {
 		assert.False(t, store.creds.Empty(),
 			"a stale rejection streak from the old token must not clear the replaced credentials")
 	})
+
+	t.Run("exchange grace resets for credentials replaced after the rejection", func(t *testing.T) {
+		t.Parallel()
+
+		creds := validCreds()
+		creds.ExpiresAt = time.Now().Add(-time.Minute)
+
+		store := &fakeStore{creds: creds}
+		a := auth.NewAuthenticator(store, &fakeExchanger{err: httpclient.ErrUnauthorized}, auth.AuthenticatorConfig{
+			UnauthorizedGrace: 50 * time.Millisecond,
+			Backoff:           &fakeBackoff{},
+		})
+
+		_, err := a.AccessToken()
+		assert.Error(t, err, "first 401 on the original token starts the grace window")
+
+		time.Sleep(100 * time.Millisecond)
+
+		// Out-of-band replacement with a new refresh token that still needs a refresh; the
+		// exchange path (backoff not suppressing) must give it its own grace, not the elapsed one.
+		fresh := validCreds()
+		fresh.RefreshToken = "refresh-2"
+		fresh.ExpiresAt = time.Now().Add(-time.Minute)
+		store.creds = fresh
+
+		_, err = a.AccessToken()
+		assert.Error(t, err, "the replaced token still fails to exchange")
+		assert.False(t, store.creds.Empty(),
+			"the replaced token gets its own grace window rather than inheriting the old token's elapsed one")
+	})
 }
