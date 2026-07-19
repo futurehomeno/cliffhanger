@@ -41,6 +41,10 @@ type Adapter interface {
 	InitializeThings() error
 	// EnsureThings creates and destroys things based on provided map of IDs and custom information objects.
 	EnsureThings(seeds ThingSeeds) error
+	// RebuildChangedThings rebuilds any already-registered thing whose seed would produce a
+	// different service topology than the live thing, so an in-place update picks up new
+	// capabilities. Seeds for unregistered IDs are ignored; use EnsureThings for presence.
+	RebuildChangedThings(seeds ThingSeeds) error
 	// CreateThing creates thing and adds it to the adapter.
 	CreateThing(seed *ThingSeed) error
 	// DestroyThingByID destroys thing and removes it from the adapter.

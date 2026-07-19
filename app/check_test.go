@@ -130,6 +130,77 @@ func TestConnectivityChecker_RepairsStrandedAppHealth(t *testing.T) {
 	assert.Equal(t, lifecycle.AuthStateAuthenticated, lc.AuthState())
 }
 
+func TestConnectivityChecker_AuthLossStateOverride(t *testing.T) {
+	t.Parallel()
+
+	probe := func() error { return httpclient.ErrUnauthorized }
+
+	// The override reports Lost only for a previously authenticated app, else NotAuthenticated.
+	mapping := func(current lifecycle.State) lifecycle.State {
+		if current == lifecycle.AuthStateAuthenticated {
+			return lifecycle.AuthStateLost
+		}
+
+		return lifecycle.AuthStateNotAuthenticated
+	}
+
+	t.Run("never authenticated stays silent as not authenticated", func(t *testing.T) {
+		t.Parallel()
+
+		lc := lifecycle.New(nil)
+		checker := app.NewConnectivityChecker(probe, lc, nil, app.CheckerConfig{AuthLossState: mapping})
+
+		assert.NoError(t, checker.Check())
+		assert.Equal(t, lifecycle.AuthStateNotAuthenticated, lc.AuthState())
+		assert.Equal(t, lifecycle.ConnStateDisconnected, lc.ConnectionState())
+	})
+
+	t.Run("previously authenticated reports loss", func(t *testing.T) {
+		t.Parallel()
+
+		lc := lifecycle.New(nil)
+		lc.SetAuthState(lifecycle.AuthStateAuthenticated)
+		checker := app.NewConnectivityChecker(probe, lc, nil, app.CheckerConfig{AuthLossState: mapping})
+
+		assert.NoError(t, checker.Check())
+		assert.Equal(t, lifecycle.AuthStateLost, lc.AuthState())
+	})
+
+	t.Run("nil override defaults to lost", func(t *testing.T) {
+		t.Parallel()
+
+		lc := lifecycle.New(nil)
+		checker := app.NewConnectivityChecker(probe, lc, nil, app.CheckerConfig{})
+
+		assert.NoError(t, checker.Check())
+		assert.Equal(t, lifecycle.AuthStateLost, lc.AuthState())
+	})
+}
+
+func TestConnectivityChecker_AuthorizedGateSkipsRestore(t *testing.T) {
+	t.Parallel()
+
+	var allow atomic.Bool
+
+	lc := lifecycle.New(nil)
+	lc.SetConnState(lifecycle.ConnStateDisconnected)
+
+	reporter := &fakeReporter{}
+	checker := app.NewConnectivityChecker(func() error { return nil }, lc, reporter, app.CheckerConfig{
+		Authorized: allow.Load,
+	})
+
+	assert.NoError(t, checker.Check())
+	assert.Equal(t, lifecycle.ConnStateDisconnected, lc.ConnectionState(),
+		"a success must not restore running state while credentials are gone")
+	assert.Equal(t, lifecycle.AppHealthStarting, lc.AppHealth(), "app health must not be repaired either")
+	assert.Equal(t, int32(0), reporter.reports.Load())
+
+	allow.Store(true)
+	assert.NoError(t, checker.Check())
+	assert.Equal(t, lifecycle.ConnStateConnected, lc.ConnectionState(), "once authorized, a success restores state")
+}
+
 func TestConnectivityChecker_CancelDiscardsInFlightProbe(t *testing.T) {
 	t.Parallel()
 
