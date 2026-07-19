@@ -130,6 +130,23 @@ func TestConnectivityChecker_RepairsStrandedAppHealth(t *testing.T) {
 	assert.Equal(t, lifecycle.AuthStateAuthenticated, lc.AuthState())
 }
 
+func TestConnectivityChecker_RepairAppHealthLeavesRunningAppUntouched(t *testing.T) {
+	t.Parallel()
+
+	lc := lifecycle.New(nil)
+	lc.SetAppHealth(lifecycle.AppHealthRunning, nil)
+	// A running app that never lost its config must not be force-marked configured.
+	lc.SetConfigState(lifecycle.ConfigStateNotConfigured)
+
+	checker := app.NewConnectivityChecker(func() error { return nil }, lc, nil, app.CheckerConfig{})
+
+	assert.NoError(t, checker.Check())
+
+	assert.Equal(t, lifecycle.AppHealthRunning, lc.AppHealth())
+	assert.Equal(t, lifecycle.ConfigStateNotConfigured, lc.ConfigState(),
+		"an already-running app is left untouched, not re-configured by the repair guard")
+}
+
 func TestConnectivityChecker_CancelDiscardsInFlightProbe(t *testing.T) {
 	t.Parallel()
 
@@ -376,7 +393,10 @@ func TestConnectivityChecker_DisconnectsAfterConsecutiveFailuresThenReconnects(t
 	}
 
 	lc := lifecycle.New(nil)
-	checker := app.NewConnectivityChecker(probe, lc, &fakeReporter{}, app.CheckerConfig{
+	lc.SetAuthState(lifecycle.AuthStateAuthenticated)
+
+	reporter := &fakeReporter{}
+	checker := app.NewConnectivityChecker(probe, lc, reporter, app.CheckerConfig{
 		MaxRechecks:    1,
 		RecheckBackoff: backoff.New(time.Millisecond, time.Millisecond, time.Millisecond, 1, 1),
 	})
@@ -384,6 +404,9 @@ func TestConnectivityChecker_DisconnectsAfterConsecutiveFailuresThenReconnects(t
 	assert.NoError(t, checker.Check())
 	assert.Eventually(t, func() bool { return lc.ConnectionState() == lifecycle.ConnStateDisconnected },
 		time.Second, 5*time.Millisecond, "more than MaxRechecks consecutive failures should report disconnection")
+	assert.Equal(t, lifecycle.AuthStateAuthenticated, lc.AuthState(),
+		"a connectivity-only disconnect must not clear the auth state")
+	assert.Positive(t, reporter.reports.Load(), "the disconnection transition is reported")
 
 	recovered.Store(true)
 	assert.Eventually(t, func() bool { return lc.ConnectionState() == lifecycle.ConnStateConnected },
