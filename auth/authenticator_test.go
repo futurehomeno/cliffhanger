@@ -420,4 +420,25 @@ func TestAuthenticator_AccessToken(t *testing.T) {
 		assert.False(t, store.creds.Empty(),
 			"the replaced token gets its own grace window rather than inheriting the old token's elapsed one")
 	})
+
+	t.Run("backoff returns a still valid token without refreshing", func(t *testing.T) {
+		t.Parallel()
+
+		b := backoff.NewStateful(time.Hour, time.Hour, time.Hour, 0, 0)
+		b.Fail() // prime the streak so Should() suppresses the refresh exchange
+
+		creds := validCreds()
+		creds.ExpiresAt = time.Now().Add(time.Minute) // inside RefreshLead but not yet expired
+
+		exchanger := &fakeExchanger{}
+		a := auth.NewAuthenticator(&fakeStore{creds: creds}, exchanger, auth.AuthenticatorConfig{
+			RefreshLead: 5 * time.Minute,
+			Backoff:     b,
+		})
+
+		token, err := a.AccessToken()
+		assert.NoError(t, err, "a still valid access token is returned while backoff suppresses the refresh")
+		assert.Equal(t, "access", token)
+		assert.Zero(t, exchanger.calls, "backoff must suppress the refresh exchange")
+	})
 }
