@@ -111,6 +111,69 @@ func TestRebuildChangedThings(t *testing.T) { //nolint:paralleltest
 	s.Run(t)
 }
 
+func TestRebuildChangedThings_PreservesAutoAssignedAddress(t *testing.T) { //nolint:paralleltest
+	var ad adapter.Adapter
+
+	// The seed carries no CustomAddress, so the adapter auto-assigns one; a rebuild must keep it.
+	seed := func(info driftInfo) adapter.ThingSeeds {
+		return adapter.ThingSeeds{{ID: "auto", Info: info}}
+	}
+
+	setup := suite.BaseSetup(func(t *testing.T, mqtt *fimpgo.MqttTransport) ([]*router.Routing, []*task.Task, []suite.Mock) {
+		t.Helper()
+
+		factory := adapterhelper.FactoryHelper(func(_ adapter.Adapter, publisher adapter.Publisher, ts adapter.ThingState) (adapter.Thing, error) {
+			var info driftInfo
+			if err := ts.Info(&info); err != nil {
+				return nil, err
+			}
+
+			cfg := &adapter.ThingConfig{
+				InclusionReport: &fimptype.ThingInclusionReport{Address: ts.Address(), Groups: info.Groups},
+				Connector:       mockedadapter.NewDefaultConnector(t),
+			}
+
+			return adapter.NewThing(publisher, ts, cfg), nil
+		})
+
+		ad = adapterhelper.PrepareSeededAdapter(t, testAdapterWorkDir, mqtt, factory, seed(driftInfo{Groups: []string{"g1"}}))
+
+		return adapter.RouteAdapter(ad), nil, nil
+	})
+
+	s := &suite.Suite{
+		Cases: []*suite.Case{
+			{
+				Name:     "a rebuild keeps the auto-assigned address",
+				TearDown: adapterhelper.TearDownAdapter(testAdapterWorkDir),
+				Setup:    setup,
+				Nodes: []*suite.Node{
+					{
+						Name:    "address is unchanged after a capability rebuild",
+						Timeout: 500 * time.Millisecond,
+						InitCallbacks: []suite.Callback{func(t *testing.T) {
+							t.Helper()
+
+							before := ad.ThingByID("auto")
+							assert.NotNil(t, before)
+							address := before.Address()
+
+							assert.NoError(t, ad.RebuildChangedThings(seed(driftInfo{Groups: []string{"g1", "g2"}})))
+
+							after := ad.ThingByID("auto")
+							assert.NotNil(t, after, "the thing must survive the rebuild")
+							assert.Equal(t, address, after.Address(),
+								"a rebuild must preserve the address, not allocate a fresh one")
+						}},
+					},
+				},
+			},
+		},
+	}
+
+	s.Run(t)
+}
+
 func expectExclusion(address string) *suite.Expectation {
 	return suite.NewExpectation().
 		ExpectTopic(testAdapterEvtTopic).

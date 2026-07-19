@@ -11,17 +11,27 @@ import (
 // RebuildChangedThings rebuilds any already-registered thing whose seed would produce a
 // different service topology than the live thing. EnsureThings only reconciles presence, so
 // a device that gains a capability keeps its old services until it is rebuilt. The prospective
-// thing is built first, so a factory error aborts before the destructive DestroyThingByID.
+// thing is built first, so a factory error aborts before the destructive destroy. The whole
+// pass runs under the adapter lock, matching EnsureThings, so no concurrent operation can
+// destroy a thing between the lookup and its rebuild.
 func (a *adapter) RebuildChangedThings(seeds ThingSeeds) error {
+	a.lock.Lock()
+	defer a.lock.Unlock()
+
 	for _, seed := range seeds {
-		live := a.ThingByID(seed.ID)
+		ts := a.state.byID(seed.ID)
+		if ts == nil {
+			continue
+		}
+
+		live := a.things[ts.Address()]
 		if live == nil {
 			continue
 		}
 
 		// The prospective thing reuses the live address so only genuine capability changes,
 		// not address-derived fields, differ.
-		prospective, err := a.factory.Create(a, a.publisher, newSeedState(seed, live.Address()))
+		prospective, err := a.factory.Create(a, a.publisher, newSeedState(seed, ts.Address()))
 		if err != nil {
 			return fmt.Errorf("rebuild %s: build prospective thing: %w", seed.ID, err)
 		}
@@ -40,11 +50,15 @@ func (a *adapter) RebuildChangedThings(seeds ThingSeeds) error {
 			continue
 		}
 
-		if err := a.DestroyThingByID(seed.ID); err != nil {
+		// Preserve the live address so the rebuilt thing keeps its topic identity; a seed
+		// without a CustomAddress would otherwise be assigned a fresh address on recreation.
+		rebuildSeed := &ThingSeed{ID: seed.ID, CustomAddress: ts.Address(), Info: seed.Info}
+
+		if err := a.destroyThing(ts.Address()); err != nil {
 			return fmt.Errorf("rebuild %s: destroy: %w", seed.ID, err)
 		}
 
-		if err := a.CreateThing(seed); err != nil {
+		if err := a.createThing(rebuildSeed); err != nil {
 			return fmt.Errorf("rebuild %s: recreate (device excluded until next restart): %w", seed.ID, err)
 		}
 	}
@@ -56,6 +70,10 @@ func (a *adapter) RebuildChangedThings(seeds ThingSeeds) error {
 // cosmetic metadata like a product name, so a rebuild is triggered by a real capability
 // change rather than by a rename on upgrade.
 func topologyChecksum(report *fimptype.ThingInclusionReport) (uint32, error) {
+	if report == nil {
+		return 0, nil
+	}
+
 	topology := struct {
 		Address  string             `json:"address"`
 		Groups   []string           `json:"groups"`
