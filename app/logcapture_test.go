@@ -35,3 +35,13 @@ func TestNewLogCapture_CapturesGlobalWarnings(t *testing.T) {
 
 	assert.True(t, found, "global warning should be captured by the returned provider")
 }
+
+// TestNewLogCapture_InstallsHookOnce verifies repeated construction shares the single
+// process-wide hook instead of stacking a new global logrus hook on every call.
+func TestNewLogCapture_InstallsHookOnce(t *testing.T) { //nolint:paralleltest
+	first := app.NewLogCapture()
+	second := app.NewLogCapture()
+
+	require.NotNil(t, first)
+	assert.Same(t, first, second, "repeated NewLogCapture calls must share one hook, not stack duplicates")
+}

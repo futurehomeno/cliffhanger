@@ -213,17 +213,19 @@ func (a *app) startAuthLossWatcher(tel telemetry.Telemetry) {
 	const subID = "auth_lost"
 
 	ch := a.lifecycle.Subscribe(subID, 5)
+
+	// Only an authenticated session can be lost: arm on AUTHENTICATED and report a LOST only
+	// while armed. Seed armed here — right after Subscribe, before the goroutine is scheduled —
+	// so a LOST queued immediately after subscription is still evaluated against the pre-LOST
+	// state, instead of one the goroutine-scheduling delay let that very event change.
+	armed := a.lifecycle.AuthState() == lifecycle.AuthStateAuthenticated
+
 	a.authWatcherStopCh = make(chan struct{})
 	a.authWatcherDoneCh = make(chan struct{})
 
 	go func() {
 		defer close(a.authWatcherDoneCh)
 		defer a.lifecycle.Unsubscribe(subID)
-
-		// Only an authenticated session can be lost: arm on AUTHENTICATED and report a
-		// LOST only while armed. Seeding from the current state covers an app that is
-		// already authenticated when the watcher subscribes.
-		armed := a.lifecycle.AuthState() == lifecycle.AuthStateAuthenticated
 
 		for {
 			select {

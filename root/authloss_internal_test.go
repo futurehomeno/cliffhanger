@@ -80,6 +80,35 @@ func TestAuthLossWatcher_NotifiesOnlyOnLostAfterAuthenticated(t *testing.T) { //
 	assert.Equal(t, "test_status_offline", notifier.first().EventName)
 }
 
+// TestAuthLossWatcher_ArmsFromAuthenticatedStateAtSubscribe verifies the watcher seeds its armed
+// flag from the state present when it subscribes, so an app already authenticated at boot reports
+// the next LOST without having to observe the AUTHENTICATED transition live.
+func TestAuthLossWatcher_ArmsFromAuthenticatedStateAtSubscribe(t *testing.T) { //nolint:paralleltest
+	mqtt := suite.DefaultMQTT("root_authloss_seed", "", "", "")
+	require.NoError(t, mqtt.Start(5*time.Second))
+	defer mqtt.Stop()
+
+	lc := lifecycle.New(nil)
+	lc.SetAuthState(lifecycle.AuthStateAuthenticated)
+
+	notifier := &fakeNotifier{}
+	a := &app{
+		mqtt:             mqtt,
+		lifecycle:        lc,
+		resourceName:     "test_app",
+		authLossNotifier: notifier,
+		authLossEvent:    &notification.Event{EventName: "test_status_offline"},
+	}
+
+	a.startAuthLossWatcher(nil)
+	defer a.stopAuthLossWatcher()
+
+	lc.SetAuthState(lifecycle.AuthStateLost)
+
+	require.Eventually(t, func() bool { return notifier.count() == 1 }, time.Second, 10*time.Millisecond,
+		"already-authenticated app must arm at subscribe and report the next LOST")
+}
+
 // TestReportAuthLoss_SuppressedWhenReportingDisabled confirms the reporting gate suppresses the
 // notification (and the app-state report and telemetry emitted alongside it).
 func TestReportAuthLoss_SuppressedWhenReportingDisabled(t *testing.T) { //nolint:paralleltest
