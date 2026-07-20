@@ -115,16 +115,26 @@ probe at all (tibber), **don't** force it — that would change behaviour.
 `auth/authenticator.go`. For username/password→JWT and authorization-code refresh:
 
 ```go
-authr := auth.NewAuthenticator(cfgSecrets /*CredentialsStore*/, client /*TokenExchanger*/, auth.AuthenticatorConfig{
+// credStore is YOUR thin adapter over the secrets store implementing auth.CredentialsStore —
+// storage.Storage[T] (Model/Load/Save/Reset) is NOT a CredentialsStore, so a wrapper is required:
+//   func (s *credStore) Credentials() auth.Credentials { m := s.secrets.Model(); return auth.Credentials{AccessToken: m.AccessToken, ...} }
+//   func (s *credStore) SetCredentials(c auth.Credentials) error { /* copy into s.secrets.Model(); */ return s.secrets.Save() }
+//   func (s *credStore) ClearCredentials() error { return s.secrets.Reset() }
+authr := auth.NewAuthenticator(credStore /*auth.CredentialsStore*/, client /*TokenExchanger*/, auth.AuthenticatorConfig{
     RefreshLead:       5 * time.Minute,                       // refresh this early
     Backoff:           backoff.NewTolerantFixed(2, 5*time.Minute),
     UnauthorizedGrace: time.Hour,                             // tolerate 401 streak before concluding loss
-    OnAuthLoss:        func(reason string) { appLifecycle.MarkNotConfigured() /* + notify */ },
+    // auth loss = previously authenticated, now rejected → Lost (not MarkNotConfigured, which is
+    // logout/reset). SetConnAndAuthState so watchers see LOST with a consistent conn state:
+    OnAuthLoss: func(reason string) {
+        appLifecycle.SetConnAndAuthState(lifecycle.ConnStateDisconnected, lifecycle.AuthStateLost) // + notify
+    },
 })
 token, err := authr.AccessToken()   // cached; refreshes on expiry; concludes auth loss past grace
 ```
 
-- `CredentialsStore` = `{ Credentials() Credentials; SetCredentials(Credentials) error; ClearCredentials() error }`.
+- `CredentialsStore` = `{ Credentials() Credentials; SetCredentials(Credentials) error; ClearCredentials() error }`
+  — implement it on the adapter side over the secrets store (no cliffhanger type satisfies it).
 - `TokenExchanger` = `{ ExchangeRefreshToken(string) (*OAuth2TokenResponse, error) }`.
 - `Credentials{AccessToken, RefreshToken, ExpiresAt, RefreshExpiresAt}`; `expired(lead)`; `Empty()`.
 - **`OnAuthLoss` runs under the Authenticator lock** (#199) — its callback must not call back into

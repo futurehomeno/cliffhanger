@@ -32,9 +32,11 @@ hand-rolled code did. Diff a captured inclusion report + evt stream before/after
 
 ## Procedure
 
-1. **Bump the dependency.** `go get github.com/futurehomeno/cliffhanger@<develop-pseudo-version>`
-   (`go.mod`), `go mod tidy`. Build; the compile errors map the API deltas (mostly additive —
-   the 1.2 surface is preserved, so nothing you already use breaks).
+1. **Bump the dependency and toolchain.** cliffhanger `develop` requires **`go 1.26`** — first
+   `go mod edit -go=1.26` and bump CI/runtime images to Go 1.26, else module resolution fails
+   before any API work. Then `go get github.com/futurehomeno/cliffhanger@<develop-pseudo-version>`,
+   `go mod tidy`. Build; the compile errors map the API deltas (mostly additive — the 1.2 surface
+   is preserved, so nothing you already use breaks).
 
 2. **Adopt the typed HTTP errors first** (everything else keys on them). Make the API client
    return `httpclient.ErrUnauthorized` (401/403), `httpclient.ErrTooManyRequests` /
