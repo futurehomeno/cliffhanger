@@ -218,6 +218,38 @@ func TestConnectivityChecker_RepairAppHealthLeavesRunningAppUntouched(t *testing
 		"an already-running app is left untouched, not re-configured by the repair guard")
 }
 
+func TestConnectivityChecker_CheckSkipsAfterCancel(t *testing.T) {
+	t.Parallel()
+
+	var calls atomic.Int32
+
+	probe := func() error {
+		calls.Add(1)
+
+		return nil
+	}
+
+	lc := lifecycle.New(nil)
+	reporter := &fakeReporter{}
+	checker := app.NewConnectivityChecker(probe, lc, reporter, app.CheckerConfig{})
+
+	// A Cancel (logout/reset) that lands before a periodic Check must not be overwritten: the
+	// Check skips instead of running a probe that would restore Authenticated/Connected.
+	checker.Cancel()
+
+	assert.NoError(t, checker.Check())
+	assert.Equal(t, int32(0), calls.Load(), "Check after Cancel must not probe")
+	assert.Equal(t, lifecycle.ConnStateNA, lc.ConnectionState(), "no state restored after Cancel")
+	assert.Equal(t, int32(0), reporter.reports.Load())
+
+	// Re-authorization via CheckNow clears the cancelled state and resumes.
+	assert.NoError(t, checker.CheckNow())
+	assert.Equal(t, int32(1), calls.Load())
+	assert.Equal(t, lifecycle.ConnStateConnected, lc.ConnectionState())
+
+	checker.Cancel()
+}
+
 func TestConnectivityChecker_CancelDiscardsInFlightProbe(t *testing.T) {
 	t.Parallel()
 
@@ -301,8 +333,15 @@ func TestConnectivityChecker_PendingRecheckSkipsPeriodicProbe(t *testing.T) {
 
 	checker.Cancel()
 
+	// Cancel (logout/reset) tears the checker down: a periodic Check stays skipped until a
+	// re-authorizing CheckNow resumes it — so a Cancel racing a Check cannot be overwritten.
 	assert.NoError(t, checker.Check())
-	assert.Equal(t, int32(2), calls.Load(), "probe should resume once the pending recheck is canceled")
+	assert.Equal(t, int32(1), calls.Load(), "a periodic Check after Cancel must stay torn down")
+
+	assert.NoError(t, checker.CheckNow())
+	assert.Equal(t, int32(2), calls.Load(), "CheckNow resumes probing after Cancel")
+
+	checker.Cancel()
 }
 
 func TestConnectivityChecker_CheckNowProbesDespitePendingRecheck(t *testing.T) {

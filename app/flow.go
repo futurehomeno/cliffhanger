@@ -1,6 +1,7 @@
 package app
 
 import (
+	"errors"
 	"fmt"
 
 	"github.com/futurehomeno/cliffhanger/lifecycle"
@@ -18,17 +19,22 @@ func Reset(appLifecycle *lifecycle.Lifecycle, things ThingDestroyer, resetConfig
 		fn()
 	}
 
+	// Mark not configured before the destructive steps so a partial failure still leaves the app
+	// in a consistent unconfigured state, rather than "configured" over an already-wiped device
+	// set that a later boot would restore. Both steps run and their errors are joined.
+	appLifecycle.MarkNotConfigured()
+
+	var errs []error
+
 	if err := things.DestroyAllThings(); err != nil {
-		return fmt.Errorf("destroy things: %w", err)
+		errs = append(errs, fmt.Errorf("destroy things: %w", err))
 	}
 
 	if err := resetConfig(); err != nil {
-		return fmt.Errorf("reset configuration: %w", err)
+		errs = append(errs, fmt.Errorf("reset configuration: %w", err))
 	}
 
-	appLifecycle.MarkNotConfigured()
-
-	return nil
+	return errors.Join(errs...)
 }
 
 // Logout clears credentials and marks the application as not configured.

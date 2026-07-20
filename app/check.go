@@ -101,13 +101,17 @@ func (c *ConnectivityChecker) Check() error {
 	c.checkMu.Lock()
 	defer c.checkMu.Unlock()
 
-	// A pending recheck honors its backoff or Retry-After delay, so the periodic probe is skipped.
-	if c.pending() {
+	c.mu.Lock()
+	// Skip the periodic probe when a recheck is already pending (it honors its backoff /
+	// Retry-After delay) or when a Cancel (logout/reset) has torn the checker down and no
+	// re-authorizing CheckNow has resumed it. Reading both under one lock — rather than
+	// clearing cancelled unconditionally — closes the window where a Cancel racing the
+	// periodic Check would be silently overwritten and the stale probe applied anyway.
+	if c.timer != nil || c.cancelled {
+		c.mu.Unlock()
+
 		return nil
 	}
-
-	c.mu.Lock()
-	c.cancelled = false
 	c.mu.Unlock()
 
 	c.check()
@@ -164,7 +168,7 @@ func (c *ConnectivityChecker) check() {
 	}
 
 	if err == nil {
-		c.Cancel()
+		c.settle()
 
 		if c.authorized() {
 			c.apply(lifecycle.AuthStateAuthenticated, lifecycle.ConnStateConnected)
@@ -175,7 +179,7 @@ func (c *ConnectivityChecker) check() {
 	}
 
 	if errors.Is(err, httpclient.ErrUnauthorized) {
-		c.Cancel()
+		c.settle()
 		c.apply(c.authLossState(), lifecycle.ConnStateDisconnected)
 
 		return
@@ -183,7 +187,7 @@ func (c *ConnectivityChecker) check() {
 
 	// A rate limit does not mean connectivity is lost, so the connectivity state is left untouched.
 	if errors.Is(err, httpclient.ErrTooManyRequests) {
-		c.Cancel()
+		c.settle()
 		c.schedule(c.rateLimitDelay(err))
 
 		return
@@ -199,13 +203,29 @@ func (c *ConnectivityChecker) check() {
 	c.schedule(c.cfg.RecheckBackoff.Delay(failures))
 }
 
-// Cancel stops a pending recheck, discards the result of an in-flight probe and
-// clears the failure counter; call it on logout and reset.
+// Cancel tears the checker down on logout or reset: it marks the checker cancelled so an
+// in-flight probe's result is discarded (via stale) and subsequent periodic Checks are skipped,
+// and it settles any pending recheck. A re-authorizing CheckNow clears the flag and resumes.
 func (c *ConnectivityChecker) Cancel() {
 	c.mu.Lock()
 	defer c.mu.Unlock()
 
 	c.cancelled = true
+	c.settleLocked()
+}
+
+// settle clears a pending recheck and the failure streak after a definitive probe result,
+// WITHOUT marking the checker cancelled — only an external Cancel does that. Using it here (not
+// Cancel) keeps the cancelled flag meaning "torn down", so a Cancel racing a Check is not masked
+// by the checker's own post-probe cleanup.
+func (c *ConnectivityChecker) settle() {
+	c.mu.Lock()
+	defer c.mu.Unlock()
+
+	c.settleLocked()
+}
+
+func (c *ConnectivityChecker) settleLocked() {
 	c.failures = 0
 	c.warnLog.Reset()
 
@@ -227,13 +247,6 @@ func (c *ConnectivityChecker) repairAppHealth() {
 
 	c.lc.SetAppHealth(lifecycle.AppHealthRunning, nil)
 	c.lc.SetConfigState(lifecycle.ConfigStateConfigured)
-}
-
-func (c *ConnectivityChecker) pending() bool {
-	c.mu.Lock()
-	defer c.mu.Unlock()
-
-	return c.timer != nil
 }
 
 func (c *ConnectivityChecker) stale() bool {

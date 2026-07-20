@@ -78,4 +78,11 @@ func TestErrorFromResponse_RetryAfter(t *testing.T) {
 	assert.LessOrEqual(t, delay, 2*time.Minute)
 
 	assert.Equal(t, time.Duration(0), rateLimited(time.Now().Add(-time.Minute).UTC().Format(http.TimeFormat)))
+
+	// A misconfigured or hostile server must not park the client indefinitely: over-cap and
+	// overflow-large values clamp to the 1h ceiling rather than a huge (or negative) delay.
+	assert.Equal(t, time.Hour, rateLimited("100000"), "an over-cap Retry-After clamps to the ceiling")
+	assert.Equal(t, time.Hour, rateLimited("999999999999"), "an overflow-large Retry-After clamps, not negative")
+	assert.Equal(t, time.Hour, rateLimited(time.Now().Add(48*time.Hour).UTC().Format(http.TimeFormat)),
+		"a far-future Retry-After date clamps to the ceiling")
 }

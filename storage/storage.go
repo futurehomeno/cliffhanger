@@ -279,6 +279,12 @@ func (s *storage[T]) Reset() error {
 	}
 
 	if s.defaultsPath == "" {
+		// Secrets stores have no defaults to reload from; zero the in-memory model so a reset
+		// (logout) does not keep serving stale credentials via Model() until process restart.
+		var zero T
+
+		s.model = zero
+
 		return nil
 	}
 

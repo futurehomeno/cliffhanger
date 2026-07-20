@@ -41,10 +41,15 @@ func TestReset(t *testing.T) {
 
 	lc.MarkRunning()
 
-	err = app.Reset(lc, &fakeDestroyer{err: errors.New("destroy err")}, func() error { return nil })
+	destroyErr := &fakeDestroyer{err: errors.New("destroy err")}
+	resetRan := false
+	err = app.Reset(lc, destroyErr, func() error { resetRan = true; return nil })
 
 	assert.Error(t, err)
-	assert.Equal(t, lifecycle.AppHealthRunning, lc.AppHealth(), "states should be left untouched on failure")
+	assert.Equal(t, lifecycle.AppHealthNotConfigured, lc.AppHealth(),
+		"a partial failure still leaves the app in a consistent unconfigured state")
+	assert.True(t, destroyErr.called)
+	assert.True(t, resetRan, "config reset still runs even if destroy failed; the errors are joined")
 }
 
 func TestLogout(t *testing.T) {

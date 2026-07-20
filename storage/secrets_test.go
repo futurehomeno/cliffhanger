@@ -29,6 +29,22 @@ func TestNewSecrets_FileMode(t *testing.T) {
 	assert.NoError(t, s.Load(), "load without data and defaults should not fail")
 }
 
+func TestNewSecrets_ResetZeroesModel(t *testing.T) {
+	t.Parallel()
+
+	workDir := t.TempDir()
+
+	s := storage.NewSecrets(&secrets{AccessToken: "token"}, workDir, "secrets.json")
+	assert.NoError(t, s.Save())
+
+	assert.NoError(t, s.Reset())
+
+	assert.Nil(t, s.Model(), "reset must not keep serving stale credentials in memory")
+
+	_, err := os.Stat(filepath.Join(workDir, "data", "secrets.json"))
+	assert.True(t, os.IsNotExist(err), "reset must remove the persisted secrets file")
+}
+
 func TestNew_ConfigFileMode(t *testing.T) {
 	t.Parallel()
 
