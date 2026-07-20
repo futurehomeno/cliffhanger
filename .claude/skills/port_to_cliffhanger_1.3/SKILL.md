@@ -76,8 +76,9 @@ hand-rolled code did. Diff a captured inclusion report + evt stream before/after
    JSON shape identical. (refs §5)
 
 7. **Collapse lifecycle bundles and thing-sync.** Use `lifecycle.MarkRunning()` /
-   `MarkNotConfigured()` and `SetConnAndAuthState` for atomic auth-loss bundles instead of four
-   separate setters. Replace the fetch→filter→map→`EnsureThings` wrapper with
+   `MarkNotConfigured()` (cloud-auth adapters only; apps at `AuthStateNA`/`ConnStateNA` set states
+   individually) and `SetConnAndAuthState` for atomic auth-loss bundles instead of four separate
+   setters. Replace the fetch→filter→map→`EnsureThings` wrapper with
    `adapter.SeedsFromSelection` + `adapter.SyncThings` (shared anti-wipe guard,
    `ErrIncompleteFetch`); replace a hand-rolled capability-drift rebuild (sensibo `reconcile.go`)
    with `adapter.RebuildChangedThings`. (refs §7)

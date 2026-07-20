@@ -211,7 +211,7 @@ backed by this secrets storage.
 ## 8. Remaining blocks
 
 - **`stream.Supervisor`** (`stream/supervisor.go`): wrap a push transport's connect loop.
-  `NewSupervisor(func(ctx, connected func()) error {...}, backoff.Stateful)` → `Start/Stop/
+  `NewSupervisor(func(ctx context.Context, connected func()) error {...}, backoff.Stateful)` → `Start/Stop/
   TriggerReconnect`. Register as a `root.Service` so its lifecycle follows the app. Use for easee
   SignalR, sonos GENA, zaptec AMQP — replaces the bespoke reconnect/backoff goroutine (and fixes the
   Stop/Start races, §10).
