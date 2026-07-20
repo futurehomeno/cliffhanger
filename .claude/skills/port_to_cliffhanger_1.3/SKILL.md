@@ -17,10 +17,11 @@ catalog, the per-adapter Check() fit table, and the state/auth/config mapping. T
 procedure. The 1.2 base architecture (package layout, packaging, tooling, FIMP compatibility)
 is unchanged — see the `port_to_cliffhanger_1.2` skill for it; do **not** repeat that work.
 
-Cliffhanger source for 1.3: the `develop` branch of `~/proj/go/cliffhanger` (there is no v1.3.0
-tag yet; `git describe` shows `v1.2.10-N-g<sha>`). Reference adapters still on 1.2.x live in
-`~/proj/go/edge-*-adapter`; `core-energy-guard` is a **core service on v1.2.7**, not an edge
-adapter and not a 1.3 template.
+Cliffhanger source for 1.3 is the `develop` branch of the cliffhanger checkout (there is no
+v1.3.0 tag yet; `git describe` shows `v1.2.10-N-g<sha>`). Reference adapters still on 1.2.x are
+the sibling `edge-*-adapter` repos in this workspace (here under `~/proj/go/`; adjust to your
+checkout); `core-energy-guard` is a **core service on v1.2.7**, not an edge adapter and not a
+1.3 template.
 
 ## Golden rule: wire-compatibility is unchanged
 
@@ -54,7 +55,9 @@ hand-rolled code did. Diff a captured inclusion report + evt stream before/after
    Lost-vs-NotAuthenticated and teardown-guard nuances (refs §3).
 
 4. **Replace the OAuth refresh loop with `auth.Authenticator`** (username/password→JWT and
-   authorization-code refresh). Provide a `CredentialsStore` (your config) and a
+   authorization-code refresh). Provide a `CredentialsStore` — back it by the **secrets
+   store** from step 5 (do step 5 first, or reorder, so credentials have a single source of
+   truth), not the plain config — and a
    `TokenExchanger` (your client), set `RefreshLead`, `Backoff` (a `backoff.Stateful`, e.g.
    `backoff.NewTolerantFixed`), `UnauthorizedGrace`, and `OnAuthLoss`. Attach the token with
    `auth.Transport` (a `http.RoundTripper`) instead of a hand-written bearer injector; use
@@ -89,8 +92,8 @@ hand-rolled code did. Diff a captured inclusion report + evt stream before/after
 
 10. **Verify.** `go vet ./...`, `golangci-lint run`, `make test` (coverage gate 75%, target
     >80%), `make build-arm`, `make deb-arm`. Then **prove wire-compatibility**: diff the
-    inclusion report + a representative evt stream against the pre-bump capture. Finish with
-    `/improve_logs`.
+    inclusion report + a representative evt stream against the pre-bump capture. Finally, review
+    logs — invoke the `improve_logs` skill if available, else check them by hand.
 
 ## Output expectations
 

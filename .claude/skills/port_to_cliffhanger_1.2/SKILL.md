@@ -8,10 +8,11 @@ description: Port a Futurehome edge adapter (legacy fimpgo or cliffhanger v0.x) 
 Read [references/porting-manual.md](references/porting-manual.md) first — it contains the full
 architecture, package structure, template table, and code patterns. This file is the procedure.
 
-Reference projects live in `~/proj/go/`: edge-mill-adapter (primary template),
-edge-sensibo-adapter (tooling/packaging golden copy), edge-zaptec-adapter (packaging migration +
-adapter.json migration), edge-sonos/easee (push transports), edge-netatmo (OAuth).
-Cliffhanger source: `~/go/pkg/mod/github.com/futurehomeno/cliffhanger@v1.2.10/`.
+Reference projects are the sibling `edge-*-adapter` repos in this workspace (here, `~/proj/go/`;
+adjust to wherever they're checked out): edge-mill-adapter (primary template), edge-sensibo-adapter
+(tooling/packaging golden copy), edge-zaptec-adapter (packaging migration + adapter.json migration),
+edge-sonos/easee (push transports), edge-netatmo (OAuth). Cliffhanger source is in the Go module
+cache (`$(go env GOMODCACHE)/github.com/futurehomeno/cliffhanger@v1.2.10/`).
 
 ## Procedure
 
@@ -65,8 +66,9 @@ Cliffhanger source: `~/go/pkg/mod/github.com/futurehomeno/cliffhanger@v1.2.10/`.
 9. **Verify**: `go vet ./...`, `golangci-lint run`, `make test`, `make build-arm`, `make deb-arm`.
    Delete dead legacy packages. Update README, app-manifest.json, defaults/config.json.
 
-10. **Finish with `/improve_logs`**: invoke the improve_logs skill on the ported code so all log
-    statements follow the logging conventions (wrap-then-log-once, [component] prefixes, levels).
+10. **Review logs**: if the `improve_logs` skill is available, invoke it on the ported code;
+    otherwise review log statements by hand for the conventions (wrap-then-log-once,
+    [component] prefixes, appropriate levels).
 
 ## Output expectations
 

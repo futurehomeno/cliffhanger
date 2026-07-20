@@ -76,7 +76,7 @@ checker := app.NewConnectivityChecker(
             if cur == lifecycle.AuthStateAuthenticated { return lifecycle.AuthStateLost }
             return lifecycle.AuthStateNotAuthenticated              // stay silent if never authed
         },
-        Authorized: func() bool { return cfg.GetCredentials().AccessToken != "" }, // gate restore vs teardown
+        Authorized: func() bool { return secrets.Model().AccessToken != "" }, // creds live in the secrets store (§6)
     },
 )
 ```
@@ -231,7 +231,7 @@ backed by this secrets storage.
 9. Delete the replaced hand-rolled code.
 10. `go vet` / `golangci-lint` / `make test` (gate 75%, >80%) / `build-arm` / `deb-arm`.
 11. **Prove FIMP wire-compat**: diff inclusion report + evt stream vs the pre-bump capture.
-12. `/improve_logs`.
+12. Review logs (invoke `improve_logs` if available, else by hand).
 
 ---
 
