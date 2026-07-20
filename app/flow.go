@@ -37,15 +37,17 @@ func Reset(appLifecycle *lifecycle.Lifecycle, things ThingDestroyer, resetConfig
 	return errors.Join(errs...)
 }
 
-// Logout clears credentials and marks the application as not configured.
-// Optional teardown hooks run first, e.g. to cancel checks or close connections.
+// Logout clears credentials and marks the application as not configured. Optional
+// teardown hooks (e.g. cancel checks, close connections) run only after credentials are
+// cleared, so a failed clear leaves the previous session intact instead of tearing down
+// connections while the app still reports the old session.
 func Logout(appLifecycle *lifecycle.Lifecycle, clearCredentials func() error, teardown ...func()) error {
-	for _, fn := range teardown {
-		fn()
-	}
-
 	if err := clearCredentials(); err != nil {
 		return fmt.Errorf("clear credentials: %w", err)
+	}
+
+	for _, fn := range teardown {
+		fn()
 	}
 
 	appLifecycle.MarkNotConfigured()

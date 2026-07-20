@@ -58,16 +58,20 @@ func TestLogout(t *testing.T) {
 	lc := lifecycle.New(nil)
 	lc.MarkRunning()
 
-	err := app.Logout(lc, func() error { return nil })
+	tornDown := false
+	err := app.Logout(lc, func() error { return nil }, func() { tornDown = true })
 
 	assert.NoError(t, err)
+	assert.True(t, tornDown)
 	assert.Equal(t, lifecycle.AuthStateNotAuthenticated, lc.AuthState())
 
 	lc.MarkRunning()
 
-	err = app.Logout(lc, func() error { return errors.New("clear err") })
+	tornDown = false
+	err = app.Logout(lc, func() error { return errors.New("clear err") }, func() { tornDown = true })
 
 	assert.Error(t, err)
+	assert.False(t, tornDown, "teardown must not run when credential clearing failed")
 	assert.Equal(t, lifecycle.AuthStateAuthenticated, lc.AuthState())
 }
 
