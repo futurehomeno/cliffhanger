@@ -27,7 +27,7 @@ The change landed in four "waves":
 | `httpclient` errors + builder | `ErrUnauthorized`, `ErrTooManyRequests`, `*TooManyRequestsError{RetryAfter}`, `ErrorFromResponse(resp)`, `NewJSONRequest(ctx,method,url,body,headers)` | per-adapter 401/429 sentinels + request builders |
 | `config.Service[C]` | `NewService[C](storage.Storage[C], defaults, redact)` → `Update/Persist/Reset/Migrate/DefaultStore/PublicModel`; `Get[C,V]`, `GetDuration[C]`; `config.BackoffConfig` | hand-rolled `Service` struct + RWMutex + setters |
 | `lifecycle.MarkRunning/MarkNotConfigured` + `SetConnAndAuthState` | state-bundle helpers; atomic conn+auth in one event | four separate `Set*State` calls |
-| `storage.NewSecrets/NewCanonicalSecrets` | `Storage[T]` at 0640 (`data/secrets.json`) | credentials living in world-readable `config.json` |
+| `storage.NewSecrets/NewCanonicalSecrets` | `Storage[T]` at 0640 (edge: `data/secrets.json`; canonical/core: `workDir/<name>`) | credentials living in world-readable `config.json` |
 | `stream.Supervisor` | `NewSupervisor(connect Connection, b backoff.Stateful)` → `Start()/Stop()/TriggerReconnect()` | bespoke SignalR/GENA/AMQP reconnect loops |
 | `adapter.SeedsFromSelection` + `SyncThings` + `RebuildChangedThings` | `SeedsFromSelection[T](available, selected, seed)`, `SyncThings[T](a, available, selected, seed) (ErrIncompleteFetch)`, `RebuildChangedThings(seeds)` | fetch→filter→map→EnsureThings wrapper, anti-wipe guard, sensibo `reconcile.go` |
 | `bootstrap.EdgeRouting/EdgeTasks` | `EdgeRouting[C](...)`, `EdgeTasks(...)` bundles | repeated builder wiring |
@@ -76,7 +76,10 @@ checker := app.NewConnectivityChecker(
             if cur == lifecycle.AuthStateAuthenticated { return lifecycle.AuthStateLost }
             return lifecycle.AuthStateNotAuthenticated              // stay silent if never authed
         },
-        Authorized: func() bool { return secrets.Model().AccessToken != "" }, // creds live in the secrets store (§6)
+        // read creds through the credStore's synchronized accessor, NOT secrets.Model() directly:
+        // storage.Model() returns the live model unlocked, so an unguarded read here races with
+        // login/logout writes (the checker calls Authorized off the config lock).
+        Authorized: func() bool { return credStore.Credentials().AccessToken != "" }, // creds in secrets (§6)
     },
 )
 ```
@@ -116,10 +119,12 @@ probe at all (tibber), **don't** force it — that would change behaviour.
 
 ```go
 // credStore is YOUR thin adapter over the secrets store implementing auth.CredentialsStore —
-// storage.Storage[T] (Model/Load/Save/Reset) is NOT a CredentialsStore, so a wrapper is required:
-//   func (s *credStore) Credentials() auth.Credentials { m := s.secrets.Model(); return auth.Credentials{AccessToken: m.AccessToken, ...} }
-//   func (s *credStore) SetCredentials(c auth.Credentials) error { /* copy into s.secrets.Model(); */ return s.secrets.Save() }
-//   func (s *credStore) ClearCredentials() error { return s.secrets.Reset() }
+// storage.Storage[T] (Model/Load/Save/Reset) is NOT a CredentialsStore, so a wrapper is required.
+// storage.Model() returns the live model UNLOCKED, so guard the wrapper with its own mutex around
+// every read/write (login/logout/reset and the checker's Authorized read run on different goroutines):
+//   func (s *credStore) Credentials() auth.Credentials { s.mu.RLock(); defer s.mu.RUnlock(); m := s.secrets.Model(); return auth.Credentials{AccessToken: m.AccessToken, ...} }
+//   func (s *credStore) SetCredentials(c auth.Credentials) error { s.mu.Lock(); defer s.mu.Unlock(); /* copy into s.secrets.Model(); */ return s.secrets.Save() }
+//   func (s *credStore) ClearCredentials() error { s.mu.Lock(); defer s.mu.Unlock(); return s.secrets.Reset() }
 authr := auth.NewAuthenticator(credStore /*auth.CredentialsStore*/, client /*TokenExchanger*/, auth.AuthenticatorConfig{
     RefreshLead:       5 * time.Minute,                       // refresh this early
     Backoff:           backoff.NewTolerantFixed(2, 5*time.Minute),
@@ -168,6 +173,10 @@ public := cfgSrv.PublicModel()   // redact-returning; hand it a copy for pointer
 - **`PublicModel()` caveat**: for a pointer-backed config with no redactor it aliases the live model;
   pass a copy-returning `redact` func (mirrors the `Get` helper caveat, #197). `Update`'s lock is
   not reentrant — callbacks must not call back into the Service.
+- **`Update` no-rollback caveat**: `Update` mutates the live model *then* saves and does **not** roll
+  it back if the save fails — so a persistence error leaves the new value in memory while disk holds
+  the old one (the stale-in-memory hazard the 1.2 manual §17 warns about). Adapters needing strict
+  config/disk consistency must snapshot and restore on error themselves.
 
 ---
 
