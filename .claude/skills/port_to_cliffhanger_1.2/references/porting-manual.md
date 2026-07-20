@@ -417,3 +417,94 @@ before release.
 - `.githooks/pre-commit` + `make init` to install it.
 - Don't SHA-pin GitHub Actions; use major version tags.
 - Delete dead legacy code after the port (old router/poller/processor packages).
+
+## 17. Review-hardening checklist (learned from the kind-owl hub-service port)
+
+These are the issues an automated reviewer flags round after round on a port. Fix them
+up front — most are one-liners that are cheaper to get right than to re-review.
+
+**Diff against the LATEST prod branch, not the fork base.** The single biggest source of
+regressions: the port was cut from an old `master` while prod had moved on (`develop`,
+tagged `v1.8.3`). Everything downstream — a missing feature (`cmd.timeline.delete`), a
+dropped guard (`if cmd == "set"`), a reordered timer (clear the pending flag *before* the
+callback, not after) — traced to not diffing the domain logic line-by-line against the
+newest shipped version. Before coding: `git log <forkbase>..<latest-prod>` for the feature
+list, then `git diff <latest-prod> -- <domain files>` and reconcile every behavioral line.
+A behavior-preserving port preserves *prod's* behavior, not the fork base's.
+
+**Core/hub service (no edge things), builder + lifecycle.** For a hub-internal service
+(no device inclusion, e.g. a notification/timeline service): `root.NewCoreAppBuilder()`,
+which *forbids* `WithLifecycle` (precedent: `fhbutler_nextgen/src/cmd/root.go`). Because
+`app.RouteApp`/`app.TaskApp` require a lifecycle, hand-roll the app routes with
+`router.NewRouting(router.NewMessageHandler(...), router.ForService(...), router.ForType(...))`
+for `cmd.app.get_manifest`, `cmd.app.get_state`, and **`cmd.app.uninstall`** — wire every
+app method you implement (a `Uninstall()` that wipes state but is never routed is dead code),
+and advertise each as an `in`/`out` interface in the manifest.
+
+**The router runs 5 concurrent workers by default** (`router.go` `concurrency: 5`). Any
+mutable state a handler touches is racy without a lock: config setters (do the whole
+read-modify-write in one critical section — snapshotting under a read lock then writing
+under a separate write lock is a TOCTOU that loses updates), and any timer/flag read by a
+handler. Run the affected packages with `-race` and add a regression test that drives the
+concurrent path.
+
+**Config service correctness:**
+- Setters roll the model back on `Save()` failure — otherwise `get_report` shows the new
+  value while the pipeline keeps the old one. `old := *m; change(m); if Save() fails { *m = old; return err }`.
+- Migration `Do()` **returns the error** on a real (non-ENOENT) legacy read/parse failure so
+  `config_version` does not advance — cliffhanger only writes `To` into `ConfigVersion` when
+  `Do()` returns nil, so the import retries next boot instead of silently losing settings.
+- Startup stays **fail-soft** on a migration error (log, boot with the shipped defaults —
+  which must be the correct standard config: right topics, subscriptions, thresholds). Do
+  *not* `log.Fatal` — crash-looping a hub service over a config edge is worse than degraded.
+
+**Upgrade preserves the legacy config file.** If the *old* package shipped its config as
+package content (e.g. `/var/lib/futurehome/<app>/config.json`) and the new package no longer
+ships that path, dpkg deletes it during unpack — before first-boot migration reads it.
+`preinst upgrade` copies it to `config.json.pre-upgrade`; `postinst configure` moves it back
+before the service starts. (This is on top of §13's thingsplex `migrate.sh`.)
+
+**Packaging `Depends`.** Don't drop runtime `Depends:` (e.g. `influxdb (>= 1.7)`) from the
+generated `control` — `postinst` starts the dependency under `set -e`, so a missing
+declaration half-configures the package on a clean host. Verify with `dpkg-deb -f <deb> Depends`.
+
+**Destructive commands: authorize on the topic, not the payload.** A delete/reset command
+must validate the MQTT **topic** it arrived on (`message.Topic ==
+"pt:j1/mt:cmd/rt:app/rn:<svc>/ad:1"`), not the payload's `Service` field (the sender controls
+that). Thread `message.Topic` from routing into the handler. Validate any injected id
+(numeric `event_id` before an InfluxQL `DELETE`) and escape identifiers/values.
+
+**Storage: use the configured DB name**, not a hardcoded literal, in create/delete/retention
+queries — or a non-default `DbName` creates one database while reads/writes target another.
+
+**Async-backend wiring (websocket/SignalR/etc.):**
+- A `Start()` that retries `connect()` in an infinite loop never returns an error — that
+  error branch is dead; don't fail app boot on it (the service must come up and keep retrying).
+- On a fetch error, **skip the cache push** — sending an empty/zero-value result clobbers the
+  in-memory cache. Make `warmup()`/`handleStatus()` share one `refresh(component)` helper that
+  returns early on error.
+
+**Panic guard.** A shared `recover()` helper re-panics with the **original value**
+(`panic(r)`), not a fixed sentinel string — preserves the chain for crash reporters.
+
+**CI / tooling gotchas (these each cost a review round):**
+- The mock-generating job needs the private-module setup too (`git config insteadOf` with the
+  token + `go env -w GOPRIVATE=...`) — without it `mockery` can't load private deps
+  (`invalid package name`).
+- Verify committed mocks with `git status --porcelain -- <mocks dir>` (catches new *untracked*
+  files), not `git diff --exit-code` (misses them) — in **both** CI and the `check-mocks`
+  Makefile target.
+- Coverage-gate profile filtering: exclude `_test\.go` and `/mocks/` precisely; a bare
+  `grep -v test` / `grep -v mock` also drops production files whose path contains those
+  substrings (e.g. `cmd/testing.go`), silently weakening the gate.
+- `.githooks/pre-commit` is **check-only** (`gofmt -l` → fail), never mutate-then-abort:
+  `gofmt -w` + a commented-out `git add` lets unformatted blobs through on the retry (the
+  index still holds them). Filter files with `grep '\.go$'` (escaped dot).
+
+**testdata parity.** The config `make run` uses (`./testdata`) must mirror `defaults/` for
+behaviorally-significant fields (e.g. `legacyEvents`) — an empty list there means manual runs
+never exercise the flows the port is supposed to preserve.
+
+**Logs last:** review logs (invoke `improve_logs` if available, § finish step) — `[component]` prefixes, wrap-then-log-once,
+no swallowed errors, budzik format. Reviewers flag every `WithError`, every silently-dropped
+`err`, and every leftover debug string.
