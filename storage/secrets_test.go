@@ -45,6 +45,25 @@ func TestNewSecrets_ResetZeroesModel(t *testing.T) {
 	assert.True(t, os.IsNotExist(err), "reset must remove the persisted secrets file")
 }
 
+func TestNewSecrets_ResetRemovesBackup(t *testing.T) {
+	t.Parallel()
+
+	workDir := t.TempDir()
+
+	s := storage.NewSecrets(&secrets{AccessToken: "token"}, workDir, "secrets.json")
+	assert.NoError(t, s.Save())
+	assert.NoError(t, s.Save(), "second save creates the .bak backup of the first")
+
+	backupPath := filepath.Join(workDir, "data", "secrets.json.bak")
+	_, err := os.Stat(backupPath)
+	assert.NoError(t, err, "second save should have produced a backup file")
+
+	assert.NoError(t, s.Reset())
+
+	_, err = os.Stat(backupPath)
+	assert.True(t, os.IsNotExist(err), "reset must remove the secrets backup file")
+}
+
 func TestNew_ConfigFileMode(t *testing.T) {
 	t.Parallel()
 

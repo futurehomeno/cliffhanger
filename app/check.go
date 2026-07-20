@@ -171,7 +171,7 @@ func (c *ConnectivityChecker) check() {
 		c.settle()
 
 		if c.authorized() {
-			c.apply(lifecycle.AuthStateAuthenticated, lifecycle.ConnStateConnected)
+			c.apply(lifecycle.AuthStateAuthenticated, lifecycle.ConnStateConnected, "")
 			c.repairAppHealth()
 		}
 
@@ -180,7 +180,7 @@ func (c *ConnectivityChecker) check() {
 
 	if errors.Is(err, httpclient.ErrUnauthorized) {
 		c.settle()
-		c.apply(c.authLossState(), lifecycle.ConnStateDisconnected)
+		c.apply(c.authLossState(), lifecycle.ConnStateDisconnected, "unauthorized")
 
 		return
 	}
@@ -197,7 +197,7 @@ func (c *ConnectivityChecker) check() {
 
 	failures := c.fail()
 	if failures > c.cfg.MaxRechecks {
-		c.apply("", lifecycle.ConnStateDisconnected)
+		c.apply("", lifecycle.ConnStateDisconnected, "")
 	}
 
 	c.schedule(c.cfg.RecheckBackoff.Delay(failures))
@@ -267,8 +267,9 @@ func (c *ConnectivityChecker) rateLimitDelay(err error) time.Duration {
 }
 
 // apply sets the provided lifecycle states (empty auth leaves it untouched) and
-// broadcasts node availability if any of them changed.
-func (c *ConnectivityChecker) apply(auth, conn lifecycle.State) {
+// broadcasts node availability if any of them changed. reason accompanies an
+// AuthStateLost transition to tell the auth-loss watcher why the session was lost.
+func (c *ConnectivityChecker) apply(auth, conn lifecycle.State, reason string) {
 	changed := false
 
 	// AuthStateLost triggers the auth-loss watcher, which reports the whole state bundle.
@@ -276,7 +277,7 @@ func (c *ConnectivityChecker) apply(auth, conn lifecycle.State) {
 	// trigger is not evicted from its buffer by a separate connection event.
 	if auth == lifecycle.AuthStateLost {
 		if c.lc.ConnectionState() != conn || c.lc.AuthState() != auth {
-			c.lc.SetConnAndAuthState(conn, auth)
+			c.lc.SetConnAndAuthStateReason(conn, auth, reason)
 
 			changed = true
 		}

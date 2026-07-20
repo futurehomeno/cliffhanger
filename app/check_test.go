@@ -445,6 +445,8 @@ func TestConnectivityChecker_AuthLossEventCarriesUpdatedConnState(t *testing.T) 
 
 			assert.Equal(t, lifecycle.ConnStateDisconnected, lc.ConnectionState(),
 				"an auth-loss observer must not see the outdated connection state")
+			assert.Equal(t, "unauthorized", event.Params["reason"],
+				"the auth-loss event carries why the session was lost")
 
 			return
 		case <-time.After(time.Second):
