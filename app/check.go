@@ -30,6 +30,16 @@ type CheckerConfig struct {
 	MaxRechecks uint32
 	// RateLimitDelay is the recheck delay after a rate-limited probe without a Retry-After indication.
 	RateLimitDelay time.Duration
+	// AuthLossState maps an unauthorized probe to an auth state, given the current one. nil
+	// keeps the default of always AuthStateLost; return AuthStateNotAuthenticated to stay
+	// silent when the app was never authenticated.
+	AuthLossState func(current lifecycle.State) lifecycle.State
+	// Authorized gates the success path; returning false skips restoring the running state,
+	// e.g. when a Logout/Reset cleared credentials mid-probe. nil keeps the default of always
+	// restoring. It re-reads state without a lock, so a teardown landing between this check
+	// and the restore is possible; the cancelled/stale guard still covers a teardown that
+	// overlaps the probe itself.
+	Authorized func() bool
 }
 
 func (c *CheckerConfig) setDefaults() {
@@ -129,6 +139,20 @@ func (c *ConnectivityChecker) CheckNow() error {
 	return nil
 }
 
+// authLossState maps an unauthorized probe to an auth state, defaulting to AuthStateLost.
+func (c *ConnectivityChecker) authLossState() lifecycle.State {
+	if c.cfg.AuthLossState != nil {
+		return c.cfg.AuthLossState(c.lc.AuthState())
+	}
+
+	return lifecycle.AuthStateLost
+}
+
+// authorized reports whether a successful probe may restore the running state, defaulting to true.
+func (c *ConnectivityChecker) authorized() bool {
+	return c.cfg.Authorized == nil || c.cfg.Authorized()
+}
+
 // check performs the probe and applies its outcome; the caller must hold checkMu
 // and have cleared the cancelled flag while committing to this probe.
 func (c *ConnectivityChecker) check() {
@@ -141,15 +165,18 @@ func (c *ConnectivityChecker) check() {
 
 	if err == nil {
 		c.Cancel()
-		c.apply(lifecycle.AuthStateAuthenticated, lifecycle.ConnStateConnected)
-		c.repairAppHealth()
+
+		if c.authorized() {
+			c.apply(lifecycle.AuthStateAuthenticated, lifecycle.ConnStateConnected)
+			c.repairAppHealth()
+		}
 
 		return
 	}
 
 	if errors.Is(err, httpclient.ErrUnauthorized) {
 		c.Cancel()
-		c.apply(lifecycle.AuthStateLost, lifecycle.ConnStateDisconnected)
+		c.apply(c.authLossState(), lifecycle.ConnStateDisconnected)
 
 		return
 	}
