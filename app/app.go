@@ -11,6 +11,8 @@ type App interface {
 	GetManifest() (*manifest.Manifest, error)
 	Configure(config any) error
 	Uninstall() error
+	// LogProvider requires ErrorsReport for the cmd.app.get_diag handler.
+	LogProvider
 }
 
 type ResettableApp interface {

@@ -65,6 +65,7 @@ func RouteApp[C any](
 		RouteCmdAppGetManifest(serviceName, appLifecycle, configStorage, app),
 		RouteCmdConfigExtendedSet(serviceName, appLifecycle, configFactory, app, locker),
 		RouteCmdAppUninstall(serviceName, appLifecycle, app, locker, excludeAllThings),
+		RouteCmdAppDiagGetReport(serviceName, appLifecycle, app),
 	}
 
 	resettable, ok := app.(ResettableApp)
@@ -92,11 +93,6 @@ func RouteApp[C any](
 			RouteCmdAuthSetTokens(serviceName, appLifecycle, locker, authorizable),
 			RouteCmdAuthLogout(serviceName, appLifecycle, locker, authorizable),
 		)
-	}
-
-	logProvider, ok := app.(LogProvider)
-	if ok {
-		routing = append(routing, RouteCmdAppDiagGetReport(serviceName, appLifecycle, logProvider))
 	}
 
 	return routing
