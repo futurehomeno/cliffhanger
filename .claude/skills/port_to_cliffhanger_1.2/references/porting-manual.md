@@ -176,7 +176,8 @@ Rules:
   Respect vendor rate limits (HTTP 429/402) — back off, don't tighten the loop.
 - **Prefer an async channel over polling if the vendor offers one**: LAN REST (mill),
   UPnP/GENA events (sonos), SignalR (easee), AMQP (zaptec), webhooks, MQTT. Wire it as a
-  `root.Service` manager + per-thing `adapter.Connector.Connect(thing)` registering a handler
+  `root.Service` manager + per-thing `adapter.ControllableConnector.Connect(thing)` (the
+  `Connect`/`Disconnect` lifecycle hooks live there, not on `adapter.Connector`) registering a handler
   that calls `svc.Send...Report(false)`. Keep a slow REST poll as reconciliation.
 - Gate tasks with `task.Voter`s so polling stops when disconnected (custom voters for
   "connected OR locally reachable", mill `whenConnectedOrLocal`).

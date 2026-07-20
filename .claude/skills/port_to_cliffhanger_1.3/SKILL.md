@@ -67,8 +67,9 @@ hand-rolled code did. Diff a captured inclusion report + evt stream before/after
    (adax/sensibo) does **not** use this — keep it.
 
 5. **Move credentials into secrets storage.** Split secrets out of the world-readable
-   `config.json` into `storage.NewSecrets(...)` / `NewCanonicalSecrets(...)` (0640
-   `data/secrets.json`). Migrate the legacy token fields once into the secrets file. (refs §6)
+   `config.json` into `storage.NewSecrets(...)` (0640 `data/secrets.json`) — edge adapters use
+   this; `NewCanonicalSecrets(...)` is the core-application layout (`workDir/<name>`, no `data/`).
+   Migrate the legacy token fields once into the secrets file. (refs §6)
 
 6. **Adopt `config.Service[C]`** (generic, thread-safe) in place of the hand-rolled config
    service: `Update`/`Persist`/`Reset`/`Migrate`/`DefaultStore`/`PublicModel`, plus `config.Get`
