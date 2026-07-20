@@ -19,6 +19,7 @@ type fakeApp struct{}
 func (a *fakeApp) GetManifest() (*manifest.Manifest, error) { return nil, nil }
 func (a *fakeApp) Configure(any) error                      { return nil }
 func (a *fakeApp) Uninstall() error                         { return nil }
+func (a *fakeApp) ErrorsReport() ([]string, error)          { return nil, nil }
 
 type testCfg struct{ Name string }
 
