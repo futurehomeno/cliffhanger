@@ -6,6 +6,7 @@ import (
 	"testing"
 
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 
 	"github.com/futurehomeno/cliffhanger/storage"
 )
@@ -39,10 +40,28 @@ func TestNewSecrets_ResetZeroesModel(t *testing.T) {
 
 	assert.NoError(t, s.Reset())
 
-	assert.Nil(t, s.Model(), "reset must not keep serving stale credentials in memory")
+	require.NotNil(t, s.Model(), "reset keeps a usable (non-nil) model so Load/re-persist still work")
+	assert.Empty(t, s.Model().AccessToken, "reset must clear the stored credentials in memory")
 
 	_, err := os.Stat(filepath.Join(workDir, "data", "secrets.json"))
 	assert.True(t, os.IsNotExist(err), "reset must remove the persisted secrets file")
+}
+
+func TestNewSecrets_LoadAfterResetSucceeds(t *testing.T) {
+	t.Parallel()
+
+	workDir := t.TempDir()
+
+	s := storage.NewSecrets(&secrets{AccessToken: "token"}, workDir, "secrets.json")
+	require.NoError(t, s.Save())
+	require.NoError(t, s.Reset())
+
+	// After reset the model must remain a valid unmarshal/mutation target — nilling it
+	// regressed re-login into a "json: Unmarshal(nil)" error (and a nil deref on SetCredentials).
+	s.Model().AccessToken = "fresh"
+	require.NoError(t, s.Save())
+	require.NoError(t, s.Load())
+	assert.Equal(t, "fresh", s.Model().AccessToken)
 }
 
 func TestNewSecrets_ResetRemovesBackup(t *testing.T) {

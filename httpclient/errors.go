@@ -67,7 +67,8 @@ const maxRetryAfter = time.Hour
 func retryAfter(resp *http.Response) time.Duration {
 	header := resp.Header.Get("Retry-After")
 
-	if secs, err := strconv.Atoi(header); err == nil {
+	secs, err := strconv.Atoi(header)
+	if err == nil {
 		if secs <= 0 {
 			return 0
 		}
@@ -78,6 +79,12 @@ func retryAfter(resp *http.Response) time.Duration {
 			return d
 		}
 
+		return maxRetryAfter
+	}
+
+	// A numeric header too large for int (Atoi returns ErrRange with the max magnitude value)
+	// is an over-cap delay, not a date — clamp positive overflow to the cap.
+	if errors.Is(err, strconv.ErrRange) && secs > 0 {
 		return maxRetryAfter
 	}
 
