@@ -50,6 +50,14 @@ func (a *adapter) RebuildChangedThings(seeds ThingSeeds) error {
 			continue
 		}
 
+		// destroyThing drops the whole state record and createThing rebuilds only
+		// ID/Address/Info, so capture any persisted per-thing state and restore it after the
+		// swap; otherwise a topology rebuild would silently discard it.
+		var savedState json.RawMessage
+		if err := ts.State(&savedState); err != nil {
+			return fmt.Errorf("rebuild %s: read state: %w", seed.ID, err)
+		}
+
 		// Preserve the live address so the rebuilt thing keeps its topic identity; a seed
 		// without a CustomAddress would otherwise be assigned a fresh address on recreation.
 		rebuildSeed := &ThingSeed{ID: seed.ID, CustomAddress: ts.Address(), Info: seed.Info}
@@ -61,14 +69,23 @@ func (a *adapter) RebuildChangedThings(seeds ThingSeeds) error {
 		if err := a.createThing(rebuildSeed); err != nil {
 			return fmt.Errorf("rebuild %s: recreate (device excluded until next restart): %w", seed.ID, err)
 		}
+
+		if len(savedState) > 0 {
+			if newTS := a.state.byID(seed.ID); newTS != nil {
+				if err := newTS.SetState(savedState); err != nil {
+					return fmt.Errorf("rebuild %s: restore state: %w", seed.ID, err)
+				}
+			}
+		}
 	}
 
 	return nil
 }
 
-// topologyChecksum hashes only the service topology (address, groups, service specs), not
-// cosmetic metadata like a product name, so a rebuild is triggered by a real capability
-// change rather than by a rename on upgrade.
+// topologyChecksum hashes the inclusion report's address, groups and full service specs so a
+// rebuild fires when a device's capabilities change. It serializes the whole fimptype.Service,
+// so a change to service metadata (alias, props, tags) also flips the checksum; that only ever
+// causes an extra rebuild, never a missed one, and a rebuild preserves the thing's state.
 func topologyChecksum(report *fimptype.ThingInclusionReport) (uint32, error) {
 	if report == nil {
 		return 0, nil

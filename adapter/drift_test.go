@@ -9,6 +9,7 @@ import (
 	"github.com/futurehomeno/fimpgo"
 	"github.com/futurehomeno/fimpgo/fimptype"
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 
 	"github.com/futurehomeno/cliffhanger/adapter"
 	"github.com/futurehomeno/cliffhanger/router"
@@ -164,6 +165,70 @@ func TestRebuildChangedThings_PreservesAutoAssignedAddress(t *testing.T) { //nol
 							assert.NotNil(t, after, "the thing must survive the rebuild")
 							assert.Equal(t, address, after.Address(),
 								"a rebuild must preserve the address, not allocate a fresh one")
+						}},
+					},
+				},
+			},
+		},
+	}
+
+	s.Run(t)
+}
+
+func TestRebuildChangedThings_PreservesPersistedState(t *testing.T) { //nolint:paralleltest
+	var (
+		ad        adapter.Adapter
+		lastState adapter.ThingState // the factory captures the state passed on each Create
+	)
+
+	seed := func(info driftInfo) adapter.ThingSeeds {
+		return adapter.ThingSeeds{{ID: "stateful", CustomAddress: testDriftAddress, Info: info}}
+	}
+
+	setup := suite.BaseSetup(func(t *testing.T, mqtt *fimpgo.MqttTransport) ([]*router.Routing, []*task.Task, []suite.Mock) {
+		t.Helper()
+
+		factory := adapterhelper.FactoryHelper(func(_ adapter.Adapter, publisher adapter.Publisher, ts adapter.ThingState) (adapter.Thing, error) {
+			lastState = ts
+
+			var info driftInfo
+			if err := ts.Info(&info); err != nil {
+				return nil, err
+			}
+
+			cfg := &adapter.ThingConfig{
+				InclusionReport: &fimptype.ThingInclusionReport{Address: ts.Address(), Groups: info.Groups},
+				Connector:       mockedadapter.NewDefaultConnector(t),
+			}
+
+			return adapter.NewThing(publisher, ts, cfg), nil
+		})
+
+		ad = adapterhelper.PrepareSeededAdapter(t, testAdapterWorkDir, mqtt, factory, seed(driftInfo{Groups: []string{"g1"}}))
+
+		return adapter.RouteAdapter(ad), nil, nil
+	})
+
+	s := &suite.Suite{
+		Cases: []*suite.Case{
+			{
+				Name:     "persisted per-thing state survives a rebuild",
+				TearDown: adapterhelper.TearDownAdapter(testAdapterWorkDir),
+				Setup:    setup,
+				Nodes: []*suite.Node{
+					{
+						Name:    "state written before a capability rebuild is restored after",
+						Timeout: 500 * time.Millisecond,
+						InitCallbacks: []suite.Callback{func(t *testing.T) {
+							t.Helper()
+
+							require.NoError(t, lastState.SetState("calibration"))
+
+							assert.NoError(t, ad.RebuildChangedThings(seed(driftInfo{Groups: []string{"g1", "g2"}})))
+
+							var got string
+							require.NoError(t, lastState.State(&got))
+							assert.Equal(t, "calibration", got, "a topology rebuild must preserve persisted per-thing state")
 						}},
 					},
 				},
