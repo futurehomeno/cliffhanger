@@ -9,8 +9,81 @@ import (
 	"github.com/stretchr/testify/require"
 
 	"github.com/futurehomeno/cliffhanger/app"
+	"github.com/futurehomeno/cliffhanger/auth"
 	"github.com/futurehomeno/cliffhanger/lifecycle"
+	"github.com/futurehomeno/cliffhanger/manifest"
+	"github.com/futurehomeno/cliffhanger/router"
+	"github.com/futurehomeno/cliffhanger/storage"
 )
+
+type stubConfig struct{}
+
+// stubAuthApp implements app.App + app.AuthorizableApp (OAuth2). Handlers are never invoked in
+// these tests — only RouteApp's build-time auth-state default is exercised.
+type stubAuthApp struct{}
+
+func (stubAuthApp) GetManifest() (*manifest.Manifest, error)  { return &manifest.Manifest{}, nil }
+func (stubAuthApp) Configure(any) error                       { return nil }
+func (stubAuthApp) Uninstall() error                          { return nil }
+func (stubAuthApp) Logout() error                             { return nil }
+func (stubAuthApp) Authorize(*auth.OAuth2TokenResponse) error { return nil }
+func (stubAuthApp) ErrorsReport() ([]string, error)           { return nil, nil }
+
+// stubLoginApp implements app.App + app.LogginableApp (password/token) — NOT AuthorizableApp.
+type stubLoginApp struct{}
+
+func (stubLoginApp) GetManifest() (*manifest.Manifest, error) { return &manifest.Manifest{}, nil }
+func (stubLoginApp) Configure(any) error                      { return nil }
+func (stubLoginApp) Uninstall() error                         { return nil }
+func (stubLoginApp) Logout() error                            { return nil }
+func (stubLoginApp) Login(*app.LoginCredentials) error        { return nil }
+func (stubLoginApp) ErrorsReport() ([]string, error)          { return nil, nil }
+
+func TestRouteApp_DefaultsAuthorizableAppToNotAuthenticated(t *testing.T) {
+	t.Parallel()
+
+	build := func(t *testing.T, application app.App, lc *lifecycle.Lifecycle) {
+		t.Helper()
+
+		st := storage.New(&stubConfig{}, t.TempDir(), "config.json")
+
+		app.RouteApp[*stubConfig](
+			testDiagService, lc, st,
+			func() *stubConfig { return &stubConfig{} },
+			router.NewMessageHandlerLocker(),
+			application,
+			func() error { return nil },
+		)
+	}
+
+	t.Run("authorizable app left undecided defaults to not authenticated", func(t *testing.T) {
+		t.Parallel()
+
+		lc := lifecycle.New(nil) // auth starts at NA
+		build(t, stubAuthApp{}, lc)
+
+		assert.Equal(t, lifecycle.AuthStateNotAuthenticated, lc.AuthState())
+	})
+
+	t.Run("authorizable app already authenticated is left untouched", func(t *testing.T) {
+		t.Parallel()
+
+		lc := lifecycle.New(nil)
+		lc.SetAuthState(lifecycle.AuthStateAuthenticated) // adapter loaded creds in Initialize
+		build(t, stubAuthApp{}, lc)
+
+		assert.Equal(t, lifecycle.AuthStateAuthenticated, lc.AuthState())
+	})
+
+	t.Run("login-only app is not defaulted, the fallback is OAuth2-only", func(t *testing.T) {
+		t.Parallel()
+
+		lc := lifecycle.New(nil)
+		build(t, stubLoginApp{}, lc)
+
+		assert.Equal(t, lifecycle.AuthStateNA, lc.AuthState())
+	})
+}
 
 const testDiagService = "test_app"
 
