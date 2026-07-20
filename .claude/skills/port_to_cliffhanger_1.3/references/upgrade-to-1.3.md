@@ -173,8 +173,8 @@ public := cfgSrv.PublicModel()   // redact-returning; hand it a copy for pointer
 
 ## 6. Secrets storage
 
-`storage/secrets.go`. Move credentials out of the world-readable `config.json` (0644) into a
-0640 `data/secrets.json`:
+`storage/storage.go` (`NewSecrets`/`NewCanonicalSecrets`). Move credentials out of the
+world-readable `config.json` (0644) into a 0640 `data/secrets.json`:
 
 ```go
 secrets := storage.NewSecrets[*Credentials](&Credentials{}, workDir, "secrets.json")
@@ -230,7 +230,8 @@ backed by this secrets storage.
 
 ## 9. go.mod & migration checklist
 
-1. `go get github.com/futurehomeno/cliffhanger@<develop>` + `go mod tidy`; build to surface deltas.
+1. `go mod edit -go=1.26` (+ bump CI/runtime images to Go 1.26), then
+   `go get github.com/futurehomeno/cliffhanger@<develop>` + `go mod tidy`; build to surface deltas.
 2. httpclient error contract in the client (§2).
 3. Replace `Check()` with `ConnectivityChecker` **iff** the adapter is in the "Yes" fit set (§3).
 4. `Authenticator` + `Transport` for OAuth refresh (§4); skip for hub-proxy/API-key.
