@@ -2,6 +2,7 @@ package root
 
 import (
 	"errors"
+	"fmt"
 	"path/filepath"
 	"sync"
 
@@ -10,6 +11,7 @@ import (
 	log "github.com/sirupsen/logrus"
 
 	"github.com/futurehomeno/cliffhanger/bootstrap"
+	"github.com/futurehomeno/cliffhanger/config"
 	"github.com/futurehomeno/cliffhanger/discovery"
 	"github.com/futurehomeno/cliffhanger/lifecycle"
 	"github.com/futurehomeno/cliffhanger/notification"
@@ -44,6 +46,7 @@ type Builder struct {
 	version               string
 	lifecycle             *lifecycle.Lifecycle
 	telemetry             telemetry.Telemetry
+	telemetryStore        *config.DefaultStore
 	authLossNotifier      notification.Notification
 	authLossEvent         *notification.Event
 	authLossReportEnabled func() bool
@@ -77,6 +80,15 @@ func (b *Builder) WithLifecycle(l *lifecycle.Lifecycle) *Builder {
 
 func (b *Builder) WithTelemetry(t telemetry.Telemetry) *Builder {
 	b.telemetry = t
+	return b
+}
+
+// WithTelemetryStore builds telemetry from the given store at Build time, stamping every event
+// with the version passed to WithServiceDiscovery. It keeps the version single-sourced in the
+// builder, unlike WithTelemetry which requires the caller to construct telemetry (and repeat the
+// version) itself. WithTelemetry, when set, takes precedence.
+func (b *Builder) WithTelemetryStore(store *config.DefaultStore) *Builder {
+	b.telemetryStore = store
 	return b
 }
 
@@ -129,6 +141,15 @@ func (b *Builder) WithResetter(resetter ...Resetter) *Builder {
 func (b *Builder) Build() (App, error) {
 	if err := b.check(); err != nil {
 		return nil, err
+	}
+
+	if b.telemetry == nil && b.telemetryStore != nil {
+		t, err := telemetry.New(b.mqtt, b.resourceName, b.telemetryStore, b.version)
+		if err != nil {
+			return nil, fmt.Errorf("builder: build telemetry: %w", err)
+		}
+
+		b.telemetry = t
 	}
 
 	return b.doBuild(), nil

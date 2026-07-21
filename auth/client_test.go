@@ -44,6 +44,51 @@ func TestProxyClient_RetryResendsBody(t *testing.T) {
 	assert.Equal(t, bodies[0], bodies[1], "retry must resend the full request body")
 }
 
+func TestProxyClient_EndpointResolvesURLAndTokenPerExchange(t *testing.T) {
+	t.Parallel()
+
+	var gotAuth, gotPath string
+
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		gotAuth = r.Header.Get("Authorization")
+		gotPath = r.URL.Path
+
+		_, err := w.Write([]byte(`{"access_token":"token","expires_in":3600}`))
+		assert.NoError(t, err)
+	}))
+	defer srv.Close()
+
+	calls := 0
+	client := auth.NewProxyClient(&auth.ProxyClientConfig{
+		// URL/Token are intentionally bogus: Endpoint must take precedence.
+		URL:   "http://unused.invalid",
+		Token: "unused",
+		Endpoint: func() (string, string, error) {
+			calls++
+
+			return srv.URL, "hub-token", nil
+		},
+	})
+
+	response, err := client.ExchangeRefreshToken("refresh")
+	assert.NoError(t, err)
+	assert.Equal(t, "token", response.AccessToken)
+	assert.Equal(t, 1, calls, "Endpoint is resolved once per exchange")
+	assert.Equal(t, "Bearer hub-token", gotAuth)
+	assert.Equal(t, "/api/control/edge/proxy/refresh", gotPath)
+}
+
+func TestProxyClient_EndpointErrorFailsExchange(t *testing.T) {
+	t.Parallel()
+
+	client := auth.NewProxyClient(&auth.ProxyClientConfig{
+		Endpoint: func() (string, string, error) { return "", "", assert.AnError },
+	})
+
+	_, err := client.ExchangeRefreshToken("refresh")
+	assert.ErrorIs(t, err, assert.AnError)
+}
+
 func TestProxyClient_RateLimitedExchangeIsNotRetried(t *testing.T) {
 	t.Parallel()
 

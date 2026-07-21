@@ -20,10 +20,16 @@ type ProxyClientConfig struct {
 	PartnerCode string
 	Token       string
 	URL         string
-	Retry       int
-	RetryDelay  time.Duration
-	Timeout     time.Duration
-	Headers     map[string]string
+	// Endpoint, when set, resolves the base URL and bearer token per exchange instead of using
+	// the static URL/Token. It lets adapters whose proxy URL or hub token is only known at call
+	// time (e.g. resolved from the hub environment and a rotating hub token) use ProxyClient
+	// without a bespoke exchanger. A returned error fails the exchange. URL/Token are ignored
+	// when Endpoint is set.
+	Endpoint   func() (baseURL, token string, err error)
+	Retry      int
+	RetryDelay time.Duration
+	Timeout    time.Duration
+	Headers    map[string]string
 }
 
 func (cfg *ProxyClientConfig) setDefaults() {
@@ -70,28 +76,43 @@ type proxyClient struct {
 func (c *proxyClient) ExchangeAuthorizationCode(code string) (*OAuth2TokenResponse, error) {
 	request := &OAuth2AuthCodeProxyRequest{AuthCode: code, PartnerCode: c.cfg.PartnerCode}
 
-	return c.getToken(request, c.cfg.URL+"/api/control/edge/proxy/auth-code")
+	return c.getToken(request, "/api/control/edge/proxy/auth-code")
 }
 
 func (c *proxyClient) ExchangeRefreshToken(refreshToken string) (*OAuth2TokenResponse, error) {
 	request := OAuth2RefreshProxyRequest{RefreshToken: refreshToken, PartnerCode: c.cfg.PartnerCode}
 
-	return c.getToken(request, c.cfg.URL+"/api/control/edge/proxy/refresh")
+	return c.getToken(request, "/api/control/edge/proxy/refresh")
 }
 
-func (c *proxyClient) getToken(request any, url string) (*OAuth2TokenResponse, error) {
+// endpoint resolves the base URL and bearer token for one exchange, lazily via cfg.Endpoint
+// when set, otherwise from the static cfg.URL/cfg.Token.
+func (c *proxyClient) endpoint() (baseURL, token string, err error) {
+	if c.cfg.Endpoint != nil {
+		return c.cfg.Endpoint()
+	}
+
+	return c.cfg.URL, c.cfg.Token, nil
+}
+
+func (c *proxyClient) getToken(request any, path string) (*OAuth2TokenResponse, error) {
+	baseURL, token, err := c.endpoint()
+	if err != nil {
+		return nil, fmt.Errorf("proxy proxyClient: failed to resolve endpoint: %w", err)
+	}
+
 	requestData, err := json.Marshal(request)
 	if err != nil {
 		return nil, err
 	}
 
-	r, err := http.NewRequestWithContext(context.Background(), http.MethodPost, url, bytes.NewBuffer(requestData))
+	r, err := http.NewRequestWithContext(context.Background(), http.MethodPost, baseURL+path, bytes.NewBuffer(requestData))
 	if err != nil {
 		return nil, fmt.Errorf("proxy proxyClient: failed to create request: %w", err)
 	}
 
 	r.Header.Add("Content-Type", "application/json")
-	r.Header.Add("Authorization", "Bearer "+c.cfg.Token)
+	r.Header.Add("Authorization", "Bearer "+token)
 
 	for k, v := range c.cfg.Headers {
 		if http.CanonicalHeaderKey(k) == "Authorization" || http.CanonicalHeaderKey(k) == "Content-Type" {

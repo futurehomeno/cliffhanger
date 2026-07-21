@@ -4,7 +4,9 @@ import (
 	"testing"
 
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 
+	"github.com/futurehomeno/cliffhanger/config"
 	"github.com/futurehomeno/cliffhanger/discovery"
 	"github.com/futurehomeno/cliffhanger/lifecycle"
 	"github.com/futurehomeno/cliffhanger/root"
@@ -86,4 +88,23 @@ func TestBuilder_Build(t *testing.T) {
 			}
 		})
 	}
+}
+
+// TestBuilder_WithTelemetryStore verifies the builder constructs telemetry from the store,
+// sourcing the version from WithServiceDiscovery so it is not duplicated at the call site.
+func TestBuilder_WithTelemetryStore(t *testing.T) {
+	t.Parallel()
+
+	mqtt := suite.DefaultMQTT("root_app_builder_telemetry", "", "", "")
+	cfg := &config.Default{}
+	store := config.NewDefaultStore(func() *config.Default { return cfg }, func() error { return nil })
+
+	app, err := root.NewCoreAppBuilder().
+		WithMQTT(mqtt).
+		WithServiceDiscovery("test_app", discovery.ResourceTypeApp, "test_app", "1", "1.2.3").
+		WithTelemetryStore(store).
+		Build()
+
+	require.NoError(t, err)
+	assert.NotNil(t, app)
 }
