@@ -110,7 +110,7 @@ func RecoverAndEmit(tel Telemetry, name string, terminate bool) {
 	log.Error(r)
 }
 
-func New(mqtt *fimpgo.MqttTransport, sourceRn fimptype.ResourceNameT, store *config.DefaultStore) (Telemetry, error) {
+func New(mqtt *fimpgo.MqttTransport, sourceRn fimptype.ResourceNameT, store *config.DefaultStore, version string) (Telemetry, error) {
 	if mqtt == nil {
 		return nil, errors.New("telemetry: mqtt transport is nil")
 	}
@@ -133,6 +133,7 @@ func New(mqtt *fimpgo.MqttTransport, sourceRn fimptype.ResourceNameT, store *con
 		mqtt:     mqtt,
 		sourceRn: sourceRn,
 		store:    store,
+		version:  version,
 		topic:    telemetryReportEvtTopic,
 	}
 
@@ -156,6 +157,7 @@ type telemetryT struct {
 	mqtt     *fimpgo.MqttTransport
 	sourceRn fimptype.ResourceNameT
 	store    *config.DefaultStore
+	version  string
 
 	lock           sync.Mutex
 	topic          string
@@ -354,6 +356,13 @@ func (ptr *telemetryT) config() types.TelemetryConfig {
 func (ptr *telemetryT) publish(topic, domain, event string, data map[string]any) error {
 	if event == "" {
 		return errors.New("telemetry: event name is required")
+	}
+
+	if ptr.version != "" {
+		d := make(map[string]any, len(data)+1)
+		maps.Copy(d, data)
+		d["version"] = ptr.version
+		data = d
 	}
 
 	msg := fimpgo.NewObjectMessage(telemetryInterface, fimptype.ServiceNameT(ptr.sourceRn), &Event{

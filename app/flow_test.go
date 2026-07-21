@@ -41,10 +41,15 @@ func TestReset(t *testing.T) {
 
 	lc.MarkRunning()
 
-	err = app.Reset(lc, &fakeDestroyer{err: errors.New("destroy err")}, func() error { return nil })
+	destroyErr := &fakeDestroyer{err: errors.New("destroy err")}
+	resetRan := false
+	err = app.Reset(lc, destroyErr, func() error { resetRan = true; return nil })
 
 	assert.Error(t, err)
-	assert.Equal(t, lifecycle.AppHealthRunning, lc.AppHealth(), "states should be left untouched on failure")
+	assert.Equal(t, lifecycle.AppHealthNotConfigured, lc.AppHealth(),
+		"a partial failure still leaves the app in a consistent unconfigured state")
+	assert.True(t, destroyErr.called)
+	assert.True(t, resetRan, "config reset still runs even if destroy failed; the errors are joined")
 }
 
 func TestLogout(t *testing.T) {
@@ -53,16 +58,20 @@ func TestLogout(t *testing.T) {
 	lc := lifecycle.New(nil)
 	lc.MarkRunning()
 
-	err := app.Logout(lc, func() error { return nil })
+	tornDown := false
+	err := app.Logout(lc, func() error { return nil }, func() { tornDown = true })
 
 	assert.NoError(t, err)
+	assert.True(t, tornDown)
 	assert.Equal(t, lifecycle.AuthStateNotAuthenticated, lc.AuthState())
 
 	lc.MarkRunning()
 
-	err = app.Logout(lc, func() error { return errors.New("clear err") })
+	tornDown = false
+	err = app.Logout(lc, func() error { return errors.New("clear err") }, func() { tornDown = true })
 
 	assert.Error(t, err)
+	assert.False(t, tornDown, "teardown must not run when credential clearing failed")
 	assert.Equal(t, lifecycle.AuthStateAuthenticated, lc.AuthState())
 }
 

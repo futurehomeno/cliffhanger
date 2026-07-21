@@ -6,6 +6,7 @@ import (
 	"os"
 	"path"
 	"path/filepath"
+	"reflect"
 	"sync"
 
 	log "github.com/sirupsen/logrus"
@@ -279,6 +280,18 @@ func (s *storage[T]) Reset() error {
 	}
 
 	if s.defaultsPath == "" {
+		// Secrets stores have no defaults to reload from; clear the in-memory model so a reset
+		// (logout) does not keep serving stale credentials. Zero the pointed-to struct in place
+		// rather than nil the reference: that wipes the fields any cached pointer still holds and
+		// keeps s.model a valid (non-nil) target for a later Load() or credential re-persist.
+		if v := reflect.ValueOf(s.model); v.Kind() == reflect.Pointer && !v.IsNil() {
+			v.Elem().Set(reflect.Zero(v.Elem().Type()))
+		} else {
+			var zero T
+
+			s.model = zero
+		}
+
 		return nil
 	}
 

@@ -60,20 +60,38 @@ func ErrorFromResponse(resp *http.Response) error {
 
 // retryAfter returns the delay the server asks for via the Retry-After header
 // (delta-seconds or HTTP-date form), or 0.
+// maxRetryAfter caps a server-supplied Retry-After so a misconfigured or hostile server cannot
+// park the client (e.g. block the connectivity recheck) for an unbounded time.
+const maxRetryAfter = time.Hour
+
 func retryAfter(resp *http.Response) time.Duration {
 	header := resp.Header.Get("Retry-After")
 
-	if secs, err := strconv.Atoi(header); err == nil {
+	secs, err := strconv.Atoi(header)
+	if err == nil {
 		if secs <= 0 {
 			return 0
+		}
+
+		// Bound before multiplying: secs*1e9 can overflow int64 and wrap to a small positive
+		// Duration that would otherwise slip through as a too-short delay. Anything at or above
+		// the cap (in seconds) clamps, so the multiplication below is always in range.
+		if secs >= int(maxRetryAfter/time.Second) {
+			return maxRetryAfter
 		}
 
 		return time.Duration(secs) * time.Second
 	}
 
+	// A numeric header too large for int (Atoi returns ErrRange with the max magnitude value)
+	// is an over-cap delay, not a date — clamp positive overflow to the cap.
+	if errors.Is(err, strconv.ErrRange) && secs > 0 {
+		return maxRetryAfter
+	}
+
 	if date, err := http.ParseTime(header); err == nil {
 		if delay := time.Until(date); delay > 0 {
-			return delay
+			return min(delay, maxRetryAfter)
 		}
 	}
 

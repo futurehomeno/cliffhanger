@@ -218,6 +218,22 @@ func (l *Lifecycle) SetConnAndAuthState(connectionState, authState State) {
 	l.emitStateChangeEvent(StateTypeAuthState, authState, nil)
 }
 
+// SetConnAndAuthStateReason is SetConnAndAuthState that attaches a reason to the
+// emitted auth event so the auth-loss watcher can report why the session was lost.
+func (l *Lifecycle) SetConnAndAuthStateReason(connectionState, authState State, reason string) {
+	l.lock.Lock()
+	defer l.lock.Unlock()
+
+	if connectionState == l.connectionState && authState == l.authState {
+		return
+	}
+
+	l.connectionState = connectionState
+	l.authState = authState
+
+	l.emitStateChangeEvent(StateTypeAuthState, authState, map[string]string{"reason": reason})
+}
+
 func (l *Lifecycle) AppHealth() State {
 	l.lock.RLock()
 	defer l.lock.RUnlock()

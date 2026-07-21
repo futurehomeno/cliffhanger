@@ -1,6 +1,7 @@
 package app
 
 import (
+	"errors"
 	"fmt"
 
 	"github.com/futurehomeno/cliffhanger/lifecycle"
@@ -18,28 +19,35 @@ func Reset(appLifecycle *lifecycle.Lifecycle, things ThingDestroyer, resetConfig
 		fn()
 	}
 
+	// Mark not configured before the destructive steps so a partial failure still leaves the app
+	// in a consistent unconfigured state, rather than "configured" over an already-wiped device
+	// set that a later boot would restore. Both steps run and their errors are joined.
+	appLifecycle.MarkNotConfigured()
+
+	var errs []error
+
 	if err := things.DestroyAllThings(); err != nil {
-		return fmt.Errorf("destroy things: %w", err)
+		errs = append(errs, fmt.Errorf("destroy things: %w", err))
 	}
 
 	if err := resetConfig(); err != nil {
-		return fmt.Errorf("reset configuration: %w", err)
+		errs = append(errs, fmt.Errorf("reset configuration: %w", err))
 	}
 
-	appLifecycle.MarkNotConfigured()
-
-	return nil
+	return errors.Join(errs...)
 }
 
-// Logout clears credentials and marks the application as not configured.
-// Optional teardown hooks run first, e.g. to cancel checks or close connections.
+// Logout clears credentials and marks the application as not configured. Optional
+// teardown hooks (e.g. cancel checks, close connections) run only after credentials are
+// cleared, so a failed clear leaves the previous session intact instead of tearing down
+// connections while the app still reports the old session.
 func Logout(appLifecycle *lifecycle.Lifecycle, clearCredentials func() error, teardown ...func()) error {
-	for _, fn := range teardown {
-		fn()
-	}
-
 	if err := clearCredentials(); err != nil {
 		return fmt.Errorf("clear credentials: %w", err)
+	}
+
+	for _, fn := range teardown {
+		fn()
 	}
 
 	appLifecycle.MarkNotConfigured()
