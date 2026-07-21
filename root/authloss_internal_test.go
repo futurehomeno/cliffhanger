@@ -141,7 +141,7 @@ func TestNextAuthArm(t *testing.T) {
 		{"authenticated keeps armed", true, lifecycle.AuthStateAuthenticated, false, true},
 		{"lost while armed reports and disarms", true, lifecycle.AuthStateLost, true, false},
 		{"lost while disarmed is ignored", false, lifecycle.AuthStateLost, false, false},
-		{"not authenticated leaves arm unchanged", true, lifecycle.AuthStateNotAuthenticated, false, true},
+		{"not authenticated disarms", true, lifecycle.AuthStateNotAuthenticated, false, false},
 		{"in progress leaves arm unchanged", false, lifecycle.AuthStateInProgress, false, false},
 	}
 

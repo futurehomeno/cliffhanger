@@ -212,13 +212,16 @@ func (a *app) startAuthLossWatcher(tel telemetry.Telemetry) {
 
 	const subID = "auth_lost"
 
-	ch := a.lifecycle.Subscribe(subID, 5)
-
 	// Only an authenticated session can be lost: arm on AUTHENTICATED and report a LOST only
-	// while armed. Seed armed here — right after Subscribe, before the goroutine is scheduled —
-	// so a LOST queued immediately after subscription is still evaluated against the pre-LOST
-	// state, instead of one the goroutine-scheduling delay let that very event change.
+	// while armed. Seed armed BEFORE subscribing. SetAuthState updates the state field and then
+	// emits under the same lock, so a LOST landing after Subscribe but before the seed read would
+	// be captured in ch yet make AuthState() return LOST — seeding armed=false and dropping the
+	// very event that was queued. Reading first means any event ch delivers is evaluated against
+	// the state that preceded it; the only thing missed is a LOST that fires between the read and
+	// Subscribe, which is never queued and is equivalent to an already-lost startup.
 	armed := a.lifecycle.AuthState() == lifecycle.AuthStateAuthenticated
+
+	ch := a.lifecycle.Subscribe(subID, 5)
 
 	a.authWatcherStopCh = make(chan struct{})
 	a.authWatcherDoneCh = make(chan struct{})
@@ -253,7 +256,8 @@ func (a *app) startAuthLossWatcher(tel telemetry.Telemetry) {
 
 // nextAuthArm advances the arm state for one auth-state event: an AUTHENTICATED
 // session arms the watcher; a LOST reports only while armed, then disarms so a
-// repeated LOST (e.g. a connection-only change) does not re-fire.
+// repeated LOST (e.g. a connection-only change) does not re-fire; NOT_AUTHENTICATED
+// (logout/reset) disarms so a later failed re-login does not report a phantom loss.
 func nextAuthArm(armed bool, s lifecycle.State) (report, nowArmed bool) {
 	switch s {
 	case lifecycle.AuthStateAuthenticated:
@@ -263,6 +267,11 @@ func nextAuthArm(armed bool, s lifecycle.State) (report, nowArmed bool) {
 			return true, false
 		}
 
+		return false, false
+	case lifecycle.AuthStateNotAuthenticated:
+		// Logout/reset drive the app to NOT_AUTHENTICATED (MarkNotConfigured). Disarm so a later
+		// failed re-login — which never reaches AUTHENTICATED, only 401 -> LOST — does not report a
+		// loss for a session that was never re-established.
 		return false, false
 	}
 
@@ -281,12 +290,9 @@ func (a *app) reportAuthLoss(tel telemetry.Telemetry, reason string) {
 		log.WithError(err).Errorf("[cliff] failed to publish app state report on auth loss (%s)", reason)
 	}
 
-	data := map[string]any{}
-	if reason != "" {
-		data["reason"] = reason
-	}
-
-	telemetry.Emit(tel, telemetry.DomainAuth, telemetry.EventLoggedOut, data)
+	// Emit under the historical "cause" key that shipped on develop so downstream telemetry
+	// consumers keyed on data.cause keep matching; the value is the same loss reason.
+	telemetry.Emit(tel, telemetry.DomainAuth, telemetry.EventLoggedOut, map[string]any{"cause": reason})
 
 	if a.authLossNotifier != nil && a.authLossEvent != nil {
 		if err := a.authLossNotifier.Event(a.authLossEvent); err != nil {
