@@ -73,13 +73,14 @@ func retryAfter(resp *http.Response) time.Duration {
 			return 0
 		}
 
-		// A large value can overflow the multiplication to a negative Duration; treat any
-		// non-positive or over-cap result as the cap.
-		if d := time.Duration(secs) * time.Second; d > 0 && d < maxRetryAfter {
-			return d
+		// Bound before multiplying: secs*1e9 can overflow int64 and wrap to a small positive
+		// Duration that would otherwise slip through as a too-short delay. Anything at or above
+		// the cap (in seconds) clamps, so the multiplication below is always in range.
+		if secs >= int(maxRetryAfter/time.Second) {
+			return maxRetryAfter
 		}
 
-		return maxRetryAfter
+		return time.Duration(secs) * time.Second
 	}
 
 	// A numeric header too large for int (Atoi returns ErrRange with the max magnitude value)
