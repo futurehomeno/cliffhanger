@@ -228,6 +228,67 @@ backed by this secrets storage.
   longer abort on the first bad device — they continue and join the errors. A non-nil error means
   *partially applied*, not "nothing happened".
 
+### 7.1 Porting a device selection
+
+Config — embed the mixin and wire a store over the adapter's own locked accessors (`selection.Store`
+is closure-based precisely so adopting it does not force a `config.Service` migration first):
+
+```go
+type PublicConfig struct {
+	BaseURL string `json:"base_url"`
+	selection.Devices // replaces SelectedDevices []string `json:"selected_devices"`
+}
+
+store := selection.NewStore(
+	func() selection.Selection { return cfgSrv.GetSelectedDevices() },
+	func(next selection.Selection) error { return cfgSrv.SetSelectedDevices(next) },
+)
+```
+
+`get` must copy under the read lock and `set` must write under the write lock and stamp
+`ConfiguredAt` — `Store.Remove` is a read-then-write and relies on the handler lock below.
+
+One helper serves both `Configure` and the boot re-sync:
+
+```go
+func (a *application) syncDevices(sel selection.Selection) error {
+	seeds, err := adapter.SyncThings(a.adapter, a.fetchDevices, sel, seedDevice)
+	if err != nil {
+		return fmt.Errorf("sync things: %w", err)
+	}
+
+	// Filter before the drift pass if a degenerate response must never rebuild a thing.
+	return a.adapter.RebuildChangedThings(rebuildable(seeds))
+}
+```
+
+`Configure` calls `syncDevices(cfg.SelectedDevices)` then `store.Set(...)`; the boot path calls
+`syncDevices(store.Get())` and logs rather than failing. Run it on **every** boot, not only when the
+thing store is empty — a partially lost store never recovers otherwise.
+
+Routing — delete the adapter's own `cmd.thing.delete` route and pass the store instead:
+
+```go
+cliffAdapter.RouteAdapter(ad,
+	cliffAdapter.WithSelectionRemover(store),
+	cliffAdapter.WithLocker(configurationLocker)) // the same locker as app.RouteApp
+```
+
+Manifest — `selection.PrepareManifest(m, block, ready, fetch, option)` replaces the hand-rolled
+three-state builder and tolerates a template that renamed the block or config (dereferencing those
+panics the app on `cmd.app.get_manifest`).
+
+**Two hazards when porting:**
+
+1. **The nil flip.** An adapter where a missing `selected_devices` meant "no devices" needs a config
+   migration pinning `nil` → `selection.Selection{}`, or every install without the key silently
+   includes the whole account. An adapter where empty already meant "all devices" needs none —
+   check what its writers actually persist, since `append([]string(nil), …)` marshals to `null`.
+2. **The fetch must error.** With `ErrIncompleteFetch` gone, any client that returns a short or empty
+   slice on a non-2xx, a rate limit, an unparsable body or a truncated page will destroy things. A
+   retry budget for a flaky list endpoint belongs *inside* the fetch closure, returning an error on
+   exhaustion — not in the sync.
+
 ---
 
 ## 8. Remaining blocks
@@ -241,7 +302,9 @@ backed by this secrets storage.
   resetConfig, teardown...)`, `Logout(lc, clear, teardown...)`, `ConfigModel[T](any)`. Use in the
   app's Login/Logout/Reset/Configure so the lifecycle sequence isn't hand-written.
 - **`bootstrap.EdgeRouting[C]` / `EdgeTasks`**: bundle the common routing/task wiring; adopt if it
-  reduces builder boilerplate for your adapter.
+  reduces builder boilerplate for your adapter. `EdgeRouting` takes an `adapterOptions
+  []adapter.RoutingOption` argument before its variadic extras — pass `nil`, or the selection
+  wiring from §7.1.
 - **`router.DefaultLogStats(prefixes...)`**: the stats callback with credential-prefix redaction
   (`"cmd.auth."`) — pass to `router.WithStatsCallback`. Replaces the per-adapter `LogStats`.
 - **`utils.Throttle`**: `Do(key, emit)` collapses repeated log lines (the checker uses it for the

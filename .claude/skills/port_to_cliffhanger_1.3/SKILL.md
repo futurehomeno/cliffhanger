@@ -84,7 +84,7 @@ hand-rolled code did. Diff a captured inclusion report + evt stream before/after
    failed fetch mutates nothing); replace a hand-rolled capability-drift rebuild (sensibo
    `reconcile.go`) with `adapter.RebuildChangedThings`; store the user's device selection in
    `selection.Devices` and wire `adapter.WithSelectionRemover` so `cmd.thing.delete` deselects
-   the device it deletes. (refs §7)
+   the device it deletes. (refs §7, worked recipe and its two hazards in §7.1)
 
 8. **Adopt the remaining blocks where they apply:** `stream.Supervisor` for a push transport's
    reconnect/backoff lifecycle (easee SignalR, sonos GENA, zaptec AMQP) via a `root.Service`;
