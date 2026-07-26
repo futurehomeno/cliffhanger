@@ -28,6 +28,7 @@ const (
 // SelectionRemover drops a device from the user's device selection, so a thing deleted from the
 // hub is not recreated by the next sync. It is satisfied by *selection.Store.
 type SelectionRemover interface {
+	// Remove drops the device, and is a no-op when it is not selected.
 	Remove(id string) error
 }
 
@@ -39,20 +40,16 @@ type routingConfig struct {
 	locker    router.MessageHandlerLocker
 }
 
-// WithSelectionRemover makes cmd.thing.delete drop the deleted device from the user's device
-// selection in addition to destroying the thing. Without it a deleted thing comes back on the
-// next sync, as the selection still lists it.
-//
-// It has no effect on an adapter whose selection includes every device: "include all" cannot
-// express an exclusion, so an adapter with user-deletable devices must keep an explicit
-// selection.
+// WithSelectionRemover makes cmd.thing.delete deselect the device it deletes; without it the
+// next sync recreates the thing. It cannot help an "include all" selection, which has no way to
+// express an exclusion. Pair it with WithLocker.
 func WithSelectionRemover(remover SelectionRemover) RoutingOption {
 	return func(c *routingConfig) { c.selection = remover }
 }
 
-// WithLocker makes cmd.thing.delete share a lock with the application's configuration handlers,
-// so deleting a thing cannot interleave with cmd.config.extended_set rewriting the selection.
-// Pass the same locker as app.RouteApp.
+// WithLocker serialises cmd.thing.delete against the application's configuration handlers, so a
+// delete cannot interleave with cmd.config.extended_set rewriting the selection. Pass the same
+// locker as app.RouteApp.
 func WithLocker(locker router.MessageHandlerLocker) RoutingOption {
 	return func(c *routingConfig) { c.locker = locker }
 }
@@ -121,8 +118,7 @@ func handleCmdThingDelete(adapter Adapter, cfg *routingConfig) router.MessageHan
 				return nil, errors.New("provided address is empty")
 			}
 
-			// Resolve the device ID before the destroy: destroying a thing drops the state
-			// record mapping its address to its ID, so a later lookup would find nothing.
+			// Resolve before the destroy: it drops the record mapping address to ID.
 			id, ok := adapter.ExchangeAddress(address)
 
 			err = adapter.DestroyThingByAddress(address)
@@ -136,8 +132,7 @@ func handleCmdThingDelete(adapter Adapter, cfg *routingConfig) router.MessageHan
 
 			if !ok {
 				// No thing state: the hub is deleting a node this adapter never registered,
-				// which for an ID-addressed adapter is a device left behind by an older
-				// version. Removing an unselected ID is a no-op elsewhere.
+				// which for an ID-addressed adapter is a device left behind by an older version.
 				id = address
 			}
 

@@ -11,13 +11,10 @@ import (
 
 // RebuildChangedThings rebuilds any already-registered thing whose seed would produce a
 // different service topology than the live thing. EnsureThings only reconciles presence, so
-// a device that gains a capability keeps its old services until it is rebuilt. The prospective
-// thing is built first, so a factory error returns before the destructive destroy.
+// a device that gains a capability keeps its old services until it is rebuilt.
 //
-// The pass is best-effort per seed: a failure on one device does not stop the others and all
-// failures are returned joined. The whole pass runs under the adapter lock, matching
-// EnsureThings, so no concurrent operation can destroy a thing between the lookup and its
-// rebuild.
+// Best-effort per seed: failures are joined. The whole pass runs under the adapter lock, so
+// nothing can destroy a thing between the lookup and its rebuild.
 func (a *adapter) RebuildChangedThings(seeds ThingSeeds) error {
 	a.lock.Lock()
 	defer a.lock.Unlock()
@@ -46,8 +43,8 @@ func (a *adapter) rebuildChangedThing(seed *ThingSeed) error {
 		return nil
 	}
 
-	// The prospective thing reuses the live address so only genuine capability changes,
-	// not address-derived fields, differ.
+	// Reuse the live address so only genuine capability changes, not address-derived fields,
+	// differ. Building before the destroy also means a factory error costs nothing.
 	prospective, err := a.factory.Create(a, a.publisher, newSeedState(seed, ts.Address()))
 	if err != nil {
 		return fmt.Errorf("build prospective thing: %w", err)
@@ -67,16 +64,15 @@ func (a *adapter) rebuildChangedThing(seed *ThingSeed) error {
 		return nil
 	}
 
-	// destroyThing drops the whole state record and createThing rebuilds only
-	// ID/Address/Info, so capture any persisted per-thing state and restore it after the
-	// swap; otherwise a topology rebuild would silently discard it.
+	// destroyThing drops the whole state record, so capture any persisted per-thing state and
+	// restore it after the swap; otherwise a rebuild would silently discard it.
 	var savedState json.RawMessage
 	if err := ts.State(&savedState); err != nil {
 		return fmt.Errorf("read state: %w", err)
 	}
 
-	// Preserve the live address so the rebuilt thing keeps its topic identity; a seed
-	// without a CustomAddress would otherwise be assigned a fresh address on recreation.
+	// Preserve the live address so the rebuilt thing keeps its topic identity; a seed without
+	// a CustomAddress would be assigned a fresh one on recreation.
 	rebuildSeed := &ThingSeed{ID: seed.ID, CustomAddress: ts.Address(), Info: seed.Info}
 
 	if err := a.destroyThing(ts.Address()); err != nil {

@@ -49,12 +49,10 @@ type Adapter interface {
 	// CreateThing creates thing and adds it to the adapter.
 	CreateThing(seed *ThingSeed) error
 	// DestroyThingByID destroys thing and removes it from the adapter. An unknown ID is a no-op:
-	// there is no address to announce an exclusion for. Use DestroyThingByAddress when the
-	// exclusion must be sent regardless.
+	// there is no address to announce an exclusion for.
 	DestroyThingByID(id string) error
 	// DestroyThingByAddress destroys thing and removes it from the adapter. An unregistered
-	// address still emits the exclusion: an upgraded hub may hold a stale node the adapter's
-	// state never knew about, and exclusion reports are idempotent.
+	// address still emits the exclusion, clearing a stale hub node the state never knew about.
 	DestroyThingByAddress(address string) error
 	// DestroyAllThings destroys all things and removes them from the adapter.
 	DestroyAllThings() error
@@ -247,9 +245,7 @@ func (a *adapter) InitializeThings() error {
 }
 
 // EnsureThings creates and destroys things based on provided map of IDs and custom information objects.
-// The pass is best-effort per device: a failure on one device does not stop the others and all
-// failures are returned joined, so a single broken device can never block a whole sync. A non-nil
-// error therefore means partially applied, not "nothing happened".
+// Best-effort per device: failures are joined, so a non-nil error means partially applied.
 func (a *adapter) EnsureThings(seeds ThingSeeds) error {
 	a.lock.Lock()
 	defer a.lock.Unlock()
@@ -317,9 +313,8 @@ func (a *adapter) DestroyThingByAddress(address string) error {
 	return a.destroyThing(address)
 }
 
-// DestroyAllThings destroys all things and removes them from the adapter. The pass is
-// best-effort per device: the adapter is always left empty, so a single stuck device cannot
-// leave a half-reset adapter behind.
+// DestroyAllThings destroys all things and removes them from the adapter. Best-effort per
+// device: the adapter is always left empty, never half-reset.
 func (a *adapter) DestroyAllThings() error {
 	a.lock.Lock()
 	defer a.lock.Unlock()
@@ -378,9 +373,8 @@ func (a *adapter) createThing(seed *ThingSeed) (err error) {
 		return fmt.Errorf("failed to create state for thing with ID %s: %w", seed.ID, err)
 	}
 
-	// Roll the state record back on failure: a persisted record with no live thing is a ghost
-	// that EnsureThings treats as present forever, so the device stays missing until the store
-	// is reset. Best-effort passes make this likely, as a failure no longer aborts the sync.
+	// Roll the state record back on failure: a record with no live thing is a ghost that
+	// EnsureThings treats as present forever, so the device stays missing until a reset.
 	defer func() {
 		if err != nil {
 			_ = a.state.remove(seed.ID)
