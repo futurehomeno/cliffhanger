@@ -80,9 +80,11 @@ hand-rolled code did. Diff a captured inclusion report + evt stream before/after
    `MarkNotConfigured()` (cloud-auth adapters only; apps at `AuthStateNA`/`ConnStateNA` set states
    individually) and `SetConnAndAuthState` for atomic auth-loss bundles instead of four separate
    setters. Replace the fetch→filter→map→`EnsureThings` wrapper with
-   `adapter.SeedsFromSelection` + `adapter.SyncThings` (shared anti-wipe guard,
-   `ErrIncompleteFetch`); replace a hand-rolled capability-drift rebuild (sensibo `reconcile.go`)
-   with `adapter.RebuildChangedThings`. (refs §7)
+   `adapter.SeedsFromSelection` + `adapter.SyncThings` (the fetch is owned by the sync, so a
+   failed fetch mutates nothing); replace a hand-rolled capability-drift rebuild (sensibo
+   `reconcile.go`) with `adapter.RebuildChangedThings`; store the user's device selection in
+   `selection.Devices` and wire `adapter.WithSelectionRemover` so `cmd.thing.delete` deselects
+   the device it deletes. (refs §7)
 
 8. **Adopt the remaining blocks where they apply:** `stream.Supervisor` for a push transport's
    reconnect/backoff lifecycle (easee SignalR, sonos GENA, zaptec AMQP) via a `root.Service`;

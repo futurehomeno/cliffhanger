@@ -1,6 +1,7 @@
 package adapter
 
 import (
+	"errors"
 	"fmt"
 
 	"github.com/futurehomeno/fimpgo"
@@ -24,10 +25,48 @@ const (
 	EvtPingReport              = "evt.ping.report"
 )
 
-func RouteAdapter(adapter Adapter) []*router.Routing {
+// SelectionRemover drops a device from the user's device selection, so a thing deleted from the
+// hub is not recreated by the next sync. It is satisfied by *selection.Store.
+type SelectionRemover interface {
+	Remove(id string) error
+}
+
+// RoutingOption configures the adapter routing.
+type RoutingOption func(*routingConfig)
+
+type routingConfig struct {
+	selection SelectionRemover
+	locker    router.MessageHandlerLocker
+}
+
+// WithSelectionRemover makes cmd.thing.delete drop the deleted device from the user's device
+// selection in addition to destroying the thing. Without it a deleted thing comes back on the
+// next sync, as the selection still lists it.
+//
+// It has no effect on an adapter whose selection includes every device: "include all" cannot
+// express an exclusion, so an adapter with user-deletable devices must keep an explicit
+// selection.
+func WithSelectionRemover(remover SelectionRemover) RoutingOption {
+	return func(c *routingConfig) { c.selection = remover }
+}
+
+// WithLocker makes cmd.thing.delete share a lock with the application's configuration handlers,
+// so deleting a thing cannot interleave with cmd.config.extended_set rewriting the selection.
+// Pass the same locker as app.RouteApp.
+func WithLocker(locker router.MessageHandlerLocker) RoutingOption {
+	return func(c *routingConfig) { c.locker = locker }
+}
+
+func RouteAdapter(adapter Adapter, options ...RoutingOption) []*router.Routing {
+	cfg := &routingConfig{}
+
+	for _, option := range options {
+		option(cfg)
+	}
+
 	return []*router.Routing{
 		routeCmdThingGetInclusionReport(adapter),
-		routeCmdThingDelete(adapter),
+		routeCmdThingDelete(adapter, cfg),
 		routeCmdNetworkReset(adapter),
 		routeCmdNetworkGetNode(adapter),
 		routeCmdNetworkGetAllNodes(adapter),
@@ -61,15 +100,15 @@ func handleCmdThingGetInclusionReport(adapter Adapter) router.MessageHandler {
 	)
 }
 
-func routeCmdThingDelete(adapter Adapter) *router.Routing {
+func routeCmdThingDelete(adapter Adapter, cfg *routingConfig) *router.Routing {
 	return router.NewRouting(
-		handleCmdThingDelete(adapter),
+		handleCmdThingDelete(adapter, cfg),
 		router.ForService(fimptype.ServiceNameT(adapter.Name())),
 		router.ForType(CmdThingDelete),
 	)
 }
 
-func handleCmdThingDelete(adapter Adapter) router.MessageHandler {
+func handleCmdThingDelete(adapter Adapter, cfg *routingConfig) router.MessageHandler {
 	return router.NewMessageHandler(
 		router.MessageProcessorFn(func(message *fimpgo.Message) (reply *fimpgo.FimpMessage, err error) {
 			value, err := message.Payload.GetStrMapValue()
@@ -78,14 +117,37 @@ func handleCmdThingDelete(adapter Adapter) router.MessageHandler {
 			}
 
 			address := value["address"]
+			if address == "" {
+				return nil, errors.New("provided address is empty")
+			}
+
+			// Resolve the device ID before the destroy: destroying a thing drops the state
+			// record mapping its address to its ID, so a later lookup would find nothing.
+			id, ok := adapter.ExchangeAddress(address)
 
 			err = adapter.DestroyThingByAddress(address)
 			if err != nil {
 				return nil, fmt.Errorf("failed to delete thing with address %s: %w", address, err)
 			}
 
+			if cfg.selection == nil {
+				return nil, nil
+			}
+
+			if !ok {
+				// No thing state: the hub is deleting a node this adapter never registered,
+				// which for an ID-addressed adapter is a device left behind by an older
+				// version. Removing an unselected ID is a no-op elsewhere.
+				id = address
+			}
+
+			if err := cfg.selection.Remove(id); err != nil {
+				return nil, fmt.Errorf("failed to remove device %s from the selection: %w", id, err)
+			}
+
 			return nil, nil
 		}),
+		router.WithExternalLock(cfg.locker),
 	)
 }
 
