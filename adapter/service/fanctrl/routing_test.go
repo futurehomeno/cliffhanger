@@ -98,6 +98,28 @@ func TestRouteService(t *testing.T) { //nolint:paralleltest
 				},
 			},
 			{
+				Name:     "mode outside sup_modes is still reported",
+				TearDown: adapterhelper.TearDownAdapter("../../testdata/adapter/test_adapter"),
+				Setup: routeService(mockedfanctrl.NewController(t).
+					MockGetMode("turbo", nil, true),
+				),
+				Nodes: []*cliffSuite.Node{
+					{
+						Name: "Cmd mode get report",
+						Command: cliffSuite.NewMessageBuilder().
+							NullMessage(
+								"pt:j1/mt:cmd/rt:dev/rn:test_adapter/ad:1/sv:fan_ctrl/ad:2",
+								"cmd.mode.get_report",
+								"fan_ctrl",
+							).
+							Build(),
+						Expectations: []*cliffSuite.Expectation{
+							cliffSuite.ExpectString("pt:j1/mt:evt/rt:dev/rn:test_adapter/ad:1/sv:fan_ctrl/ad:2", "evt.mode.report", "fan_ctrl", "turbo"),
+						},
+					},
+				},
+			},
+			{
 				Name:     "broken get mode in controller",
 				TearDown: adapterhelper.TearDownAdapter("../../testdata/adapter/test_adapter"),
 				Setup: routeService(mockedfanctrl.NewController(t).
