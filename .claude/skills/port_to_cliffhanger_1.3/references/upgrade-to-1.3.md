@@ -29,7 +29,7 @@ The change landed in four "waves":
 | `lifecycle.MarkRunning/MarkNotConfigured` + `SetConnAndAuthState` | state-bundle helpers; atomic conn+auth in one event | four separate `Set*State` calls |
 | `storage.NewSecrets/NewCanonicalSecrets` | `Storage[T]` at 0640 (edge: `data/secrets.json`; canonical/core: `workDir/<name>`) | credentials living in world-readable `config.json` |
 | `stream.Supervisor` | `NewSupervisor(connect Connection, b backoff.Stateful)` → `Start()/Stop()/TriggerReconnect()` | bespoke SignalR/GENA/AMQP reconnect loops |
-| `adapter.SeedsFromSelection` + `SyncThings` + `RebuildChangedThings`, `selection` | `SeedsFromSelection[T](available, selected, seed)`, `SyncThings[T](a, fetch, selected, seed) (ThingSeeds, error)`, `RebuildChangedThings(seeds)`, `selection.Devices`/`Store`/`PrepareManifest`, `adapter.WithSelectionRemover` | fetch→filter→map→EnsureThings wrapper, sensibo `reconcile.go`, per-adapter `selected_devices` plumbing and `cmd.thing.delete` route |
+| `adapter.SeedsFromSelection` + `SyncThings` + `RebuildChangedThings`, `selection` | `SeedsFromSelection[T](available, selected, seed)`, `SyncThings[T](a, fetch, selected, seed) (ThingSeeds, error)`, `RebuildChangedThings(seeds)`, `selection.Devices`/`Store`/`PrepareManifest`, `adapter.WithSelection` | fetch→filter→map→EnsureThings wrapper, sensibo `reconcile.go`, per-adapter `selected_devices` plumbing and `cmd.thing.delete` route |
 | `bootstrap.EdgeRouting/EdgeTasks` | `EdgeRouting[C](...)`, `EdgeTasks(...)` bundles | repeated builder wiring |
 | `router.DefaultLogStats` | `DefaultLogStats(redactedInterfacePrefixes ...string) func(Stats)` | per-adapter `LogStats` with `cmd.auth.` masking |
 | `backoff.NewTolerantFixed` | `(tolerance uint32, delay time.Duration) Stateful` | fixed-after-N-tolerated backoff presets |
@@ -222,7 +222,7 @@ backed by this secrets storage.
 - **`selection`** owns the user's device selection: `selection.Devices` is the config mixin carrying
   `selected_devices`, `selection.Store` reads/writes it, and `selection.PrepareManifest` renders the
   device selector's three states (not ready / fetch failed / ready). Pass the store to
-  `adapter.RouteAdapter(ad, adapter.WithSelectionRemover(store), adapter.WithLocker(locker))` so
+  `adapter.RouteAdapter(ad, adapter.WithSelection(store, locker))` so
   `cmd.thing.delete` also deselects the device; without it the next sync recreates the deleted thing.
 - **Best effort**: `EnsureThings`, `RebuildChangedThings`, `DestroyAllThings` and `SyncThings` no
   longer abort on the first bad device — they continue and join the errors. A non-nil error means
@@ -269,9 +269,8 @@ thing store is empty — a partially lost store never recovers otherwise.
 Routing — delete the adapter's own `cmd.thing.delete` route and pass the store instead:
 
 ```go
-cliffAdapter.RouteAdapter(ad,
-	cliffAdapter.WithSelectionRemover(store),
-	cliffAdapter.WithLocker(configurationLocker)) // the same locker as app.RouteApp
+// the same locker as app.RouteApp
+cliffAdapter.RouteAdapter(ad, cliffAdapter.WithSelection(store, configurationLocker))
 ```
 
 Manifest — `selection.PrepareManifest(m, block, ready, fetch, option)` replaces the hand-rolled

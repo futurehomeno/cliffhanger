@@ -40,18 +40,17 @@ type routingConfig struct {
 	locker    router.MessageHandlerLocker
 }
 
-// WithSelectionRemover makes cmd.thing.delete deselect the device it deletes; without it the
-// next sync recreates the thing. It cannot help an "include all" selection, which has no way to
-// express an exclusion. Pair it with WithLocker.
-func WithSelectionRemover(remover SelectionRemover) RoutingOption {
-	return func(c *routingConfig) { c.selection = remover }
-}
-
-// WithLocker serialises cmd.thing.delete against the application's configuration handlers, so a
-// delete cannot interleave with cmd.config.extended_set rewriting the selection. Pass the same
-// locker as app.RouteApp.
-func WithLocker(locker router.MessageHandlerLocker) RoutingOption {
-	return func(c *routingConfig) { c.locker = locker }
+// WithSelection makes cmd.thing.delete deselect the device it deletes; without it the next sync
+// recreates the thing. It cannot help an "include all" selection, which has no way to express an
+// exclusion. The locker serialises the delete against the application's configuration handlers,
+// so the remover's read-then-write cannot interleave with cmd.config.extended_set rewriting the
+// selection - pass the same locker as app.RouteApp. The two are a single option because the
+// remover is unsafe without the lock.
+func WithSelection(remover SelectionRemover, locker router.MessageHandlerLocker) RoutingOption {
+	return func(c *routingConfig) {
+		c.selection = remover
+		c.locker = locker
+	}
 }
 
 func RouteAdapter(adapter Adapter, options ...RoutingOption) []*router.Routing {
@@ -121,23 +120,25 @@ func handleCmdThingDelete(adapter Adapter, cfg *routingConfig) router.MessageHan
 			// Resolve before the destroy: it drops the record mapping address to ID.
 			id, ok := adapter.ExchangeAddress(address)
 
+			// Deselect before destroying. The reverse order resurrects the device: a failed
+			// deselect after a successful destroy leaves it selected, so the next sync recreates
+			// the thing the user just deleted. This way a failure leaves the thing intact and
+			// retryable, and a destroy that fails afterwards is undone by the next sync anyway.
+			if cfg.selection != nil {
+				if !ok {
+					// No thing state: the hub is deleting a node this adapter never registered,
+					// which for an ID-addressed adapter is a device left behind by an older version.
+					id = address
+				}
+
+				if err := cfg.selection.Remove(id); err != nil {
+					return nil, fmt.Errorf("failed to remove device %s from the selection: %w", id, err)
+				}
+			}
+
 			err = adapter.DestroyThingByAddress(address)
 			if err != nil {
 				return nil, fmt.Errorf("failed to delete thing with address %s: %w", address, err)
-			}
-
-			if cfg.selection == nil {
-				return nil, nil
-			}
-
-			if !ok {
-				// No thing state: the hub is deleting a node this adapter never registered,
-				// which for an ID-addressed adapter is a device left behind by an older version.
-				id = address
-			}
-
-			if err := cfg.selection.Remove(id); err != nil {
-				return nil, fmt.Errorf("failed to remove device %s from the selection: %w", id, err)
 			}
 
 			return nil, nil

@@ -27,7 +27,7 @@ func (s *Store) Set(sel Selection) error { return s.set(sel.Clone()) }
 // selected or when the selection includes every device.
 //
 // The read-then-write is not atomic, so it must run under the same handler lock as the
-// configuration writes it can race, which adapter.WithLocker provides.
+// configuration writes it can race, which adapter.WithSelection provides.
 func (s *Store) Remove(id string) error {
 	next, removed := s.get().Without(id)
 	if !removed {

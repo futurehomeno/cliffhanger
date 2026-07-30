@@ -8,6 +8,7 @@ import (
 
 	"github.com/futurehomeno/fimpgo"
 	"github.com/futurehomeno/fimpgo/fimptype"
+	log "github.com/sirupsen/logrus"
 
 	"github.com/futurehomeno/cliffhanger/event"
 )
@@ -376,8 +377,12 @@ func (a *adapter) createThing(seed *ThingSeed) (err error) {
 	// Roll the state record back on failure: a record with no live thing is a ghost that
 	// EnsureThings treats as present forever, so the device stays missing until a reset.
 	defer func() {
-		if err != nil {
-			_ = a.state.remove(seed.ID)
+		if err == nil {
+			return
+		}
+
+		if rollbackErr := a.state.remove(seed.ID); rollbackErr != nil {
+			log.Warnf("adapter: failed to roll back state of thing with ID %s: %v", seed.ID, rollbackErr)
 		}
 	}()
 
@@ -430,14 +435,16 @@ func (a *adapter) createThingState(seed *ThingSeed) (ThingState, error) {
 	return ts, nil
 }
 
+// destroyThing is best-effort across all three steps: a failed state write must not skip the
+// unregister, or the thing keeps its connector open while the adapter drops the last reference
+// to it. The state record is already gone from memory by then, so there is nothing to retry.
 func (a *adapter) destroyThing(address string) error {
-	var err error
+	var errs []error
 
 	ts := a.state.byAddress(address)
 	if ts != nil {
-		err = a.state.remove(ts.ID())
-		if err != nil {
-			return fmt.Errorf("failed to remove state for thing with ID %s: %w", ts.ID(), err)
+		if err := a.state.remove(ts.ID()); err != nil {
+			errs = append(errs, fmt.Errorf("failed to remove state for thing with ID %s: %w", ts.ID(), err))
 		}
 	}
 
@@ -446,12 +453,11 @@ func (a *adapter) destroyThing(address string) error {
 		a.unregisterThing(t)
 	}
 
-	err = a.sendExclusionReport(address)
-	if err != nil {
-		return fmt.Errorf("failed to send exclusion report for thing with address %s: %w", address, err)
+	if err := a.sendExclusionReport(address); err != nil {
+		errs = append(errs, fmt.Errorf("failed to send exclusion report for thing with address %s: %w", address, err))
 	}
 
-	return nil
+	return errors.Join(errs...)
 }
 
 func (a *adapter) sendExclusionReport(address string) error {

@@ -1,6 +1,7 @@
 package adapter_test
 
 import (
+	"errors"
 	"sync"
 	"testing"
 	"time"
@@ -62,7 +63,12 @@ func (s *testSelection) set(next selection.Selection) error {
 	return nil
 }
 
-func setupAdapterWithDeletableThings(ad *adapter.Adapter, store *selection.Store) suite.BaseSetup {
+// failingRemover stands in for a selection whose configuration write fails, e.g. a full disk.
+type failingRemover struct{}
+
+func (failingRemover) Remove(string) error { return errors.New("selection write failed") }
+
+func setupAdapterWithDeletableThings(ad *adapter.Adapter, remover adapter.SelectionRemover) suite.BaseSetup {
 	return func(t *testing.T, mqtt *fimpgo.MqttTransport) ([]*router.Routing, []*task.Task, []suite.Mock) {
 		t.Helper()
 
@@ -79,7 +85,7 @@ func setupAdapterWithDeletableThings(ad *adapter.Adapter, store *selection.Store
 
 		*ad = adapterhelper.PrepareSeededAdapter(t, testAdapterWorkDir, mqtt, factory, seeds)
 
-		return adapter.RouteAdapter(*ad, adapter.WithSelectionRemover(store)), nil, nil
+		return adapter.RouteAdapter(*ad, adapter.WithSelection(remover, nil)), nil, nil
 	}
 }
 
@@ -179,6 +185,45 @@ func TestRouteAdapter_ThingDeleteWithoutSelection(t *testing.T) { //nolint:paral
 							expectExclusion(testThingAddressB).ExactlyOnce(),
 							suite.ExpectError(testAdapterEvtTopic, testAdapterName).Never(),
 						},
+					},
+				},
+			},
+		},
+	}
+
+	s.Run(t)
+}
+
+func TestRouteAdapter_ThingDeleteSelectionWriteFails(t *testing.T) { //nolint:paralleltest
+	var ad adapter.Adapter
+
+	// The deselect runs before the destroy precisely so this case is recoverable: were the order
+	// reversed, the thing would be gone while the device stayed selected and the next sync would
+	// resurrect the device the user just deleted.
+	s := &suite.Suite{
+		Cases: []*suite.Case{
+			{
+				Name:     "a failing deselect leaves the thing intact instead of resurrecting it",
+				TearDown: adapterhelper.TearDownAdapter(testAdapterWorkDir),
+				Setup:    setupAdapterWithDeletableThings(&ad, failingRemover{}),
+				Nodes: []*suite.Node{
+					{
+						Name:    "the delete reports an error and announces no exclusion",
+						Timeout: 500 * time.Millisecond,
+						Command: deleteThingCommand(testThingAddressB),
+						Expectations: []*suite.Expectation{
+							suite.ExpectError(testAdapterEvtTopic, testAdapterName).ExactlyOnce(),
+							expectAnyExclusion().Never(),
+						},
+					},
+					{
+						Name:    "the thing survives, so retrying the delete is all it takes",
+						Timeout: 500 * time.Millisecond,
+						InitCallbacks: []suite.Callback{func(t *testing.T) {
+							t.Helper()
+
+							assert.NotNil(t, ad.ThingByAddress(testThingAddressB), "thing B must survive a failed deselect")
+						}},
 					},
 				},
 			},
