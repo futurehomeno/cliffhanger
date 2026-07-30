@@ -45,13 +45,18 @@ func (c *recordingConnector) wasDisconnected() bool {
 	return c.disconnected
 }
 
-// failingRemoveState fails every removal, standing in for a state file that can no longer be
-// persisted. The in-memory record is dropped regardless, which is why destroyThing must carry on.
+// failingRemoveState stands in for a state file that can no longer be persisted. It mirrors
+// state.remove faithfully: the in-memory record is dropped first and only the save fails, which
+// is why every caller of destroyThing must treat the error as already-applied rather than retry.
 type failingRemoveState struct {
 	State
 }
 
-func (failingRemoveState) remove(string) error { return errors.New("state write failed") }
+func (f failingRemoveState) remove(id string) error {
+	_ = f.State.remove(id)
+
+	return errors.New("state write failed")
+}
 
 // TestDestroyThing_UnregistersWhenStateRemoveFails pins that a failed state write does not skip
 // the unregister. Returning early there left the thing connected while DestroyAllThings cleared
