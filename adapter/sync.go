@@ -62,10 +62,20 @@ func SyncThings[T any](
 func excludeVanishedDevices(a Adapter, selected []string, seeds ThingSeeds) []error {
 	var errs []error
 
+	// Nothing dedupes the selection on the way into the configuration, and an ID repeated there
+	// would otherwise announce the same vanished device twice.
+	excluded := make(map[string]struct{}, len(selected))
+
 	for _, id := range selected {
 		if seeds.Contains(id) {
 			continue
 		}
+
+		if _, done := excluded[id]; done {
+			continue
+		}
+
+		excluded[id] = struct{}{}
 
 		if _, owned := a.ExchangeID(id); owned {
 			continue // EnsureThings destroys it and announces its real address.

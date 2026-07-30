@@ -81,6 +81,23 @@ func TestSyncThings_ExcludesVanishedDevice(t *testing.T) {
 	assert.NoError(t, err)
 }
 
+func TestSyncThings_ExcludesDuplicatedSelectedDeviceOnce(t *testing.T) {
+	t.Parallel()
+
+	// Nothing dedupes the selection on the way into the configuration, so the same vanished ID can
+	// appear twice. Announcing an exclusion per occurrence is just confusing noise in the logs.
+	a := mockedadapter.NewAdapter(t)
+	a.On("ExchangeID", "2").Return("", false).Once()
+	a.On("ExchangeAddress", "2").Return("", false).Once()
+	a.On("DestroyThingByAddress", "2").Return(nil).Once()
+	a.On("EnsureThings", mock.Anything).Return(nil)
+
+	_, err := adapter.SyncThings(a, fetchOK([]device{{"1", "a"}}), []string{"1", "2", "2"}, seedDevice)
+
+	assert.NoError(t, err)
+	a.AssertNumberOfCalls(t, "DestroyThingByAddress", 1)
+}
+
 func TestSyncThings_DoesNotExcludeOwnedOrForeignAddress(t *testing.T) {
 	t.Parallel()
 

@@ -7,6 +7,7 @@ import (
 	"hash/crc32"
 
 	"github.com/futurehomeno/fimpgo/fimptype"
+	log "github.com/sirupsen/logrus"
 )
 
 // RebuildChangedThings rebuilds any already-registered thing whose seed would produce a
@@ -75,8 +76,11 @@ func (a *adapter) rebuildChangedThing(seed *ThingSeed) error {
 	// a CustomAddress would be assigned a fresh one on recreation.
 	rebuildSeed := &ThingSeed{ID: seed.ID, CustomAddress: ts.Address(), Info: seed.Info}
 
+	// destroyThing is best-effort and has already completed the in-memory removal by the time it
+	// reports an error, so aborting here would leave the device excluded and never recreated -
+	// and discard savedState with it. Carry on and let the recreate put the thing back.
 	if err := a.destroyThing(ts.Address()); err != nil {
-		return fmt.Errorf("destroy: %w", err)
+		log.Warnf("adapter: rebuild of thing with ID %s: destroy reported errors, recreating anyway: %v", seed.ID, err)
 	}
 
 	if err := a.createThing(rebuildSeed); err != nil {
