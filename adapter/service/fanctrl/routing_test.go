@@ -6,6 +6,9 @@ import (
 
 	"github.com/futurehomeno/fimpgo"
 	"github.com/futurehomeno/fimpgo/fimptype"
+	"github.com/sirupsen/logrus/hooks/test"
+	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/mock"
 
 	"github.com/futurehomeno/cliffhanger/adapter"
 	"github.com/futurehomeno/cliffhanger/adapter/service/fanctrl"
@@ -153,11 +156,36 @@ func TestSpecification(t *testing.T) {
 		router.EvtErrorReport:    fimptype.VTypeString,
 	}
 
+	got := make(map[string]fimptype.ValueTypeT)
+
 	for _, intf := range fanctrl.Specification("test_adapter", "1", "2", nil, []string{"normal"}).Interfaces {
-		if intf.ValueType != want[intf.MsgType] {
-			t.Errorf("%s: declared value type %q, want %q", intf.MsgType, intf.ValueType, want[intf.MsgType])
-		}
+		got[intf.MsgType] = intf.ValueType
 	}
+
+	assert.Equal(t, want, got)
+}
+
+func TestSendModeReportLogsOutOfSpecModeOnlyWhenPublished(t *testing.T) { //nolint:paralleltest
+	hook := test.NewGlobal()
+	defer hook.Reset()
+
+	publisher := mockedadapter.NewServicePublisher(t)
+	publisher.EXPECT().PublishServiceMessage(mock.Anything, mock.Anything).Return(nil).Once()
+
+	s := fanctrl.NewService(publisher, &fanctrl.Config{
+		Specification: fanctrl.Specification("test_adapter", "1", "2", nil, []string{"normal"}),
+		Controller:    mockedfanctrl.NewController(t).MockGetMode("turbo", nil, false),
+	})
+
+	sent, err := s.SendModeReport(false)
+	assert.NoError(t, err)
+	assert.True(t, sent)
+	assert.Len(t, hook.Entries, 1)
+
+	sent, err = s.SendModeReport(false)
+	assert.NoError(t, err)
+	assert.False(t, sent)
+	assert.Len(t, hook.Entries, 1)
 }
 
 func routeService(controller *mockedfanctrl.Controller) cliffSuite.BaseSetup {

@@ -112,6 +112,10 @@ func (s *service) SendModeReport(force bool) (bool, error) {
 		return false, fmt.Errorf("failed to get mode: %w", err)
 	}
 
+	if !force && !s.reportingCache.ReportRequired(s.reportingStrategy, EvtModeReport, "", mode) {
+		return false, nil
+	}
+
 	// Report the mode the device is actually in even when the specification does not
 	// advertise it. sup_modes describes what may be set, and a device can sit in a
 	// mode outside it — set outside cliffhanger, or supported only in a state the
@@ -119,10 +123,6 @@ func (s *service) SendModeReport(force bool) (bool, error) {
 	// holding a stale value rather than a truthful one.
 	if !slices.Contains(s.SupportedModes(), mode) {
 		log.Warnf("fanctrl: reporting mode %s, which is not in sup_modes", mode)
-	}
-
-	if !force && !s.reportingCache.ReportRequired(s.reportingStrategy, EvtModeReport, "", mode) {
-		return false, nil
 	}
 
 	message := fimpgo.NewStringMessage(
