@@ -17,8 +17,8 @@ import (
 // EdgeRouting combines the standard edge adapter routing (default, app and adapter routes)
 // with domain-specific extras. excludeAllThings is forwarded to app.RouteApp: typically
 // ad.DestroyAllThings, or nil when the application destroys things in Uninstall itself.
-// adapterOptions is forwarded to adapter.RouteAdapter: typically adapter.WithSelectionRemover
-// and adapter.WithLocker(locker) for an application with a device selection.
+// adapterOptions is forwarded to adapter.RouteAdapter: typically
+// adapter.WithSelection(store, locker) for an application with a device selection.
 func EdgeRouting[C any](
 	serviceName fimptype.ServiceNameT,
 	configGetter func() any,

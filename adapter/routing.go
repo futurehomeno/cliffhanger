@@ -28,6 +28,7 @@ const (
 // SelectionRemover drops a device from the user's device selection, so a thing deleted from the
 // hub is not recreated by the next sync. It is satisfied by *selection.Store.
 type SelectionRemover interface {
+	// Remove drops the device, and is a no-op when it is not selected.
 	Remove(id string) error
 }
 
@@ -39,22 +40,22 @@ type routingConfig struct {
 	locker    router.MessageHandlerLocker
 }
 
-// WithSelectionRemover makes cmd.thing.delete drop the deleted device from the user's device
-// selection in addition to destroying the thing. Without it a deleted thing comes back on the
-// next sync, as the selection still lists it.
-//
-// It has no effect on an adapter whose selection includes every device: "include all" cannot
-// express an exclusion, so an adapter with user-deletable devices must keep an explicit
-// selection.
-func WithSelectionRemover(remover SelectionRemover) RoutingOption {
-	return func(c *routingConfig) { c.selection = remover }
-}
+// WithSelection makes cmd.thing.delete deselect the device it deletes; without it the next sync
+// recreates the thing. It cannot help an "include all" selection, which has no way to express an
+// exclusion. The locker serialises the delete against the application's configuration handlers,
+// so the remover's read-then-write cannot interleave with cmd.config.extended_set rewriting the
+// selection - pass the same locker as app.RouteApp. Both are required: a nil locker leaves the
+// handler unlocked, silently defeating the serialisation the remover depends on, so it panics
+// at wiring time rather than handing back a selection that quietly loses updates.
+func WithSelection(remover SelectionRemover, locker router.MessageHandlerLocker) RoutingOption {
+	if remover == nil || locker == nil {
+		panic("adapter: WithSelection requires a non-nil remover and locker")
+	}
 
-// WithLocker makes cmd.thing.delete share a lock with the application's configuration handlers,
-// so deleting a thing cannot interleave with cmd.config.extended_set rewriting the selection.
-// Pass the same locker as app.RouteApp.
-func WithLocker(locker router.MessageHandlerLocker) RoutingOption {
-	return func(c *routingConfig) { c.locker = locker }
+	return func(c *routingConfig) {
+		c.selection = remover
+		c.locker = locker
+	}
 }
 
 func RouteAdapter(adapter Adapter, options ...RoutingOption) []*router.Routing {
@@ -121,28 +122,28 @@ func handleCmdThingDelete(adapter Adapter, cfg *routingConfig) router.MessageHan
 				return nil, errors.New("provided address is empty")
 			}
 
-			// Resolve the device ID before the destroy: destroying a thing drops the state
-			// record mapping its address to its ID, so a later lookup would find nothing.
+			// Resolve before the destroy: it drops the record mapping address to ID.
 			id, ok := adapter.ExchangeAddress(address)
+
+			// Deselect before destroying. The reverse order resurrects the device: a failed
+			// deselect after a successful destroy leaves it selected, so the next sync recreates
+			// the thing the user just deleted. This way a failure leaves the thing intact and
+			// retryable, and a destroy that fails afterwards is undone by the next sync anyway.
+			if cfg.selection != nil {
+				if !ok {
+					// No thing state: the hub is deleting a node this adapter never registered,
+					// which for an ID-addressed adapter is a device left behind by an older version.
+					id = address
+				}
+
+				if err := cfg.selection.Remove(id); err != nil {
+					return nil, fmt.Errorf("failed to remove device %s from the selection: %w", id, err)
+				}
+			}
 
 			err = adapter.DestroyThingByAddress(address)
 			if err != nil {
 				return nil, fmt.Errorf("failed to delete thing with address %s: %w", address, err)
-			}
-
-			if cfg.selection == nil {
-				return nil, nil
-			}
-
-			if !ok {
-				// No thing state: the hub is deleting a node this adapter never registered,
-				// which for an ID-addressed adapter is a device left behind by an older
-				// version. Removing an unselected ID is a no-op elsewhere.
-				id = address
-			}
-
-			if err := cfg.selection.Remove(id); err != nil {
-				return nil, fmt.Errorf("failed to remove device %s from the selection: %w", id, err)
 			}
 
 			return nil, nil
