@@ -44,9 +44,14 @@ type routingConfig struct {
 // recreates the thing. It cannot help an "include all" selection, which has no way to express an
 // exclusion. The locker serialises the delete against the application's configuration handlers,
 // so the remover's read-then-write cannot interleave with cmd.config.extended_set rewriting the
-// selection - pass the same locker as app.RouteApp. The two are a single option because the
-// remover is unsafe without the lock.
+// selection - pass the same locker as app.RouteApp. Both are required: a nil locker leaves the
+// handler unlocked, silently defeating the serialisation the remover depends on, so it panics
+// at wiring time rather than handing back a selection that quietly loses updates.
 func WithSelection(remover SelectionRemover, locker router.MessageHandlerLocker) RoutingOption {
+	if remover == nil || locker == nil {
+		panic("adapter: WithSelection requires a non-nil remover and locker")
+	}
+
 	return func(c *routingConfig) {
 		c.selection = remover
 		c.locker = locker

@@ -68,7 +68,11 @@ type failingRemover struct{}
 
 func (failingRemover) Remove(string) error { return errors.New("selection write failed") }
 
-func setupAdapterWithDeletableThings(ad *adapter.Adapter, remover adapter.SelectionRemover) suite.BaseSetup {
+func setupAdapterWithDeletableThings(
+	ad *adapter.Adapter,
+	remover adapter.SelectionRemover,
+	locker router.MessageHandlerLocker,
+) suite.BaseSetup {
 	return func(t *testing.T, mqtt *fimpgo.MqttTransport) ([]*router.Routing, []*task.Task, []suite.Mock) {
 		t.Helper()
 
@@ -85,7 +89,7 @@ func setupAdapterWithDeletableThings(ad *adapter.Adapter, remover adapter.Select
 
 		*ad = adapterhelper.PrepareSeededAdapter(t, testAdapterWorkDir, mqtt, factory, seeds)
 
-		return adapter.RouteAdapter(*ad, adapter.WithSelection(remover, nil)), nil, nil
+		return adapter.RouteAdapter(*ad, adapter.WithSelection(remover, locker)), nil, nil
 	}
 }
 
@@ -108,7 +112,7 @@ func TestRouteAdapter_ThingDelete(t *testing.T) { //nolint:paralleltest
 			{
 				Name:     "cmd.thing.delete destroys the thing, announces it and deselects the device",
 				TearDown: adapterhelper.TearDownAdapter(testAdapterWorkDir),
-				Setup:    setupAdapterWithDeletableThings(&ad, store),
+				Setup:    setupAdapterWithDeletableThings(&ad, store, router.NewMessageHandlerLocker()),
 				Nodes: []*suite.Node{
 					{
 						Name:    "deleting thing B excludes it",
@@ -194,6 +198,69 @@ func TestRouteAdapter_ThingDeleteWithoutSelection(t *testing.T) { //nolint:paral
 	s.Run(t)
 }
 
+func TestRouteAdapter_ThingDeleteRespectsExternalLock(t *testing.T) { //nolint:paralleltest
+	var ad adapter.Adapter
+
+	store, sel := newTestSelection("B", "C")
+	// The same locker app.RouteApp holds while it rewrites the configuration. A delete that slipped
+	// past it would read a selection the configuration handler is midway through replacing, and the
+	// deselect would be lost.
+	locker := router.NewMessageHandlerLocker()
+
+	s := &suite.Suite{
+		Cases: []*suite.Case{
+			{
+				Name:     "cmd.thing.delete is skipped while the configuration lock is held",
+				TearDown: adapterhelper.TearDownAdapter(testAdapterWorkDir),
+				Setup:    setupAdapterWithDeletableThings(&ad, store, locker),
+				Nodes: []*suite.Node{
+					{
+						Name:    "a delete arriving under the held lock changes nothing",
+						Timeout: 500 * time.Millisecond,
+						InitCallbacks: []suite.Callback{func(t *testing.T) {
+							t.Helper()
+
+							assert.True(t, locker.Lock(), "the test must own the lock the handler contends for")
+						}},
+						Command: deleteThingCommand(testThingAddressB),
+						Expectations: []*suite.Expectation{
+							suite.ExpectError(testAdapterEvtTopic, testAdapterName).ExactlyOnce(),
+							expectAnyExclusion().Never(),
+						},
+					},
+					{
+						Name:    "releasing the lock lets the same delete through",
+						Timeout: 500 * time.Millisecond,
+						InitCallbacks: []suite.Callback{func(t *testing.T) {
+							t.Helper()
+
+							assert.NotNil(t, ad.ThingByAddress(testThingAddressB), "the blocked delete must not have destroyed it")
+							assert.Equal(t, selection.Selection{"B", "C"}, sel.get(), "the blocked delete must not have deselected it")
+
+							locker.Unlock()
+						}},
+						Command: deleteThingCommand(testThingAddressB),
+						Expectations: []*suite.Expectation{
+							expectExclusion(testThingAddressB).ExactlyOnce(),
+						},
+					},
+				},
+			},
+		},
+	}
+
+	s.Run(t)
+}
+
+func TestRouteAdapter_WithSelectionRejectsNilArguments(t *testing.T) {
+	t.Parallel()
+
+	// A nil locker leaves the handler unlocked, which is exactly the race the option exists to
+	// close, so it must not be silently accepted.
+	assert.Panics(t, func() { adapter.WithSelection(nil, router.NewMessageHandlerLocker()) })
+	assert.Panics(t, func() { adapter.WithSelection(&selection.Store{}, nil) })
+}
+
 func TestRouteAdapter_ThingDeleteSelectionWriteFails(t *testing.T) { //nolint:paralleltest
 	var ad adapter.Adapter
 
@@ -205,7 +272,7 @@ func TestRouteAdapter_ThingDeleteSelectionWriteFails(t *testing.T) { //nolint:pa
 			{
 				Name:     "a failing deselect leaves the thing intact instead of resurrecting it",
 				TearDown: adapterhelper.TearDownAdapter(testAdapterWorkDir),
-				Setup:    setupAdapterWithDeletableThings(&ad, failingRemover{}),
+				Setup:    setupAdapterWithDeletableThings(&ad, failingRemover{}, router.NewMessageHandlerLocker()),
 				Nodes: []*suite.Node{
 					{
 						Name:    "the delete reports an error and announces no exclusion",
