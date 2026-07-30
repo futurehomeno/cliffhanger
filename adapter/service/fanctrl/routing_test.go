@@ -121,6 +121,23 @@ func TestRouteService(t *testing.T) { //nolint:paralleltest
 	s.Run(t)
 }
 
+func TestSpecification(t *testing.T) {
+	t.Parallel()
+
+	want := map[string]fimptype.ValueTypeT{
+		fanctrl.CmdModeSet:       fimptype.VTypeString,
+		fanctrl.EvtModeReport:    fimptype.VTypeString,
+		fanctrl.CmdModeGetReport: fimptype.VTypeNull,
+		router.EvtErrorReport:    fimptype.VTypeString,
+	}
+
+	for _, intf := range fanctrl.Specification("test_adapter", "1", "2", nil, []string{"normal"}).Interfaces {
+		if intf.ValueType != want[intf.MsgType] {
+			t.Errorf("%s: declared value type %q, want %q", intf.MsgType, intf.ValueType, want[intf.MsgType])
+		}
+	}
+}
+
 func routeService(controller *mockedfanctrl.Controller) cliffSuite.BaseSetup {
 	return func(t *testing.T, mqtt *fimpgo.MqttTransport) ([]*router.Routing, []*task.Task, []cliffSuite.Mock) {
 		t.Helper()
