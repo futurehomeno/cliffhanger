@@ -103,10 +103,23 @@ func (s *Supervisor) run(ctx context.Context, done chan struct{}) {
 			return
 		}
 
+		// A triggered drop is not a failure: reconnect immediately with a fresh backoff, so an
+		// attempt failing right after e.g. a credentials change starts at the initial delay.
+		if connCtx.Err() != nil {
+			s.backoff.Reset()
+			cancel()
+
+			log.Infof("[stream] Reconnect triggered, reconnecting immediately")
+
+			continue
+		}
+
 		delay := s.backoff.Next()
 		if err != nil {
 			log.Warnf("[stream] Connection err: %v, reconnecting in %s", err, delay)
 		} else {
+			// A clean ending is paced like a first retry but must not advance the streak.
+			s.backoff.Reset()
 			log.Infof("[stream] Connection ended, reconnecting in %s", delay)
 		}
 
@@ -118,8 +131,9 @@ func (s *Supervisor) run(ctx context.Context, done chan struct{}) {
 
 			return
 		case <-connCtx.Done():
-			// Triggered during the connection or the wait - reconnect immediately.
+			// Triggered during the wait - reconnect immediately with a fresh backoff.
 			timer.Stop()
+			s.backoff.Reset()
 		case <-timer.C:
 		}
 

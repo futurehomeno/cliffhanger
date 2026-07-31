@@ -105,6 +105,61 @@ func TestSupervisor_StopDuringBackoffWait(t *testing.T) {
 	assert.Equal(t, int32(1), calls.Load(), "stop during the backoff wait must not dial again")
 }
 
+// TestSupervisor_TriggerDoesNotAdvanceBackoff pins that a triggered reconnect is not counted as
+// a failure: an attempt failing right after the trigger must start at the initial delay, not the
+// second tier.
+func TestSupervisor_TriggerDoesNotAdvanceBackoff(t *testing.T) {
+	t.Parallel()
+
+	var calls atomic.Int32
+
+	connect := func(ctx context.Context, connected func()) error {
+		if calls.Add(1) == 1 {
+			connected()
+			<-ctx.Done()
+
+			return nil
+		}
+
+		return errors.New("connection err")
+	}
+
+	s := stream.NewSupervisor(connect, backoff.NewStateful(time.Millisecond, time.Hour, time.Hour, 1, 1))
+
+	assert.NoError(t, s.Start())
+	assert.Eventually(t, func() bool { return calls.Load() == 1 }, time.Second, time.Millisecond)
+
+	s.TriggerReconnect()
+	assert.Eventually(t, func() bool { return calls.Load() >= 3 }, time.Second, time.Millisecond,
+		"a failure right after a triggered reconnect must retry at the initial delay")
+	assert.NoError(t, s.Stop())
+}
+
+// TestSupervisor_CleanEndDoesNotAdvanceBackoff pins that a cleanly ended connection is paced but
+// not counted as a failure: a failing attempt after it must start at the initial delay.
+func TestSupervisor_CleanEndDoesNotAdvanceBackoff(t *testing.T) {
+	t.Parallel()
+
+	var calls atomic.Int32
+
+	connect := func(_ context.Context, connected func()) error {
+		if calls.Add(1) == 1 {
+			connected()
+
+			return nil
+		}
+
+		return errors.New("connection err")
+	}
+
+	s := stream.NewSupervisor(connect, backoff.NewStateful(time.Millisecond, time.Hour, time.Hour, 1, 1))
+
+	assert.NoError(t, s.Start())
+	assert.Eventually(t, func() bool { return calls.Load() >= 3 }, time.Second, time.Millisecond,
+		"a failure after a clean ending must retry at the initial delay")
+	assert.NoError(t, s.Stop())
+}
+
 func TestSupervisor_ReconnectsAfterFailure(t *testing.T) {
 	t.Parallel()
 
