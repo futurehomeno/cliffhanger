@@ -7,6 +7,7 @@ import (
 
 	"github.com/futurehomeno/fimpgo"
 	"github.com/futurehomeno/fimpgo/fimptype"
+	log "github.com/sirupsen/logrus"
 
 	"github.com/futurehomeno/cliffhanger/adapter"
 	"github.com/futurehomeno/cliffhanger/adapter/cache"
@@ -111,12 +112,17 @@ func (s *service) SendModeReport(force bool) (bool, error) {
 		return false, fmt.Errorf("failed to get mode: %w", err)
 	}
 
-	if !slices.Contains(s.SupportedModes(), mode) {
-		return false, fmt.Errorf("mode %s is not supported", mode)
-	}
-
 	if !force && !s.reportingCache.ReportRequired(s.reportingStrategy, EvtModeReport, "", mode) {
 		return false, nil
+	}
+
+	// Report the mode the device is actually in even when the specification does not
+	// advertise it. sup_modes describes what may be set, and a device can sit in a
+	// mode outside it — set outside cliffhanger, or supported only in a state the
+	// specification was not derived from. Withholding the report leaves the hub
+	// holding a stale value rather than a truthful one.
+	if !slices.Contains(s.SupportedModes(), mode) {
+		log.Warnf("fanctrl: reporting mode %s, which is not in sup_modes", mode)
 	}
 
 	message := fimpgo.NewStringMessage(
