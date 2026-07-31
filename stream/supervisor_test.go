@@ -135,6 +135,49 @@ func TestSupervisor_TriggerDoesNotAdvanceBackoff(t *testing.T) {
 	assert.NoError(t, s.Stop())
 }
 
+// resetAwareBackoff waits an hour until Reset and a millisecond after, making a test hang unless
+// the supervisor resets the backoff at the point under test.
+type resetAwareBackoff struct {
+	wasReset atomic.Bool
+}
+
+func (b *resetAwareBackoff) Next() time.Duration {
+	if b.wasReset.Load() {
+		return time.Millisecond
+	}
+
+	return time.Hour
+}
+
+func (b *resetAwareBackoff) Fail()        {}
+func (b *resetAwareBackoff) Should() bool { return false }
+func (b *resetAwareBackoff) Reset()       { b.wasReset.Store(true) }
+
+// TestSupervisor_TriggerDuringWaitResetsBackoff pins that a trigger landing during the backoff
+// wait also grants the next attempt a fresh backoff, no matter how the wait was cut short.
+func TestSupervisor_TriggerDuringWaitResetsBackoff(t *testing.T) {
+	t.Parallel()
+
+	var calls atomic.Int32
+
+	connect := func(context.Context, func()) error {
+		calls.Add(1)
+
+		return errors.New("connection err")
+	}
+
+	s := stream.NewSupervisor(connect, &resetAwareBackoff{})
+
+	assert.NoError(t, s.Start())
+	assert.Eventually(t, func() bool { return calls.Load() == 1 }, time.Second, time.Millisecond)
+
+	time.Sleep(10 * time.Millisecond)
+	s.TriggerReconnect()
+	assert.Eventually(t, func() bool { return calls.Load() >= 3 }, time.Second, time.Millisecond,
+		"a failure after a trigger during the wait must retry at the initial delay")
+	assert.NoError(t, s.Stop())
+}
+
 // TestSupervisor_CleanEndDoesNotAdvanceBackoff pins that a cleanly ended connection is paced but
 // not counted as a failure: a failing attempt after it must start at the initial delay.
 func TestSupervisor_CleanEndDoesNotAdvanceBackoff(t *testing.T) {

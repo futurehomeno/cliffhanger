@@ -131,10 +131,15 @@ func (s *Supervisor) run(ctx context.Context, done chan struct{}) {
 
 			return
 		case <-connCtx.Done():
-			// Triggered during the wait - reconnect immediately with a fresh backoff.
+			// Triggered during the wait - reconnect immediately.
 			timer.Stop()
-			s.backoff.Reset()
 		case <-timer.C:
+		}
+
+		// Checked outside the select: a trigger racing the firing timer may lose the case pick,
+		// but the fresh backoff must not be lost with it.
+		if connCtx.Err() != nil {
+			s.backoff.Reset()
 		}
 
 		cancel()
