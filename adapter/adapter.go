@@ -262,7 +262,13 @@ func (a *adapter) EnsureThings(seeds ThingSeeds) error {
 			continue
 		}
 
-		seeds = seeds.Without(ts.ID())
+		// A record with no live thing is a ghost left by a partly failed destroy or rebuild.
+		// Keeping its seed lets the pass below recreate it: state.add overwrites the record and
+		// the inclusion report re-announces the device. Skipped before initialization, when
+		// every thing is unregistered and healing would recreate the whole fleet.
+		if _, live := a.things[ts.Address()]; live || !a.initialized {
+			seeds = seeds.Without(ts.ID())
+		}
 	}
 
 	var errs []error
@@ -375,7 +381,7 @@ func (a *adapter) createThing(seed *ThingSeed) (err error) {
 	}
 
 	// Roll the state record back on failure: a record with no live thing is a ghost that
-	// EnsureThings treats as present forever, so the device stays missing until a reset.
+	// EnsureThings skips until its heal recreates it, leaving the device missing meanwhile.
 	defer func() {
 		if err == nil {
 			return
@@ -437,7 +443,8 @@ func (a *adapter) createThingState(seed *ThingSeed) (ThingState, error) {
 
 // destroyThing is best-effort across all three steps: a failed state write must not skip the
 // unregister, or the thing keeps its connector open while the adapter drops the last reference
-// to it. The state record is already gone from memory by then, so there is nothing to retry.
+// to it. A failed state write keeps the record, so the next sync retries the destroy - or, if
+// the device got selected again, recreates a live thing over the ghost record.
 func (a *adapter) destroyThing(address string) error {
 	var errs []error
 

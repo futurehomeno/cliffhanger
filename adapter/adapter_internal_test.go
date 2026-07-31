@@ -1,6 +1,7 @@
 package adapter
 
 import (
+	"encoding/json"
 	"errors"
 	"sync"
 	"testing"
@@ -46,22 +47,19 @@ func (c *recordingConnector) wasDisconnected() bool {
 }
 
 // failingRemoveState stands in for a state file that can no longer be persisted. It mirrors
-// state.remove faithfully: the in-memory record is dropped first and only the save fails, which
-// is why every caller of destroyThing must treat the error as already-applied rather than retry.
+// state.remove after a failed save: the record is restored, so removal fails with it intact.
 type failingRemoveState struct {
 	State
 }
 
-func (f failingRemoveState) remove(id string) error {
-	_ = f.State.remove(id)
-
+func (f failingRemoveState) remove(string) error {
 	return errors.New("state write failed")
 }
 
 // TestDestroyThing_UnregistersWhenStateRemoveFails pins that a failed state write does not skip
 // the unregister. Returning early there left the thing connected while DestroyAllThings cleared
 // the map, dropping the last reference to a live connector and leaking it for the process
-// lifetime.
+// lifetime. The kept record and the unregistered thing form the ghost EnsureThings heals.
 func TestDestroyThing_UnregistersWhenStateRemoveFails(t *testing.T) {
 	t.Parallel()
 
@@ -90,4 +88,36 @@ func TestDestroyThing_UnregistersWhenStateRemoveFails(t *testing.T) {
 	assert.Error(t, err, "the failed state write must still surface")
 	assert.True(t, connector.wasDisconnected(), "the connector must be released even when the state write fails")
 	assert.Empty(t, a.things, "the thing must not linger in the adapter")
+}
+
+// TestEnsureThings_RecreatesGhostThing pins that a state record without a live thing - left by a
+// destroy whose state write failed after the thing was unregistered - is recreated once its
+// device is selected again, instead of being skipped as present until a restart.
+func TestEnsureThings_RecreatesGhostThing(t *testing.T) {
+	t.Parallel()
+
+	s, err := NewState(t.TempDir())
+	require.NoError(t, err)
+
+	_, err = s.add(&thingStateModel{ID: "B", Address: "2", Info: json.RawMessage(`{"groups":["g1"]}`)})
+	require.NoError(t, err)
+
+	a := &adapter{
+		publisher: stubPublisher{},
+		state:     s,
+		factory:   groupsFactory{},
+		things:    map[string]Thing{},
+		lock:      &sync.RWMutex{},
+	}
+
+	seeds := ThingSeeds{{ID: "B", CustomAddress: "2", Info: groupsInfo{Groups: []string{"g1"}}}}
+
+	require.NoError(t, a.EnsureThings(seeds), "healing must not report an error")
+	assert.Empty(t, a.things, "before initialization nothing is registered, so healing must not fire")
+
+	a.initialized = true
+
+	require.NoError(t, a.EnsureThings(seeds))
+	assert.NotNil(t, a.things["2"], "the ghost record must be recreated as a live thing")
+	require.NotNil(t, a.state.byID("B"), "the record must survive the recreate")
 }

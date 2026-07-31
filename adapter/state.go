@@ -104,9 +104,18 @@ func (s *state) remove(id string) error {
 	s.lock.Lock()
 	defer s.lock.Unlock()
 
+	old, ok := s.Model().Things[id]
+
 	delete(s.Model().Things, id)
 
 	if err := s.Save(); err != nil {
+		// Restore on a failed write: the disk still holds the record, so keeping it in memory
+		// lets the next sync retry the destroy instead of resurrecting the thing only after
+		// a restart.
+		if ok {
+			s.Model().Things[id] = old
+		}
+
 		return fmt.Errorf("state: failed to remove state of a thing with ID %s: %w", id, err)
 	}
 
