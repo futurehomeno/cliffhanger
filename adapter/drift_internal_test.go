@@ -42,9 +42,9 @@ func (groupsFactory) Create(_ Adapter, publisher Publisher, ts ThingState) (Thin
 }
 
 // TestRebuildChangedThing_RecreatesWhenDestroyReportsError pins that a destroy reporting an error
-// does not abort the rebuild. destroyThing is best-effort and has already removed the thing from
-// memory by the time it returns, so aborting left the device excluded and never recreated, taking
-// the persisted state the rebuild had just captured down with it.
+// does not abort the rebuild. Whether the destroy failed past the removal or kept the record
+// after a failed state write, the recreate overwrites it; aborting left the device excluded or
+// ghosted, taking the persisted state the rebuild had just captured down with it.
 func TestRebuildChangedThing_RecreatesWhenDestroyReportsError(t *testing.T) {
 	t.Parallel()
 

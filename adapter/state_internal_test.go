@@ -59,7 +59,7 @@ func (f *failingSaveStorage) Save() error {
 func TestState_RemoveRestoresEntryOnSaveFailure(t *testing.T) {
 	t.Parallel()
 
-	underlying := storage.New(&adapterStateModel{}, t.TempDir(), "adapter.json")
+	underlying := storage.NewState(&adapterStateModel{}, t.TempDir(), "adapter.json")
 	failing := &failingSaveStorage{Storage: underlying}
 	s := &state{Storage: failing}
 
