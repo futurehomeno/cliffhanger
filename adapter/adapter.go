@@ -437,7 +437,7 @@ func (a *adapter) createThingState(seed *ThingSeed) (ThingState, error) {
 
 // destroyThing is best-effort across all three steps: a failed state write must not skip the
 // unregister, or the thing keeps its connector open while the adapter drops the last reference
-// to it. The state record is already gone from memory by then, so there is nothing to retry.
+// to it. A failed state write keeps the record, so the next sync retries the destroy.
 func (a *adapter) destroyThing(address string) error {
 	var errs []error
 
