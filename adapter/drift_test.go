@@ -255,6 +255,78 @@ func expectExclusion(address string) *suite.Expectation {
 		}))
 }
 
+func TestRebuildChangedThings_ContinuesAfterFailure(t *testing.T) { //nolint:paralleltest
+	var ad adapter.Adapter
+
+	const badAddress = "6"
+
+	// Two drifted things, the failing one first in the ordered seed slice: a pass that aborted
+	// on the first error would never reach the healthy one.
+	initial := adapter.ThingSeeds{
+		{ID: "bad", CustomAddress: badAddress, Info: driftInfo{Groups: []string{"g1"}}},
+		{ID: "ok", CustomAddress: testDriftAddress, Info: driftInfo{Groups: []string{"g1"}}},
+	}
+	rebuild := adapter.ThingSeeds{
+		{ID: "bad", CustomAddress: badAddress, Info: driftInfo{Groups: []string{"g1", "g2"}, Fail: true}},
+		{ID: "ok", CustomAddress: testDriftAddress, Info: driftInfo{Groups: []string{"g1", "g2"}}},
+	}
+
+	setup := suite.BaseSetup(func(t *testing.T, mqtt *fimpgo.MqttTransport) ([]*router.Routing, []*task.Task, []suite.Mock) {
+		t.Helper()
+
+		factory := adapterhelper.FactoryHelper(func(_ adapter.Adapter, publisher adapter.Publisher, ts adapter.ThingState) (adapter.Thing, error) {
+			var info driftInfo
+			if err := ts.Info(&info); err != nil {
+				return nil, err
+			}
+
+			if info.Fail {
+				return nil, errors.New("factory boom")
+			}
+
+			cfg := &adapter.ThingConfig{
+				InclusionReport: &fimptype.ThingInclusionReport{Address: ts.Address(), Groups: info.Groups},
+				Connector:       mockedadapter.NewDefaultConnector(t),
+			}
+
+			return adapter.NewThing(publisher, ts, cfg), nil
+		})
+
+		ad = adapterhelper.PrepareSeededAdapter(t, testAdapterWorkDir, mqtt, factory, initial)
+
+		return adapter.RouteAdapter(ad), nil, nil
+	})
+
+	s := &suite.Suite{
+		Cases: []*suite.Case{
+			{
+				Name:     "a device that cannot be rebuilt does not block the others",
+				TearDown: adapterhelper.TearDownAdapter(testAdapterWorkDir),
+				Setup:    setup,
+				Nodes: []*suite.Node{
+					{
+						Name:    "the healthy device is rebuilt even though the first seed fails",
+						Timeout: 500 * time.Millisecond,
+						InitCallbacks: []suite.Callback{func(t *testing.T) {
+							t.Helper()
+							assert.Error(t, ad.RebuildChangedThings(rebuild))
+						}},
+						Expectations: []*suite.Expectation{
+							// Building the prospective thing failed, so the broken device was
+							// never destroyed.
+							expectExclusion(badAddress).Never(),
+							expectExclusion(testDriftAddress).ExactlyOnce(),
+							expectInclusionWithGroup(testDriftAddress, "g2").AtLeastOnce(),
+						},
+					},
+				},
+			},
+		},
+	}
+
+	s.Run(t)
+}
+
 func expectInclusionWithGroup(address, group string) *suite.Expectation {
 	return suite.NewExpectation().
 		ExpectTopic(testAdapterEvtTopic).

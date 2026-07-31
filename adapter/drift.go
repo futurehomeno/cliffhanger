@@ -2,79 +2,95 @@ package adapter
 
 import (
 	"encoding/json"
+	"errors"
 	"fmt"
 	"hash/crc32"
 
 	"github.com/futurehomeno/fimpgo/fimptype"
+	log "github.com/sirupsen/logrus"
 )
 
 // RebuildChangedThings rebuilds any already-registered thing whose seed would produce a
 // different service topology than the live thing. EnsureThings only reconciles presence, so
-// a device that gains a capability keeps its old services until it is rebuilt. The prospective
-// thing is built first, so a factory error aborts before the destructive destroy. The whole
-// pass runs under the adapter lock, matching EnsureThings, so no concurrent operation can
-// destroy a thing between the lookup and its rebuild.
+// a device that gains a capability keeps its old services until it is rebuilt.
+//
+// Best-effort per seed: failures are joined. The whole pass runs under the adapter lock, so
+// nothing can destroy a thing between the lookup and its rebuild.
 func (a *adapter) RebuildChangedThings(seeds ThingSeeds) error {
 	a.lock.Lock()
 	defer a.lock.Unlock()
 
+	var errs []error
+
 	for _, seed := range seeds {
-		ts := a.state.byID(seed.ID)
-		if ts == nil {
-			continue
+		if err := a.rebuildChangedThing(seed); err != nil {
+			errs = append(errs, fmt.Errorf("rebuild %s: %w", seed.ID, err))
 		}
+	}
 
-		live := a.things[ts.Address()]
-		if live == nil {
-			continue
-		}
+	return errors.Join(errs...)
+}
 
-		// The prospective thing reuses the live address so only genuine capability changes,
-		// not address-derived fields, differ.
-		prospective, err := a.factory.Create(a, a.publisher, newSeedState(seed, ts.Address()))
-		if err != nil {
-			return fmt.Errorf("rebuild %s: build prospective thing: %w", seed.ID, err)
-		}
+// rebuildChangedThing rebuilds a single registered thing if its service topology drifted.
+// Assumes the adapter lock is held.
+func (a *adapter) rebuildChangedThing(seed *ThingSeed) error {
+	ts := a.state.byID(seed.ID)
+	if ts == nil {
+		return nil
+	}
 
-		fresh, err := topologyChecksum(prospective.InclusionReport())
-		if err != nil {
-			return fmt.Errorf("rebuild %s: checksum prospective: %w", seed.ID, err)
-		}
+	live := a.things[ts.Address()]
+	if live == nil {
+		return nil
+	}
 
-		current, err := topologyChecksum(live.InclusionReport())
-		if err != nil {
-			return fmt.Errorf("rebuild %s: checksum live: %w", seed.ID, err)
-		}
+	// Reuse the live address so only genuine capability changes, not address-derived fields,
+	// differ. Building before the destroy also means a factory error costs nothing.
+	prospective, err := a.factory.Create(a, a.publisher, newSeedState(seed, ts.Address()))
+	if err != nil {
+		return fmt.Errorf("build prospective thing: %w", err)
+	}
 
-		if fresh == current {
-			continue
-		}
+	fresh, err := topologyChecksum(prospective.InclusionReport())
+	if err != nil {
+		return fmt.Errorf("checksum prospective: %w", err)
+	}
 
-		// destroyThing drops the whole state record and createThing rebuilds only
-		// ID/Address/Info, so capture any persisted per-thing state and restore it after the
-		// swap; otherwise a topology rebuild would silently discard it.
-		var savedState json.RawMessage
-		if err := ts.State(&savedState); err != nil {
-			return fmt.Errorf("rebuild %s: read state: %w", seed.ID, err)
-		}
+	current, err := topologyChecksum(live.InclusionReport())
+	if err != nil {
+		return fmt.Errorf("checksum live: %w", err)
+	}
 
-		// Preserve the live address so the rebuilt thing keeps its topic identity; a seed
-		// without a CustomAddress would otherwise be assigned a fresh address on recreation.
-		rebuildSeed := &ThingSeed{ID: seed.ID, CustomAddress: ts.Address(), Info: seed.Info}
+	if fresh == current {
+		return nil
+	}
 
-		if err := a.destroyThing(ts.Address()); err != nil {
-			return fmt.Errorf("rebuild %s: destroy: %w", seed.ID, err)
-		}
+	// destroyThing drops the whole state record, so capture any persisted per-thing state and
+	// restore it after the swap; otherwise a rebuild would silently discard it.
+	var savedState json.RawMessage
+	if err := ts.State(&savedState); err != nil {
+		return fmt.Errorf("read state: %w", err)
+	}
 
-		if err := a.createThing(rebuildSeed); err != nil {
-			return fmt.Errorf("rebuild %s: recreate (device excluded until next restart): %w", seed.ID, err)
-		}
+	// Preserve the live address so the rebuilt thing keeps its topic identity; a seed without
+	// a CustomAddress would be assigned a fresh one on recreation.
+	rebuildSeed := &ThingSeed{ID: seed.ID, CustomAddress: ts.Address(), Info: seed.Info}
 
-		if len(savedState) > 0 {
-			if newTS := a.state.byID(seed.ID); newTS != nil {
-				if err := newTS.SetState(savedState); err != nil {
-					return fmt.Errorf("rebuild %s: restore state: %w", seed.ID, err)
-				}
+	// destroyThing is best-effort and has already completed the in-memory removal by the time it
+	// reports an error, so aborting here would leave the device excluded and never recreated -
+	// and discard savedState with it. Carry on and let the recreate put the thing back.
+	if err := a.destroyThing(ts.Address()); err != nil {
+		log.Warnf("adapter: rebuild of thing with ID %s: destroy reported errors, recreating anyway: %v", seed.ID, err)
+	}
+
+	if err := a.createThing(rebuildSeed); err != nil {
+		return fmt.Errorf("recreate (device excluded until next restart): %w", err)
+	}
+
+	if len(savedState) > 0 {
+		if newTS := a.state.byID(seed.ID); newTS != nil {
+			if err := newTS.SetState(savedState); err != nil {
+				return fmt.Errorf("restore state: %w", err)
 			}
 		}
 	}

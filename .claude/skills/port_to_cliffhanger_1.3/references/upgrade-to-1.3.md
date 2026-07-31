@@ -29,7 +29,7 @@ The change landed in four "waves":
 | `lifecycle.MarkRunning/MarkNotConfigured` + `SetConnAndAuthState` | state-bundle helpers; atomic conn+auth in one event | four separate `Set*State` calls |
 | `storage.NewSecrets/NewCanonicalSecrets` | `Storage[T]` at 0640 (edge: `data/secrets.json`; canonical/core: `workDir/<name>`) | credentials living in world-readable `config.json` |
 | `stream.Supervisor` | `NewSupervisor(connect Connection, b backoff.Stateful)` → `Start()/Stop()/TriggerReconnect()` | bespoke SignalR/GENA/AMQP reconnect loops |
-| `adapter.SeedsFromSelection` + `SyncThings` + `RebuildChangedThings` | `SeedsFromSelection[T](available, selected, seed)`, `SyncThings[T](a, available, selected, seed) (ErrIncompleteFetch)`, `RebuildChangedThings(seeds)` | fetch→filter→map→EnsureThings wrapper, anti-wipe guard, sensibo `reconcile.go` |
+| `adapter.SeedsFromSelection` + `SyncThings` + `RebuildChangedThings`, `selection` | `SeedsFromSelection[T](available, selected, seed)`, `SyncThings[T](a, fetch, selected, seed) (ThingSeeds, error)`, `RebuildChangedThings(seeds)`, `selection.Devices`/`Store`/`PrepareManifest`, `adapter.WithSelection` | fetch→filter→map→EnsureThings wrapper, sensibo `reconcile.go`, per-adapter `selected_devices` plumbing and `cmd.thing.delete` route |
 | `bootstrap.EdgeRouting/EdgeTasks` | `EdgeRouting[C](...)`, `EdgeTasks(...)` bundles | repeated builder wiring |
 | `router.DefaultLogStats` | `DefaultLogStats(redactedInterfacePrefixes ...string) func(Stats)` | per-adapter `LogStats` with `cmd.auth.` masking |
 | `backoff.NewTolerantFixed` | `(tolerance uint32, delay time.Duration) Stateful` | fixed-after-N-tolerated backoff presets |
@@ -205,15 +205,88 @@ backed by this secrets storage.
   use it on auth-loss so a watcher never sees `LOST` with a stale connection state (#198/#200). The
   ConnectivityChecker already uses it internally.
 - **`adapter.SeedsFromSelection[T](available, selected, seed)`** builds `ThingSeeds` from a fetched
-  list filtered to the user's selection.
-- **`adapter.SyncThings[T](a, available, selected, seed)`** = SeedsFromSelection + `EnsureThings`
-  with a shared anti-wipe guard: returns `ErrIncompleteFetch` (non-fatal; log-and-retry) instead of
-  destroying live things when a registered selected device is missing from a partial fetch. Replaces
-  the guard hand-rolled four different ways (sensibo/sonos/mill/zaptec).
+  list filtered to the user's selection. A **nil** selection includes every available device; a
+  non-nil empty one includes none. Duplicate entries collapse to a single seed.
+- **`adapter.SyncThings[T](a, fetch, selected, seed) (ThingSeeds, error)`** = fetch +
+  SeedsFromSelection + `EnsureThings`, returning the applied seeds so a drift rebuild does not
+  fetch again. **The fetch owns the truth**: it fails → nothing is mutated; it succeeds → every
+  selected device absent from the response is destroyed, including on an empty response. Make the
+  client return an error, never a truncated or empty slice, on a non-2xx, a rate limit or an
+  unparsable body. Selected devices the adapter owns no thing for still get an exclusion, which
+  clears stale nodes left by a pre-cliffhanger adapter.
 - **`adapter.RebuildChangedThings(seeds)`** rebuilds a registered thing whose seed yields a different
   service topology (picks up new capabilities), preserving its address **and** persisted per-thing
   state, build-before-destroy. Replaces sensibo `reconcile.go`. `EnsureThings` still handles presence
-  only; call both (SyncThings for presence, then RebuildChangedThings for drift).
+  only; call both (SyncThings for presence, then RebuildChangedThings for drift). Filter the seeds
+  first if a degenerate third-party response must never rebuild a thing (sensibo's null capabilities).
+- **`selection`** owns the user's device selection: `selection.Devices` is the config mixin carrying
+  `selected_devices`, `selection.Store` reads/writes it, and `selection.PrepareManifest` renders the
+  device selector's three states (not ready / fetch failed / ready). Pass the store to
+  `adapter.RouteAdapter(ad, adapter.WithSelection(store, locker))` so
+  `cmd.thing.delete` also deselects the device; without it the next sync recreates the deleted thing.
+- **Best effort**: `EnsureThings`, `RebuildChangedThings`, `DestroyAllThings` and `SyncThings` no
+  longer abort on the first bad device — they continue and join the errors. A non-nil error means
+  *partially applied*, not "nothing happened".
+
+### 7.1 Porting a device selection
+
+Config — embed the mixin and wire a store over the adapter's own locked accessors (`selection.Store`
+is closure-based precisely so adopting it does not force a `config.Service` migration first):
+
+```go
+type PublicConfig struct {
+	BaseURL string `json:"base_url"`
+	selection.Devices // replaces SelectedDevices []string `json:"selected_devices"`
+}
+
+store := selection.NewStore(
+	func() selection.Selection { return cfgSrv.GetSelectedDevices() },
+	func(next selection.Selection) error { return cfgSrv.SetSelectedDevices(next) },
+)
+```
+
+`get` must copy under the read lock and `set` must write under the write lock and stamp
+`ConfiguredAt` — `Store.Remove` is a read-then-write and relies on the handler lock below.
+
+One helper serves both `Configure` and the boot re-sync:
+
+```go
+func (a *application) syncDevices(sel selection.Selection) error {
+	seeds, err := adapter.SyncThings(a.adapter, a.fetchDevices, sel, seedDevice)
+	if err != nil {
+		return fmt.Errorf("sync things: %w", err)
+	}
+
+	// Filter before the drift pass if a degenerate response must never rebuild a thing.
+	return a.adapter.RebuildChangedThings(rebuildable(seeds))
+}
+```
+
+`Configure` calls `syncDevices(cfg.SelectedDevices)` then `store.Set(...)`; the boot path calls
+`syncDevices(store.Get())` and logs rather than failing. Run it on **every** boot, not only when the
+thing store is empty — a partially lost store never recovers otherwise.
+
+Routing — delete the adapter's own `cmd.thing.delete` route and pass the store instead:
+
+```go
+// the same locker as app.RouteApp
+cliffAdapter.RouteAdapter(ad, cliffAdapter.WithSelection(store, configurationLocker))
+```
+
+Manifest — `selection.PrepareManifest(m, block, ready, fetch, option)` replaces the hand-rolled
+three-state builder and tolerates a template that renamed the block or config (dereferencing those
+panics the app on `cmd.app.get_manifest`).
+
+**Two hazards when porting:**
+
+1. **The nil flip.** An adapter where a missing `selected_devices` meant "no devices" needs a config
+   migration pinning `nil` → `selection.Selection{}`, or every install without the key silently
+   includes the whole account. An adapter where empty already meant "all devices" needs none —
+   check what its writers actually persist, since `append([]string(nil), …)` marshals to `null`.
+2. **The fetch must error.** With `ErrIncompleteFetch` gone, any client that returns a short or empty
+   slice on a non-2xx, a rate limit, an unparsable body or a truncated page will destroy things. A
+   retry budget for a flaky list endpoint belongs *inside* the fetch closure, returning an error on
+   exhaustion — not in the sync.
 
 ---
 
@@ -228,7 +301,9 @@ backed by this secrets storage.
   resetConfig, teardown...)`, `Logout(lc, clear, teardown...)`, `ConfigModel[T](any)`. Use in the
   app's Login/Logout/Reset/Configure so the lifecycle sequence isn't hand-written.
 - **`bootstrap.EdgeRouting[C]` / `EdgeTasks`**: bundle the common routing/task wiring; adopt if it
-  reduces builder boilerplate for your adapter.
+  reduces builder boilerplate for your adapter. `EdgeRouting` takes an `adapterOptions
+  []adapter.RoutingOption` argument before its variadic extras — pass `nil`, or the selection
+  wiring from §7.1.
 - **`router.DefaultLogStats(prefixes...)`**: the stats callback with credential-prefix redaction
   (`"cmd.auth."`) — pass to `router.WithStatsCallback`. Replaces the per-adapter `LogStats`.
 - **`utils.Throttle`**: `Do(key, emit)` collapses repeated log lines (the checker uses it for the
@@ -277,8 +352,10 @@ regress them:
   `CustomAddress` to the live address) **and** its persisted per-thing state across the
   destroy/create, runs under the adapter lock (atomic like `EnsureThings`), and guards a nil
   inclusion report.
-- **SyncThings anti-wipe** (#203): a partial/empty fetch returns `ErrIncompleteFetch` rather than
-  destroying live things.
+- **SyncThings fetch ownership**: a *failed* fetch mutates nothing, so a network glitch cannot wipe
+  live things; a *successful* one is authoritative, so a device it no longer lists is excluded even
+  if the response is empty. The anti-wipe responsibility sits in the adapter's client, which must
+  turn a partial or rate-limited response into an error rather than a short slice.
 - **Stream supervisor Stop/Start** (#189 hardening): fd-leak on Chmod failure and Stop/Start races
   fixed — use the framework supervisor rather than a bespoke loop.
 - **OnAuthLoss under lock** (#199): the callback runs holding the Authenticator lock; keep it to

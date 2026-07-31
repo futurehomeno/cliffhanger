@@ -2,11 +2,13 @@ package adapter
 
 import (
 	"encoding/json"
+	"errors"
 	"fmt"
 	"sync"
 
 	"github.com/futurehomeno/fimpgo"
 	"github.com/futurehomeno/fimpgo/fimptype"
+	log "github.com/sirupsen/logrus"
 
 	"github.com/futurehomeno/cliffhanger/event"
 )
@@ -47,9 +49,11 @@ type Adapter interface {
 	RebuildChangedThings(seeds ThingSeeds) error
 	// CreateThing creates thing and adds it to the adapter.
 	CreateThing(seed *ThingSeed) error
-	// DestroyThingByID destroys thing and removes it from the adapter.
+	// DestroyThingByID destroys thing and removes it from the adapter. An unknown ID is a no-op:
+	// there is no address to announce an exclusion for.
 	DestroyThingByID(id string) error
-	// DestroyThingByAddress destroys thing and removes it from the adapter.
+	// DestroyThingByAddress destroys thing and removes it from the adapter. An unregistered
+	// address still emits the exclusion, clearing a stale hub node the state never knew about.
 	DestroyThingByAddress(address string) error
 	// DestroyAllThings destroys all things and removes them from the adapter.
 	DestroyAllThings() error
@@ -242,6 +246,7 @@ func (a *adapter) InitializeThings() error {
 }
 
 // EnsureThings creates and destroys things based on provided map of IDs and custom information objects.
+// Best-effort per device: failures are joined, so a non-nil error means partially applied.
 func (a *adapter) EnsureThings(seeds ThingSeeds) error {
 	a.lock.Lock()
 	defer a.lock.Unlock()
@@ -260,21 +265,23 @@ func (a *adapter) EnsureThings(seeds ThingSeeds) error {
 		seeds = seeds.Without(ts.ID())
 	}
 
+	var errs []error
+
 	for _, address := range addressesToRemove {
 		err := a.destroyThing(address)
 		if err != nil {
-			return fmt.Errorf("failed to destroy thing with address %s: %w", address, err)
+			errs = append(errs, fmt.Errorf("failed to destroy thing with address %s: %w", address, err))
 		}
 	}
 
 	for _, seed := range seeds {
 		err := a.createThing(seed)
 		if err != nil {
-			return fmt.Errorf("failed to create thing with ID %s: %w", seed.ID, err)
+			errs = append(errs, fmt.Errorf("failed to create thing with ID %s: %w", seed.ID, err))
 		}
 	}
 
-	return nil
+	return errors.Join(errs...)
 }
 
 func (a *adapter) CreateThing(seed *ThingSeed) error {
@@ -307,20 +314,24 @@ func (a *adapter) DestroyThingByAddress(address string) error {
 	return a.destroyThing(address)
 }
 
+// DestroyAllThings destroys all things and removes them from the adapter. Best-effort per
+// device: the adapter is always left empty, never half-reset.
 func (a *adapter) DestroyAllThings() error {
 	a.lock.Lock()
 	defer a.lock.Unlock()
 
+	var errs []error
+
 	for _, ts := range a.state.all() {
 		err := a.destroyThing(ts.Address())
 		if err != nil {
-			return fmt.Errorf("failed to destroy thing with ID %s: %w", ts.ID(), err)
+			errs = append(errs, fmt.Errorf("failed to destroy thing with ID %s: %w", ts.ID(), err))
 		}
 	}
 
 	a.things = make(map[string]Thing)
 
-	return nil
+	return errors.Join(errs...)
 }
 
 func (a *adapter) SendConnectivityReport() error {
@@ -357,11 +368,23 @@ func (a *adapter) unregisterThing(t Thing) {
 }
 
 // createThing utilizes factory to create a thing, persists it in the state and adds to the adapter.
-func (a *adapter) createThing(seed *ThingSeed) error {
+func (a *adapter) createThing(seed *ThingSeed) (err error) {
 	ts, err := a.createThingState(seed)
 	if err != nil {
 		return fmt.Errorf("failed to create state for thing with ID %s: %w", seed.ID, err)
 	}
+
+	// Roll the state record back on failure: a record with no live thing is a ghost that
+	// EnsureThings treats as present forever, so the device stays missing until a reset.
+	defer func() {
+		if err == nil {
+			return
+		}
+
+		if rollbackErr := a.state.remove(seed.ID); rollbackErr != nil {
+			log.Warnf("adapter: failed to roll back state of thing with ID %s: %v", seed.ID, rollbackErr)
+		}
+	}()
 
 	t, err := a.factory.Create(a, a.publisher, ts)
 	if err != nil {
@@ -412,14 +435,16 @@ func (a *adapter) createThingState(seed *ThingSeed) (ThingState, error) {
 	return ts, nil
 }
 
+// destroyThing is best-effort across all three steps: a failed state write must not skip the
+// unregister, or the thing keeps its connector open while the adapter drops the last reference
+// to it. The state record is already gone from memory by then, so there is nothing to retry.
 func (a *adapter) destroyThing(address string) error {
-	var err error
+	var errs []error
 
 	ts := a.state.byAddress(address)
 	if ts != nil {
-		err = a.state.remove(ts.ID())
-		if err != nil {
-			return fmt.Errorf("failed to remove state for thing with ID %s: %w", ts.ID(), err)
+		if err := a.state.remove(ts.ID()); err != nil {
+			errs = append(errs, fmt.Errorf("failed to remove state for thing with ID %s: %w", ts.ID(), err))
 		}
 	}
 
@@ -428,12 +453,11 @@ func (a *adapter) destroyThing(address string) error {
 		a.unregisterThing(t)
 	}
 
-	err = a.sendExclusionReport(address)
-	if err != nil {
-		return fmt.Errorf("failed to send exclusion report for thing with address %s: %w", address, err)
+	if err := a.sendExclusionReport(address); err != nil {
+		errs = append(errs, fmt.Errorf("failed to send exclusion report for thing with address %s: %w", address, err))
 	}
 
-	return nil
+	return errors.Join(errs...)
 }
 
 func (a *adapter) sendExclusionReport(address string) error {
