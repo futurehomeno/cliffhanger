@@ -234,6 +234,28 @@ func (l *Lifecycle) SetConnAndAuthStateReason(connectionState, authState State, 
 	l.emitStateChangeEvent(StateTypeAuthState, authState, map[string]string{"reason": reason})
 }
 
+// SetAppState sets app health, config, connection and auth state atomically and emits a single
+// auth-state event, matching SetConnAndAuthState: a subscriber reacting to auth transitions
+// (e.g. the auth-loss watcher, which filters on StateTypeAuthState) sees one consistent bundle
+// instead of up to four separate emits, any of which past the first could be dropped from its
+// buffer if it isn't draining fast enough.
+func (l *Lifecycle) SetAppState(appHealth, configState, connectionState, authState State) {
+	l.lock.Lock()
+	defer l.lock.Unlock()
+
+	if appHealth == l.appHealth && configState == l.configState &&
+		connectionState == l.connectionState && authState == l.authState {
+		return
+	}
+
+	l.appHealth = appHealth
+	l.configState = configState
+	l.connectionState = connectionState
+	l.authState = authState
+
+	l.emitStateChangeEvent(StateTypeAuthState, authState, nil)
+}
+
 func (l *Lifecycle) AppHealth() State {
 	l.lock.RLock()
 	defer l.lock.RUnlock()

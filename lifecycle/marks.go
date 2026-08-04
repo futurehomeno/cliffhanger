@@ -6,16 +6,10 @@ package lifecycle
 // MarkNotConfigured sets the state bundle of an unconfigured application,
 // as done on uninstall, reset and logout.
 func (l *Lifecycle) MarkNotConfigured() {
-	l.SetAppHealth(AppHealthNotConfigured, nil)
-	l.SetConfigState(ConfigStateNotConfigured)
-	l.SetConnState(ConnStateDisconnected)
-	l.SetAuthState(AuthStateNotAuthenticated)
+	l.SetAppState(AppHealthNotConfigured, ConfigStateNotConfigured, ConnStateDisconnected, AuthStateNotAuthenticated)
 }
 
 // MarkRunning sets the state bundle of a configured, authenticated and connected application.
 func (l *Lifecycle) MarkRunning() {
-	l.SetAppHealth(AppHealthRunning, nil)
-	l.SetConfigState(ConfigStateConfigured)
-	l.SetConnState(ConnStateConnected)
-	l.SetAuthState(AuthStateAuthenticated)
+	l.SetAppState(AppHealthRunning, ConfigStateConfigured, ConnStateConnected, AuthStateAuthenticated)
 }
