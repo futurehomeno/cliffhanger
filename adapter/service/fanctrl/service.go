@@ -122,7 +122,7 @@ func (s *service) SendModeReport(force bool) (bool, error) {
 	// specification was not derived from. Withholding the report leaves the hub
 	// holding a stale value rather than a truthful one.
 	if !slices.Contains(s.SupportedModes(), mode) {
-		log.Warnf("fanctrl: reporting mode %s, which is not in sup_modes", mode)
+		log.Warnf("[fanctrl] Reporting mode %s, which is not in sup_modes", mode)
 	}
 
 	message := fimpgo.NewStringMessage(
