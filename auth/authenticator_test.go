@@ -318,6 +318,24 @@ func TestAuthenticator_AccessToken(t *testing.T) {
 		assert.False(t, store.creds.Empty(), "credentials should be kept within grace")
 	})
 
+	t.Run("rejection within grace on an expired access token does not surface ErrUnauthorized", func(t *testing.T) {
+		t.Parallel()
+
+		store := &fakeStore{creds: expiredCreds()}
+		a := auth.NewAuthenticator(store, &fakeExchanger{err: httpclient.ErrUnauthorized}, auth.AuthenticatorConfig{
+			UnauthorizedGrace: time.Hour,
+			Backoff:           backoff.NewTolerantFixed(10, 0),
+		})
+
+		_, err := a.AccessToken()
+		assert.Error(t, err, "no usable token: the access token is expired and the refresh was rejected")
+		assert.False(t, errors.Is(err, httpclient.ErrUnauthorized),
+			"a caller keyed on errors.Is(err, httpclient.ErrUnauthorized) (e.g. a ConnectivityChecker "+
+				"probe) must not conclude authorization loss while still inside the grace window")
+		assert.ErrorIs(t, err, auth.ErrRefreshDeferred)
+		assert.False(t, store.creds.Empty(), "credentials must be kept while grace is still active")
+	})
+
 	t.Run("backoff suspends refresh attempts", func(t *testing.T) {
 		t.Parallel()
 

@@ -15,6 +15,13 @@ import (
 // ErrNotLoggedIn is returned when no credentials are available.
 var ErrNotLoggedIn = errors.New("not logged in")
 
+// ErrRefreshDeferred is returned by AccessToken for a rejected refresh still inside
+// UnauthorizedGrace. It deliberately does not wrap httpclient.ErrUnauthorized: a caller
+// keyed on errors.Is(err, httpclient.ErrUnauthorized) (e.g. a ConnectivityChecker probe
+// wrapping this transport) would otherwise conclude authorization loss on the very first
+// rejection, defeating the grace window this error exists to honor.
+var ErrRefreshDeferred = errors.New("token refresh deferred within unauthorized grace")
+
 // Credentials is a snapshot of persisted OAuth credentials.
 // RefreshExpiresAt is optional; when set, a refresh past it is skipped as doomed.
 type Credentials struct {
@@ -159,6 +166,10 @@ func (a *Authenticator) AccessToken() (string, error) {
 		// A transient refresh failure does not invalidate a token that is still valid.
 		if !creds.expired(0) {
 			return creds.AccessToken, nil
+		}
+
+		if errors.Is(err, httpclient.ErrUnauthorized) {
+			return "", fmt.Errorf("exchange refresh token deferred within grace (%v): %w", err, ErrRefreshDeferred)
 		}
 
 		return "", fmt.Errorf("exchange refresh token: %w", err)
