@@ -121,3 +121,43 @@ func TestEnsureThings_RecreatesGhostThing(t *testing.T) {
 	assert.NotNil(t, a.things["2"], "the ghost record must be recreated as a live thing")
 	require.NotNil(t, a.state.byID("B"), "the record must survive the recreate")
 }
+
+// TestEnsureThings_HealsGhostWithoutLosingAddressOrState pins that healing a ghost preserves its
+// original address and persisted state, matching rebuildChangedThing. Without that, a seed with
+// no CustomAddress (the normal case: the caller doesn't track previously-assigned addresses) got
+// a freshly acquired one from createThingState, and the state blob was silently dropped.
+func TestEnsureThings_HealsGhostWithoutLosingAddressOrState(t *testing.T) {
+	t.Parallel()
+
+	s, err := NewState(t.TempDir())
+	require.NoError(t, err)
+
+	ts, err := s.add(&thingStateModel{ID: "B", Address: "42", Info: json.RawMessage(`{"groups":["g1"]}`)})
+	require.NoError(t, err)
+
+	require.NoError(t, ts.SetState(map[string]string{"keep": "me"}))
+
+	a := &adapter{
+		publisher:   stubPublisher{},
+		state:       s,
+		factory:     groupsFactory{},
+		things:      map[string]Thing{},
+		lock:        &sync.RWMutex{},
+		initialized: true,
+	}
+
+	// No CustomAddress: a real discovery pass supplies one only when it already knows the
+	// previously-assigned address, which is exactly what a ghost heal must recover on its own.
+	seeds := ThingSeeds{{ID: "B", Info: groupsInfo{Groups: []string{"g1"}}}}
+
+	require.NoError(t, a.EnsureThings(seeds), "healing must not report an error")
+	assert.NotNil(t, a.things["42"], "the ghost must be recreated at its original address, not a freshly acquired one")
+
+	healedTS := a.state.byID("B")
+	require.NotNil(t, healedTS, "the record must survive the heal")
+	assert.Equal(t, "42", healedTS.Address())
+
+	var state map[string]string
+	require.NoError(t, healedTS.State(&state))
+	assert.Equal(t, "me", state["keep"], "the persisted state must survive the heal")
+}

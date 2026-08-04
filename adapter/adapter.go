@@ -253,6 +253,12 @@ func (a *adapter) EnsureThings(seeds ThingSeeds) error {
 
 	var addressesToRemove []string
 
+	// Ghost records keep the address and persisted state they had before healing, mirroring
+	// rebuildChangedThing: otherwise createThing below would assign a fresh address (for a
+	// seed without a CustomAddress) and start with no state, silently discarding both.
+	ghostAddresses := make(map[string]string)
+	ghostStates := make(map[string]json.RawMessage)
+
 	thingStates := a.state.all()
 
 	for _, ts := range thingStates {
@@ -262,12 +268,23 @@ func (a *adapter) EnsureThings(seeds ThingSeeds) error {
 			continue
 		}
 
+		_, live := a.things[ts.Address()]
+
 		// A record with no live thing is a ghost left by a partly failed destroy or rebuild.
 		// Keeping its seed lets the pass below recreate it: state.add overwrites the record and
 		// the inclusion report re-announces the device. Skipped before initialization, when
 		// every thing is unregistered and healing would recreate the whole fleet.
-		if _, live := a.things[ts.Address()]; live || !a.initialized {
+		if live || !a.initialized {
 			seeds = seeds.Without(ts.ID())
+
+			continue
+		}
+
+		ghostAddresses[ts.ID()] = ts.Address()
+
+		var savedState json.RawMessage
+		if err := ts.State(&savedState); err == nil && len(savedState) > 0 {
+			ghostStates[ts.ID()] = savedState
 		}
 	}
 
@@ -281,9 +298,28 @@ func (a *adapter) EnsureThings(seeds ThingSeeds) error {
 	}
 
 	for _, seed := range seeds {
-		err := a.createThing(seed)
-		if err != nil {
+		if address, ok := ghostAddresses[seed.ID]; ok {
+			seed = &ThingSeed{ID: seed.ID, Info: seed.Info, CustomAddress: address}
+		}
+
+		if err := a.createThing(seed); err != nil {
 			errs = append(errs, fmt.Errorf("failed to create thing with ID %s: %w", seed.ID, err))
+
+			continue
+		}
+
+		savedState, ok := ghostStates[seed.ID]
+		if !ok {
+			continue
+		}
+
+		newTS := a.state.byID(seed.ID)
+		if newTS == nil {
+			continue
+		}
+
+		if err := newTS.SetState(savedState); err != nil {
+			errs = append(errs, fmt.Errorf("failed to restore state for healed thing with ID %s: %w", seed.ID, err))
 		}
 	}
 

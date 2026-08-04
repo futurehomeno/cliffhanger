@@ -22,6 +22,13 @@ type ThingRegistry interface {
 
 type ThingFactory interface {
 	// Create creates an instance of a thing using provided state.
+	//
+	// RebuildChangedThings may call Create speculatively, on a prospective thing that is
+	// discarded without ever being registered if its topology turns out unchanged. Create
+	// must therefore not perform work whose effect is meant to persist beyond the returned
+	// Thing - e.g. registering the thing with an external manager, or mutating storage keyed
+	// by its topic - since that side effect is not undone when the prospective build is
+	// thrown away.
 	Create(adapter Adapter, publisher Publisher, thingState ThingState) (Thing, error)
 }
 

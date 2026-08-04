@@ -83,6 +83,25 @@ func TestNewSecrets_ResetRemovesBackup(t *testing.T) {
 	assert.True(t, os.IsNotExist(err), "reset must remove the secrets backup file")
 }
 
+func TestNewCanonicalState_ResetKeepsModel(t *testing.T) {
+	t.Parallel()
+
+	workDir := t.TempDir()
+
+	s := storage.NewCanonicalState(&secrets{AccessToken: "keep-me"}, workDir, "state.json")
+	require.NoError(t, s.Save())
+
+	require.NoError(t, s.Reset(), "reset with no defaults must not error for a non-secret store")
+
+	require.NotNil(t, s.Model())
+	assert.Equal(t, "keep-me", s.Model().AccessToken,
+		"a no-defaults state store (adapter.json, config caches) is not a secrets store; "+
+			"reset must only remove the file, not wipe the in-memory model")
+
+	_, err := os.Stat(filepath.Join(workDir, "state.json"))
+	assert.True(t, os.IsNotExist(err), "reset must still remove the persisted file")
+}
+
 func TestNew_ConfigFileMode(t *testing.T) {
 	t.Parallel()
 
