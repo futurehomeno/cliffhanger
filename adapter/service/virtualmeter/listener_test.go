@@ -102,6 +102,8 @@ func TestHandlerLevelEvent(t *testing.T) { //nolint:paralleltest
 
 			if v.thing != nil {
 				ad := mockedadapter.NewAdapter(t)
+				// A filtered event leaves the mock without expectations on purpose: the assertion is that
+				// ThingByTopic is never called, so adding one unconditionally would silently gut the case.
 				if !v.filtered {
 					ad = ad.WithThingByTopic("", false, v.thing)
 				}
