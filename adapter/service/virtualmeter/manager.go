@@ -60,14 +60,16 @@ func (m *manager) RegisterThing(thing adapter.Thing, publisher adapter.Publisher
 	m.lock.Lock()
 	defer m.lock.Unlock()
 
-	for _, group := range thing.InclusionReport().Groups {
+	report := thing.InclusionReport()
+
+	for _, group := range report.Groups {
 		vmsSpec, numericSpec := m.createVirtualServicesForThing(thing, group)
 
 		if vmsSpec == nil || numericSpec == nil {
 			continue
 		}
 
-		log.Debugf("[cliff] Register services %s and %s for group %s", vmsSpec.Name, numericSpec.Name, group)
+		log.Debugf("[cliff] Register %s+%s dev=%s group=%s", vmsSpec.Name, numericSpec.Name, report.Address, group)
 
 		if err := m.registerVirtualServices(thing, publisher, vmsSpec, numericSpec); err != nil {
 			return err
