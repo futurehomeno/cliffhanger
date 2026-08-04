@@ -191,12 +191,16 @@ func (a *app) doStart() error {
 		}
 	}
 
+	// Subscribed before the task manager starts: a WhenAppIsRunning-gated task (e.g.
+	// ConnectivityChecker) can run its first probe as soon as taskManager.Start() spawns its
+	// goroutine, and an AuthStateLost emitted before this subscription exists is gone for good
+	// (Lifecycle.emitStateChangeEvent does not buffer for a not-yet-subscribed watcher).
+	a.startAuthLossWatcher(a.telemetry)
+
 	err = a.taskManager.Start()
 	if err != nil {
 		return fmt.Errorf("start task manager err: %w", err)
 	}
-
-	a.startAuthLossWatcher(a.telemetry)
 
 	log.Info("[cliff] App started")
 
