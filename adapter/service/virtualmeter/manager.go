@@ -124,6 +124,21 @@ func (m *manager) add(topic string, modes map[string]float64, unit string) error
 		if _, err := thing.SendInclusionReport(true); err != nil {
 			return fmt.Errorf("manager: failed to send inclusion report on add: %w", err)
 		}
+
+		// device.Level/CurrentMode are only set by update(), reached through a level event.
+		// WaitForChange() (event.go) drops an unchanged one, so a meter added to a device
+		// already stable at a non-zero level would otherwise accrue no energy until the
+		// device's next real state change. A forced report always carries hasChanged=true,
+		// so it passes the filter and seeds them immediately.
+		for _, ls := range thing.Services(outlvlswitch.OutLvlSwitch) {
+			if levelSwitch, ok := ls.(outlvlswitch.Service); ok && ls.Topic() == topic {
+				if _, err := levelSwitch.SendLevelReport(true); err != nil {
+					log.WithError(err).Warnf("manager: failed to force initial level report for topic %s", topic)
+				}
+
+				break
+			}
+		}
 	}
 
 	return nil
