@@ -51,6 +51,7 @@ func NewSecrets[T any](model T, workDir string, name string) Storage[T] {
 		backupPath: filepath.Join(workDir, dataDirectory, name) + backupExtension,
 		model:      model,
 		mode:       secretFileMode,
+		isSecret:   true,
 	}
 }
 
@@ -62,6 +63,7 @@ func NewCanonicalSecrets[T any](model T, workDir string, name string) Storage[T]
 		backupPath: filepath.Join(workDir, name) + backupExtension,
 		model:      model,
 		mode:       secretFileMode,
+		isSecret:   true,
 	}
 }
 
@@ -104,6 +106,7 @@ type storage[T any] struct {
 	defaultsPath string
 	model        T
 	mode         os.FileMode
+	isSecret     bool
 }
 
 func (s *storage[T]) fileMode() os.FileMode {
@@ -279,7 +282,7 @@ func (s *storage[T]) Reset() error {
 		return err
 	}
 
-	if s.defaultsPath == "" {
+	if s.isSecret {
 		// Secrets stores have no defaults to reload from; clear the in-memory model so a reset
 		// (logout) does not keep serving stale credentials. Zero the pointed-to struct in place
 		// rather than nil the reference: that wipes the fields any cached pointer still holds and
@@ -292,6 +295,10 @@ func (s *storage[T]) Reset() error {
 			s.model = zero
 		}
 
+		return nil
+	}
+
+	if s.defaultsPath == "" {
 		return nil
 	}
 
