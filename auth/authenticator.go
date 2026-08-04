@@ -169,7 +169,9 @@ func (a *Authenticator) AccessToken() (string, error) {
 		}
 
 		if errors.Is(err, httpclient.ErrUnauthorized) {
-			return "", fmt.Errorf("exchange refresh token deferred within grace (%v): %w", err, ErrRefreshDeferred)
+			// err.Error(), not %w err: wrapping it would let it still match
+			// errors.Is(returnedErr, httpclient.ErrUnauthorized), defeating the deferral above.
+			return "", fmt.Errorf("exchange refresh token deferred within grace (%s): %w", err.Error(), ErrRefreshDeferred)
 		}
 
 		return "", fmt.Errorf("exchange refresh token: %w", err)
