@@ -22,7 +22,9 @@ import (
 // an exclusion report, so an upgraded hub can drop stale nodes a legacy adapter left behind.
 // The device ID is used as the address of that report, which is only meaningful for adapters
 // pinning ThingSeed.CustomAddress to the device ID; it is suppressed whenever the ID is already
-// an ID or an address the adapter owns, so it can never exclude an unrelated thing.
+// an ID or an address the adapter owns, so it can never exclude an unrelated thing. The excluded
+// IDs are returned so the caller can drop them from its persisted selection - otherwise the same
+// vanished device is re-announced on every subsequent sync, since nothing here mutates selected.
 //
 // Every pass is best-effort per device: failures are collected with errors.Join and the seeds
 // are still returned, so a single broken device blocks neither the rest of the sync nor a
@@ -36,46 +38,49 @@ func SyncThings[T any](
 	fetch func() ([]T, error),
 	selected []string,
 	seed func(T) *ThingSeed,
-) (ThingSeeds, error) {
+) (seeds ThingSeeds, excludedIDs []string, err error) {
 	available, err := fetch()
 	if err != nil {
-		return nil, fmt.Errorf("adapter: fetch devices: %w", err)
+		return nil, nil, fmt.Errorf("adapter: fetch devices: %w", err)
 	}
 
-	seeds := SeedsFromSelection(available, selected, seed)
+	seeds = SeedsFromSelection(available, selected, seed)
 
 	var errs []error
 
-	errs = append(errs, excludeVanishedDevices(a, selected, seeds)...)
+	excludedIDs, exclErrs := excludeVanishedDevices(a, selected, seeds)
+	errs = append(errs, exclErrs...)
 
 	if err := a.EnsureThings(seeds); err != nil {
 		errs = append(errs, err)
 	}
 
-	return seeds, errors.Join(errs...)
+	return seeds, excludedIDs, errors.Join(errs...)
 }
 
 // excludeVanishedDevices announces an exclusion for every selected device the fetch no longer
-// lists and the adapter owns no thing for. It must run before EnsureThings: afterwards the
-// store entry is gone, so every legitimately destroyed device would look orphaned and be
-// excluded a second time at the wrong address.
-func excludeVanishedDevices(a Adapter, selected []string, seeds ThingSeeds) []error {
+// lists and the adapter owns no thing for, and returns the IDs it successfully excluded. It must
+// run before EnsureThings: afterwards the store entry is gone, so every legitimately destroyed
+// device would look orphaned and be excluded a second time at the wrong address.
+func excludeVanishedDevices(a Adapter, selected []string, seeds ThingSeeds) ([]string, []error) {
+	var excluded []string
+
 	var errs []error
 
 	// Nothing dedupes the selection on the way into the configuration, and an ID repeated there
 	// would otherwise announce the same vanished device twice.
-	excluded := make(map[string]struct{}, len(selected))
+	seen := make(map[string]struct{}, len(selected))
 
 	for _, id := range selected {
 		if seeds.Contains(id) {
 			continue
 		}
 
-		if _, done := excluded[id]; done {
+		if _, done := seen[id]; done {
 			continue
 		}
 
-		excluded[id] = struct{}{}
+		seen[id] = struct{}{}
 
 		if _, owned := a.ExchangeID(id); owned {
 			continue // EnsureThings destroys it and announces its real address.
@@ -87,8 +92,12 @@ func excludeVanishedDevices(a Adapter, selected []string, seeds ThingSeeds) []er
 
 		if err := a.DestroyThingByAddress(id); err != nil {
 			errs = append(errs, fmt.Errorf("adapter: exclude vanished device %s: %w", id, err))
+
+			continue
 		}
+
+		excluded = append(excluded, id)
 	}
 
-	return errs
+	return excluded, errs
 }

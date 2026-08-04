@@ -136,7 +136,7 @@ func TestRouteAdapter_ThingDelete(t *testing.T) { //nolint:paralleltest
 
 							// The third party still lists both devices; only the selection
 							// decides, which is what makes the deletion stick.
-							_, err := adapter.SyncThings(ad, fetchOK(deletableDevices), store.Get(), seedDeletable)
+							_, _, err := adapter.SyncThings(ad, fetchOK(deletableDevices), store.Get(), seedDeletable)
 
 							assert.NoError(t, err)
 							assert.Nil(t, ad.ThingByAddress(testThingAddressB), "the deleted device must stay gone")
@@ -154,7 +154,7 @@ func TestRouteAdapter_ThingDelete(t *testing.T) { //nolint:paralleltest
 
 							assert.NoError(t, store.Set(selection.Selection{"B", "C"}))
 
-							_, err := adapter.SyncThings(ad, fetchOK(deletableDevices), store.Get(), seedDeletable)
+							_, _, err := adapter.SyncThings(ad, fetchOK(deletableDevices), store.Get(), seedDeletable)
 
 							assert.NoError(t, err)
 							assert.NotNil(t, ad.ThingByAddress(testThingAddressB), "the re-selected device must be back")

@@ -42,7 +42,7 @@ func TestSyncThings_ReconcilesSelectedDevices(t *testing.T) {
 		return len(seeds) == 2 && seeds.Contains("1") && seeds.Contains("3")
 	})).Return(nil)
 
-	seeds, err := adapter.SyncThings(a, fetchOK(available), []string{"1", "3"}, seedDevice)
+	seeds, _, err := adapter.SyncThings(a, fetchOK(available), []string{"1", "3"}, seedDevice)
 
 	assert.NoError(t, err)
 	assert.Len(t, seeds, 2)
@@ -57,7 +57,7 @@ func TestSyncThings_FetchFailureMutatesNothing(t *testing.T) {
 	// what proves a failed fetch mutates nothing.
 	a := mockedadapter.NewAdapter(t)
 
-	seeds, err := adapter.SyncThings(a, fetchErr[device](errFetch), []string{"1"}, seedDevice)
+	seeds, _, err := adapter.SyncThings(a, fetchErr[device](errFetch), []string{"1"}, seedDevice)
 
 	assert.ErrorIs(t, err, errFetch)
 	assert.Nil(t, seeds)
@@ -76,9 +76,30 @@ func TestSyncThings_ExcludesVanishedDevice(t *testing.T) {
 	a.On("DestroyThingByAddress", "2").Return(nil)
 	a.On("EnsureThings", mock.Anything).Return(nil)
 
-	_, err := adapter.SyncThings(a, fetchOK([]device{{"1", "a"}}), []string{"1", "2"}, seedDevice)
+	_, excludedIDs, err := adapter.SyncThings(a, fetchOK([]device{{"1", "a"}}), []string{"1", "2"}, seedDevice)
 
 	assert.NoError(t, err)
+	// Without this, the caller has no way to prune "2" from its persisted selection, so the
+	// same vanished device gets excluded again on every subsequent sync.
+	assert.Equal(t, []string{"2"}, excludedIDs,
+		"the caller needs the excluded IDs to drop them from its persisted selection")
+}
+
+func TestSyncThings_ExcludedIDsOmitFailedExclusions(t *testing.T) {
+	t.Parallel()
+
+	// "2" fails to exclude and must not be reported as excluded, or the caller would prune it
+	// from its selection despite the exclusion report never having gone out.
+	a := mockedadapter.NewAdapter(t)
+	a.On("ExchangeID", "2").Return("", false)
+	a.On("ExchangeAddress", "2").Return("", false)
+	a.On("DestroyThingByAddress", "2").Return(errors.New("destroy failed"))
+	a.On("EnsureThings", mock.Anything).Return(nil)
+
+	_, excludedIDs, err := adapter.SyncThings(a, fetchOK([]device{{"1", "a"}}), []string{"1", "2"}, seedDevice)
+
+	assert.Error(t, err)
+	assert.Empty(t, excludedIDs, "a failed exclusion must not be reported as successfully excluded")
 }
 
 func TestSyncThings_ExcludesDuplicatedSelectedDeviceOnce(t *testing.T) {
@@ -92,7 +113,7 @@ func TestSyncThings_ExcludesDuplicatedSelectedDeviceOnce(t *testing.T) {
 	a.On("DestroyThingByAddress", "2").Return(nil).Once()
 	a.On("EnsureThings", mock.Anything).Return(nil)
 
-	_, err := adapter.SyncThings(a, fetchOK([]device{{"1", "a"}}), []string{"1", "2", "2"}, seedDevice)
+	_, _, err := adapter.SyncThings(a, fetchOK([]device{{"1", "a"}}), []string{"1", "2", "2"}, seedDevice)
 
 	assert.NoError(t, err)
 	a.AssertNumberOfCalls(t, "DestroyThingByAddress", 1)
@@ -110,7 +131,7 @@ func TestSyncThings_DoesNotExcludeOwnedOrForeignAddress(t *testing.T) {
 	a.On("ExchangeAddress", "3").Return("other", true)
 	a.On("EnsureThings", mock.Anything).Return(nil)
 
-	_, err := adapter.SyncThings(a, fetchOK([]device{{"1", "a"}}), []string{"1", "2", "3"}, seedDevice)
+	_, _, err := adapter.SyncThings(a, fetchOK([]device{{"1", "a"}}), []string{"1", "2", "3"}, seedDevice)
 
 	assert.NoError(t, err)
 	a.AssertNotCalled(t, "DestroyThingByAddress", mock.Anything)
@@ -126,7 +147,7 @@ func TestSyncThings_NilSelectionIncludesEverything(t *testing.T) {
 		return len(seeds) == 2 && seeds.Contains("1") && seeds.Contains("2")
 	})).Return(nil)
 
-	seeds, err := adapter.SyncThings(a, fetchOK(available), nil, seedDevice)
+	seeds, _, err := adapter.SyncThings(a, fetchOK(available), nil, seedDevice)
 
 	assert.NoError(t, err)
 	assert.Len(t, seeds, 2)
@@ -146,7 +167,7 @@ func TestSyncThings_AggregatesFailures(t *testing.T) {
 	a.On("DestroyThingByAddress", "2").Return(errExclude)
 	a.On("EnsureThings", mock.Anything).Return(errEnsure)
 
-	seeds, err := adapter.SyncThings(a, fetchOK([]device{{"1", "a"}}), []string{"1", "2"}, seedDevice)
+	seeds, _, err := adapter.SyncThings(a, fetchOK([]device{{"1", "a"}}), []string{"1", "2"}, seedDevice)
 
 	// A failure of one device neither hides the other nor withholds the seeds a follow-up
 	// drift rebuild needs.

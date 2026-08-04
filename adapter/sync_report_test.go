@@ -63,7 +63,7 @@ func TestSyncThings_AddsDeviceAndSendsInclusionReport(t *testing.T) { //nolint:p
 
 							assert.Nil(t, ad.ThingByID("4"), "device 4 must not exist before the sync")
 
-							_, err := adapter.SyncThings(ad, fetchOK(available), []string{"1", "2", "3", "4"}, seedByID)
+							_, _, err := adapter.SyncThings(ad, fetchOK(available), []string{"1", "2", "3", "4"}, seedByID)
 
 							assert.NoError(t, err)
 							assert.NotNil(t, ad.ThingByID("4"), "device 4 must be registered after the sync")
@@ -105,7 +105,7 @@ func TestSyncThings_RemovesDeviceAndSendsExclusionReport(t *testing.T) { //nolin
 
 							assert.NotNil(t, ad.ThingByID("4"), "device 4 must exist before the sync")
 
-							_, err := adapter.SyncThings(ad, fetchOK(available), []string{"1", "2", "3"}, seedByID)
+							_, _, err := adapter.SyncThings(ad, fetchOK(available), []string{"1", "2", "3"}, seedByID)
 
 							assert.NoError(t, err)
 							assert.Nil(t, ad.ThingByID("4"), "device 4 must be removed after the sync")
@@ -218,7 +218,7 @@ func TestSyncThings_FetchFailureKeepsThings(t *testing.T) { //nolint:paralleltes
 						InitCallbacks: []suite.Callback{func(t *testing.T) {
 							t.Helper()
 
-							_, err := adapter.SyncThings(ad, fetchErr[device](errFetch), []string{"1", "2", "3"}, seedByID)
+							_, _, err := adapter.SyncThings(ad, fetchErr[device](errFetch), []string{"1", "2", "3"}, seedByID)
 
 							assert.ErrorIs(t, err, errFetch)
 							assert.NotNil(t, ad.ThingByID("1"), "device 1 must survive a failed fetch")
@@ -258,7 +258,7 @@ func TestSyncThings_EmptyFetchDestroysSelectedThings(t *testing.T) { //nolint:pa
 						InitCallbacks: []suite.Callback{func(t *testing.T) {
 							t.Helper()
 
-							_, err := adapter.SyncThings(ad, fetchOK([]device{}), []string{"1", "2", "3"}, seedByID)
+							_, _, err := adapter.SyncThings(ad, fetchOK([]device{}), []string{"1", "2", "3"}, seedByID)
 
 							assert.NoError(t, err)
 							assert.Nil(t, ad.ThingByID("1"), "device 1 must be removed")
@@ -300,7 +300,7 @@ func TestSyncThings_ExcludesVanishedUnownedDevice(t *testing.T) { //nolint:paral
 						InitCallbacks: []suite.Callback{func(t *testing.T) {
 							t.Helper()
 
-							_, err := adapter.SyncThings(ad, fetchOK([]device{{"1", "a"}}), []string{"1", "legacy"}, seedByID)
+							_, _, err := adapter.SyncThings(ad, fetchOK([]device{{"1", "a"}}), []string{"1", "legacy"}, seedByID)
 
 							assert.NoError(t, err)
 							assert.NotNil(t, ad.ThingByID("1"), "the owned device must survive")
