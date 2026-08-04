@@ -45,7 +45,9 @@ func (a *adapter) rebuildChangedThing(seed *ThingSeed) error {
 	}
 
 	// Reuse the live address so only genuine capability changes, not address-derived fields,
-	// differ. Building before the destroy also means a factory error costs nothing.
+	// differ. Building before the destroy also means a factory error costs nothing - but a
+	// successful build is thrown away below if the topology is unchanged, so the factory must
+	// hold to the no-persistent-side-effects precondition documented on ThingFactory.Create.
 	prospective, err := a.factory.Create(a, a.publisher, newSeedState(seed, ts.Address()))
 	if err != nil {
 		return fmt.Errorf("build prospective thing: %w", err)
