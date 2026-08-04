@@ -10,8 +10,18 @@ import (
 
 	"github.com/futurehomeno/cliffhanger/lifecycle"
 	"github.com/futurehomeno/cliffhanger/notification"
+	"github.com/futurehomeno/cliffhanger/router"
+	"github.com/futurehomeno/cliffhanger/task"
 	"github.com/futurehomeno/cliffhanger/test/suite"
 )
+
+// noopRouter satisfies router.Router without touching MQTT, so a test can isolate a
+// taskManager.Start() failure without also exercising message routing.
+type noopRouter struct{}
+
+func (noopRouter) WithOptions(...router.Option) router.Router { return noopRouter{} }
+func (noopRouter) Start() error                               { return nil }
+func (noopRouter) Stop() error                                { return nil }
 
 type fakeNotifier struct {
 	mu     sync.Mutex
@@ -107,6 +117,42 @@ func TestAuthLossWatcher_ArmsFromAuthenticatedStateAtSubscribe(t *testing.T) { /
 
 	require.Eventually(t, func() bool { return notifier.count() == 1 }, time.Second, 10*time.Millisecond,
 		"already-authenticated app must arm at subscribe and report the next LOST")
+}
+
+// TestDoStart_TaskManagerFailureStopsAuthLossWatcher pins that a taskManager.Start() failure
+// tears down the watcher startAuthLossWatcher just subscribed. Without that, a caller retrying
+// Start() after such a failure spawns a second watcher goroutine on the same subscription and
+// overwrites authWatcherStopCh, leaking the first goroutine (only reachable again once something
+// eventually closes the shared channel) and splitting auth-loss events between two watchers with
+// independent, now-diverged armed state.
+func TestDoStart_TaskManagerFailureStopsAuthLossWatcher(t *testing.T) {
+	t.Parallel()
+
+	mqtt := suite.DefaultMQTT("root_doStart_taskmgr_fail", "", "", "")
+
+	// Pre-started so the app's own taskManager.Start() call fails immediately with
+	// "already running" -- the only way task.manager.Start() can fail.
+	tm := task.NewManager()
+	require.NoError(t, tm.Start())
+	defer tm.Stop() //nolint:errcheck
+
+	lc := lifecycle.New(nil)
+
+	a := &app{
+		lock:          &sync.Mutex{},
+		mqtt:          mqtt,
+		lifecycle:     lc,
+		resourceName:  "test_app",
+		messageRouter: noopRouter{},
+		taskManager:   tm,
+	}
+
+	err := a.Start()
+
+	require.Error(t, err, "a task manager that is already running must surface as a start error")
+	assert.Nil(t, a.authWatcherStopCh,
+		"the watcher started earlier in doStart() must be torn down on this failure path, not leaked")
+	assert.Nil(t, a.authWatcherDoneCh)
 }
 
 // TestReportAuthLoss_SuppressedWhenReportingDisabled confirms the reporting gate suppresses the

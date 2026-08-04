@@ -199,6 +199,8 @@ func (a *app) doStart() error {
 
 	err = a.taskManager.Start()
 	if err != nil {
+		a.stopAuthLossWatcher()
+
 		return fmt.Errorf("start task manager err: %w", err)
 	}
 
