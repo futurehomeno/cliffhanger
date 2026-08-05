@@ -332,6 +332,10 @@ func (a *app) doStop() error {
 		return nil
 	}
 
+	// Deferred so buffered diagnostics leading up to a failure are not lost on an early
+	// return below - exactly the case where they matter most.
+	defer debug.FlushLogs()
+
 	a.stopAuthLossWatcher()
 
 	if a.lifecycle != nil {
@@ -365,8 +369,6 @@ func (a *app) doStop() error {
 	a.mqtt.Stop()
 
 	a.running = false
-
-	debug.FlushLogs()
 
 	return nil
 }
