@@ -213,7 +213,7 @@ func (s *storage[T]) Save() error {
 }
 
 func (s *storage[T]) save() error {
-	err := os.MkdirAll(path.Dir(s.dataPath), 0774) //nolint:gofumpt,gosec
+	err := os.MkdirAll(path.Dir(s.dataPath), 0o755) //nolint:gosec
 	if err != nil {
 		return fmt.Errorf("storage: cannot create a configuration directory at path %s: %w", path.Dir(s.dataPath), err)
 	}

@@ -69,7 +69,7 @@ func NewDatabase(workdir string, options ...Option) (Database, error) {
 
 // prepareDatabase prepares the database for use.
 func prepareDatabase(workdir, filename string) (*buntdb.DB, error) {
-	err := os.MkdirAll(workdir, 0o774) //nolint:gosec
+	err := os.MkdirAll(workdir, 0o755) //nolint:gosec
 	if err != nil {
 		return nil, fmt.Errorf("database: failed to create work directory: %w", err)
 	}
@@ -130,7 +130,7 @@ func recoverData(workdir, filename string) error {
 
 	_ = tempDB.Load(bytes.NewReader(corruptedData))
 
-	f, err := os.OpenFile(path.Join(workdir, filename+".db.recovered"), os.O_CREATE|os.O_RDWR, 0o666) //nolint:gosec
+	f, err := os.OpenFile(path.Join(workdir, filename+".db.recovered"), os.O_CREATE|os.O_RDWR|os.O_TRUNC, 0o644) //nolint:gosec
 	if err != nil {
 		return fmt.Errorf("database: failed to create recovered data file: %w", err)
 	}
