@@ -158,6 +158,43 @@ func TestDatabase_Recovery(t *testing.T) { //nolint:paralleltest
 	assert.Equal(t, []string{"test_key1", "test_key2", "test_key3", "test_key4", "test_key5"}, keys)
 }
 
+func TestDatabase_Recovery_StaleRecoveredFileIsTruncated(t *testing.T) { //nolint:paralleltest
+	db := database.NewDomainDatabase("test_domain", makeTestDatabase(t, true))
+
+	assert.NoError(t, db.Set("test_bucket", "test_key1", "test_value1"))
+	assert.NoError(t, db.Set("test_bucket", "test_key2", "test_value2"))
+	assert.NoError(t, db.Stop())
+
+	file, err := os.ReadFile("../testdata/database/test.db")
+
+	assert.NoError(t, err)
+
+	// We corrupt the file by removing last two bytes from the file and appending two new lines.
+	file = file[0 : len(file)-2]
+	file = append(file, []byte("\n\n")...)
+
+	assert.NoError(t, os.WriteFile("../testdata/database/test.db", file, 0o644)) //nolint:gosec
+
+	// A stale, larger .db.recovered file left behind by a previous failed recovery attempt.
+	// Without O_TRUNC its trailing bytes survive the next recovery and corrupt the result.
+	stale := append([]byte(nil), file...)
+	stale = append(stale, []byte("STALE_TRAILING_GARBAGE_FROM_PREVIOUS_RECOVERY_ATTEMPT")...)
+
+	assert.NoError(t, os.WriteFile("../testdata/database/test.db.recovered", stale, 0o644)) //nolint:gosec
+
+	db = database.NewDomainDatabase("test_domain", makeTestDatabase(t, false))
+
+	keys, err := db.Keys("test_bucket")
+
+	assert.NoError(t, err)
+	assert.Equal(t, []string{"test_key1"}, keys)
+
+	recovered, err := os.ReadFile("../testdata/database/test.db")
+
+	assert.NoError(t, err)
+	assert.NotContains(t, string(recovered), "STALE_TRAILING_GARBAGE_FROM_PREVIOUS_RECOVERY_ATTEMPT")
+}
+
 func makeTestDatabase(t *testing.T, cleanup bool) database.Database {
 	t.Helper()
 

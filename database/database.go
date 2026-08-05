@@ -130,7 +130,7 @@ func recoverData(workdir, filename string) error {
 
 	_ = tempDB.Load(bytes.NewReader(corruptedData))
 
-	f, err := os.OpenFile(path.Join(workdir, filename+".db.recovered"), os.O_CREATE|os.O_RDWR, 0o644) //nolint:gosec
+	f, err := os.OpenFile(path.Join(workdir, filename+".db.recovered"), os.O_CREATE|os.O_RDWR|os.O_TRUNC, 0o644) //nolint:gosec
 	if err != nil {
 		return fmt.Errorf("database: failed to create recovered data file: %w", err)
 	}
