@@ -3,6 +3,7 @@ package debug_test
 import (
 	"os"
 	"path/filepath"
+	"strings"
 	"sync"
 	"sync/atomic"
 	"testing"
@@ -161,6 +162,27 @@ func TestLogBuffering_HoldsInfoUntilErrorOrExplicitFlush(t *testing.T) { //nolin
 
 	debug.FlushLogs()
 	assert.Contains(t, read(), "second-info-line", "explicit flush should drain the buffer")
+}
+
+// TestLogBuffering_DebugLevelFlushesNearRealTime verifies that enabling
+// debug/trace shortens the periodic flush so a human tailing the log file
+// sees lines within a couple of seconds, not the long info-level interval.
+func TestLogBuffering_DebugLevelFlushesNearRealTime(t *testing.T) { //nolint:paralleltest
+	_, logFile := initLogger(t, "debug", "text")
+
+	read := func() string {
+		b, err := os.ReadFile(logFile) //nolint:gosec
+		require.NoError(t, err)
+
+		return string(b)
+	}
+
+	logrus.Info("debug-mode-info-line")
+	assert.NotContains(t, read(), "debug-mode-info-line", "still buffered immediately after logging")
+
+	require.Eventually(t, func() bool {
+		return strings.Contains(read(), "debug-mode-info-line")
+	}, 3*time.Second, 100*time.Millisecond, "debug level should flush near real time")
 }
 
 func TestInitializeLogger_AppliesEachFormat(t *testing.T) { //nolint:paralleltest

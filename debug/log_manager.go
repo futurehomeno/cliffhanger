@@ -44,7 +44,16 @@ const (
 	// block on every filesystem commit; batching trades that write
 	// amplification for losing the tail of the log on power loss.
 	defaultLogFlushInterval = 240 * time.Second
-	logBufferSize           = 64 * 1024
+
+	// debugLogFlushInterval applies while the level is debug/trace: someone
+	// enabling debug is almost always about to tail the log file, and the
+	// long interval would make a running adapter look hung. Debug is also a
+	// bounded, operator-armed window (log_revert_timeout reverts it to info
+	// on its own), so trading some of the write-amplification protection for
+	// near-real-time tailing only lasts as long as the window does.
+	debugLogFlushInterval = 2 * time.Second
+
+	logBufferSize = 64 * 1024
 )
 
 type Store interface {
@@ -110,11 +119,24 @@ func (ptr *logManagerT) flush() {
 	}
 }
 
-func (ptr *logManagerT) startFlusher() {
+// flushInterval returns the interval the periodic flusher should currently
+// use: short while debug/trace is active, the configured (or default) one
+// otherwise.
+func (ptr *logManagerT) flushInterval() time.Duration {
+	if logrus.GetLevel() >= logrus.DebugLevel {
+		return debugLogFlushInterval
+	}
+
 	interval := ptr.store.LogFlushInterval()
 	if interval <= 0 {
 		interval = defaultLogFlushInterval
 	}
+
+	return interval
+}
+
+func (ptr *logManagerT) startFlusher() {
+	interval := ptr.flushInterval()
 
 	stop := make(chan struct{})
 	ptr.flushStop = stop
@@ -139,6 +161,15 @@ func (ptr *logManagerT) stopFlusher() {
 		close(ptr.flushStop)
 		ptr.flushStop = nil
 	}
+}
+
+// restartFlusher re-picks the flush interval and restarts the ticker. Called
+// whenever the log level crosses the debug/trace boundary so the switch to
+// (or from) near-real-time flushing takes effect immediately rather than on
+// the next tick.
+func (ptr *logManagerT) restartFlusher() {
+	ptr.stopFlusher()
+	ptr.startFlusher()
 }
 
 // applyPersistedLevel applies the persisted log level at startup. Unlike
@@ -315,6 +346,7 @@ func (ptr *logManagerT) SetLevel(level string) error {
 		}
 
 		logrus.SetLevel(logLevel)
+		ptr.restartFlusher()
 		logrus.Infof("[cliff] Log level updated to %s", logLevel)
 
 		return nil
@@ -334,6 +366,7 @@ func (ptr *logManagerT) SetLevel(level string) error {
 	}
 
 	logrus.SetLevel(logLevel)
+	ptr.restartFlusher()
 	logrus.Infof("[cliff] Log level updated to %s; will revert to info on next startup after %s", logLevel, timeout)
 
 	return nil
