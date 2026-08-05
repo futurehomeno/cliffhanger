@@ -137,6 +137,32 @@ func TestInitializeLogger_EmptyLogFile_Errors(t *testing.T) { //nolint:parallelt
 	require.Error(t, err)
 }
 
+func TestLogBuffering_HoldsInfoUntilErrorOrExplicitFlush(t *testing.T) { //nolint:paralleltest
+	_, logFile := initLogger(t, "info", "text")
+
+	read := func() string {
+		b, err := os.ReadFile(logFile) //nolint:gosec
+		require.NoError(t, err)
+
+		return string(b)
+	}
+
+	logrus.Info("buffered-info-line")
+	assert.NotContains(t, read(), "buffered-info-line", "info level should stay in RAM")
+
+	logrus.Error("urgent-error-line")
+
+	got := read()
+	assert.Contains(t, got, "urgent-error-line", "error level should reach the file immediately")
+	assert.Contains(t, got, "buffered-info-line", "an error flush should carry preceding lines with it")
+
+	logrus.Info("second-info-line")
+	assert.NotContains(t, read(), "second-info-line")
+
+	debug.FlushLogs()
+	assert.Contains(t, read(), "second-info-line", "explicit flush should drain the buffer")
+}
+
 func TestInitializeLogger_AppliesEachFormat(t *testing.T) { //nolint:paralleltest
 	cases := []struct {
 		format string
@@ -153,7 +179,11 @@ func TestInitializeLogger_AppliesEachFormat(t *testing.T) { //nolint:paralleltes
 			initLogger(t, "info", tc.format)
 
 			got := logrus.StandardLogger().Formatter
-			assert.NotNil(t, got)
+			require.NotNil(t, got)
+
+			unwrapper, ok := got.(interface{ Unwrap() logrus.Formatter })
+			require.True(t, ok, "formatter should be wrapped for error-level flushing")
+			got = unwrapper.Unwrap()
 
 			switch tc.format {
 			case "json":

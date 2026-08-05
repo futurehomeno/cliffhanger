@@ -1,10 +1,12 @@
 package debug
 
 import (
+	"bufio"
 	"fmt"
 	"os"
 	"path/filepath"
 	"sync"
+	"sync/atomic"
 	"time"
 
 	"github.com/sirupsen/logrus"
@@ -15,17 +17,35 @@ import (
 
 var (
 	logManager *logManagerT
+
+	// urgent is set by levelFormatter for entries at error level or above and
+	// consumed by bufferedWriter.Write, which logrus calls immediately after
+	// Format under the same logger mutex. A level hook cannot serve here:
+	// hooks fire before the entry is written, so they cannot flush the very
+	// line that triggered them.
+	urgent atomic.Bool
 )
 
 type logManagerT struct {
-	logOutput *lumberjack.Logger
+	logOutput *bufferedWriter
 	store     Store
 	lock      sync.Mutex
+	flushStop chan struct{}
 }
 
 // defaultLogRevertTimeout is the timeout after which a verbose log level
 // (debug/trace) is automatically reverted to the previous level (info/warn)
 const defaultLogRevertTimeout = 7 * 24 * time.Hour
+
+const (
+	// defaultLogFlushInterval bounds how long a line may sit in RAM before it
+	// reaches the log file. The hub stores logs on eMMC, where an idle adapter
+	// appending one short line at a time still dirties a page plus a journal
+	// block on every filesystem commit; batching trades that write
+	// amplification for losing the tail of the log on power loss.
+	defaultLogFlushInterval = 240 * time.Second
+	logBufferSize           = 64 * 1024
+)
 
 type Store interface {
 	Level() string
@@ -38,9 +58,14 @@ type Store interface {
 	SetLogRevertTimeout(d time.Duration) error
 	LogRevertAt() time.Time
 	SetLogRevertAt(t time.Time) error
+	LogFlushInterval() time.Duration
 }
 
 func InitializeLogger(store Store) error {
+	if logManager != nil {
+		logManager.stopFlusher()
+	}
+
 	logManager = &logManagerT{
 		store: store,
 	}
@@ -53,7 +78,67 @@ func InitializeLogger(store Store) error {
 	// startup.
 	_ = logManager.applyPersistedLevel()
 
-	return logManager.setLogOutput(store.LogFile())
+	if err := logManager.setLogOutput(store.LogFile()); err != nil {
+		return err
+	}
+
+	logManager.startFlusher()
+
+	return nil
+}
+
+// FlushLogs writes buffered log lines to the log file. Error-level entries and
+// the periodic flusher do this on their own; call it before a deliberate exit
+// so the closing lines are not lost with the process.
+func FlushLogs() {
+	if logManager != nil {
+		logManager.flush()
+	}
+}
+
+func (ptr *logManagerT) flush() {
+	ptr.lock.Lock()
+	out := ptr.logOutput
+	ptr.lock.Unlock()
+
+	if out == nil {
+		return
+	}
+
+	if err := out.Flush(); err != nil {
+		logrus.Errorf("[cliff] flush log output err: %v", err)
+	}
+}
+
+func (ptr *logManagerT) startFlusher() {
+	interval := ptr.store.LogFlushInterval()
+	if interval <= 0 {
+		interval = defaultLogFlushInterval
+	}
+
+	stop := make(chan struct{})
+	ptr.flushStop = stop
+
+	go func() {
+		ticker := time.NewTicker(interval)
+		defer ticker.Stop()
+
+		for {
+			select {
+			case <-ticker.C:
+				ptr.flush()
+			case <-stop:
+				return
+			}
+		}
+	}()
+}
+
+func (ptr *logManagerT) stopFlusher() {
+	if ptr.flushStop != nil {
+		close(ptr.flushStop)
+		ptr.flushStop = nil
+	}
 }
 
 // applyPersistedLevel applies the persisted log level at startup. Unlike
@@ -97,14 +182,75 @@ func (ptr *logManagerT) applyPersistedLevel() error {
 }
 
 func setLogFormat(logFormat string) {
+	var formatter logrus.Formatter
+
 	switch logFormat {
 	case "json":
-		logrus.SetFormatter(&logrus.JSONFormatter{TimestampFormat: "2006-01-02 15:04:05.999"})
+		formatter = &logrus.JSONFormatter{TimestampFormat: "2006-01-02 15:04:05.999"}
 	case "budzik":
-		logrus.SetFormatter(formatters.NewBudzikFormatter())
+		formatter = formatters.NewBudzikFormatter()
 	default:
-		logrus.SetFormatter(&logrus.TextFormatter{FullTimestamp: true, ForceColors: true, TimestampFormat: "2006-01-02T15:04:05.999"})
+		formatter = &logrus.TextFormatter{FullTimestamp: true, ForceColors: true, TimestampFormat: "2006-01-02T15:04:05.999"}
 	}
+
+	logrus.SetFormatter(&levelFormatter{Formatter: formatter})
+}
+
+type levelFormatter struct {
+	logrus.Formatter
+}
+
+func (f *levelFormatter) Format(entry *logrus.Entry) ([]byte, error) {
+	urgent.Store(entry.Level <= logrus.ErrorLevel)
+
+	return f.Formatter.Format(entry)
+}
+
+func (f *levelFormatter) Unwrap() logrus.Formatter {
+	return f.Formatter
+}
+
+// bufferedWriter batches log lines in RAM ahead of the rotating log file,
+// flushing on error-level entries, on a full buffer, and on the manager's
+// periodic tick.
+type bufferedWriter struct {
+	lock sync.Mutex
+	buf  *bufio.Writer
+	file *lumberjack.Logger
+}
+
+func newBufferedWriter(file *lumberjack.Logger) *bufferedWriter {
+	return &bufferedWriter{buf: bufio.NewWriterSize(file, logBufferSize), file: file}
+}
+
+func (w *bufferedWriter) Write(p []byte) (int, error) {
+	w.lock.Lock()
+	defer w.lock.Unlock()
+
+	n, err := w.buf.Write(p)
+	if err != nil || !urgent.Load() {
+		return n, err
+	}
+
+	return n, w.buf.Flush()
+}
+
+func (w *bufferedWriter) Flush() error {
+	w.lock.Lock()
+	defer w.lock.Unlock()
+
+	return w.buf.Flush()
+}
+
+func (w *bufferedWriter) Close() error {
+	w.lock.Lock()
+	defer w.lock.Unlock()
+
+	if err := w.buf.Flush(); err != nil {
+		return err
+	}
+
+	return w.file.Close()
 }
 
 func (ptr *logManagerT) setLogOutput(logFile string) error {
@@ -122,17 +268,17 @@ func (ptr *logManagerT) setLogOutput(logFile string) error {
 		logrus.Errorf("close err: %v", cerr)
 	}
 
-	newOutput := &lumberjack.Logger{
+	newOutput := newBufferedWriter(&lumberjack.Logger{
 		Filename:   logFile,
 		MaxSize:    5, // MiB
 		MaxBackups: 4,
-	}
+	})
 
 	previous := ptr.logOutput
 	ptr.logOutput = newOutput
 	logrus.SetOutput(newOutput)
 
-	if previous != nil && previous != newOutput {
+	if previous != nil {
 		if err := previous.Close(); err != nil {
 			logrus.Errorf("close previous log output err: %v", err)
 		}
