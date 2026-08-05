@@ -104,9 +104,18 @@ func (s *state) remove(id string) error {
 	s.lock.Lock()
 	defer s.lock.Unlock()
 
+	old, ok := s.Model().Things[id]
+
 	delete(s.Model().Things, id)
 
 	if err := s.Save(); err != nil {
+		// Restore on a failed write: the disk still holds the record, so keeping it in memory
+		// lets the next sync retry the destroy instead of resurrecting the thing only after
+		// a restart.
+		if ok {
+			s.Model().Things[id] = old
+		}
+
 		return fmt.Errorf("state: failed to remove state of a thing with ID %s: %w", id, err)
 	}
 
@@ -193,7 +202,7 @@ func (s *thingState) Info(model any) error {
 
 	err := json.Unmarshal(s.model.Info, model)
 	if err != nil {
-		return fmt.Errorf("thing state: failed to unmarshal info of a thing with ID %s into a provided model: %w", s.ID(), err)
+		return fmt.Errorf("thing state: failed to unmarshal info of a thing with ID %s into a provided model: %w", s.model.ID, err)
 	}
 
 	return nil
@@ -209,7 +218,7 @@ func (s *thingState) State(model any) error {
 
 	err := json.Unmarshal(s.model.State, model)
 	if err != nil {
-		return fmt.Errorf("thing state: failed to unmarshal state of a thing with ID %s into a provided model: %w", s.ID(), err)
+		return fmt.Errorf("thing state: failed to unmarshal state of a thing with ID %s into a provided model: %w", s.model.ID, err)
 	}
 
 	return nil
@@ -221,14 +230,14 @@ func (s *thingState) SetState(model any) error {
 
 	b, err := json.Marshal(model)
 	if err != nil {
-		return fmt.Errorf("thing state: failed to marshal state of a thing with ID %s from a provided model: %w", s.ID(), err)
+		return fmt.Errorf("thing state: failed to marshal state of a thing with ID %s from a provided model: %w", s.model.ID, err)
 	}
 
 	s.model.State = b
 
 	err = s.state.Save()
 	if err != nil {
-		return fmt.Errorf("thing state: failed to persist state of a thing with ID %s: %w", s.ID(), err)
+		return fmt.Errorf("thing state: failed to persist state of a thing with ID %s: %w", s.model.ID, err)
 	}
 
 	return nil
@@ -249,7 +258,7 @@ func (s *thingState) SetInclusionChecksum(checksum uint32) error {
 
 	err := s.state.Save()
 	if err != nil {
-		return fmt.Errorf("thing state: failed to persist inclusion checksum of a thing with ID %s: %w", s.ID(), err)
+		return fmt.Errorf("thing state: failed to persist inclusion checksum of a thing with ID %s: %w", s.model.ID, err)
 	}
 
 	return nil

@@ -37,7 +37,7 @@ func NewHandlers(mr Manager, handlersBufferSize int) []*event.Handler {
 	}
 
 	return []*event.Handler{
-		event.NewHandler(&levelEventProcessor{processor{manager: m}}, "virtual_meter_level", handlersBufferSize, outlvlswitch.WaitForLevelEvent()),
+		event.NewHandler(&levelEventProcessor{processor{manager: m}}, "virtual_meter_level", handlersBufferSize, outlvlswitch.WaitForLevelEvent(), adapter.WaitForChange()),
 		event.NewHandler(&connectivityEventProcessor{processor{manager: m}}, "virtual_meter_connectivity", handlersBufferSize, adapter.WaitForConnectivityEvent()),
 	}
 }

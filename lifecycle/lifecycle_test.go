@@ -138,6 +138,60 @@ func TestSetAuthState_EmitsEvent(t *testing.T) {
 	assert.Equal(t, lifecycle.AuthStateAuthenticated, event.State)
 }
 
+func TestSetConnAndAuthState_EmitsSingleAuthEventWithBothStatesApplied(t *testing.T) {
+	t.Parallel()
+
+	l := lifecycle.New(nil)
+	l.SetAuthState(lifecycle.AuthStateAuthenticated)
+	l.SetConnState(lifecycle.ConnStateConnected)
+
+	ch := l.Subscribe("test", 5)
+
+	l.SetConnAndAuthState(lifecycle.ConnStateDisconnected, lifecycle.AuthStateLost)
+
+	event := <-ch
+	assert.Equal(t, lifecycle.StateTypeAuthState, event.Type, "a single auth event carries the transition")
+	assert.Equal(t, lifecycle.AuthStateLost, event.State)
+	assert.Equal(t, lifecycle.ConnStateDisconnected, l.ConnectionState(),
+		"both states are applied before the event, so an observer sees a consistent bundle")
+	assert.Equal(t, lifecycle.AuthStateLost, l.AuthState())
+
+	assert.Empty(t, ch, "no separate connection event competes for the subscriber buffer")
+}
+
+func TestSetConnAndAuthStateReason_EmitsAuthEventWithReason(t *testing.T) {
+	t.Parallel()
+
+	l := lifecycle.New(nil)
+	l.SetAuthState(lifecycle.AuthStateAuthenticated)
+	l.SetConnState(lifecycle.ConnStateConnected)
+
+	ch := l.Subscribe("test", 5)
+
+	l.SetConnAndAuthStateReason(lifecycle.ConnStateDisconnected, lifecycle.AuthStateLost, "unauthorized")
+
+	event := <-ch
+	assert.Equal(t, lifecycle.StateTypeAuthState, event.Type)
+	assert.Equal(t, lifecycle.AuthStateLost, event.State)
+	assert.Equal(t, "unauthorized", event.Params["reason"], "the reason rides the auth event")
+	assert.Equal(t, lifecycle.ConnStateDisconnected, l.ConnectionState())
+	assert.Equal(t, lifecycle.AuthStateLost, l.AuthState())
+}
+
+func TestSetConnAndAuthState_NoEventWhenBothStatesUnchanged(t *testing.T) {
+	t.Parallel()
+
+	l := lifecycle.New(nil)
+	l.SetConnState(lifecycle.ConnStateDisconnected)
+	l.SetAuthState(lifecycle.AuthStateLost)
+
+	ch := l.Subscribe("test", 5)
+
+	l.SetConnAndAuthState(lifecycle.ConnStateDisconnected, lifecycle.AuthStateLost)
+
+	assert.Empty(t, ch, "no event is emitted when neither state changes")
+}
+
 func TestSetConnectionState_EmitsEvent(t *testing.T) {
 	t.Parallel()
 

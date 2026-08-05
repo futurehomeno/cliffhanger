@@ -60,14 +60,16 @@ func (m *manager) RegisterThing(thing adapter.Thing, publisher adapter.Publisher
 	m.lock.Lock()
 	defer m.lock.Unlock()
 
-	for _, group := range thing.InclusionReport().Groups {
+	report := thing.InclusionReport()
+
+	for _, group := range report.Groups {
 		vmsSpec, numericSpec := m.createVirtualServicesForThing(thing, group)
 
 		if vmsSpec == nil || numericSpec == nil {
 			continue
 		}
 
-		log.Debugf("[cliff] Register services %s and %s for group %s", vmsSpec.Name, numericSpec.Name, group)
+		log.Debugf("[cliff] Register %s+%s dev=%s group=%s", vmsSpec.Name, numericSpec.Name, report.Address, group)
 
 		if err := m.registerVirtualServices(thing, publisher, vmsSpec, numericSpec); err != nil {
 			return err
@@ -121,6 +123,21 @@ func (m *manager) add(topic string, modes map[string]float64, unit string) error
 
 		if _, err := thing.SendInclusionReport(true); err != nil {
 			return fmt.Errorf("manager: failed to send inclusion report on add: %w", err)
+		}
+
+		// device.Level/CurrentMode are only set by update(), reached through a level event.
+		// WaitForChange() (event.go) drops an unchanged one, so a meter added to a device
+		// already stable at a non-zero level would otherwise accrue no energy until the
+		// device's next real state change. A forced report always carries hasChanged=true,
+		// so it passes the filter and seeds them immediately.
+		for _, ls := range thing.Services(outlvlswitch.OutLvlSwitch) {
+			if levelSwitch, ok := ls.(outlvlswitch.Service); ok && ls.Topic() == topic {
+				if _, err := levelSwitch.SendLevelReport(true); err != nil {
+					log.WithError(err).Warnf("manager: failed to force initial level report for topic %s", topic)
+				}
+
+				break
+			}
 		}
 	}
 

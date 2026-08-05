@@ -45,14 +45,14 @@ func TestHandlerLevelEvent(t *testing.T) { //nolint:paralleltest
 	testCases := []struct {
 		name           string
 		thing          adapter.Thing
+		filtered       bool
 		levelEvent     *outlvlswitch.LevelEvent
 		expectedDevice *Device
 	}{
 		{
-			name: "level shouldn't call update if level hasn't changed and update isn't required",
-			thing: mockedadapter.NewThing(t).
-				WithServices(VirtualMeterElec, true, []adapter.Service{vms}).
-				WithServices(outlvlswitch.OutLvlSwitch, true, []adapter.Service{lvlService}),
+			name:     "level shouldn't reach the processor if level hasn't changed",
+			thing:    mockedadapter.NewThing(t),
+			filtered: true,
 			levelEvent: &outlvlswitch.LevelEvent{
 				Level:        0,
 				ServiceEvent: adapter.NewServiceEvent("type", false),
@@ -101,7 +101,14 @@ func TestHandlerLevelEvent(t *testing.T) { //nolint:paralleltest
 			m := mr.(*manager) //nolint:forcetypeassert
 
 			if v.thing != nil {
-				m.ad = mockedadapter.NewAdapter(t).WithThingByTopic("", false, v.thing)
+				ad := mockedadapter.NewAdapter(t)
+				// A filtered event leaves the mock without expectations on purpose: the assertion is that
+				// ThingByTopic is never called, so adding one unconditionally would silently gut the case.
+				if !v.filtered {
+					ad = ad.WithThingByTopic("", false, v.thing)
+				}
+
+				m.ad = ad
 				m.virtualServices[addr] = outLvlSwitchService
 			}
 

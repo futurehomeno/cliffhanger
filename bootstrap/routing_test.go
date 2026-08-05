@@ -43,7 +43,7 @@ func TestDefaultRoute_BundlesConfigDebugTelemetry(t *testing.T) { //nolint:paral
 	require.NoError(t, mqtt.Start(2*time.Second))
 	t.Cleanup(mqtt.Stop)
 
-	tel, err := telemetry.New(mqtt, "boot_svc", store)
+	tel, err := telemetry.New(mqtt, "boot_svc", store, "")
 	require.NoError(t, err)
 	t.Cleanup(func() {
 		if stop, ok := tel.(interface{ Stop() }); ok {
@@ -83,7 +83,7 @@ func TestDefaultRoute_DispatchesConfigDebugAndTelemetry(t *testing.T) { //nolint
 				Setup: suite.BaseSetup(func(t *testing.T, mqtt *fimpgo.MqttTransport) ([]*router.Routing, []*task.Task, []suite.Mock) {
 					t.Helper()
 
-					tel, err := telemetry.New(mqtt, "boot_svc", store)
+					tel, err := telemetry.New(mqtt, "boot_svc", store, "")
 					require.NoError(t, err)
 					t.Cleanup(func() {
 						if stop, ok := tel.(interface{ Stop() }); ok {
@@ -154,7 +154,7 @@ func TestDefaultRoute_CustomConfigGetterPayload(t *testing.T) { //nolint:paralle
 				Setup: suite.BaseSetup(func(t *testing.T, mqtt *fimpgo.MqttTransport) ([]*router.Routing, []*task.Task, []suite.Mock) {
 					t.Helper()
 
-					tel, err := telemetry.New(mqtt, "boot_svc", store)
+					tel, err := telemetry.New(mqtt, "boot_svc", store, "")
 					require.NoError(t, err)
 					t.Cleanup(func() {
 						if stop, ok := tel.(interface{ Stop() }); ok {

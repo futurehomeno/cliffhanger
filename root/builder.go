@@ -12,6 +12,7 @@ import (
 	"github.com/futurehomeno/cliffhanger/bootstrap"
 	"github.com/futurehomeno/cliffhanger/discovery"
 	"github.com/futurehomeno/cliffhanger/lifecycle"
+	"github.com/futurehomeno/cliffhanger/notification"
 
 	"github.com/futurehomeno/cliffhanger/router"
 	"github.com/futurehomeno/cliffhanger/task"
@@ -34,21 +35,24 @@ func newBuilder(edge bool) *Builder {
 
 // Builder is a root app builder that helps to set up and run root application on a hub.
 type Builder struct {
-	edge               bool
-	mqtt               *fimpgo.MqttTransport
-	resourceName       fimptype.ResourceNameT
-	resourceType       fimptype.ResourceTypeT
-	packageName        string
-	instanceID         string
-	version            string
-	lifecycle          *lifecycle.Lifecycle
-	telemetry          telemetry.Telemetry
-	topicSubscriptions []string
-	routing            []*router.Routing
-	routerOptions      []router.Option
-	tasks              []*task.Task
-	services           []Service
-	resetters          []Resetter
+	edge                  bool
+	mqtt                  *fimpgo.MqttTransport
+	resourceName          fimptype.ResourceNameT
+	resourceType          fimptype.ResourceTypeT
+	packageName           string
+	instanceID            string
+	version               string
+	lifecycle             *lifecycle.Lifecycle
+	telemetry             telemetry.Telemetry
+	authLossNotifier      notification.Notification
+	authLossEvent         *notification.Event
+	authLossReportEnabled func() bool
+	topicSubscriptions    []string
+	routing               []*router.Routing
+	routerOptions         []router.Option
+	tasks                 []*task.Task
+	services              []Service
+	resetters             []Resetter
 }
 
 func (b *Builder) WithMQTT(mqtt *fimpgo.MqttTransport) *Builder {
@@ -73,6 +77,22 @@ func (b *Builder) WithLifecycle(l *lifecycle.Lifecycle) *Builder {
 
 func (b *Builder) WithTelemetry(t telemetry.Telemetry) *Builder {
 	b.telemetry = t
+	return b
+}
+
+// WithAuthLossNotification makes the app send the provided push notification event whenever
+// authorization transitions to lost. The event name is adapter-specific, e.g. "easee_status_offline".
+func (b *Builder) WithAuthLossNotification(n notification.Notification, event *notification.Event) *Builder {
+	b.authLossNotifier = n
+	b.authLossEvent = event
+	return b
+}
+
+// WithAuthLossReporting gates whether the app reports authorization loss (push
+// notification, FIMP app-state report and telemetry). enabled is evaluated at each
+// loss, so it can follow a runtime config flag. A nil enabled reports every loss.
+func (b *Builder) WithAuthLossReporting(enabled func() bool) *Builder {
+	b.authLossReportEnabled = enabled
 	return b
 }
 
@@ -133,13 +153,16 @@ func (b *Builder) doBuild() App {
 		lock:  &sync.Mutex{},
 		errCh: make(chan error),
 
-		mqtt:         b.mqtt,
-		lifecycle:    b.lifecycle,
-		telemetry:    b.telemetry,
-		resourceName: b.resourceName,
-		taskManager:  task.NewManager(b.tasks...),
-		services:     b.services,
-		resetters:    b.resetters,
+		mqtt:                  b.mqtt,
+		lifecycle:             b.lifecycle,
+		telemetry:             b.telemetry,
+		authLossNotifier:      b.authLossNotifier,
+		authLossEvent:         b.authLossEvent,
+		authLossReportEnabled: b.authLossReportEnabled,
+		resourceName:          b.resourceName,
+		taskManager:           task.NewManager(b.tasks...),
+		services:              b.services,
+		resetters:             b.resetters,
 	}
 
 	b.prepareRouting(rootApp)

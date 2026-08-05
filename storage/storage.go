@@ -6,6 +6,7 @@ import (
 	"os"
 	"path"
 	"path/filepath"
+	"reflect"
 	"sync"
 
 	log "github.com/sirupsen/logrus"
@@ -16,6 +17,9 @@ const (
 	dataDirectory     = "data"
 	defaultsDirectory = "defaults"
 	backupExtension   = ".bak"
+
+	configFileMode os.FileMode = 0o644
+	secretFileMode os.FileMode = 0o640
 )
 
 // Storage is an interface representing a service responsible for loading JSON configuration from provided location.
@@ -34,6 +38,32 @@ func New[T any](model T, workDir string, name string) Storage[T] {
 		backupPath:   filepath.Join(workDir, dataDirectory, name) + backupExtension,
 		defaultsPath: filepath.Join(workDir, defaultsDirectory, name),
 		model:        model,
+	}
+}
+
+// NewSecrets creates a storage service for credentials and other secrets, conventionally
+// data/secrets.json, written with 0640 permissions unlike the world-readable configuration
+// and without a defaults file.
+func NewSecrets[T any](model T, workDir string, name string) Storage[T] {
+	return &storage[T]{
+		lock:       &sync.Mutex{},
+		dataPath:   filepath.Join(workDir, dataDirectory, name),
+		backupPath: filepath.Join(workDir, dataDirectory, name) + backupExtension,
+		model:      model,
+		mode:       secretFileMode,
+		isSecret:   true,
+	}
+}
+
+// NewCanonicalSecrets creates a secrets storage service following the canonical layout of core applications.
+func NewCanonicalSecrets[T any](model T, workDir string, name string) Storage[T] {
+	return &storage[T]{
+		lock:       &sync.Mutex{},
+		dataPath:   filepath.Join(workDir, name),
+		backupPath: filepath.Join(workDir, name) + backupExtension,
+		model:      model,
+		mode:       secretFileMode,
+		isSecret:   true,
 	}
 }
 
@@ -75,6 +105,16 @@ type storage[T any] struct {
 	backupPath   string
 	defaultsPath string
 	model        T
+	mode         os.FileMode
+	isSecret     bool
+}
+
+func (s *storage[T]) fileMode() os.FileMode {
+	if s.mode == 0 {
+		return configFileMode
+	}
+
+	return s.mode
 }
 
 func (s *storage[T]) Model() T {
@@ -242,6 +282,22 @@ func (s *storage[T]) Reset() error {
 		return err
 	}
 
+	if s.isSecret {
+		// Secrets stores have no defaults to reload from; clear the in-memory model so a reset
+		// (logout) does not keep serving stale credentials. Zero the pointed-to struct in place
+		// rather than nil the reference: that wipes the fields any cached pointer still holds and
+		// keeps s.model a valid (non-nil) target for a later Load() or credential re-persist.
+		if v := reflect.ValueOf(s.model); v.Kind() == reflect.Pointer && !v.IsNil() {
+			v.Elem().Set(reflect.Zero(v.Elem().Type()))
+		} else {
+			var zero T
+
+			s.model = zero
+		}
+
+		return nil
+	}
+
 	if s.defaultsPath == "" {
 		return nil
 	}
@@ -291,7 +347,7 @@ func (s *storage[T]) loadFile(path string) error {
 }
 
 func (s *storage[T]) writeFile(path string, data []byte) (err error) {
-	file, err := os.OpenFile(path, os.O_WRONLY|os.O_CREATE|os.O_TRUNC, 0o644) //nolint:gosec
+	file, err := os.OpenFile(path, os.O_WRONLY|os.O_CREATE|os.O_TRUNC, s.fileMode()) //nolint:gosec
 	if err != nil {
 		return err
 	}
@@ -306,6 +362,11 @@ func (s *storage[T]) writeFile(path string, data []byte) (err error) {
 
 		err = closeErr
 	}()
+
+	// Enforce permissions also on files created before this mode was configured, regardless of umask.
+	if err = file.Chmod(s.fileMode()); err != nil {
+		return err
+	}
 
 	if _, err = file.Write(data); err != nil {
 		return

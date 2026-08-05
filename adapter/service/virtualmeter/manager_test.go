@@ -14,6 +14,7 @@ import (
 	"github.com/futurehomeno/cliffhanger/database"
 	adapterhelper "github.com/futurehomeno/cliffhanger/test/helper/adapter"
 	mockedadapter "github.com/futurehomeno/cliffhanger/test/mocks/adapter"
+	mockedoutlvlswitch "github.com/futurehomeno/cliffhanger/test/mocks/adapter/service/outlvlswitch"
 )
 
 const (
@@ -40,6 +41,19 @@ var (
 			},
 		})
 )
+
+// levelSwitchForceReport returns an outlvlswitch.Service mock at topic asserting that
+// add() forces an initial level report so a meter added to an already-stable device
+// doesn't accrue zero energy forever.
+func levelSwitchForceReport(t *testing.T, topic string) outlvlswitch.Service {
+	t.Helper()
+
+	m := mockedoutlvlswitch.NewService(t)
+	m.EXPECT().Topic().Return(topic)
+	m.EXPECT().SendLevelReport(true).Return(true, nil).Once()
+
+	return m
+}
 
 func TestVirtualMeterManager_Add(t *testing.T) { //nolint:paralleltest
 	cases := []struct {
@@ -84,7 +98,19 @@ func TestVirtualMeterManager_Add(t *testing.T) { //nolint:paralleltest
 			existingDevice:    &Device{Modes: nil},
 			mockedThing: mockedadapter.NewThing(t).
 				WithUpdate(true, nil).
-				WithSendInclusionReport(true, true, true, nil),
+				WithSendInclusionReport(true, true, true, nil).
+				WithServices(outlvlswitch.OutLvlSwitch, true, []adapter.Service{}),
+			teardown:    adapterhelper.TearDownAdapter(workdir)[0],
+			expectError: false,
+		},
+		{
+			name:              "should force an initial level report on first add so the meter isn't stuck at zero",
+			configuredService: outLvlSwitchService,
+			existingDevice:    &Device{Modes: nil},
+			mockedThing: mockedadapter.NewThing(t).
+				WithUpdate(true, nil).
+				WithSendInclusionReport(true, true, true, nil).
+				WithServices(outlvlswitch.OutLvlSwitch, true, []adapter.Service{levelSwitchForceReport(t, addr)}),
 			teardown:    adapterhelper.TearDownAdapter(workdir)[0],
 			expectError: false,
 		},

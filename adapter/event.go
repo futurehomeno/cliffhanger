@@ -109,3 +109,12 @@ func WaitForServiceEvent() event.Filter {
 func WaitForThingEvent() event.Filter {
 	return event.WaitFor[ThingEvent]()
 }
+
+// WaitForChange returns a filter accepting only service events carrying a changed value.
+func WaitForChange() event.Filter {
+	return event.FilterFn(func(ev event.Event) bool {
+		e, ok := ev.(ServiceEvent)
+
+		return ok && e.HasChanged()
+	})
+}

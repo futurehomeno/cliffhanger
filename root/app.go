@@ -17,6 +17,7 @@ import (
 	cliffapp "github.com/futurehomeno/cliffhanger/app"
 	"github.com/futurehomeno/cliffhanger/config"
 	"github.com/futurehomeno/cliffhanger/lifecycle"
+	"github.com/futurehomeno/cliffhanger/notification"
 	"github.com/futurehomeno/cliffhanger/router"
 	"github.com/futurehomeno/cliffhanger/task"
 	"github.com/futurehomeno/cliffhanger/telemetry"
@@ -57,15 +58,18 @@ type app struct {
 	lock    *sync.Mutex
 	errCh   chan error
 
-	mqtt               *fimpgo.MqttTransport
-	lifecycle          *lifecycle.Lifecycle
-	telemetry          telemetry.Telemetry
-	resourceName       fimptype.ResourceNameT
-	topicSubscriptions []string
-	messageRouter      router.Router
-	taskManager        task.Manager
-	services           []Service
-	resetters          []Resetter
+	mqtt                  *fimpgo.MqttTransport
+	lifecycle             *lifecycle.Lifecycle
+	telemetry             telemetry.Telemetry
+	authLossNotifier      notification.Notification
+	authLossEvent         *notification.Event
+	authLossReportEnabled func() bool
+	resourceName          fimptype.ResourceNameT
+	topicSubscriptions    []string
+	messageRouter         router.Router
+	taskManager           task.Manager
+	services              []Service
+	resetters             []Resetter
 
 	authWatcherStopCh chan struct{}
 	authWatcherDoneCh chan struct{}
@@ -187,12 +191,18 @@ func (a *app) doStart() error {
 		}
 	}
 
+	// Subscribed before the task manager starts: a WhenAppIsRunning-gated task (e.g.
+	// ConnectivityChecker) can run its first probe as soon as taskManager.Start() spawns its
+	// goroutine, and an AuthStateLost emitted before this subscription exists is gone for good
+	// (Lifecycle.emitStateChangeEvent does not buffer for a not-yet-subscribed watcher).
+	a.startAuthLossWatcher(a.telemetry)
+
 	err = a.taskManager.Start()
 	if err != nil {
+		a.stopAuthLossWatcher()
+
 		return fmt.Errorf("start task manager err: %w", err)
 	}
-
-	a.startAuthLossWatcher(a.telemetry)
 
 	log.Info("[cliff] App started")
 
@@ -208,17 +218,23 @@ func (a *app) startAuthLossWatcher(tel telemetry.Telemetry) {
 
 	const subID = "auth_lost"
 
+	// Only an authenticated session can be lost: arm on AUTHENTICATED and report a LOST only
+	// while armed. Seed armed BEFORE subscribing. SetAuthState updates the state field and then
+	// emits under the same lock, so a LOST landing after Subscribe but before the seed read would
+	// be captured in ch yet make AuthState() return LOST — seeding armed=false and dropping the
+	// very event that was queued. Reading first means any event ch delivers is evaluated against
+	// the state that preceded it; the only thing missed is a LOST that fires between the read and
+	// Subscribe, which is never queued and is equivalent to an already-lost startup.
+	armed := a.lifecycle.AuthState() == lifecycle.AuthStateAuthenticated
+
 	ch := a.lifecycle.Subscribe(subID, 5)
+
 	a.authWatcherStopCh = make(chan struct{})
 	a.authWatcherDoneCh = make(chan struct{})
 
 	go func() {
 		defer close(a.authWatcherDoneCh)
 		defer a.lifecycle.Unsubscribe(subID)
-
-		if a.lifecycle.AuthState() == lifecycle.AuthStateLost {
-			a.reportAuthLoss(tel, "startup")
-		}
 
 		for {
 			select {
@@ -227,11 +243,15 @@ func (a *app) startAuthLossWatcher(tel telemetry.Telemetry) {
 					return
 				}
 
-				if event.Type != lifecycle.StateTypeAuthState || event.State != lifecycle.AuthStateLost {
+				if event.Type != lifecycle.StateTypeAuthState {
 					continue
 				}
 
-				a.reportAuthLoss(tel, "transition")
+				var report bool
+				report, armed = nextAuthArm(armed, event.State)
+				if report {
+					a.reportAuthLoss(tel, event.Params["reason"])
+				}
 
 			case <-a.authWatcherStopCh:
 				return
@@ -240,14 +260,57 @@ func (a *app) startAuthLossWatcher(tel telemetry.Telemetry) {
 	}()
 }
 
-// reportAuthLoss publishes the FIMP app state report and emits a telemetry
-// event for an observed AuthStateLost transition.
-func (a *app) reportAuthLoss(tel telemetry.Telemetry, cause string) {
-	if err := sendAppStateReport(a.mqtt, a.resourceName, fimptype.ServiceNameT(a.resourceName), a.lifecycle); err != nil {
-		log.WithError(err).Errorf("[cliff] failed to publish app state report on auth loss (%s)", cause)
+// nextAuthArm advances the arm state for one auth-state event: an AUTHENTICATED
+// session arms the watcher; a LOST reports only while armed, then disarms so a
+// repeated LOST (e.g. a connection-only change) does not re-fire; NOT_AUTHENTICATED
+// (logout/reset) disarms so a later failed re-login does not report a phantom loss.
+func nextAuthArm(armed bool, s lifecycle.State) (report, nowArmed bool) {
+	switch s {
+	case lifecycle.AuthStateAuthenticated:
+		return false, true
+	case lifecycle.AuthStateLost:
+		if armed {
+			return true, false
+		}
+
+		return false, false
+	case lifecycle.AuthStateNotAuthenticated:
+		// Logout/reset drive the app to NOT_AUTHENTICATED (MarkNotConfigured). Disarm so a later
+		// failed re-login — which never reaches AUTHENTICATED, only 401 -> LOST — does not report a
+		// loss for a session that was never re-established.
+		return false, false
 	}
 
-	telemetry.Emit(tel, telemetry.DomainAuth, telemetry.EventLoggedOut, map[string]any{"cause": cause})
+	return false, armed
+}
+
+// reportAuthLoss notifies the user, publishes the FIMP app state report and emits a
+// telemetry event for a lost authenticated session. reason, when set, states why
+// (e.g. "unauthorized"). All three are suppressed when auth-loss reporting is disabled.
+func (a *app) reportAuthLoss(tel telemetry.Telemetry, reason string) {
+	if !a.authLossReportingEnabled() {
+		return
+	}
+
+	if err := sendAppStateReport(a.mqtt, a.resourceName, fimptype.ServiceNameT(a.resourceName), a.lifecycle); err != nil {
+		log.WithError(err).Errorf("[cliff] failed to publish app state report on auth loss (%s)", reason)
+	}
+
+	// Emit under the historical "cause" key that shipped on develop so downstream telemetry
+	// consumers keyed on data.cause keep matching; the value is the same loss reason.
+	telemetry.Emit(tel, telemetry.DomainAuth, telemetry.EventLoggedOut, map[string]any{"cause": reason})
+
+	if a.authLossNotifier != nil && a.authLossEvent != nil {
+		if err := a.authLossNotifier.Event(a.authLossEvent); err != nil {
+			log.WithError(err).Errorf("[cliff] failed to send auth-loss notification (%s)", reason)
+		}
+	}
+}
+
+// authLossReportingEnabled reports whether auth-loss reporting is on. The gate is
+// evaluated per loss so it can follow a runtime config flag; a nil gate reports every loss.
+func (a *app) authLossReportingEnabled() bool {
+	return a.authLossReportEnabled == nil || a.authLossReportEnabled()
 }
 
 // stopAuthLossWatcher stops the auth loss watcher goroutine started by startAuthLossWatcher.
