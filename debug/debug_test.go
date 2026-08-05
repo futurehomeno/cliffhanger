@@ -164,6 +164,26 @@ func TestLogBuffering_HoldsInfoUntilErrorOrExplicitFlush(t *testing.T) { //nolin
 	assert.Contains(t, read(), "second-info-line", "explicit flush should drain the buffer")
 }
 
+// TestInitializeLogger_ReinitializationFlushesPreviousBuffer pins that re-calling
+// InitializeLogger - which discards the previous logManager - does not drop log lines still
+// sitting in the old manager's RAM buffer.
+func TestInitializeLogger_ReinitializationFlushesPreviousBuffer(t *testing.T) { //nolint:paralleltest
+	_, firstFile := initLogger(t, "info", "text")
+
+	logrus.Info("line-buffered-before-reinit")
+
+	b, err := os.ReadFile(firstFile) //nolint:gosec
+	require.NoError(t, err)
+	require.NotContains(t, string(b), "line-buffered-before-reinit", "should still be buffered, not yet flushed")
+
+	initLogger(t, "info", "text") // second InitializeLogger call, pointing at a new temp file
+
+	b, err = os.ReadFile(firstFile) //nolint:gosec
+	require.NoError(t, err)
+	assert.Contains(t, string(b), "line-buffered-before-reinit",
+		"reinitializing must flush the previous manager's buffer, not drop it")
+}
+
 // TestLogBuffering_DebugLevelFlushesNearRealTime verifies that enabling
 // debug/trace shortens the periodic flush so a human tailing the log file
 // sees lines within a couple of seconds, not the long info-level interval.

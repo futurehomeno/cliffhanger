@@ -73,6 +73,15 @@ type Store interface {
 func InitializeLogger(store Store) error {
 	if logManager != nil {
 		logManager.stopFlusher()
+
+		// Close (which flushes) rather than drop: the old logOutput may hold up to
+		// logBufferSize of not-yet-written lines, and nothing else keeps a reference to it
+		// once logManager is reassigned below.
+		if logManager.logOutput != nil {
+			if err := logManager.logOutput.Close(); err != nil {
+				logrus.Errorf("[cliff] close previous log output err: %v", err)
+			}
+		}
 	}
 
 	logManager = &logManagerT{
@@ -135,7 +144,19 @@ func (ptr *logManagerT) flushInterval() time.Duration {
 	return interval
 }
 
+// startFlusher and stopFlusher guard flushStop with ptr.lock, like every other field on
+// logManagerT, for callers (InitializeLogger) that do not already hold it. restartFlusher is
+// called from within SetLevel, which already holds ptr.lock for its whole body, so it uses the
+// Locked variants directly - sync.Mutex is not reentrant, and going through startFlusher /
+// stopFlusher there would deadlock on every SetLevel call.
 func (ptr *logManagerT) startFlusher() {
+	ptr.lock.Lock()
+	defer ptr.lock.Unlock()
+
+	ptr.startFlusherLocked()
+}
+
+func (ptr *logManagerT) startFlusherLocked() {
 	interval := ptr.flushInterval()
 
 	stop := make(chan struct{})
@@ -157,6 +178,13 @@ func (ptr *logManagerT) startFlusher() {
 }
 
 func (ptr *logManagerT) stopFlusher() {
+	ptr.lock.Lock()
+	defer ptr.lock.Unlock()
+
+	ptr.stopFlusherLocked()
+}
+
+func (ptr *logManagerT) stopFlusherLocked() {
 	if ptr.flushStop != nil {
 		close(ptr.flushStop)
 		ptr.flushStop = nil
@@ -168,8 +196,8 @@ func (ptr *logManagerT) stopFlusher() {
 // (or from) near-real-time flushing takes effect immediately rather than on
 // the next tick.
 func (ptr *logManagerT) restartFlusher() {
-	ptr.stopFlusher()
-	ptr.startFlusher()
+	ptr.stopFlusherLocked()
+	ptr.startFlusherLocked()
 }
 
 // applyPersistedLevel applies the persisted log level at startup. Unlike
