@@ -16,6 +16,7 @@ import (
 
 	cliffapp "github.com/futurehomeno/cliffhanger/app"
 	"github.com/futurehomeno/cliffhanger/config"
+	"github.com/futurehomeno/cliffhanger/debug"
 	"github.com/futurehomeno/cliffhanger/lifecycle"
 	"github.com/futurehomeno/cliffhanger/notification"
 	"github.com/futurehomeno/cliffhanger/router"
@@ -331,6 +332,10 @@ func (a *app) doStop() error {
 		return nil
 	}
 
+	// Deferred so buffered diagnostics leading up to a failure are not lost on an early
+	// return below - exactly the case where they matter most.
+	defer debug.FlushLogs()
+
 	a.stopAuthLossWatcher()
 
 	if a.lifecycle != nil {
@@ -364,6 +369,7 @@ func (a *app) doStop() error {
 	a.mqtt.Stop()
 
 	a.running = false
+
 	return nil
 }
 

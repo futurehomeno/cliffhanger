@@ -29,6 +29,7 @@ type Default struct {
 	LogLevel           string                 `json:"log_level"`
 	LogFormat          string                 `json:"log_format"`
 	LogRevertTimeout   time.Duration          `json:"log_revert_timeout,omitempty"`
+	LogFlushInterval   time.Duration          `json:"log_flush_interval,omitempty"`
 	LogRevertAt        time.Time              `json:"log_revert_at"`
 	RestartsCount      int                    `json:"restarts_count,omitempty"`
 	Telemetry          *types.TelemetryConfig `json:"telemetry,omitempty"`
@@ -184,6 +185,13 @@ func (s *DefaultStore) SetLogRevertTimeout(d time.Duration) error {
 	s.accessor().LogRevertTimeout = d
 
 	return s.saveStamped()
+}
+
+func (s *DefaultStore) LogFlushInterval() time.Duration {
+	s.lock.RLock()
+	defer s.lock.RUnlock()
+
+	return s.accessor().LogFlushInterval
 }
 
 func (s *DefaultStore) LogRevertAt() time.Time {
