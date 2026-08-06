@@ -72,6 +72,8 @@ type Store interface {
 
 func InitializeLogger(store Store) error {
 	previous := logManager
+	previousFormatter := logrus.StandardLogger().Formatter
+	previousLevel := logrus.GetLevel()
 
 	logManager = &logManagerT{
 		store: store,
@@ -86,10 +88,14 @@ func InitializeLogger(store Store) error {
 	_ = logManager.applyPersistedLevel()
 
 	// The new output is validated (and, on success, wired into logrus) before the previous
-	// manager is torn down. On failure, restore it: logrus keeps pointing at a manager that is
-	// still open and still flushing, rather than one this call already closed.
+	// manager is torn down. On failure, restore it along with the format/level globals set above:
+	// logrus keeps pointing at a manager that is still open and still flushing, using the same
+	// settings it had before this call, rather than one this call already closed with a mix of
+	// old and new global state.
 	if err := logManager.setLogOutput(store.LogFile()); err != nil {
 		logManager = previous
+		logrus.SetFormatter(previousFormatter)
+		logrus.SetLevel(previousLevel)
 
 		return err
 	}
@@ -135,12 +141,17 @@ func (ptr *logManagerT) flush() {
 	}
 }
 
-// flushInterval returns the interval the periodic flusher should currently
-// use: short while debug/trace is active, the configured (or default) one
-// otherwise.
+// flushInterval returns the interval the periodic flusher should currently use: short while
+// debug/trace is active and its revert deadline (if any) has not yet elapsed, the configured (or
+// default) one otherwise. Called fresh on every tick by the flusher goroutine (see
+// startFlusherLocked), so a deadline elapsing mid-run is noticed on its own within one
+// debug-interval tick - not just the next time something else happens to call restartFlusher.
 func (ptr *logManagerT) flushInterval() time.Duration {
 	if logrus.GetLevel() >= logrus.DebugLevel {
-		return debugLogFlushInterval
+		revertAt := ptr.store.LogRevertAt()
+		if revertAt.IsZero() || time.Now().Before(revertAt) {
+			return debugLogFlushInterval
+		}
 	}
 
 	interval := ptr.store.LogFlushInterval()
@@ -177,6 +188,14 @@ func (ptr *logManagerT) startFlusherLocked() {
 			select {
 			case <-ticker.C:
 				ptr.flush()
+
+				// The revert deadline (or log_flush_interval itself) can change without any
+				// SetLevel/SetFile call in between - just time passing. Recheck each tick so the
+				// ticker adjusts on its own instead of staying fast indefinitely once armed.
+				if next := ptr.flushInterval(); next != interval {
+					interval = next
+					ticker.Reset(interval)
+				}
 			case <-stop:
 				return
 			}
@@ -371,6 +390,11 @@ func (ptr *logManagerT) SetLevel(level string) error {
 	ptr.lock.Lock()
 	defer ptr.lock.Unlock()
 
+	// Only a change to the flush cadence itself justifies restarting the ticker: doing it
+	// unconditionally on every SetLevel (e.g. info -> warn, or re-setting the same level) would
+	// reset an already-close-to-due flush back to a full interval for no reason.
+	oldInterval := ptr.flushInterval()
+
 	if logLevel < logrus.DebugLevel {
 		if err := ptr.store.SetLevel(logLevel.String()); err != nil {
 			return err
@@ -381,7 +405,11 @@ func (ptr *logManagerT) SetLevel(level string) error {
 		}
 
 		logrus.SetLevel(logLevel)
-		ptr.restartFlusher()
+
+		if ptr.flushInterval() != oldInterval {
+			ptr.restartFlusher()
+		}
+
 		logrus.Infof("[cliff] Log level updated to %s", logLevel)
 
 		return nil
@@ -401,7 +429,11 @@ func (ptr *logManagerT) SetLevel(level string) error {
 	}
 
 	logrus.SetLevel(logLevel)
-	ptr.restartFlusher()
+
+	if ptr.flushInterval() != oldInterval {
+		ptr.restartFlusher()
+	}
+
 	logrus.Infof("[cliff] Log level updated to %s; will revert to info on next startup after %s", logLevel, timeout)
 
 	return nil
