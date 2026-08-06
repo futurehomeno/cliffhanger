@@ -184,6 +184,33 @@ func TestInitializeLogger_ReinitializationFlushesPreviousBuffer(t *testing.T) { 
 		"reinitializing must flush the previous manager's buffer, not drop it")
 }
 
+// TestInitializeLogger_FailedReinitLeavesPreviousManagerUsable pins that a failed
+// InitializeLogger call (bad new log file) leaves the previous, still-good manager live and
+// wired into logrus, rather than one this call had already torn down before validating the
+// replacement.
+func TestInitializeLogger_FailedReinitLeavesPreviousManagerUsable(t *testing.T) { //nolint:paralleltest
+	_, logFile := initLogger(t, "info", "text")
+
+	logrus.Info("line-before-failed-reinit")
+
+	badCfg := &config.Default{LogLevel: "info", LogFormat: "text", LogFile: ""}
+	badStore := config.NewDefaultStore(
+		func() *config.Default { return badCfg },
+		func() error { return nil },
+	)
+
+	require.Error(t, debug.InitializeLogger(badStore), "empty log file must fail setLogOutput")
+
+	logrus.Info("line-after-failed-reinit")
+	debug.FlushLogs()
+
+	b, err := os.ReadFile(logFile) //nolint:gosec
+	require.NoError(t, err)
+	assert.Contains(t, string(b), "line-before-failed-reinit")
+	assert.Contains(t, string(b), "line-after-failed-reinit",
+		"a failed reinit must not leave the previous manager torn down and unusable")
+}
+
 // TestLogBuffering_DebugLevelFlushesNearRealTime verifies that enabling
 // debug/trace shortens the periodic flush so a human tailing the log file
 // sees lines within a couple of seconds, not the long info-level interval.

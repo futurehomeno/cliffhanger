@@ -71,18 +71,7 @@ type Store interface {
 }
 
 func InitializeLogger(store Store) error {
-	if logManager != nil {
-		logManager.stopFlusher()
-
-		// Close (which flushes) rather than drop: the old logOutput may hold up to
-		// logBufferSize of not-yet-written lines, and nothing else keeps a reference to it
-		// once logManager is reassigned below.
-		if logManager.logOutput != nil {
-			if err := logManager.logOutput.Close(); err != nil {
-				logrus.Errorf("[cliff] close previous log output err: %v", err)
-			}
-		}
-	}
+	previous := logManager
 
 	logManager = &logManagerT{
 		store: store,
@@ -96,11 +85,29 @@ func InitializeLogger(store Store) error {
 	// startup.
 	_ = logManager.applyPersistedLevel()
 
+	// The new output is validated (and, on success, wired into logrus) before the previous
+	// manager is torn down. On failure, restore it: logrus keeps pointing at a manager that is
+	// still open and still flushing, rather than one this call already closed.
 	if err := logManager.setLogOutput(store.LogFile()); err != nil {
+		logManager = previous
+
 		return err
 	}
 
 	logManager.startFlusher()
+
+	if previous != nil {
+		previous.stopFlusher()
+
+		// Close (which flushes) rather than drop: the old logOutput may hold up to
+		// logBufferSize of not-yet-written lines, and nothing else keeps a reference to it
+		// now that logrus has been switched to the new one above.
+		if previous.logOutput != nil {
+			if err := previous.logOutput.Close(); err != nil {
+				logrus.Errorf("[cliff] close previous log output err: %v", err)
+			}
+		}
+	}
 
 	return nil
 }
