@@ -94,6 +94,40 @@ type roundTripFunc func(*http.Request) (*http.Response, error)
 
 func (f roundTripFunc) RoundTrip(r *http.Request) (*http.Response, error) { return f(r) }
 
+// The chain is built by hand for the same reason as the scheme downgrade below: two httptest
+// servers never share a host, so a bounce back to the original one cannot be staged with them.
+func TestTransport_RedirectBounce(t *testing.T) {
+	t.Parallel()
+
+	gotAuth := "unset"
+	transport := &auth.Transport{
+		Source: staticToken("token"),
+		Base: roundTripFunc(func(r *http.Request) (*http.Response, error) {
+			gotAuth = r.Header.Get("Authorization")
+
+			return &http.Response{StatusCode: http.StatusOK, Body: http.NoBody}, nil
+		}),
+	}
+
+	first, err := http.NewRequestWithContext(context.Background(), http.MethodGet, "https://api.example.com/a", nil)
+	assert.NoError(t, err)
+
+	away, err := http.NewRequestWithContext(context.Background(), http.MethodGet, "https://other.example.com/b", nil)
+	assert.NoError(t, err)
+
+	away.Response = &http.Response{Request: first}
+
+	back, err := http.NewRequestWithContext(context.Background(), http.MethodGet, "https://api.example.com/private", nil)
+	assert.NoError(t, err)
+
+	back.Response = &http.Response{Request: away}
+
+	resp, err := transport.RoundTrip(back)
+	assert.NoError(t, err)
+	assert.NoError(t, resp.Body.Close())
+	assert.Empty(t, gotAuth, "bearer must stay dropped after a hop left the original host, even on a bounce back")
+}
+
 // A same-host scheme downgrade cannot be reproduced with httptest servers, as they
 // always differ in port, so the redirect hop is built by hand.
 func TestTransport_SchemeDowngrade(t *testing.T) {
