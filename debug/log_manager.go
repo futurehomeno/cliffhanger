@@ -347,7 +347,9 @@ func (ptr *logManagerT) setLogOutput(logFile string) error {
 		return fmt.Errorf("create log dir=%s err: %w", filepath.Dir(logFile), err)
 	}
 
-	if f, err := os.OpenFile(logFile, os.O_RDONLY|os.O_CREATE, 0644); err != nil { //nolint:gosec
+	// Opened for writing, exactly as lumberjack will: a read-only probe accepts a file whose
+	// first buffered flush then fails, long after this call reported the path usable.
+	if f, err := os.OpenFile(logFile, os.O_WRONLY|os.O_CREATE|os.O_APPEND, 0644); err != nil { //nolint:gosec
 		return fmt.Errorf("open log file=%s err: %w", logFile, err)
 	} else if cerr := f.Close(); cerr != nil {
 		logrus.Errorf("close err: %v", cerr)

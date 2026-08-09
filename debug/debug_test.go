@@ -138,6 +138,28 @@ func TestInitializeLogger_EmptyLogFile_Errors(t *testing.T) { //nolint:parallelt
 	require.Error(t, err)
 }
 
+func TestInitializeLogger_UnwritableLogFile_Errors(t *testing.T) { //nolint:paralleltest
+	if os.Geteuid() == 0 {
+		t.Skip("root bypasses the permission bits this test relies on")
+	}
+
+	logFile := filepath.Join(t.TempDir(), "app.log")
+	require.NoError(t, os.WriteFile(logFile, nil, 0o400))
+
+	cfg := &config.Default{
+		LogLevel:  "info",
+		LogFormat: "text",
+		LogFile:   logFile,
+	}
+	store := config.NewDefaultStore(
+		func() *config.Default { return cfg },
+		func() error { return nil },
+	)
+
+	err := debug.InitializeLogger(store)
+	require.Error(t, err, "a log file that cannot be written must be rejected before the first buffered flush")
+}
+
 func TestLogBuffering_HoldsInfoUntilErrorOrExplicitFlush(t *testing.T) { //nolint:paralleltest
 	_, logFile := initLogger(t, "info", "text")
 
