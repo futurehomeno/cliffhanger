@@ -120,6 +120,8 @@ func (a *Authenticator) AccessToken() (string, error) {
 		return creds.AccessToken, nil
 	}
 
+	a.persistUnsaved()
+
 	if !creds.RefreshExpiresAt.IsZero() && time.Now().After(creds.RefreshExpiresAt) {
 		// A doomed refresh does not invalidate an access token that is still valid, matching
 		// the backoff and transient-failure branches below.
@@ -202,7 +204,9 @@ func (a *Authenticator) AccessToken() (string, error) {
 		// token the server has thrown away, and the access token stays usable meanwhile.
 		log.Errorf("[auth] Store credentials err, keeping them in memory: %v", err)
 
-		a.unsaved, a.unsavedFrom = newCreds, creds.RefreshToken
+		// unsavedFrom already holds what the store had when credentials() read it, which is
+		// what the memory copy supersedes even across a second failed rotation.
+		a.unsaved = newCreds
 	}
 
 	a.cfg.Backoff.Reset()
@@ -211,30 +215,36 @@ func (a *Authenticator) AccessToken() (string, error) {
 }
 
 // credentials returns the stored credentials, preferring a rotation that failed to persist for
-// as long as the store still holds the token it replaced. Credentials changed out-of-band (a
-// fresh login) therefore win, and a successful re-save clears the memory copy.
+// as long as the store still holds the token it replaced, so credentials changed out-of-band
+// (a fresh login, a logout) still win.
 func (a *Authenticator) credentials() Credentials {
 	creds := a.store.Credentials()
 
-	if a.unsaved.Empty() {
-		return creds
-	}
-
-	// A store holding anything but the token the rotation replaced means the credentials
-	// changed out-of-band — a fresh login or a logout — and the memory copy is dead.
-	if a.unsavedFrom != creds.RefreshToken {
-		a.unsaved, a.unsavedFrom = Credentials{}, ""
-
-		return creds
-	}
-
-	if err := a.store.SetCredentials(a.unsaved); err != nil {
+	if !a.unsaved.Empty() && a.unsavedFrom == creds.RefreshToken {
 		return a.unsaved
 	}
 
-	creds, a.unsaved, a.unsavedFrom = a.unsaved, Credentials{}, ""
+	// Either nothing is held, or the store no longer has the token the memory copy replaced
+	// and the credentials changed out-of-band. Either way the store wins and becomes the
+	// token a later rotation would supersede.
+	a.unsaved, a.unsavedFrom = Credentials{}, creds.RefreshToken
 
 	return creds
+}
+
+// persistUnsaved retries a rotation the store refused earlier. It is called only on the refresh
+// path: AccessToken runs per outbound request, so retrying there would mean a failing write per
+// request, while the refresh path is already spaced by RefreshLead and the backoff.
+func (a *Authenticator) persistUnsaved() {
+	if a.unsaved.Empty() {
+		return
+	}
+
+	if err := a.store.SetCredentials(a.unsaved); err != nil {
+		return
+	}
+
+	a.unsaved, a.unsavedFrom = Credentials{}, ""
 }
 
 func (a *Authenticator) withinUnauthorizedGrace() bool {

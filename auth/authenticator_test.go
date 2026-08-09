@@ -36,13 +36,15 @@ func (s *fakeStore) ClearCredentials() error {
 }
 
 type fakeExchanger struct {
-	response *auth.OAuth2TokenResponse
-	err      error
-	calls    int
+	response  *auth.OAuth2TokenResponse
+	err       error
+	calls     int
+	lastToken string
 }
 
-func (e *fakeExchanger) ExchangeRefreshToken(string) (*auth.OAuth2TokenResponse, error) {
+func (e *fakeExchanger) ExchangeRefreshToken(refreshToken string) (*auth.OAuth2TokenResponse, error) {
 	e.calls++
+	e.lastToken = refreshToken
 
 	return e.response, e.err
 }
@@ -152,25 +154,31 @@ func TestAuthenticator_AccessToken(t *testing.T) {
 		t.Parallel()
 
 		store := &fakeStore{creds: expiredCreds(), setErr: errors.New("disk full")}
-		exchanger := &fakeExchanger{response: &auth.OAuth2TokenResponse{AccessToken: "fresh", RefreshToken: "rotated", ExpiresIn: 3600}}
-		a := auth.NewAuthenticator(store, exchanger, auth.AuthenticatorConfig{})
+		// Expiring at once keeps every call on the refresh path, so the token each exchange
+		// is handed is what the assertions below observe.
+		exchanger := &fakeExchanger{response: &auth.OAuth2TokenResponse{AccessToken: "fresh", RefreshToken: "rotated", ExpiresIn: 0}}
+		a := auth.NewAuthenticator(store, exchanger, auth.AuthenticatorConfig{Backoff: &fakeBackoff{}})
 
 		token, err := a.AccessToken()
-		assert.NoError(t, err, "a persisted-only failure must not discard a successful exchange")
+		assert.NoError(t, err, "a persistence failure must not discard a successful exchange")
 		assert.Equal(t, "fresh", token)
+		assert.Equal(t, "refresh", exchanger.lastToken)
 		assert.Equal(t, "refresh", store.creds.RefreshToken, "the store still holds the stale token")
 
-		token, err = a.AccessToken()
+		_, err = a.AccessToken()
 		assert.NoError(t, err)
-		assert.Equal(t, "fresh", token, "the memory copy wins over the stale stored one")
-		assert.Equal(t, 1, exchanger.calls, "the invalidated refresh token must not be replayed")
+		assert.Equal(t, "rotated", exchanger.lastToken, "a rotating provider has invalidated the token still on disk")
+
+		// A second failed rotation must not make the memory copy look stale against the store.
+		_, err = a.AccessToken()
+		assert.NoError(t, err)
+		assert.Equal(t, "rotated", exchanger.lastToken)
 
 		store.setErr = nil
 
 		_, err = a.AccessToken()
 		assert.NoError(t, err)
-		assert.Equal(t, "rotated", store.creds.RefreshToken, "persistence should be retried")
-		assert.Equal(t, 1, exchanger.calls)
+		assert.Equal(t, "rotated", store.creds.RefreshToken, "persistence should be retried on the refresh path")
 	})
 
 	t.Run("unpersisted credentials are dropped once the store changes out-of-band", func(t *testing.T) {
