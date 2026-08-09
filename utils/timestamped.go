@@ -8,6 +8,9 @@ import (
 // Timestamped is a concurrency-safe last-value holder rejecting out-of-order updates,
 // e.g. streamed observations arriving after a fresher poll. An update carrying a timestamp
 // equal to the held one wins, matching last-write-wins semantics of the source adapters.
+//
+// The lock guards the timestamp ordering, not the value itself: for a T holding references
+// (slice, map, pointer) the caller must not mutate what it passed to Set or got from Get.
 type Timestamped[T any] struct {
 	mu    sync.RWMutex
 	value T
