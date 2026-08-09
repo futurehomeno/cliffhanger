@@ -148,24 +148,47 @@ func TestAuthenticator_AccessToken(t *testing.T) {
 		assert.True(t, store.creds.RefreshExpiresAt.IsZero(), "rotated refresh token must not inherit the old expiry")
 	})
 
-	t.Run("failed persistence does not commit refresh state", func(t *testing.T) {
+	t.Run("failed persistence keeps the rotated credentials in memory", func(t *testing.T) {
 		t.Parallel()
 
-		b := &fakeBackoff{}
 		store := &fakeStore{creds: expiredCreds(), setErr: errors.New("disk full")}
-		exchanger := &fakeExchanger{response: &auth.OAuth2TokenResponse{AccessToken: "fresh", ExpiresIn: 3600}}
-		a := auth.NewAuthenticator(store, exchanger, auth.AuthenticatorConfig{Backoff: b})
+		exchanger := &fakeExchanger{response: &auth.OAuth2TokenResponse{AccessToken: "fresh", RefreshToken: "rotated", ExpiresIn: 3600}}
+		a := auth.NewAuthenticator(store, exchanger, auth.AuthenticatorConfig{})
 
-		_, err := a.AccessToken()
-		assert.Error(t, err)
-		assert.Zero(t, b.resets, "state should not be committed before credentials are persisted")
+		token, err := a.AccessToken()
+		assert.NoError(t, err, "a persisted-only failure must not discard a successful exchange")
+		assert.Equal(t, "fresh", token)
+		assert.Equal(t, "refresh", store.creds.RefreshToken, "the store still holds the stale token")
+
+		token, err = a.AccessToken()
+		assert.NoError(t, err)
+		assert.Equal(t, "fresh", token, "the memory copy wins over the stale stored one")
+		assert.Equal(t, 1, exchanger.calls, "the invalidated refresh token must not be replayed")
 
 		store.setErr = nil
 
+		_, err = a.AccessToken()
+		assert.NoError(t, err)
+		assert.Equal(t, "rotated", store.creds.RefreshToken, "persistence should be retried")
+		assert.Equal(t, 1, exchanger.calls)
+	})
+
+	t.Run("unpersisted credentials are dropped once the store changes out-of-band", func(t *testing.T) {
+		t.Parallel()
+
+		store := &fakeStore{creds: expiredCreds(), setErr: errors.New("disk full")}
+		exchanger := &fakeExchanger{response: &auth.OAuth2TokenResponse{AccessToken: "fresh", RefreshToken: "rotated", ExpiresIn: 3600}}
+		a := auth.NewAuthenticator(store, exchanger, auth.AuthenticatorConfig{})
+
+		_, err := a.AccessToken()
+		assert.NoError(t, err)
+
+		store.setErr = nil
+		store.creds = auth.Credentials{AccessToken: "relogin", RefreshToken: "relogin", ExpiresAt: time.Now().Add(time.Hour)}
+
 		token, err := a.AccessToken()
 		assert.NoError(t, err)
-		assert.Equal(t, "fresh", token)
-		assert.Equal(t, 1, b.resets)
+		assert.Equal(t, "relogin", token, "a fresh login must not be shadowed by the memory copy")
 	})
 
 	t.Run("successful exchange clears grace state even when persistence fails", func(t *testing.T) {
@@ -186,19 +209,20 @@ func TestAuthenticator_AccessToken(t *testing.T) {
 		assert.NoError(t, err, "first rejection should start the grace window")
 
 		exchanger.err = nil
-		exchanger.response = &auth.OAuth2TokenResponse{AccessToken: "fresh", ExpiresIn: 3600}
+		// Expiring immediately keeps the next call on the refresh path despite the exchange
+		// having succeeded, so the rejection streak is what the assertion below observes.
+		exchanger.response = &auth.OAuth2TokenResponse{AccessToken: "fresh", ExpiresIn: 0}
 		store.setErr = errors.New("disk full")
 
 		_, err = a.AccessToken()
-		assert.Error(t, err, "persistence failure should surface")
+		assert.NoError(t, err, "a persistence failure must not discard a successful exchange")
 
 		time.Sleep(100 * time.Millisecond)
 
 		exchanger.err = httpclient.ErrUnauthorized
 
-		token, err := a.AccessToken()
-		assert.NoError(t, err, "the accepted exchange should have refuted the rejection streak")
-		assert.Equal(t, "access", token)
+		_, err = a.AccessToken()
+		assert.ErrorIs(t, err, auth.ErrRefreshDeferred, "the accepted exchange should have refuted the rejection streak")
 		assert.False(t, store.creds.Empty(), "credentials should be kept within the fresh grace window")
 	})
 
@@ -297,6 +321,32 @@ func TestAuthenticator_AccessToken(t *testing.T) {
 		assert.Error(t, err)
 		assert.Zero(t, exchanger.calls, "doomed exchange should be skipped")
 		assert.True(t, store.creds.Empty())
+	})
+
+	t.Run("locally expired refresh token keeps a still valid access token", func(t *testing.T) {
+		t.Parallel()
+
+		creds := auth.Credentials{
+			AccessToken:      "access",
+			RefreshToken:     "refresh",
+			ExpiresAt:        time.Now().Add(time.Minute),
+			RefreshExpiresAt: time.Now().Add(-time.Minute),
+		}
+
+		store := &fakeStore{creds: creds}
+		exchanger := &fakeExchanger{}
+		lossReason := ""
+		a := auth.NewAuthenticator(store, exchanger, auth.AuthenticatorConfig{
+			RefreshLead: 5 * time.Minute,
+			OnAuthLoss:  func(reason string) { lossReason = reason },
+		})
+
+		token, err := a.AccessToken()
+		assert.NoError(t, err, "auth loss must not be concluded a whole RefreshLead before the access token expires")
+		assert.Equal(t, "access", token)
+		assert.Zero(t, exchanger.calls, "doomed exchange should be skipped")
+		assert.Empty(t, lossReason)
+		assert.False(t, store.creds.Empty())
 	})
 
 	t.Run("unauthorized grace tolerates transient rejections", func(t *testing.T) {

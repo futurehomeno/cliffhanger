@@ -95,6 +95,8 @@ type Authenticator struct {
 	mu                sync.Mutex
 	unauthorizedSince time.Time
 	unauthorizedToken string
+	unsaved           Credentials
+	unsavedFrom       string
 }
 
 func NewAuthenticator(store CredentialsStore, exchanger TokenExchanger, cfg AuthenticatorConfig) *Authenticator {
@@ -109,7 +111,7 @@ func (a *Authenticator) AccessToken() (string, error) {
 	a.mu.Lock()
 	defer a.mu.Unlock()
 
-	creds := a.store.Credentials()
+	creds := a.credentials()
 	if creds.Empty() {
 		return "", ErrNotLoggedIn
 	}
@@ -119,6 +121,12 @@ func (a *Authenticator) AccessToken() (string, error) {
 	}
 
 	if !creds.RefreshExpiresAt.IsZero() && time.Now().After(creds.RefreshExpiresAt) {
+		// A doomed refresh does not invalidate an access token that is still valid, matching
+		// the backoff and transient-failure branches below.
+		if !creds.expired(0) {
+			return creds.AccessToken, nil
+		}
+
 		a.authLost("refresh token expired")
 
 		return "", errors.New("refresh token expired, re-login required")
@@ -189,12 +197,44 @@ func (a *Authenticator) AccessToken() (string, error) {
 	}
 
 	if err := a.store.SetCredentials(newCreds); err != nil {
-		return "", fmt.Errorf("store credentials: %w", err)
+		// The exchange already succeeded, so the stored refresh token may have been invalidated
+		// by a rotating provider: keeping the new credentials in memory avoids retrying with a
+		// token the server has thrown away, and the access token stays usable meanwhile.
+		log.Errorf("[auth] Store credentials err, keeping them in memory: %v", err)
+
+		a.unsaved, a.unsavedFrom = newCreds, creds.RefreshToken
 	}
 
 	a.cfg.Backoff.Reset()
 
 	return newCreds.AccessToken, nil
+}
+
+// credentials returns the stored credentials, preferring a rotation that failed to persist for
+// as long as the store still holds the token it replaced. Credentials changed out-of-band (a
+// fresh login) therefore win, and a successful re-save clears the memory copy.
+func (a *Authenticator) credentials() Credentials {
+	creds := a.store.Credentials()
+
+	if a.unsaved.Empty() {
+		return creds
+	}
+
+	// A store holding anything but the token the rotation replaced means the credentials
+	// changed out-of-band — a fresh login or a logout — and the memory copy is dead.
+	if a.unsavedFrom != creds.RefreshToken {
+		a.unsaved, a.unsavedFrom = Credentials{}, ""
+
+		return creds
+	}
+
+	if err := a.store.SetCredentials(a.unsaved); err != nil {
+		return a.unsaved
+	}
+
+	creds, a.unsaved, a.unsavedFrom = a.unsaved, Credentials{}, ""
+
+	return creds
 }
 
 func (a *Authenticator) withinUnauthorizedGrace() bool {
@@ -215,6 +255,7 @@ func (a *Authenticator) authLost(reason string) {
 	a.cfg.Backoff.Reset()
 	a.unauthorizedSince = time.Time{}
 	a.unauthorizedToken = ""
+	a.unsaved, a.unsavedFrom = Credentials{}, ""
 
 	if err := a.store.ClearCredentials(); err != nil {
 		log.Errorf("[auth] Clear credentials err: %v", err)
