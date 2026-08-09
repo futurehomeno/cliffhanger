@@ -161,3 +161,74 @@ func TestEnsureThings_HealsGhostWithoutLosingAddressOrState(t *testing.T) {
 	require.NoError(t, healedTS.State(&state))
 	assert.Equal(t, "me", state["keep"], "the persisted state must survive the heal")
 }
+
+// failingFactory fails the build the way a vendor call refusing mid-heal would.
+type failingFactory struct{}
+
+func (failingFactory) Create(Adapter, Publisher, ThingState) (Thing, error) {
+	return nil, errors.New("factory refused")
+}
+
+// TestEnsureThings_FailedHealKeepsTheGhostRecord pins that a heal failing past createThingState
+// leaves the ghost record as it was. createThingState overwrites the record, so the rollback
+// removing it dropped the address and state the next heal attempt needs - the device then came
+// back as brand new at a different address, exactly what the heal exists to prevent.
+func TestEnsureThings_FailedHealKeepsTheGhostRecord(t *testing.T) {
+	t.Parallel()
+
+	s, err := NewState(t.TempDir())
+	require.NoError(t, err)
+
+	ts, err := s.add(&thingStateModel{ID: "B", Address: "42", Info: json.RawMessage(`{"groups":["g1"]}`)})
+	require.NoError(t, err)
+
+	require.NoError(t, ts.SetState(map[string]string{"keep": "me"}))
+
+	a := &adapter{
+		publisher:   stubPublisher{},
+		state:       s,
+		factory:     failingFactory{},
+		things:      map[string]Thing{},
+		lock:        &sync.RWMutex{},
+		initialized: true,
+	}
+
+	seeds := ThingSeeds{{ID: "B", Info: groupsInfo{Groups: []string{"g1"}}}}
+
+	assert.Error(t, a.EnsureThings(seeds), "the failed heal must surface")
+
+	ghost := a.state.byID("B")
+	require.NotNil(t, ghost, "the ghost record must survive a failed heal")
+	assert.Equal(t, "42", ghost.Address())
+
+	var state map[string]string
+	require.NoError(t, ghost.State(&state))
+	assert.Equal(t, "me", state["keep"], "the persisted state must survive a failed heal")
+
+	// The retry is what the preserved record buys: the same ghost heals at its own address.
+	a.factory = groupsFactory{}
+
+	require.NoError(t, a.EnsureThings(seeds))
+	assert.NotNil(t, a.things["42"], "the retry must heal the ghost at its original address")
+}
+
+// TestCreateThing_RemovesTheRecordWhenNothingPreceded pins that the rollback still removes the
+// record when there was no prior one, so a plain failed create does not leave a ghost behind.
+func TestCreateThing_RemovesTheRecordWhenNothingPreceded(t *testing.T) {
+	t.Parallel()
+
+	s, err := NewState(t.TempDir())
+	require.NoError(t, err)
+
+	a := &adapter{
+		publisher:   stubPublisher{},
+		state:       s,
+		factory:     failingFactory{},
+		things:      map[string]Thing{},
+		lock:        &sync.RWMutex{},
+		initialized: true,
+	}
+
+	assert.Error(t, a.CreateThing(&ThingSeed{ID: "B", Info: groupsInfo{Groups: []string{"g1"}}}))
+	assert.Nil(t, a.state.byID("B"), "a create that never had a record must not leave one behind")
+}
