@@ -248,7 +248,11 @@ func (a *Authenticator) persistUnsaved() {
 		return
 	}
 
-	a.unsaved, a.unsavedFrom = Credentials{}, ""
+	// The store now holds what was persisted, so it is what a rotation later in this same call
+	// supersedes. Clearing the anchor instead would make the next read judge that rotation stale
+	// and fall back to the token the provider had just replaced.
+	a.unsavedFrom = a.unsaved.RefreshToken
+	a.unsaved = Credentials{}
 }
 
 func (a *Authenticator) withinUnauthorizedGrace() bool {

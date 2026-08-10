@@ -2,6 +2,7 @@ package auth_test
 
 import (
 	"errors"
+	"slices"
 	"testing"
 	"time"
 
@@ -15,9 +16,9 @@ import (
 type fakeStore struct {
 	creds  auth.Credentials
 	setErr error
-	// failCalls limits setErr to the first N writes; 0 keeps it failing for good.
-	failCalls int
-	writes    int
+	// failOn limits setErr to the listed write ordinals, counted from 1; nil fails every write.
+	failOn []int
+	writes int
 }
 
 func (s *fakeStore) Credentials() auth.Credentials { return s.creds }
@@ -25,7 +26,7 @@ func (s *fakeStore) Credentials() auth.Credentials { return s.creds }
 func (s *fakeStore) SetCredentials(c auth.Credentials) error {
 	s.writes++
 
-	if s.setErr != nil && (s.failCalls == 0 || s.writes <= s.failCalls) {
+	if s.setErr != nil && (s.failOn == nil || slices.Contains(s.failOn, s.writes)) {
 		return s.setErr
 	}
 
@@ -192,7 +193,7 @@ func TestAuthenticator_AccessToken(t *testing.T) {
 
 		// A provider that keeps the refresh token leaves the store forever matching unsavedFrom,
 		// so a memory copy outliving a successful save would win every later read.
-		store := &fakeStore{creds: expiredCreds(), setErr: errors.New("disk full"), failCalls: 2}
+		store := &fakeStore{creds: expiredCreds(), setErr: errors.New("disk full"), failOn: []int{1, 2}}
 		exchanger := &fakeExchanger{response: &auth.OAuth2TokenResponse{AccessToken: "first", ExpiresIn: 0}}
 		a := auth.NewAuthenticator(store, exchanger, auth.AuthenticatorConfig{Backoff: &fakeBackoff{}})
 
@@ -213,6 +214,29 @@ func TestAuthenticator_AccessToken(t *testing.T) {
 		assert.NoError(t, err, "the persisted token must be read back instead of the stale memory copy")
 		assert.Equal(t, "second", token)
 		assert.Equal(t, "second", store.creds.AccessToken, "the stale memory copy must not be written over it")
+	})
+
+	t.Run("a rotation failing after a successful retry keeps its anchor", func(t *testing.T) {
+		t.Parallel()
+
+		// Writes in order: the first rotation, the retry that moves the store on to it, then the
+		// rotation that follows in the same call. Only the middle one is allowed to land.
+		store := &fakeStore{creds: expiredCreds(), setErr: errors.New("disk full"), failOn: []int{1, 3}}
+		exchanger := &fakeExchanger{response: &auth.OAuth2TokenResponse{AccessToken: "a1", RefreshToken: "r1", ExpiresIn: 0}}
+		a := auth.NewAuthenticator(store, exchanger, auth.AuthenticatorConfig{Backoff: &fakeBackoff{}})
+
+		_, err := a.AccessToken()
+		assert.NoError(t, err)
+
+		exchanger.response = &auth.OAuth2TokenResponse{AccessToken: "a2", RefreshToken: "r2", ExpiresIn: 0}
+
+		_, err = a.AccessToken()
+		assert.NoError(t, err)
+		assert.Equal(t, "r1", store.creds.RefreshToken, "the retry moved the store on to the first rotation")
+
+		_, err = a.AccessToken()
+		assert.NoError(t, err)
+		assert.Equal(t, "r2", exchanger.lastToken, "the unpersisted rotation must not be dropped for the token it replaced")
 	})
 
 	t.Run("backoff suspends the persistence retry too", func(t *testing.T) {
