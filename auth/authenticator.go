@@ -179,7 +179,10 @@ func (a *Authenticator) AccessToken() (string, error) {
 			if !a.withinUnauthorizedGrace() {
 				a.authLost(fmt.Sprintf("refresh token rejected: %v", err))
 
-				return "", err
+				// Both chains matter: ErrReloginRequired marks the loss terminal, while
+				// httpclient.ErrUnauthorized is what a ConnectivityChecker probe wrapping this
+				// transport keys on to map the outcome onto the auth-loss lifecycle state.
+				return "", fmt.Errorf("refresh token rejected (%w), %w", err, ErrReloginRequired)
 			}
 		}
 

@@ -325,7 +325,8 @@ func TestAuthenticator_AccessToken(t *testing.T) {
 		})
 
 		_, err := a.AccessToken()
-		assert.ErrorIs(t, err, httpclient.ErrUnauthorized)
+		assert.ErrorIs(t, err, auth.ErrReloginRequired, "a rejection past grace is terminal, not transient")
+		assert.ErrorIs(t, err, httpclient.ErrUnauthorized, "a ConnectivityChecker probe keys on this to conclude auth loss")
 		assert.True(t, store.creds.Empty())
 		assert.Contains(t, lossReason, "refresh token rejected")
 	})
