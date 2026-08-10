@@ -407,7 +407,7 @@ func TestAuthenticator_AccessToken(t *testing.T) {
 		a := auth.NewAuthenticator(store, exchanger, auth.AuthenticatorConfig{})
 
 		_, err := a.AccessToken()
-		assert.Error(t, err)
+		assert.ErrorIs(t, err, auth.ErrReloginRequired, "a doomed refresh token is terminal, not transient")
 		assert.Zero(t, exchanger.calls, "doomed exchange should be skipped")
 		assert.True(t, store.creds.Empty())
 	})
@@ -488,7 +488,8 @@ func TestAuthenticator_AccessToken(t *testing.T) {
 		_, err := a.AccessToken()
 		assert.Error(t, err)
 		_, err = a.AccessToken()
-		assert.Error(t, err)
+		assert.ErrorIs(t, err, auth.ErrRefreshSuspended, "a suppressed attempt is transient and must be distinguishable from auth loss")
+		assert.NotErrorIs(t, err, auth.ErrReloginRequired)
 		assert.Equal(t, 1, exchanger.calls, "second attempt should be suspended by backoff")
 		assert.False(t, store.creds.Empty(), "a transient (non-401) backoff must not conclude auth loss even past grace")
 	})
@@ -513,7 +514,8 @@ func TestAuthenticator_AccessToken(t *testing.T) {
 		time.Sleep(100 * time.Millisecond)
 
 		_, err = a.AccessToken()
-		assert.Error(t, err, "expired credentials must not linger once grace elapses under backoff")
+		assert.ErrorIs(t, err, auth.ErrReloginRequired, "expired credentials must not linger once grace elapses under backoff")
+		assert.NotErrorIs(t, err, auth.ErrRefreshSuspended, "a concluded auth loss must not read as a transient wait")
 		assert.True(t, store.creds.Empty(), "auth loss should clear credentials rather than stay suspended by backoff")
 		assert.Contains(t, lossReason, "grace elapsed during backoff")
 	})

@@ -22,6 +22,16 @@ var ErrNotLoggedIn = errors.New("not logged in")
 // rejection, defeating the grace window this error exists to honor.
 var ErrRefreshDeferred = errors.New("token refresh deferred within unauthorized grace")
 
+// ErrRefreshSuspended is returned by AccessToken while backoff suppresses a refresh
+// attempt. It is transient and fires on every call for the whole backoff window, so a
+// caller that cannot tell it apart logs the expected wait as a failure on every request.
+var ErrRefreshSuspended = errors.New("token refresh suspended by backoff")
+
+// ErrReloginRequired is returned by AccessToken once the refresh token can no longer
+// produce an access token, whether it expired or was rejected. It is terminal: only a new
+// login clears it, and the wrapping message names the cause.
+var ErrReloginRequired = errors.New("re-login required")
+
 // Credentials is a snapshot of persisted OAuth credentials.
 // RefreshExpiresAt is optional; when set, a refresh past it is skipped as doomed.
 type Credentials struct {
@@ -129,7 +139,7 @@ func (a *Authenticator) AccessToken() (string, error) {
 
 		a.authLost("refresh token expired")
 
-		return "", errors.New("refresh token expired, re-login required")
+		return "", fmt.Errorf("refresh token expired, %w", ErrReloginRequired)
 	}
 
 	if a.cfg.Backoff.Should() {
@@ -145,10 +155,10 @@ func (a *Authenticator) AccessToken() (string, error) {
 		if !a.unauthorizedSince.IsZero() && a.unauthorizedToken == creds.RefreshToken && !a.withinUnauthorizedGrace() {
 			a.authLost("refresh token rejected, grace elapsed during backoff")
 
-			return "", errors.New("refresh token rejected, re-login required")
+			return "", fmt.Errorf("refresh token rejected, %w", ErrReloginRequired)
 		}
 
-		return "", errors.New("token refresh suspended by backoff")
+		return "", ErrRefreshSuspended
 	}
 
 	a.persistUnsaved()
