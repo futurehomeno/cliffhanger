@@ -15,12 +15,17 @@ import (
 type fakeStore struct {
 	creds  auth.Credentials
 	setErr error
+	// failCalls limits setErr to the first N writes; 0 keeps it failing for good.
+	failCalls int
+	writes    int
 }
 
 func (s *fakeStore) Credentials() auth.Credentials { return s.creds }
 
 func (s *fakeStore) SetCredentials(c auth.Credentials) error {
-	if s.setErr != nil {
+	s.writes++
+
+	if s.setErr != nil && (s.failCalls == 0 || s.writes <= s.failCalls) {
 		return s.setErr
 	}
 
@@ -51,12 +56,13 @@ func (e *fakeExchanger) ExchangeRefreshToken(refreshToken string) (*auth.OAuth2T
 
 type fakeBackoff struct {
 	resets int
+	should bool
 }
 
 func (b *fakeBackoff) Next() time.Duration { return 0 }
 func (b *fakeBackoff) Fail()               {}
 func (b *fakeBackoff) Reset()              { b.resets++ }
-func (b *fakeBackoff) Should() bool        { return false }
+func (b *fakeBackoff) Should() bool        { return b.should }
 
 func validCreds() auth.Credentials {
 	return auth.Credentials{AccessToken: "access", RefreshToken: "refresh", ExpiresAt: time.Now().Add(time.Hour)}
@@ -179,6 +185,57 @@ func TestAuthenticator_AccessToken(t *testing.T) {
 		_, err = a.AccessToken()
 		assert.NoError(t, err)
 		assert.Equal(t, "rotated", store.creds.RefreshToken, "persistence should be retried on the refresh path")
+	})
+
+	t.Run("a persisted rotation is not shadowed by an older memory copy", func(t *testing.T) {
+		t.Parallel()
+
+		// A provider that keeps the refresh token leaves the store forever matching unsavedFrom,
+		// so a memory copy outliving a successful save would win every later read.
+		store := &fakeStore{creds: expiredCreds(), setErr: errors.New("disk full"), failCalls: 2}
+		exchanger := &fakeExchanger{response: &auth.OAuth2TokenResponse{AccessToken: "first", ExpiresIn: 0}}
+		a := auth.NewAuthenticator(store, exchanger, auth.AuthenticatorConfig{Backoff: &fakeBackoff{}})
+
+		token, err := a.AccessToken()
+		assert.NoError(t, err)
+		assert.Equal(t, "first", token, "the first exchange is kept in memory, the store refused it")
+
+		exchanger.response = &auth.OAuth2TokenResponse{AccessToken: "second", ExpiresIn: 3600}
+
+		token, err = a.AccessToken()
+		assert.NoError(t, err)
+		assert.Equal(t, "second", token)
+		assert.Equal(t, "second", store.creds.AccessToken, "the retried write refused, the exchange persisted")
+
+		exchanger.err = errors.New("network down")
+
+		token, err = a.AccessToken()
+		assert.NoError(t, err, "the persisted token must be read back instead of the stale memory copy")
+		assert.Equal(t, "second", token)
+		assert.Equal(t, "second", store.creds.AccessToken, "the stale memory copy must not be written over it")
+	})
+
+	t.Run("backoff suspends the persistence retry too", func(t *testing.T) {
+		t.Parallel()
+
+		store := &fakeStore{creds: expiredCreds(), setErr: errors.New("disk full")}
+		exchanger := &fakeExchanger{response: &auth.OAuth2TokenResponse{AccessToken: "fresh", ExpiresIn: 3600}}
+		b := &fakeBackoff{}
+		// A RefreshLead longer than the token's life keeps every call on the refresh path.
+		a := auth.NewAuthenticator(store, exchanger, auth.AuthenticatorConfig{Backoff: b, RefreshLead: 2 * time.Hour})
+
+		_, err := a.AccessToken()
+		assert.NoError(t, err)
+		assert.Equal(t, 1, store.writes)
+
+		b.should = true
+
+		for range 5 {
+			_, _ = a.AccessToken()
+		}
+
+		assert.Equal(t, 1, store.writes, "a store that keeps refusing must not be written per request while backoff holds")
+		assert.Equal(t, 1, exchanger.calls)
 	})
 
 	t.Run("unpersisted credentials are dropped once the store changes out-of-band", func(t *testing.T) {

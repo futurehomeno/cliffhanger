@@ -120,8 +120,6 @@ func (a *Authenticator) AccessToken() (string, error) {
 		return creds.AccessToken, nil
 	}
 
-	a.persistUnsaved()
-
 	if !creds.RefreshExpiresAt.IsZero() && time.Now().After(creds.RefreshExpiresAt) {
 		// A doomed refresh does not invalidate an access token that is still valid, matching
 		// the backoff and transient-failure branches below.
@@ -152,6 +150,8 @@ func (a *Authenticator) AccessToken() (string, error) {
 
 		return "", errors.New("token refresh suspended by backoff")
 	}
+
+	a.persistUnsaved()
 
 	response, err := a.exchange.ExchangeRefreshToken(creds.RefreshToken)
 	if err != nil {
@@ -207,6 +207,10 @@ func (a *Authenticator) AccessToken() (string, error) {
 		// unsavedFrom already holds what the store had when credentials() read it, which is
 		// what the memory copy supersedes even across a second failed rotation.
 		a.unsaved = newCreds
+	} else {
+		// A provider that keeps the refresh token leaves unsavedFrom matching the store, so an
+		// earlier memory copy would shadow what was just persisted and later be written over it.
+		a.unsaved = Credentials{}
 	}
 
 	a.cfg.Backoff.Reset()
