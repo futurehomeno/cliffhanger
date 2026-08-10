@@ -35,6 +35,8 @@ type State interface {
 	remove(id string) error
 	// byID returns a thing state for a thing with a given ID.
 	byID(id string) ThingState
+	// modelByID returns the raw record of a thing with a given ID, or nil when there is none.
+	modelByID(id string) *thingStateModel
 	// byAddress returns a thing state for a thing with a given address.
 	byAddress(address string) ThingState
 }
@@ -91,13 +93,32 @@ func (s *state) add(model *thingStateModel) (ThingState, error) {
 		s.Model().Things = make(map[string]*thingStateModel)
 	}
 
+	old, ok := s.Model().Things[model.ID]
+
 	s.Model().Things[model.ID] = model
 
 	if err := s.Save(); err != nil {
+		// Restore on a failed write, mirroring remove: the disk still holds the old record, so
+		// leaving the unpersisted one in memory would diverge the two until a restart.
+		if ok {
+			s.Model().Things[model.ID] = old
+		} else {
+			delete(s.Model().Things, model.ID)
+		}
+
 		return nil, fmt.Errorf("state: failed to persist state of a thing with ID %s: %w", model.ID, err)
 	}
 
 	return newThingState(s, model), nil
+}
+
+// modelByID returns the record itself, not a copy: add replaces the map entry rather than
+// mutating it, so a caller can hand the old record straight back to add to undo an overwrite.
+func (s *state) modelByID(id string) *thingStateModel {
+	s.lock.RLock()
+	defer s.lock.RUnlock()
+
+	return s.Model().Things[id]
 }
 
 func (s *state) remove(id string) error {

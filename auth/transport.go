@@ -25,13 +25,10 @@ func (t *Transport) RoundTrip(req *http.Request) (*http.Response, error) {
 		base = http.DefaultTransport
 	}
 
-	// The bearer must not leak to another host or onto plaintext on a redirect hop.
-	first := req
-	for first.Response != nil {
-		first = first.Response.Request
-	}
-
-	if first.URL.Host != req.URL.Host || (first.URL.Scheme == "https" && req.URL.Scheme != "https") {
+	// The bearer must not leak to another host or onto plaintext on a redirect hop, and it
+	// must stay dropped for the rest of the chain: comparing only the first and the current
+	// hop would reattach it on an a -> b -> a bounce, letting b pick the path it is sent to.
+	if strippedOnRedirect(req) {
 		return base.RoundTrip(req)
 	}
 
@@ -51,4 +48,20 @@ func (t *Transport) RoundTrip(req *http.Request) (*http.Response, error) {
 	}
 
 	return resp, err
+}
+
+// strippedOnRedirect reports whether any hop of the redirect chain leading to req left the
+// previous host or downgraded it to plaintext, which drops the bearer for good.
+func strippedOnRedirect(req *http.Request) bool {
+	for hop := req; hop.Response != nil; {
+		previous := hop.Response.Request
+
+		if previous.URL.Host != hop.URL.Host || (previous.URL.Scheme == "https" && hop.URL.Scheme != "https") {
+			return true
+		}
+
+		hop = previous
+	}
+
+	return false
 }

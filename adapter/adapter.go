@@ -411,6 +411,11 @@ func (a *adapter) unregisterThing(t Thing) {
 
 // createThing utilizes factory to create a thing, persists it in the state and adds to the adapter.
 func (a *adapter) createThing(seed *ThingSeed) (err error) {
+	// createThingState overwrites an existing record, so a failed heal of a ghost would drop
+	// the address and state the retry is supposed to preserve. Captured before the overwrite,
+	// restored instead of removed on rollback.
+	previous := a.state.modelByID(seed.ID)
+
 	ts, err := a.createThingState(seed)
 	if err != nil {
 		return fmt.Errorf("failed to create state for thing with ID %s: %w", seed.ID, err)
@@ -423,7 +428,15 @@ func (a *adapter) createThing(seed *ThingSeed) (err error) {
 			return
 		}
 
-		if rollbackErr := a.state.remove(seed.ID); rollbackErr != nil {
+		var rollbackErr error
+
+		if previous != nil {
+			_, rollbackErr = a.state.add(previous)
+		} else {
+			rollbackErr = a.state.remove(seed.ID)
+		}
+
+		if rollbackErr != nil {
 			log.Warnf("adapter: failed to roll back state of thing with ID %s: %v", seed.ID, rollbackErr)
 		}
 	}()
