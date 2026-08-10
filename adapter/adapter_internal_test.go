@@ -10,6 +10,8 @@ import (
 	"github.com/futurehomeno/fimpgo/fimptype"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+
+	"github.com/futurehomeno/cliffhanger/storage"
 )
 
 // stubPublisher swallows everything the adapter publishes; the destroy tests only care about
@@ -231,4 +233,33 @@ func TestCreateThing_RemovesTheRecordWhenNothingPreceded(t *testing.T) {
 
 	assert.Error(t, a.CreateThing(&ThingSeed{ID: "B", Info: groupsInfo{Groups: []string{"g1"}}}))
 	assert.Nil(t, a.state.byID("B"), "a create that never had a record must not leave one behind")
+}
+
+// TestCreateThing_FailedStateWriteKeepsTheGhostRecord pins the window the rollback defer cannot
+// cover: createThingState overwrites the record and then fails to persist it, all before the
+// defer is registered, so the ghost would keep an address that only ever existed in memory.
+func TestCreateThing_FailedStateWriteKeepsTheGhostRecord(t *testing.T) {
+	t.Parallel()
+
+	failing := &failingSaveStorage{Storage: storage.NewState(&adapterStateModel{}, t.TempDir(), "adapter.json")}
+	s := &state{Storage: failing}
+
+	_, err := s.add(&thingStateModel{ID: "B", Address: "42"})
+	require.NoError(t, err)
+
+	a := &adapter{
+		publisher:   stubPublisher{},
+		state:       s,
+		factory:     failingFactory{},
+		things:      map[string]Thing{},
+		lock:        &sync.RWMutex{},
+		initialized: true,
+	}
+
+	failing.failSave = true
+
+	// CustomAddress keeps acquireAddress, which persists too, out of the way so that the record
+	// write is the step that fails.
+	require.Error(t, a.createThing(&ThingSeed{ID: "B", CustomAddress: "99"}))
+	assert.Equal(t, "42", s.modelByID("B").Address, "the ghost must keep its address when the state write fails")
 }

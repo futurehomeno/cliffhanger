@@ -93,9 +93,19 @@ func (s *state) add(model *thingStateModel) (ThingState, error) {
 		s.Model().Things = make(map[string]*thingStateModel)
 	}
 
+	old, ok := s.Model().Things[model.ID]
+
 	s.Model().Things[model.ID] = model
 
 	if err := s.Save(); err != nil {
+		// Restore on a failed write, mirroring remove: the disk still holds the old record, so
+		// leaving the unpersisted one in memory would diverge the two until a restart.
+		if ok {
+			s.Model().Things[model.ID] = old
+		} else {
+			delete(s.Model().Things, model.ID)
+		}
+
 		return nil, fmt.Errorf("state: failed to persist state of a thing with ID %s: %w", model.ID, err)
 	}
 

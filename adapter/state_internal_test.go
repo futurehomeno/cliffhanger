@@ -77,3 +77,28 @@ func TestState_RemoveRestoresEntryOnSaveFailure(t *testing.T) {
 	require.NoError(t, s.remove("1"))
 	assert.Nil(t, s.byID("1"))
 }
+
+// TestState_AddRestoresPreviousEntryOnSaveFailure pins the mirror of the above for add: a failed
+// persist of an overwrite puts the old record back. createThing rolls a failed heal back to the
+// record it captured, but a write failing inside add happens before that rollback is armed, so
+// only add itself can keep the ghost's address from being replaced by one no disk ever saw.
+func TestState_AddRestoresPreviousEntryOnSaveFailure(t *testing.T) {
+	t.Parallel()
+
+	underlying := storage.NewState(&adapterStateModel{}, t.TempDir(), "adapter.json")
+	failing := &failingSaveStorage{Storage: underlying}
+	s := &state{Storage: failing}
+
+	_, err := s.add(&thingStateModel{ID: "1", Address: "2"})
+	require.NoError(t, err)
+
+	failing.failSave = true
+
+	_, err = s.add(&thingStateModel{ID: "1", Address: "3"})
+	require.Error(t, err)
+	assert.Equal(t, "2", s.modelByID("1").Address, "the overwritten record must be restored after a failed save")
+
+	_, err = s.add(&thingStateModel{ID: "9", Address: "9"})
+	require.Error(t, err)
+	assert.Nil(t, s.modelByID("9"), "a record the disk never got must not linger in memory")
+}
