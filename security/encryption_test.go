@@ -36,6 +36,10 @@ func TestDecrypt_ShortCiphertext(t *testing.T) {
 		_, err := security.Decrypt(encrypted, key)
 		assert.Error(t, err, "ciphertext %q is shorter than the nonce", encrypted)
 	}
+
+	// Exactly the nonce size: passes the length check and fails authentication instead.
+	_, err = security.Decrypt("0123456789abcdef01234567", key)
+	assert.Error(t, err)
 }
 
 func TestDecrypt_InvalidInput(t *testing.T) {
