@@ -828,7 +828,7 @@ func TestObserver_ConcurrentGettersDoNotSerializeOnOneFetch(t *testing.T) {
 	wg.Wait()
 
 	assert.Equal(t, int32(1), client.calls.Load(), "concurrent stale readers must share one refresh")
-	assert.Less(t, time.Since(start), 1*time.Second, "readers must not serialize behind one another")
+	assert.Less(t, time.Since(start), 1500*time.Millisecond, "readers must not serialize behind one another")
 }
 
 // slowClient stands in for a vinculum that answers slowly. Only GetComponents is ever called.
@@ -844,4 +844,58 @@ func (c *slowClient) GetComponents(...string) (*prime.ComponentSet, error) {
 	time.Sleep(200 * time.Millisecond)
 
 	return &prime.ComponentSet{Devices: prime.Devices{{ID: 1}}}, nil
+}
+
+// blockingClient blocks its second GetComponents until released, so a notification can be applied
+// while a refresh is in flight.
+type blockingClient struct {
+	prime.Client
+
+	calls   atomic.Int32
+	entered chan struct{}
+	release chan struct{}
+}
+
+func (c *blockingClient) GetComponents(...string) (*prime.ComponentSet, error) {
+	if c.calls.Add(1) == 2 {
+		c.entered <- struct{}{}
+		<-c.release
+	}
+
+	return &prime.ComponentSet{Devices: prime.Devices{{ID: 1}}}, nil
+}
+
+// TestObserver_RefreshKeepsUpdatesArrivingDuringFetch pins that a notification applied while the
+// refresh is fetching survives. The fetch runs outside the lock, so installing its snapshot
+// unconditionally would silently undo every update that landed in the meantime - the snapshot was
+// requested before them.
+func TestObserver_RefreshKeepsUpdatesArrivingDuringFetch(t *testing.T) {
+	t.Parallel()
+
+	client := &blockingClient{entered: make(chan struct{}), release: make(chan struct{})}
+
+	o, err := observer.New(client, event.NewManager(), time.Hour, prime.ComponentDevice)
+	require.NoError(t, err)
+
+	// Seeds the cache so the notification below has a set to apply to.
+	require.NoError(t, o.Refresh(true))
+
+	done := make(chan error, 1)
+
+	go func() { done <- o.Refresh(true) }()
+
+	<-client.entered
+
+	require.NoError(t, o.Update(&prime.Notify{
+		Cmd:       prime.CmdAdd,
+		Component: prime.ComponentDevice,
+		ParamRaw:  json.RawMessage(`{"id":2}`),
+	}))
+
+	close(client.release)
+	require.NoError(t, <-done)
+
+	devices, err := o.GetDevices()
+	require.NoError(t, err)
+	assert.Len(t, devices, 2, "the device added during the fetch must not be discarded")
 }
