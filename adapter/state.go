@@ -25,11 +25,9 @@ type thingStateModel struct {
 
 // State is an interface representing a persistent state of the adapter and its things.
 type State interface {
-	// acquireAddress increments address index and returns its current value.
-	acquireAddress() (string, error)
 	// all returns all persisted thing states.
 	all() []ThingState
-	// add persists a new thing state.
+	// add persists a new thing state, assigning it a new address when the model carries none.
 	add(model *thingStateModel) (ThingState, error)
 	// remove deletes a thing state at a given ID.
 	remove(id string) error
@@ -58,20 +56,6 @@ type state struct {
 	lock sync.RWMutex
 }
 
-// acquireAddress increments address index and returns its current value.
-func (s *state) acquireAddress() (string, error) {
-	s.lock.Lock()
-	defer s.lock.Unlock()
-
-	s.Model().AddressIndex++
-
-	if err := s.Save(); err != nil {
-		return "", fmt.Errorf("state: failed to persist address index: %w", err)
-	}
-
-	return strconv.Itoa(s.Model().AddressIndex), nil
-}
-
 func (s *state) all() []ThingState {
 	s.lock.RLock()
 	defer s.lock.RUnlock()
@@ -93,6 +77,15 @@ func (s *state) add(model *thingStateModel) (ThingState, error) {
 		s.Model().Things = make(map[string]*thingStateModel)
 	}
 
+	// Assigning the address here rather than through a separate acquireAddress keeps creating a
+	// thing to a single state write instead of two full rewrites of adapter.json.
+	index := s.Model().AddressIndex
+
+	if model.Address == "" {
+		s.Model().AddressIndex++
+		model.Address = strconv.Itoa(s.Model().AddressIndex)
+	}
+
 	old, ok := s.Model().Things[model.ID]
 
 	s.Model().Things[model.ID] = model
@@ -100,6 +93,8 @@ func (s *state) add(model *thingStateModel) (ThingState, error) {
 	if err := s.Save(); err != nil {
 		// Restore on a failed write, mirroring remove: the disk still holds the old record, so
 		// leaving the unpersisted one in memory would diverge the two until a restart.
+		s.Model().AddressIndex = index
+
 		if ok {
 			s.Model().Things[model.ID] = old
 		} else {
@@ -275,10 +270,20 @@ func (s *thingState) SetInclusionChecksum(checksum uint32) error {
 	s.state.lock.Lock()
 	defer s.state.lock.Unlock()
 
+	if s.model.InclusionChecksum == checksum {
+		return nil
+	}
+
+	// Restored on a failed write, mirroring add and remove: the skip above is keyed on the
+	// in-memory value, so leaving it set would make every retry of the same checksum a no-op and
+	// the disk would never catch up until the report changed again.
+	previous := s.model.InclusionChecksum
 	s.model.InclusionChecksum = checksum
 
 	err := s.state.Save()
 	if err != nil {
+		s.model.InclusionChecksum = previous
+
 		return fmt.Errorf("thing state: failed to persist inclusion checksum of a thing with ID %s: %w", s.model.ID, err)
 	}
 

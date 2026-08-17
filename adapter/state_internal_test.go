@@ -43,6 +43,7 @@ type failingSaveStorage struct {
 	storage.Storage[*adapterStateModel]
 
 	failSave bool
+	saves    int
 }
 
 func (f *failingSaveStorage) Save() error {
@@ -50,7 +51,89 @@ func (f *failingSaveStorage) Save() error {
 		return errors.New("disk full")
 	}
 
+	f.saves++
+
 	return f.Storage.Save()
+}
+
+// TestState_AddAssignsAddressInASingleWrite pins that creating a thing costs one state write.
+// Acquiring the address separately doubled it, and every write is a full rewrite plus fsync of
+// adapter.json on flash storage.
+func TestState_AddAssignsAddressInASingleWrite(t *testing.T) {
+	t.Parallel()
+
+	failing := &failingSaveStorage{Storage: storage.NewState(&adapterStateModel{}, t.TempDir(), "adapter.json")}
+	s := &state{Storage: failing}
+
+	first, err := s.add(&thingStateModel{ID: "1"})
+	require.NoError(t, err)
+	assert.Equal(t, "1", first.Address())
+
+	second, err := s.add(&thingStateModel{ID: "2"})
+	require.NoError(t, err)
+	assert.Equal(t, "2", second.Address())
+	assert.Equal(t, 2, failing.saves)
+
+	custom, err := s.add(&thingStateModel{ID: "3", Address: "99"})
+	require.NoError(t, err)
+	assert.Equal(t, "99", custom.Address(), "a model that carries an address must keep it")
+
+	failing.failSave = true
+
+	_, err = s.add(&thingStateModel{ID: "4"})
+	require.Error(t, err)
+
+	failing.failSave = false
+
+	next, err := s.add(&thingStateModel{ID: "5"})
+	require.NoError(t, err)
+	assert.Equal(t, "3", next.Address(), "a failed write must not consume an address")
+}
+
+// TestThingState_SetInclusionChecksumSkipsUnchangedWrites pins that re-stamping the same checksum
+// does not persist. SendInclusionReport(true) bypasses the checksum short-circuit, so every forced
+// report rewrote the whole adapter state file with an identical value.
+func TestThingState_SetInclusionChecksumSkipsUnchangedWrites(t *testing.T) {
+	t.Parallel()
+
+	failing := &failingSaveStorage{Storage: storage.NewState(&adapterStateModel{}, t.TempDir(), "adapter.json")}
+	s := &state{Storage: failing}
+
+	ts, err := s.add(&thingStateModel{ID: "1"})
+	require.NoError(t, err)
+
+	require.NoError(t, ts.SetInclusionChecksum(42))
+	saves := failing.saves
+
+	require.NoError(t, ts.SetInclusionChecksum(42))
+	assert.Equal(t, saves, failing.saves, "an unchanged checksum must not be persisted again")
+
+	require.NoError(t, ts.SetInclusionChecksum(43))
+	assert.Equal(t, saves+1, failing.saves)
+}
+
+// TestThingState_InclusionChecksumRetriesAfterFailedSave pins that a failed write leaves the
+// checksum unchanged in memory. The skip above is keyed on that value, so keeping the new one
+// would turn every retry of the same checksum into a no-op and the disk would never catch up.
+func TestThingState_InclusionChecksumRetriesAfterFailedSave(t *testing.T) {
+	t.Parallel()
+
+	failing := &failingSaveStorage{Storage: storage.NewState(&adapterStateModel{}, t.TempDir(), "adapter.json")}
+	s := &state{Storage: failing}
+
+	ts, err := s.add(&thingStateModel{ID: "1"})
+	require.NoError(t, err)
+
+	failing.failSave = true
+	require.Error(t, ts.SetInclusionChecksum(42))
+	assert.Zero(t, ts.InclusionChecksum(), "a failed write must not keep the new checksum in memory")
+
+	failing.failSave = false
+	saves := failing.saves
+
+	require.NoError(t, ts.SetInclusionChecksum(42), "the retry must persist the same checksum")
+	assert.Equal(t, saves+1, failing.saves)
+	assert.Equal(t, uint32(42), ts.InclusionChecksum())
 }
 
 // TestState_RemoveRestoresEntryOnSaveFailure pins that a failed persist of a removal restores the
