@@ -57,13 +57,19 @@ type observer struct {
 	client       prime.Client
 	eventManager event.Manager
 
-	components      []string
-	strategies      map[string]func(notification *prime.Notify) error
-	lock            *sync.RWMutex
+	components []string
+	strategies map[string]func(notification *prime.Notify) error
+	lock       *sync.RWMutex
+	// refreshLock serializes the fetch itself, which runs outside lock, so that concurrent stale
+	// readers make one request to vinculum between them rather than one each.
+	refreshLock     sync.Mutex
 	refreshInterval time.Duration
 	refreshed       bool
 	lastRefresh     time.Time
 	set             *set
+	// updates counts notifications applied to set, so a refresh can tell whether any landed while
+	// it was fetching outside the lock.
+	updates uint64
 }
 
 func (o *observer) Update(notification *prime.Notify) error {
@@ -80,6 +86,8 @@ func (o *observer) Update(notification *prime.Notify) error {
 
 		return fmt.Errorf("prime observer: failed to process update for component %s: %w", notification.Component, err)
 	}
+
+	o.updates++
 
 	return nil
 }
@@ -227,29 +235,56 @@ func (o *observer) updateArea(notification *prime.Notify) error {
 }
 
 func (o *observer) Refresh(force bool) error {
-	o.lock.Lock()
-	defer o.lock.Unlock()
-
-	return o.doRefresh(force)
-}
-
-func (o *observer) doRefresh(force bool) error {
-	if !force && !o.isRefreshRequired() {
+	if !force && !o.refreshRequired() {
 		return nil
 	}
 
+	o.refreshLock.Lock()
+	defer o.refreshLock.Unlock()
+
+	// Re-checked after waiting for the fetch that was already in flight, which may have made this
+	// one unnecessary.
+	if !force && !o.refreshRequired() {
+		return nil
+	}
+
+	o.lock.RLock()
+	updates := o.updates
+	o.lock.RUnlock()
+
+	// Fetched outside the lock: it is a blocking request to vinculum, and holding the lock across
+	// it stalled every other reader and the entire notification stream for its duration.
 	componentSet, err := o.client.GetComponents(o.components...)
 	if err != nil {
 		return fmt.Errorf("observer: error while refreshing components: %w", err)
 	}
 
-	o.set = newSet(componentSet)
+	o.lock.Lock()
+
+	// The snapshot was requested before any notification that landed since, so installing it would
+	// silently undo those. Keep the updated set instead - it is the previous snapshot with every
+	// notification applied, which is what the stream guarantees - and let the interval bring the
+	// next reconciliation. Before the first successful load there is nothing to preserve, and a
+	// failed update already asked for a resync, so both install unconditionally.
+	if !o.refreshed || o.updates == updates {
+		o.set = newSet(componentSet)
+	}
+
 	o.refreshed = true
 	o.lastRefresh = time.Now()
+	o.lock.Unlock()
 
+	// Published outside the lock as well: a subscriber reading the observer back self-deadlocked.
 	o.eventManager.Publish(newRefreshEvent(o.components))
 
 	return nil
+}
+
+func (o *observer) refreshRequired() bool {
+	o.lock.RLock()
+	defer o.lock.RUnlock()
+
+	return o.isRefreshRequired()
 }
 
 func (o *observer) isRefreshRequired() bool {
@@ -261,45 +296,31 @@ func (o *observer) isRefreshRequired() bool {
 }
 
 func (o *observer) GetDevices() (prime.Devices, error) {
-	o.lock.Lock()
-	defer o.lock.Unlock()
-
-	if err := o.doRefresh(false); err != nil {
-		return nil, err
-	}
-
-	return o.set.getDevices(), nil
+	return observed(o, (*set).getDevices)
 }
 
 func (o *observer) GetThings() (prime.Things, error) {
-	o.lock.Lock()
-	defer o.lock.Unlock()
-
-	if err := o.doRefresh(false); err != nil {
-		return nil, err
-	}
-
-	return o.set.getThings(), nil
+	return observed(o, (*set).getThings)
 }
 
 func (o *observer) GetRooms() (prime.Rooms, error) {
-	o.lock.Lock()
-	defer o.lock.Unlock()
-
-	if err := o.doRefresh(false); err != nil {
-		return nil, err
-	}
-
-	return o.set.getRooms(), nil
+	return observed(o, (*set).getRooms)
 }
 
 func (o *observer) GetAreas() (prime.Areas, error) {
-	o.lock.Lock()
-	defer o.lock.Unlock()
+	return observed(o, (*set).getAreas)
+}
 
-	if err := o.doRefresh(false); err != nil {
-		return nil, err
+// observed returns a projection of the cached component set, refreshing it first if it went stale.
+func observed[T any](o *observer, project func(*set) T) (T, error) {
+	if err := o.Refresh(false); err != nil {
+		var zero T
+
+		return zero, err
 	}
 
-	return o.set.getAreas(), nil
+	o.lock.RLock()
+	defer o.lock.RUnlock()
+
+	return project(o.set), nil
 }
