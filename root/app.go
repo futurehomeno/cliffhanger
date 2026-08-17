@@ -169,29 +169,35 @@ func (a *app) doStart() (err error) {
 		a.lifecycle.SetAppHealth(lifecycle.AppHealthStarting, nil)
 	}
 
-	var (
-		mqttStarted     bool
-		startedServices int
-		routerStarted   bool
-		subscribed      []string
-	)
+	// Unwind whatever did start, in reverse. Without it a failed start leaves MQTT, the services
+	// and the router running while a.running stays false, so the Stop() that follows returns
+	// immediately and a Reset() wipes the app data from under live services. Best effort: a
+	// failure in one step must not strand the ones before it. It cannot go through doStop, which
+	// short-circuits on a.running and whose task manager and router stops error out when they were
+	// never started.
+	var undo []func()
 
-	// Unwind whatever did start. Without it a failed start leaves MQTT, the services and the router
-	// running while a.running stays false, so the Stop() that follows returns immediately and a
-	// Reset() wipes the app data from under live services.
 	defer func() {
 		if err == nil {
 			return
 		}
 
-		a.rollbackStart(mqttStarted, startedServices, routerStarted, subscribed)
+		for i := len(undo) - 1; i >= 0; i-- {
+			undo[i]()
+		}
+
+		if a.lifecycle != nil {
+			a.lifecycle.SetAppHealth(lifecycle.AppHealthStartupError, nil)
+		}
+
+		debug.FlushLogs()
 	}()
 
 	if err = a.mqtt.Start(10 * time.Second); err != nil {
 		return fmt.Errorf("start MQTT err: %w", err)
 	}
 
-	mqttStarted = true
+	undo = append(undo, a.mqtt.Stop)
 
 	// Started right after the transport so its subscription meets a live one, and only logged on
 	// failure: telemetry is best effort, and aborting the whole start over it would be worse than
@@ -200,28 +206,46 @@ func (a *app) doStart() (err error) {
 		if telErr := a.telemetry.Start(); telErr != nil {
 			log.WithError(telErr).Error("[cliff] Failed to start telemetry")
 		}
+
+		undo = append(undo, func() {
+			if telErr := a.telemetry.Stop(); telErr != nil {
+				log.WithError(telErr).Error("[cliff] Failed to stop telemetry while rolling back a failed start")
+			}
+		})
 	}
 
-	for _, service := range a.services {
+	for i, service := range a.services {
 		if err = service.Start(); err != nil {
 			return fmt.Errorf("start service err: %w", err)
 		}
 
-		startedServices++
+		undo = append(undo, func() {
+			if stopErr := service.Stop(); stopErr != nil {
+				log.WithError(stopErr).Errorf("[cliff] Failed to stop service[%d] while rolling back a failed start", i)
+			}
+		})
 	}
 
 	if err = a.messageRouter.Start(); err != nil {
 		return fmt.Errorf("start message router err: %w", err)
 	}
 
-	routerStarted = true
+	undo = append(undo, func() {
+		if stopErr := a.messageRouter.Stop(); stopErr != nil {
+			log.WithError(stopErr).Error("[cliff] Failed to stop the message router while rolling back a failed start")
+		}
+	})
 
 	for _, topic := range config.Deduplicate(a.topicSubscriptions) {
 		if err = a.mqtt.Subscribe(topic); err != nil {
 			return fmt.Errorf("subscribe topic=%s err: %w", topic, err)
 		}
 
-		subscribed = append(subscribed, topic)
+		undo = append(undo, func() {
+			if unsubErr := a.mqtt.Unsubscribe(topic); unsubErr != nil {
+				log.WithError(unsubErr).Errorf("[cliff] Failed to unsubscribe topic=%s while rolling back a failed start", topic)
+			}
+		})
 	}
 
 	// Subscribed before the task manager starts: a WhenAppIsRunning-gated task (e.g.
@@ -229,6 +253,8 @@ func (a *app) doStart() (err error) {
 	// goroutine, and an AuthStateLost emitted before this subscription exists is gone for good
 	// (Lifecycle.emitStateChangeEvent does not buffer for a not-yet-subscribed watcher).
 	a.startAuthLossWatcher(a.telemetry)
+
+	undo = append(undo, a.stopAuthLossWatcher)
 
 	if err = a.taskManager.Start(); err != nil {
 		return fmt.Errorf("start task manager err: %w", err)
@@ -239,47 +265,6 @@ func (a *app) doStart() (err error) {
 	a.running = true
 
 	return nil
-}
-
-// rollbackStart tears down, in reverse, whatever doStart managed to start. Best effort: a failure
-// in one step must not strand the ones after it. It cannot go through doStop, which short-circuits
-// on a.running and whose task manager and router stops error out when they were never started.
-func (a *app) rollbackStart(mqttStarted bool, startedServices int, routerStarted bool, subscribed []string) {
-	a.stopAuthLossWatcher()
-
-	if a.telemetry != nil {
-		if err := a.telemetry.Stop(); err != nil {
-			log.WithError(err).Error("[cliff] Failed to stop telemetry while rolling back a failed start")
-		}
-	}
-
-	for _, topic := range subscribed {
-		if err := a.mqtt.Unsubscribe(topic); err != nil {
-			log.WithError(err).Errorf("[cliff] Failed to unsubscribe topic=%s while rolling back a failed start", topic)
-		}
-	}
-
-	if routerStarted {
-		if err := a.messageRouter.Stop(); err != nil {
-			log.WithError(err).Error("[cliff] Failed to stop the message router while rolling back a failed start")
-		}
-	}
-
-	for i := startedServices - 1; i >= 0; i-- {
-		if err := a.services[i].Stop(); err != nil {
-			log.WithError(err).Errorf("[cliff] Failed to stop service[%d] while rolling back a failed start", i)
-		}
-	}
-
-	if mqttStarted {
-		a.mqtt.Stop()
-	}
-
-	if a.lifecycle != nil {
-		a.lifecycle.SetAppHealth(lifecycle.AppHealthStartupError, nil)
-	}
-
-	debug.FlushLogs()
 }
 
 func (a *app) startAuthLossWatcher(tel telemetry.Telemetry) {
