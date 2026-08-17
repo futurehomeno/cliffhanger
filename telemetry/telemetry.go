@@ -175,6 +175,13 @@ type ifMoreState struct {
 // the goroutine, timers and MQTT subscription it owns are tied to the application lifecycle rather
 // than to the lifetime of the process.
 func (ptr *telemetryT) Start() error {
+	// Re-armed on every start, not only in the constructor: Stop tears the timer down, so without
+	// this a stop/start cycle in one process left telemetry enabled past its validity window until
+	// a cloud config report happened to re-enable it.
+	if err := ptr.resumeValidityWindow(); err != nil {
+		return err
+	}
+
 	if ptr.pullCfg == nil {
 		return nil
 	}

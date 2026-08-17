@@ -1375,3 +1375,30 @@ func TestNew_DoesNotStartPolling(t *testing.T) { //nolint:paralleltest
 	require.NoError(t, tel.Stop())
 	require.NoError(t, tel.Stop(), "stopping twice must be safe")
 }
+
+// TestStartAfterStop_RearmsValidityTimer pins that stopping telemetry and starting it again inside
+// one process restores the validity window. Stop tears the timer down and it used to be armed only
+// by the constructor, so after a stop/start cycle telemetry stayed enabled past its validity until
+// a cloud config report happened to re-enable it.
+func TestStartAfterStop_RearmsValidityTimer(t *testing.T) { //nolint:paralleltest
+	mqtt := suite.DefaultMQTT("cliff_tel_restart_validity", "", "", "")
+	require.NoError(t, mqtt.Start(2*time.Second))
+	t.Cleanup(mqtt.Stop)
+
+	store := newStore()
+	store.model.Telemetry = &types.TelemetryConfig{Enabled: true, EnabledAt: time.Now(), Validity: time.Hour}
+
+	tel, err := telemetry.New(mqtt, "src", store.DefaultStore, "")
+	require.NoError(t, err)
+	t.Cleanup(func() { _ = tel.Stop() })
+
+	require.NoError(t, tel.Start())
+	require.NoError(t, tel.Stop())
+	require.True(t, tel.IsEnabled(), "stopping must not disable telemetry by itself")
+
+	// The window has run out while telemetry was stopped, so the restart must notice.
+	store.model.Telemetry.EnabledAt = time.Now().Add(-2 * time.Hour)
+
+	require.NoError(t, tel.Start())
+	assert.False(t, tel.IsEnabled(), "a restart must re-evaluate and expire the validity window")
+}
