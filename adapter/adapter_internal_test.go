@@ -3,6 +3,7 @@ package adapter
 import (
 	"encoding/json"
 	"errors"
+	"strconv"
 	"sync"
 	"testing"
 
@@ -308,32 +309,110 @@ func TestInitializeThings_KeepsAlreadyRegisteredThings(t *testing.T) {
 	assert.False(t, connector.wasDisconnected())
 }
 
+// failOnNthFactory builds things the way groupsFactory does but fails the nth Create, so a
+// mid-loop failure can be exercised without depending on map iteration order.
+type failOnNthFactory struct {
+	n       int
+	created int
+}
+
+func (f *failOnNthFactory) Create(a Adapter, publisher Publisher, ts ThingState) (Thing, error) {
+	f.created++
+
+	if f.created == f.n {
+		return nil, errors.New("factory refused")
+	}
+
+	return groupsFactory{}.Create(a, publisher, ts)
+}
+
 // TestInitializeThings_RegistersIncrementally pins that a failure partway through leaves the
 // things built before it registered. Collecting them all first meant one bad record dropped every
-// thing, while their inclusion reports had already gone out.
+// thing, while their inclusion reports had already gone out. The factory fails on its second call
+// rather than on a particular record, because state.all() ranges over a map and has no order.
 func TestInitializeThings_RegistersIncrementally(t *testing.T) {
 	t.Parallel()
 
 	s, err := NewState(t.TempDir())
 	require.NoError(t, err)
 
-	_, err = s.add(&thingStateModel{ID: "A", Address: "1"})
-	require.NoError(t, err)
-
-	_, err = s.add(&thingStateModel{ID: "B", Address: "2", Info: json.RawMessage(`"not an object"`)})
-	require.NoError(t, err)
+	for i, id := range []string{"A", "B", "C"} {
+		_, err = s.add(&thingStateModel{ID: id, Address: strconv.Itoa(i + 1)})
+		require.NoError(t, err)
+	}
 
 	a := &adapter{
 		publisher: stubPublisher{},
 		state:     s,
-		factory:   groupsFactory{},
+		factory:   &failOnNthFactory{n: 2},
 		things:    map[string]Thing{},
 		lock:      &sync.RWMutex{},
 	}
 
-	require.Error(t, a.InitializeThings(), "the unreadable record must surface")
-	assert.NotNil(t, a.things["1"], "the thing built before the failure must stay registered")
+	require.Error(t, a.InitializeThings(), "the refused build must surface")
+	assert.Len(t, a.things, 1, "the thing built before the failure must stay registered")
 	assert.False(t, a.initialized, "a failed initialization must not mark the adapter initialized")
+}
+
+// failingReportThing fails its inclusion report a given number of times before succeeding.
+type failingReportThing struct {
+	Thing
+
+	failures int
+	sent     int
+}
+
+func (f *failingReportThing) SendInclusionReport(bool) (bool, error) {
+	f.sent++
+
+	if f.sent <= f.failures {
+		return false, errors.New("publish refused")
+	}
+
+	return true, nil
+}
+
+// reportFactory hands out a thing whose inclusion report fails the first time.
+type reportFactory struct{ thing *failingReportThing }
+
+func (f *reportFactory) Create(_ Adapter, _ Publisher, _ ThingState) (Thing, error) {
+	return f.thing, nil
+}
+
+// TestInitializeThings_AnnounceFailureAllowsRetry pins that a thing whose inclusion report failed
+// is not registered. Registering first made the live check skip it on every later attempt, so the
+// hub never heard about it while the adapter counted it as done.
+func TestInitializeThings_AnnounceFailureAllowsRetry(t *testing.T) {
+	t.Parallel()
+
+	s, err := NewState(t.TempDir())
+	require.NoError(t, err)
+
+	ts, err := s.add(&thingStateModel{ID: "A", Address: "1"})
+	require.NoError(t, err)
+
+	thing := &failingReportThing{
+		Thing: NewThing(stubPublisher{}, ts, &ThingConfig{
+			InclusionReport: &fimptype.ThingInclusionReport{Address: "1"},
+			Connector:       &recordingConnector{},
+		}),
+		failures: 1,
+	}
+
+	a := &adapter{
+		publisher: stubPublisher{},
+		state:     s,
+		factory:   &reportFactory{thing: thing},
+		things:    map[string]Thing{},
+		lock:      &sync.RWMutex{},
+	}
+
+	require.Error(t, a.InitializeThings(), "the failed report must surface")
+	assert.Empty(t, a.things, "a thing that was never announced must not be registered")
+
+	require.NoError(t, a.InitializeThings(), "the retry must announce the thing again")
+	assert.NotNil(t, a.things["1"], "the retry must register it once announced")
+	assert.Equal(t, 2, thing.sent, "the report must actually be retried")
 }
 
 // TestThingServiceByTopic_ResolvesInboundTopics pins that the service index lookup matches both a

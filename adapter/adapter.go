@@ -233,14 +233,17 @@ func (a *adapter) InitializeThings() error {
 			return fmt.Errorf("failed to create thing with address %s: %w", ts.Address(), err)
 		}
 
+		// Announced before being registered, so a failed report leaves nothing behind for the live
+		// check above to skip on the next attempt - otherwise the thing would count as done while
+		// the hub never heard about it.
+		if _, err = t.SendInclusionReport(false); err != nil {
+			return fmt.Errorf("failed to send inclusion report for thing with address %s: %w", ts.Address(), err)
+		}
+
 		// Registered as we go: collecting them all first meant a failure halfway through left the
 		// adapter with no registered things at all, yet with inclusion reports already published
 		// for the ones that did get built.
 		a.registerThing(t)
-
-		if _, err = t.SendInclusionReport(false); err != nil {
-			return fmt.Errorf("failed to send inclusion report for thing with address %s: %w", ts.Address(), err)
-		}
 	}
 
 	a.initialized = true
