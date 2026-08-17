@@ -102,11 +102,18 @@ func TestManager_Subscribe_Unsubscribe(t *testing.T) {
 
 	manager := event.NewManager()
 
+	// A shared subscription ID used to hand the second subscriber the first one's channel, with the
+	// first one's buffer and filters, so both listeners silently competed for the same events.
 	sub1 := manager.Subscribe("test", 2)
 	sub2 := manager.Subscribe("test", 3)
 
-	assert.Equal(t, sub1, sub2)
-	assert.Equal(t, 2, cap(sub2))
+	assert.NotEqual(t, sub1, sub2)
+	assert.Equal(t, 2, cap(sub1))
+	assert.Equal(t, 3, cap(sub2))
+
+	manager.Publish(event.New("test1", "test1"))
+	assert.Len(t, sub1, 1)
+	assert.Len(t, sub2, 1)
 
 	assert.NotPanics(t, func() {
 		manager.Unsubscribe("test")

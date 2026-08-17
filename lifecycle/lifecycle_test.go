@@ -207,7 +207,10 @@ func TestSetConnectionState_EmitsEvent(t *testing.T) {
 	assert.Equal(t, lifecycle.ConnStateConnected, event.State)
 }
 
-func TestSubscribe_ReturnsExistingChannel(t *testing.T) {
+// TestSubscribe_GivesEachSubscriberItsOwnChannel pins that a shared subscription ID no longer
+// hands the second subscriber the first one's channel, which split events unpredictably between
+// two listeners that each believed they were getting the full stream.
+func TestSubscribe_GivesEachSubscriberItsOwnChannel(t *testing.T) {
 	t.Parallel()
 
 	l := lifecycle.New(nil)
@@ -215,7 +218,12 @@ func TestSubscribe_ReturnsExistingChannel(t *testing.T) {
 	ch1 := l.Subscribe("sub", 1)
 	ch2 := l.Subscribe("sub", 1)
 
-	assert.Equal(t, ch1, ch2)
+	require.NotEqual(t, ch1, ch2)
+
+	l.SetConnState(lifecycle.ConnStateConnected)
+
+	require.Eventually(t, func() bool { return len(ch1) == 1 && len(ch2) == 1 }, time.Second, 10*time.Millisecond,
+		"both subscribers must receive the event")
 }
 
 func TestUnsubscribe_StopsEvents(t *testing.T) {

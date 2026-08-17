@@ -12,13 +12,14 @@ import (
 	"github.com/futurehomeno/cliffhanger/config"
 	"github.com/futurehomeno/cliffhanger/debug"
 	"github.com/futurehomeno/cliffhanger/task"
+	"github.com/futurehomeno/cliffhanger/test/suite"
 )
 
-// TestDoStop_FlushesLogsEvenOnEarlyFailure pins that a doStop() failure path still flushes
-// the buffered log lines leading up to it - exactly where they matter most for diagnosing
-// the failure. taskManager.Stop() on a never-started manager is the cheapest way to force
-// doStop() to return before reaching its old, success-only flush call.
-func TestDoStop_FlushesLogsEvenOnEarlyFailure(t *testing.T) { //nolint:paralleltest
+// TestDoStop_FlushesLogsEvenOnFailure pins that a doStop() failure path still flushes the buffered
+// log lines leading up to it - exactly where they matter most for diagnosing the failure.
+// taskManager.Stop() on a never-started manager is the cheapest way to make a step of doStop()
+// fail.
+func TestDoStop_FlushesLogsEvenOnFailure(t *testing.T) { //nolint:paralleltest
 	dir := t.TempDir()
 	logFile := filepath.Join(dir, "app.log")
 
@@ -38,8 +39,10 @@ func TestDoStop_FlushesLogsEvenOnEarlyFailure(t *testing.T) { //nolint:parallelt
 	require.NoError(t, debug.InitializeLogger(store))
 
 	a := &app{
-		running:     true,
-		taskManager: task.NewManager(), // never started: Stop() fails immediately
+		running:       true,
+		mqtt:          suite.DefaultMQTT("root_doStop_flush", "", "", ""),
+		messageRouter: noopRouter{},
+		taskManager:   task.NewManager(), // never started: Stop() fails immediately
 	}
 
 	logrus.Info("buffered-line-before-failed-stop")

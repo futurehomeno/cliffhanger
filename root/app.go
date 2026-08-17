@@ -1,6 +1,7 @@
 package root
 
 import (
+	"errors"
 	"fmt"
 	"os"
 	"os/signal"
@@ -99,7 +100,7 @@ func (a *app) Reset() error {
 
 	err := a.doStop()
 	if err != nil {
-		log.Error("Reset app err: %w", err)
+		log.WithError(err).Error("[cliff] Stop before reset err")
 	}
 
 	return a.passErr(a.doReset())
@@ -155,7 +156,7 @@ func (a *app) Run() error {
 }
 
 // doStart performs the application startup.
-func (a *app) doStart() error {
+func (a *app) doStart() (err error) {
 	if a.running {
 		return nil
 	}
@@ -168,28 +169,50 @@ func (a *app) doStart() error {
 		a.lifecycle.SetAppHealth(lifecycle.AppHealthStarting, nil)
 	}
 
-	err := a.mqtt.Start(10 * time.Second)
-	if err != nil {
+	var (
+		mqttStarted     bool
+		startedServices int
+		routerStarted   bool
+		subscribed      []string
+	)
+
+	// Unwind whatever did start. Without it a failed start leaves MQTT, the services and the router
+	// running while a.running stays false, so the Stop() that follows returns immediately and a
+	// Reset() wipes the app data from under live services.
+	defer func() {
+		if err == nil {
+			return
+		}
+
+		a.rollbackStart(mqttStarted, startedServices, routerStarted, subscribed)
+	}()
+
+	if err = a.mqtt.Start(10 * time.Second); err != nil {
 		return fmt.Errorf("start MQTT err: %w", err)
 	}
 
+	mqttStarted = true
+
 	for _, service := range a.services {
-		err = service.Start()
-		if err != nil {
+		if err = service.Start(); err != nil {
 			return fmt.Errorf("start service err: %w", err)
 		}
+
+		startedServices++
 	}
 
-	err = a.messageRouter.Start()
-	if err != nil {
+	if err = a.messageRouter.Start(); err != nil {
 		return fmt.Errorf("start message router err: %w", err)
 	}
 
+	routerStarted = true
+
 	for _, topic := range config.Deduplicate(a.topicSubscriptions) {
-		err = a.mqtt.Subscribe(topic)
-		if err != nil {
+		if err = a.mqtt.Subscribe(topic); err != nil {
 			return fmt.Errorf("subscribe topic=%s err: %w", topic, err)
 		}
+
+		subscribed = append(subscribed, topic)
 	}
 
 	// Subscribed before the task manager starts: a WhenAppIsRunning-gated task (e.g.
@@ -198,10 +221,7 @@ func (a *app) doStart() error {
 	// (Lifecycle.emitStateChangeEvent does not buffer for a not-yet-subscribed watcher).
 	a.startAuthLossWatcher(a.telemetry)
 
-	err = a.taskManager.Start()
-	if err != nil {
-		a.stopAuthLossWatcher()
-
+	if err = a.taskManager.Start(); err != nil {
 		return fmt.Errorf("start task manager err: %w", err)
 	}
 
@@ -210,6 +230,41 @@ func (a *app) doStart() error {
 	a.running = true
 
 	return nil
+}
+
+// rollbackStart tears down, in reverse, whatever doStart managed to start. Best effort: a failure
+// in one step must not strand the ones after it. It cannot go through doStop, which short-circuits
+// on a.running and whose task manager and router stops error out when they were never started.
+func (a *app) rollbackStart(mqttStarted bool, startedServices int, routerStarted bool, subscribed []string) {
+	a.stopAuthLossWatcher()
+
+	for _, topic := range subscribed {
+		if err := a.mqtt.Unsubscribe(topic); err != nil {
+			log.WithError(err).Errorf("[cliff] Failed to unsubscribe topic=%s while rolling back a failed start", topic)
+		}
+	}
+
+	if routerStarted {
+		if err := a.messageRouter.Stop(); err != nil {
+			log.WithError(err).Error("[cliff] Failed to stop the message router while rolling back a failed start")
+		}
+	}
+
+	for i := startedServices - 1; i >= 0; i-- {
+		if err := a.services[i].Stop(); err != nil {
+			log.WithError(err).Error("[cliff] Failed to stop a service while rolling back a failed start")
+		}
+	}
+
+	if mqttStarted {
+		a.mqtt.Stop()
+	}
+
+	if a.lifecycle != nil {
+		a.lifecycle.SetAppHealth(lifecycle.AppHealthStartupError, nil)
+	}
+
+	debug.FlushLogs()
 }
 
 func (a *app) startAuthLossWatcher(tel telemetry.Telemetry) {
@@ -342,27 +397,27 @@ func (a *app) doStop() error {
 		a.lifecycle.SetAppHealth(lifecycle.AppHealthTerminate, nil)
 	}
 
-	err := a.taskManager.Stop()
-	if err != nil {
-		return fmt.Errorf("stop task manager err: %w", err)
+	// Best effort throughout: returning on the first failure left the app half stopped and still
+	// marked as running, and Reset() goes on to wipe the data either way.
+	var errs []error
+
+	if err := a.taskManager.Stop(); err != nil {
+		errs = append(errs, fmt.Errorf("stop task manager err: %w", err))
 	}
 
 	for _, topic := range config.Deduplicate(a.topicSubscriptions) {
-		err := a.mqtt.Unsubscribe(topic)
-		if err != nil {
-			return fmt.Errorf("unsubscribe topic=%s err: %w", topic, err)
+		if err := a.mqtt.Unsubscribe(topic); err != nil {
+			errs = append(errs, fmt.Errorf("unsubscribe topic=%s err: %w", topic, err))
 		}
 	}
 
-	err = a.messageRouter.Stop()
-	if err != nil {
-		return fmt.Errorf("stop message router err: %w", err)
+	if err := a.messageRouter.Stop(); err != nil {
+		errs = append(errs, fmt.Errorf("stop message router err: %w", err))
 	}
 
 	for i := len(a.services) - 1; i >= 0; i-- {
-		err = a.services[i].Stop()
-		if err != nil {
-			return fmt.Errorf("stop service err: %w", err)
+		if err := a.services[i].Stop(); err != nil {
+			errs = append(errs, fmt.Errorf("stop service err: %w", err))
 		}
 	}
 
@@ -370,7 +425,7 @@ func (a *app) doStop() error {
 
 	a.running = false
 
-	return nil
+	return errors.Join(errs...)
 }
 
 // doReset performs the application factory reset.
