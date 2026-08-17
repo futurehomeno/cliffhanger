@@ -75,11 +75,7 @@ func RouteApp[C any](
 
 	logginable, ok := app.(LogginableApp)
 	if ok {
-		routing = append(
-			routing,
-			RouteCmdAuthLogin(serviceName, appLifecycle, locker, logginable),
-			RouteCmdAuthLogout(serviceName, appLifecycle, locker, logginable),
-		)
+		routing = append(routing, RouteCmdAuthLogin(serviceName, appLifecycle, locker, logginable))
 	}
 
 	authorizable, ok := app.(AuthorizableApp)
@@ -88,11 +84,15 @@ func RouteApp[C any](
 			appLifecycle.SetAuthState(lifecycle.AuthStateNotAuthenticated)
 		}
 
-		routing = append(
-			routing,
-			RouteCmdAuthSetTokens(serviceName, appLifecycle, locker, authorizable),
-			RouteCmdAuthLogout(serviceName, appLifecycle, locker, authorizable),
-		)
+		routing = append(routing, RouteCmdAuthSetTokens(serviceName, appLifecycle, locker, authorizable))
+	}
+
+	// Registered once regardless of which of the two interfaces the app implements: the router
+	// dispatches to every matching routing, so an app supporting both would log out twice and
+	// publish two contradictory status reports for a single command.
+	logoutable, ok := app.(LogoutableApp)
+	if ok {
+		routing = append(routing, RouteCmdAuthLogout(serviceName, appLifecycle, locker, logoutable))
 	}
 
 	return routing
@@ -470,26 +470,44 @@ func HandleCmdAuthLogin(
 				report.ErrorText = "failed to login"
 			}
 
-			report.Status = string(appLifecycle.AuthState())
-
-			// Compatibility hack for FHX which implemented login flow not in accordance with the specification.
-			if err != nil || appLifecycle.AuthState() != lifecycle.AuthStateAuthenticated {
+			// Compatibility hack for FHX which implemented login flow not in accordance with the
+			// specification. Restricted to outcomes that actually failed: an app whose login starts
+			// an asynchronous second step is not authenticated yet, and reporting that as an error
+			// would fail a flow that is still running.
+			if err != nil || failedAuthStates[appLifecycle.AuthState()] {
 				report.Errors = "failed to login"
 			}
 
-			msg := fimpgo.NewMessage(
-				EvtAuthStatusReport,
-				serviceName,
-				fimptype.VTypeObject,
-				report,
-				nil,
-				nil,
-				message.Payload,
-			)
-
-			return msg, nil
+			return authStatusReport(serviceName, appLifecycle, message, report), nil
 		}),
 		router.WithExternalLock(locker))
+}
+
+// failedAuthStates are the terminal auth states that mean the attempt did not succeed.
+var failedAuthStates = map[lifecycle.State]bool{
+	lifecycle.AuthStateNotAuthenticated: true,
+	lifecycle.AuthStateError:            true,
+	lifecycle.AuthStateLost:             true,
+}
+
+// authStatusReport builds the status report reply shared by the authentication handlers.
+func authStatusReport(
+	serviceName fimptype.ServiceNameT,
+	appLifecycle *lifecycle.Lifecycle,
+	message *fimpgo.Message,
+	report *AuthenticationReport,
+) *fimpgo.FimpMessage {
+	report.Status = string(appLifecycle.AuthState())
+
+	return fimpgo.NewMessage(
+		EvtAuthStatusReport,
+		serviceName,
+		fimptype.VTypeObject,
+		report,
+		nil,
+		nil,
+		message.Payload,
+	)
 }
 
 func RouteCmdAuthSetTokens(
@@ -528,19 +546,7 @@ func HandleCmdAuthSetTokens(
 				report.ErrorText = "failed to authorize"
 			}
 
-			report.Status = string(appLifecycle.AuthState())
-
-			msg := fimpgo.NewMessage(
-				EvtAuthStatusReport,
-				serviceName,
-				fimptype.VTypeObject,
-				report,
-				nil,
-				nil,
-				message.Payload,
-			)
-
-			return msg, nil
+			return authStatusReport(serviceName, appLifecycle, message, report), nil
 		}),
 		router.WithExternalLock(locker))
 }
@@ -574,19 +580,7 @@ func HandleCmdAuthLogout(
 				report.ErrorText = "failed to logout"
 			}
 
-			report.Status = string(appLifecycle.AuthState())
-
-			msg := fimpgo.NewMessage(
-				EvtAuthStatusReport,
-				serviceName,
-				fimptype.VTypeObject,
-				report,
-				nil,
-				nil,
-				message.Payload,
-			)
-
-			return msg, nil
+			return authStatusReport(serviceName, appLifecycle, message, report), nil
 		}),
 		router.WithExternalLock(locker))
 }
