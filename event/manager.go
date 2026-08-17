@@ -2,7 +2,6 @@ package event
 
 import (
 	"runtime/debug"
-	"sync"
 	"time"
 
 	"github.com/google/uuid"
@@ -22,63 +21,33 @@ type Manager interface {
 
 func NewManager() Manager {
 	return &manager{
-		lock:          &sync.RWMutex{},
-		subscriptions: make(map[string][]*subscription),
-		waitBuffer:    10,
+		bus:        NewBus[Event](),
+		waitBuffer: 10,
 	}
 }
 
 type manager struct {
-	lock          *sync.RWMutex
-	subscriptions map[string][]*subscription
-	waitBuffer    int
+	bus        *Bus[Event]
+	waitBuffer int
 }
 
 func (m *manager) Publish(event Event) {
-	m.lock.RLock()
-	defer m.lock.RUnlock()
-
-	for _, subscriptions := range m.subscriptions {
-		for _, s := range subscriptions {
-			// Filter event out if it doesn't match the filter.
-			if !s.filter(event) {
-				continue
-			}
-
-			select {
-			case s.channel <- event:
-				continue
-			default:
-				log.Warnf("[cliff] Event subscriber ID=%s busy, event domain=%s class=%s dropped", s.id, event.Domain(), event.Class())
-			}
-		}
-	}
+	m.bus.Publish(event, func(subID string) {
+		log.Warnf("[cliff] Event subscriber ID=%s busy, event domain=%s class=%s dropped", subID, event.Domain(), event.Class())
+	})
 }
 
 func (m *manager) Subscribe(subID string, buffer int, filters ...Filter) chan Event {
-	m.lock.Lock()
-	defer m.lock.Unlock()
+	predicates := make([]func(Event) bool, len(filters))
+	for i, f := range filters {
+		predicates[i] = f.Filter
+	}
 
-	subCh := make(chan Event, buffer)
-
-	m.subscriptions[subID] = append(m.subscriptions[subID], &subscription{
-		id:      subID,
-		channel: subCh,
-		filters: filters,
-	})
-
-	return subCh
+	return m.bus.Subscribe(subID, buffer, predicates...)
 }
 
 func (m *manager) Unsubscribe(subID string) {
-	m.lock.Lock()
-	defer m.lock.Unlock()
-
-	for _, s := range m.subscriptions[subID] {
-		close(s.channel)
-	}
-
-	delete(m.subscriptions, subID)
+	m.bus.Unsubscribe(subID)
 }
 
 // WaitFor returns a channel that returns the waited for event or nil on timeout.
@@ -115,20 +84,4 @@ func (m *manager) WaitFor(timeout time.Duration, filters ...Filter) <-chan Event
 	}()
 
 	return resultChannel
-}
-
-type subscription struct {
-	id      string
-	channel chan Event
-	filters []Filter
-}
-
-func (s *subscription) filter(event Event) bool {
-	for _, f := range s.filters {
-		if !f.Filter(event) {
-			return false
-		}
-	}
-
-	return true
 }
