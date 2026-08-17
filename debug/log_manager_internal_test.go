@@ -88,3 +88,29 @@ func TestSetLevel_FlusherRestartsOnlyWhenCadenceChanges(t *testing.T) { //nolint
 		})
 	}
 }
+
+// TestSetFile_AlwaysPersistsAnAbsolutePath pins that a relative log path inherited from an older
+// install does not keep the new file relative to the working directory: the persisted value would
+// otherwise move with the daemon's cwd on every restart, which is the bug SetFile exists to close.
+func TestSetFile_AlwaysPersistsAnAbsolutePath(t *testing.T) { //nolint:paralleltest
+	savedOut := logrus.StandardLogger().Out
+	t.Cleanup(func() { logrus.SetOutput(savedOut) })
+
+	for _, current := range []string{"app.log", "logs/app.log", ""} {
+		dir := t.TempDir()
+		t.Chdir(dir)
+
+		cfg := &config.Default{LogLevel: "info", LogFormat: "text", LogFile: current}
+		store := config.NewDefaultStore(
+			func() *config.Default { return cfg },
+			func() error { return nil },
+		)
+
+		m := &logManagerT{store: store}
+
+		require.NoError(t, m.SetFile("rotated.log"), "current=%q", current)
+		assert.True(t, filepath.IsAbs(cfg.LogFile),
+			"a current path of %q must still persist an absolute path, got %q", current, cfg.LogFile)
+		assert.Equal(t, "rotated.log", filepath.Base(cfg.LogFile))
+	}
+}
