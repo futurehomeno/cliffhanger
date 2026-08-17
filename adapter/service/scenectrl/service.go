@@ -2,6 +2,7 @@ package scenectrl
 
 import (
 	"fmt"
+	"slices"
 	"sync"
 	"time"
 
@@ -99,14 +100,7 @@ func (s *service) SetScene(scene string) error {
 }
 
 func (s *service) isSceneSupported(scene string) bool {
-	supportedScenes := s.Service.Specification().PropertyStrings(PropertySupportedScenes)
-	for _, s := range supportedScenes {
-		if s == scene {
-			return true
-		}
-	}
-
-	return false
+	return slices.Contains(s.Service.Specification().PropertyStrings(PropertySupportedScenes), scene)
 }
 
 // SendSceneReport sends a scene report. Returns true if a report was sent.
