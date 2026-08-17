@@ -153,6 +153,7 @@ func TestHandleCmdAuthLogin_FHXErrorsField(t *testing.T) {
 		{name: "still in progress", state: lifecycle.AuthStateInProgress},
 		{name: "rejected", state: lifecycle.AuthStateNotAuthenticated, want: "failed to login"},
 		{name: "errored", state: lifecycle.AuthStateError, want: "failed to login"},
+		{name: "session lost", state: lifecycle.AuthStateLost, want: "failed to login"},
 		{
 			name:     "login returned an error",
 			state:    lifecycle.AuthStateInProgress,
