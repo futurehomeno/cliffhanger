@@ -43,8 +43,13 @@ func (b *Bus[T]) Unsubscribe(subID string) {
 
 // Publish delivers a value to every matching subscriber without blocking. A subscriber whose
 // buffer is full has the value dropped and is reported to dropped, so that the caller can log it
-// in its own terms.
+// in its own terms. A nil dropped is allowed and drops silently: it would otherwise only panic
+// once a subscriber actually fell behind, which is exactly when it must not.
 func (b *Bus[T]) Publish(value T, dropped func(subID string)) {
+	if dropped == nil {
+		dropped = func(string) {}
+	}
+
 	b.lock.RLock()
 	defer b.lock.RUnlock()
 
