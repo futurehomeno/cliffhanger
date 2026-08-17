@@ -33,7 +33,6 @@ type (
 		storage                   *Storage
 		energyRecalculationPeriod time.Duration
 		garbageCleaningPeriod     time.Duration
-		orphanedSince             map[string]time.Time
 	}
 )
 
@@ -42,7 +41,6 @@ func NewManager(db database.Database, recalculationPeriod, garbageCleaningPeriod
 	return &manager{
 		lock:                      sync.RWMutex{},
 		virtualServices:           make(map[string]adapter.Service),
-		orphanedSince:             make(map[string]time.Time),
 		storage:                   NewStorage(db),
 		energyRecalculationPeriod: recalculationPeriod,
 		garbageCleaningPeriod:     garbageCleaningPeriod,
@@ -329,8 +327,21 @@ func (m *manager) cleanOrphanedDevices(liveTopics map[string]struct{}) error {
 	var errs []error
 
 	for _, topic := range addresses {
+		device, err := m.device(topic)
+		if err != nil {
+			errs = append(errs, err)
+
+			continue
+		}
+
 		if _, live := liveTopics[topic]; live {
-			delete(m.orphanedSince, topic)
+			if device.OrphanedSince != nil {
+				device.OrphanedSince = nil
+
+				if err := m.storage.SetDevice(topic, device); err != nil {
+					errs = append(errs, err)
+				}
+			}
 
 			continue
 		}
@@ -338,15 +349,30 @@ func (m *manager) cleanOrphanedDevices(liveTopics map[string]struct{}) error {
 		// The grace period runs from when the entry was first seen without a service, not from
 		// LastTimeUpdated: that one never advances while a device is inactive, so a meter offline
 		// for a week would be deleted by the first transient absence - a thing being rebuilt, or a
-		// ghost left by a failed one.
-		since, seen := m.orphanedSince[topic]
-		if !seen {
-			m.orphanedSince[topic] = time.Now()
+		// ghost left by a failed one. It is stored rather than kept in memory because restarts more
+		// frequent than the grace period would otherwise postpone collection forever.
+		if device.OrphanedSince == nil {
+			now := time.Now()
+			device.OrphanedSince = &now
+
+			if err := m.storage.SetDevice(topic, device); err != nil {
+				errs = append(errs, err)
+			}
 
 			continue
 		}
 
-		if time.Since(since) <= m.garbageCleaningPeriod {
+		if time.Since(*device.OrphanedSince) <= m.garbageCleaningPeriod {
+			continue
+		}
+
+		// liveTopics is snapshotted by the caller before this lock is taken: reading the service
+		// registry here would invert the adapter-then-manager lock order that thing factories
+		// establish by calling RegisterThing while the adapter lock is held, and deadlock.
+		// virtualServices is guarded by this lock and only ever grows, so it vetoes deleting a topic
+		// this process has registered - a row a stale snapshot missed is kept and collected after
+		// the next restart instead of being destroyed mid-registration.
+		if m.virtualServices[topic] != nil {
 			continue
 		}
 
@@ -354,11 +380,7 @@ func (m *manager) cleanOrphanedDevices(liveTopics map[string]struct{}) error {
 		// for good.
 		if err := m.storage.DeleteDevice(topic); err != nil {
 			errs = append(errs, fmt.Errorf("manager: failed to delete device by address %s: %w", topic, err))
-
-			continue
 		}
-
-		delete(m.orphanedSince, topic)
 	}
 
 	return errors.Join(errs...)

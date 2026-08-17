@@ -22,6 +22,9 @@ type (
 		LastTimeUpdated   time.Time          `json:"lastTimeUpdated"`
 		Unit              string             `json:"unit"`
 		Active            bool               `json:"active"`
+		// OrphanedSince is when the garbage collector first saw this entry without a live virtual
+		// meter service. Stored so the grace period keeps ageing across restarts.
+		OrphanedSince *time.Time `json:"orphanedSince,omitempty"`
 	}
 
 	Storage struct {

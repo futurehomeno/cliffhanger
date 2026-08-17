@@ -31,6 +31,15 @@ var (
 			},
 		})
 
+	meterElecService = numericmeter.NewService(
+		nil,
+		&numericmeter.Config{
+			Specification: &fimptype.Service{
+				Name:    numericmeter.MeterElec,
+				Address: addr,
+			},
+		})
+
 	outLvlSwitchServiceFullAddr = outlvlswitch.NewService(
 		nil,
 		&outlvlswitch.Config{
@@ -93,7 +102,7 @@ func TestVirtualMeterManager_Add(t *testing.T) { //nolint:paralleltest
 			existingDevice:    &Device{Modes: map[string]float64{"on": 123}},
 			mockedThing: mockedadapter.NewThing(t).
 				WithSendInclusionReport(true, true, true, nil).
-				WithServices(numericmeter.MeterElec, true, []adapter.Service{outLvlSwitchService}),
+				WithServices(numericmeter.MeterElec, true, []adapter.Service{meterElecService}),
 			teardown:    adapterhelper.TearDownAdapter(workdir)[0],
 			expectError: false,
 		},
@@ -461,53 +470,66 @@ func TestManager_CleanOrphanedDevices(t *testing.T) { //nolint:paralleltest
 	const gracePeriod = time.Hour
 
 	stale := time.Now().Add(-2 * gracePeriod)
+	beyondGrace := time.Now().Add(-2 * gracePeriod)
+	withinGrace := time.Now().Add(-gracePeriod / 2)
 
 	cases := []struct {
-		name string
-		// orphanedFor is how long the entry has already been seen without a live service when the
-		// pass under test runs. The grace period measures that, not the device timestamp.
-		orphanedFor  time.Duration
-		device       *Device
-		live         bool
+		name   string
+		device *Device
+		live   bool
+		// registered mirrors a topic this process has registered, which vetoes deletion because
+		// liveTopics is snapshotted before the manager lock is taken.
+		registered   bool
 		expectDelete bool
+		expectStamp  bool
 	}{
 		{
 			// The regression this whole task guards: nothing refreshes LastTimeUpdated while a
 			// device is inactive, so a configured meter on an offline thing looks arbitrarily stale.
-			name:         "should keep a stale configured device whose service is still live",
-			device:       &Device{Modes: map[string]float64{"on": 123}, AccumulatedEnergy: 42, LastTimeUpdated: stale},
-			live:         true,
-			expectDelete: false,
+			name:   "should keep a stale configured device whose service is still live",
+			device: &Device{Modes: map[string]float64{"on": 123}, AccumulatedEnergy: 42, LastTimeUpdated: stale},
+			live:   true,
 		},
 		{
 			// registerVirtualServices seeds these and never refreshes them; deleting one makes
 			// every later cmd.meter.add on that device fail until the adapter restarts.
-			name:         "should keep a stale unconfigured placeholder whose service is still live",
-			device:       &Device{Modes: nil, LastTimeUpdated: stale},
-			live:         true,
-			expectDelete: false,
+			name:   "should keep a stale unconfigured placeholder whose service is still live",
+			device: &Device{Modes: nil, LastTimeUpdated: stale},
+			live:   true,
 		},
 		{
-			name:         "should delete a device orphaned for longer than the grace period",
-			orphanedFor:  2 * gracePeriod,
-			device:       &Device{Modes: map[string]float64{"on": 123}, LastTimeUpdated: stale},
-			live:         false,
+			// Without clearing, a device that returns and is orphaned again years later would be
+			// deleted by the first pass that notices, with no grace period at all.
+			name:   "should clear a persisted orphan stamp when the service is live again",
+			device: &Device{Modes: map[string]float64{"on": 123}, LastTimeUpdated: stale, OrphanedSince: &beyondGrace},
+			live:   true,
+		},
+		{
+			// The manager is built fresh here, so a stamp that only lived in memory would be lost:
+			// this is the restart case, and the stored stamp is what still ages across it.
+			name:         "should delete a device orphaned since before the last restart",
+			device:       &Device{Modes: map[string]float64{"on": 123}, LastTimeUpdated: stale, OrphanedSince: &beyondGrace},
 			expectDelete: true,
 		},
 		{
-			name:         "should keep an orphaned device within the grace period",
-			orphanedFor:  gracePeriod / 2,
-			device:       &Device{Modes: map[string]float64{"on": 123}, LastTimeUpdated: stale},
-			live:         false,
-			expectDelete: false,
+			name:        "should keep an orphaned device within the grace period",
+			device:      &Device{Modes: map[string]float64{"on": 123}, LastTimeUpdated: stale, OrphanedSince: &withinGrace},
+			expectStamp: true,
 		},
 		{
 			// A stale device seen orphaned for the first time only starts the grace period; the
 			// pass that first notices it must never be the one that deletes it.
-			name:         "should keep a device seen orphaned for the first time",
-			device:       &Device{Modes: map[string]float64{"on": 123}, LastTimeUpdated: stale},
-			live:         false,
-			expectDelete: false,
+			name:        "should stamp but keep a device seen orphaned for the first time",
+			device:      &Device{Modes: map[string]float64{"on": 123}, LastTimeUpdated: stale},
+			expectStamp: true,
+		},
+		{
+			// A thing being registered right now is absent from the snapshot taken before the lock;
+			// deleting its row here would break every later cmd.meter.add on it.
+			name:        "should keep an orphaned device this process still has registered",
+			device:      &Device{Modes: map[string]float64{"on": 123}, LastTimeUpdated: stale, OrphanedSince: &beyondGrace},
+			registered:  true,
+			expectStamp: true,
 		},
 	}
 
@@ -527,8 +549,8 @@ func TestManager_CleanOrphanedDevices(t *testing.T) { //nolint:paralleltest
 				liveTopics[addr] = struct{}{}
 			}
 
-			if c.orphanedFor > 0 {
-				m.orphanedSince[addr] = time.Now().Add(-c.orphanedFor)
+			if c.registered {
+				m.virtualServices[addr] = meterElecService
 			}
 
 			assert.NoError(t, m.cleanOrphanedDevices(liveTopics), "should clean without error")
@@ -538,10 +560,18 @@ func TestManager_CleanOrphanedDevices(t *testing.T) { //nolint:paralleltest
 
 			if c.expectDelete {
 				assert.Nil(t, device, "device should have been deleted")
+
+				return
+			}
+
+			assert.NotNil(t, device, "device should have been kept")
+			assert.Equal(t, c.device.Modes, device.Modes, "modes should survive")
+			assert.Equal(t, c.device.AccumulatedEnergy, device.AccumulatedEnergy, "accumulated energy should survive")
+
+			if c.expectStamp {
+				assert.NotNil(t, device.OrphanedSince, "orphan stamp should be kept")
 			} else {
-				assert.NotNil(t, device, "device should have been kept")
-				assert.Equal(t, c.device.Modes, device.Modes, "modes should survive")
-				assert.Equal(t, c.device.AccumulatedEnergy, device.AccumulatedEnergy, "accumulated energy should survive")
+				assert.Nil(t, device.OrphanedSince, "orphan stamp should be cleared")
 			}
 		})
 	}
