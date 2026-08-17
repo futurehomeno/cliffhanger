@@ -112,6 +112,30 @@ func TestThingState_SetInclusionChecksumSkipsUnchangedWrites(t *testing.T) {
 	assert.Equal(t, saves+1, failing.saves)
 }
 
+// TestThingState_InclusionChecksumRetriesAfterFailedSave pins that a failed write leaves the
+// checksum unchanged in memory. The skip above is keyed on that value, so keeping the new one
+// would turn every retry of the same checksum into a no-op and the disk would never catch up.
+func TestThingState_InclusionChecksumRetriesAfterFailedSave(t *testing.T) {
+	t.Parallel()
+
+	failing := &failingSaveStorage{Storage: storage.NewState(&adapterStateModel{}, t.TempDir(), "adapter.json")}
+	s := &state{Storage: failing}
+
+	ts, err := s.add(&thingStateModel{ID: "1"})
+	require.NoError(t, err)
+
+	failing.failSave = true
+	require.Error(t, ts.SetInclusionChecksum(42))
+	assert.Zero(t, ts.InclusionChecksum(), "a failed write must not keep the new checksum in memory")
+
+	failing.failSave = false
+	saves := failing.saves
+
+	require.NoError(t, ts.SetInclusionChecksum(42), "the retry must persist the same checksum")
+	assert.Equal(t, saves+1, failing.saves)
+	assert.Equal(t, uint32(42), ts.InclusionChecksum())
+}
+
 // TestState_RemoveRestoresEntryOnSaveFailure pins that a failed persist of a removal restores the
 // in-memory record. The disk still holds it, so dropping it from memory only would let the next
 // sync skip the retry and leave the thing to resurrect after a restart.

@@ -274,10 +274,16 @@ func (s *thingState) SetInclusionChecksum(checksum uint32) error {
 		return nil
 	}
 
+	// Restored on a failed write, mirroring add and remove: the skip above is keyed on the
+	// in-memory value, so leaving it set would make every retry of the same checksum a no-op and
+	// the disk would never catch up until the report changed again.
+	previous := s.model.InclusionChecksum
 	s.model.InclusionChecksum = checksum
 
 	err := s.state.Save()
 	if err != nil {
+		s.model.InclusionChecksum = previous
+
 		return fmt.Errorf("thing state: failed to persist inclusion checksum of a thing with ID %s: %w", s.model.ID, err)
 	}
 
