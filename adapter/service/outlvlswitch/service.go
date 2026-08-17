@@ -174,9 +174,10 @@ func (s *service) SetLevel(value int, duration *time.Duration) error {
 		return fmt.Errorf("%s: %w", s.Name(), err)
 	}
 
-	// Clamped rather than rejected: adapters declare a range and clamp into it themselves, so
-	// rejecting turned values that used to reach the device - 0 for off, 255 for full - into an
-	// error and no device action at all.
+	// Clamped rather than rejected: a controller reached by an out of range level bounds it itself
+	// (edge-hue clamps into [0, max]), so rejecting would turn a command that used to change the
+	// device into an error and no action at all. Switching off is cmd.binary.set, not a level of 0,
+	// so nothing depends on a below-range level reaching the controller unchanged.
 	value = min(max(value, lvlMin), lvlMax)
 
 	err = s.controller.SetLevelSwitchLevel(value, *duration)
@@ -272,7 +273,7 @@ func (s *service) validateStartLevelOption(startLvl *int) error {
 
 	lvlMin, lvlMax, err := s.levelRange()
 	if err != nil {
-		return err
+		return fmt.Errorf("%s: %w", s.Name(), err)
 	}
 
 	// Rejected rather than clamped, unlike cmd.lvl.set: an out of range start_lvl has always been
