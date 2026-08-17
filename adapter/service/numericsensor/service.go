@@ -2,7 +2,6 @@ package numericsensor
 
 import (
 	"fmt"
-	"strings"
 	"sync"
 	"time"
 
@@ -11,6 +10,7 @@ import (
 
 	"github.com/futurehomeno/cliffhanger/adapter"
 	"github.com/futurehomeno/cliffhanger/adapter/cache"
+	"github.com/futurehomeno/cliffhanger/utils"
 )
 
 // Constants defining important properties specific for the service.
@@ -140,11 +140,5 @@ func (s *service) SupportedUnits() []string {
 
 // normalizeUnit checks if unit is supported and returns its normalized form.
 func (s *service) normalizeUnit(unit string) (string, bool) {
-	for _, u := range s.SupportedUnits() {
-		if strings.EqualFold(unit, u) {
-			return u, true
-		}
-	}
-
-	return "", false
+	return utils.Normalize(unit, s.SupportedUnits())
 }
