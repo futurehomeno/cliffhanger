@@ -2,6 +2,7 @@ package ota
 
 import (
 	"fmt"
+	"slices"
 )
 
 // Status represents an OTA update status.
@@ -15,13 +16,7 @@ const (
 )
 
 func (s Status) isValid() bool {
-	for _, status := range allowedStatuses() {
-		if s == status {
-			return true
-		}
-	}
-
-	return false
+	return slices.Contains(allowedStatuses(), s)
 }
 
 func allowedStatuses() []Status {
@@ -105,13 +100,7 @@ func (e Error) String() string {
 }
 
 func (e Error) isValid() bool {
-	for _, err := range allowedErrors() {
-		if e == err {
-			return true
-		}
-	}
-
-	return false
+	return slices.Contains(allowedErrors(), e)
 }
 
 const (
