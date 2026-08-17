@@ -3,6 +3,7 @@ package observer
 import (
 	"fmt"
 	"sync"
+	"sync/atomic"
 	"time"
 
 	"github.com/futurehomeno/cliffhanger/event"
@@ -70,6 +71,10 @@ type observer struct {
 	// updates counts notifications applied to set, so a refresh can tell whether any landed while
 	// it was fetching outside the lock.
 	updates uint64
+	// attempts counts completed fetches, so a caller can tell whether the one it waited for is
+	// newer than its own request. lastErr, guarded by refreshLock, holds that fetch's failure.
+	attempts atomic.Uint64
+	lastErr  error
 }
 
 func (o *observer) Update(notification *prime.Notify) error {
@@ -239,6 +244,8 @@ func (o *observer) Refresh(force bool) error {
 		return nil
 	}
 
+	attempts := o.attempts.Load()
+
 	o.refreshLock.Lock()
 	defer o.refreshLock.Unlock()
 
@@ -248,6 +255,13 @@ func (o *observer) Refresh(force bool) error {
 		return nil
 	}
 
+	// The fetch waited for was requested after this call and still failed, so retrying it now would
+	// only ask an unreachable vinculum again, once per waiter. Callers arriving later are not served
+	// this error - they take their own attempt.
+	if !force && o.lastErr != nil && o.attempts.Load() > attempts {
+		return o.lastErr
+	}
+
 	o.lock.RLock()
 	updates := o.updates
 	o.lock.RUnlock()
@@ -255,9 +269,16 @@ func (o *observer) Refresh(force bool) error {
 	// Fetched outside the lock: it is a blocking request to vinculum, and holding the lock across
 	// it stalled every other reader and the entire notification stream for its duration.
 	componentSet, err := o.client.GetComponents(o.components...)
+
+	o.attempts.Add(1)
+
 	if err != nil {
-		return fmt.Errorf("observer: error while refreshing components: %w", err)
+		o.lastErr = fmt.Errorf("observer: error while refreshing components: %w", err)
+
+		return o.lastErr
 	}
+
+	o.lastErr = nil
 
 	o.lock.Lock()
 
