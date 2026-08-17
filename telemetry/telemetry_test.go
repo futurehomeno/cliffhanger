@@ -1350,7 +1350,13 @@ func TestNew_DoesNotStartPolling(t *testing.T) { //nolint:paralleltest
 	msgCh := make(fimpgo.MessageCh, 8)
 
 	mqtt.RegisterChannel("tel-no-autostart", msgCh)
-	t.Cleanup(func() { mqtt.UnregisterChannel("tel-no-autostart") })
+	t.Cleanup(func() {
+		// UnregisterChannel only drops the registration, it never closes the channel, so the
+		// ranging goroutine below would block on it for the rest of the suite. Safe to close
+		// once unregistered: fimpgo holds its registration lock across the send.
+		mqtt.UnregisterChannel("tel-no-autostart")
+		close(msgCh)
+	})
 	require.NoError(t, mqtt.Subscribe(config_poll.ConfigRequestTopic))
 
 	go func() {
