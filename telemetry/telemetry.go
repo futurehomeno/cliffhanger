@@ -535,6 +535,11 @@ func (ptr *telemetryT) resumeValidityWindow() error {
 	ptr.lock.Lock()
 	defer ptr.lock.Unlock()
 
+	// Start() resumes the window as well as the constructor, so without this the second call would
+	// arm a timer over the top of the first and leave it running until it expired. Stop-then-start,
+	// like SetValidity and Enable.
+	ptr.stopTimerLocked()
+
 	next := ptr.config()
 	if !next.Enabled {
 		return nil
