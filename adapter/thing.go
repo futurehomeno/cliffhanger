@@ -14,6 +14,9 @@ import (
 	"github.com/futurehomeno/cliffhanger/adapter/cache"
 )
 
+// serviceAddressPrefix is what every service specification address starts with.
+const serviceAddressPrefix = "/rt:dev/rn:"
+
 type ThingRegistry interface {
 	Things() []Thing
 	ThingByAddress(address string) Thing
@@ -29,6 +32,10 @@ type ThingFactory interface {
 	// Thing - e.g. registering the thing with an external manager, or mutating storage keyed
 	// by its topic - since that side effect is not undone when the prospective build is
 	// thrown away.
+	//
+	// Create is always called with the adapter's write lock held, on a non-reentrant mutex.
+	// The adapter is passed so that it can be handed to the thing being built; calling back into
+	// it - ThingByAddress, Things, ServiceByTopic and so on - deadlocks the whole adapter.
 	Create(adapter Adapter, publisher Publisher, thingState ThingState) (Thing, error)
 }
 
@@ -160,13 +167,19 @@ func (t *thing) ServiceByTopic(topic string) Service {
 	t.lock.RLock()
 	defer t.lock.RUnlock()
 
-	for serviceTopic, s := range t.services {
-		if strings.HasSuffix(topic, serviceTopic) {
-			return s
-		}
+	return t.services[serviceTopicKey(topic)]
+}
+
+// serviceTopicKey reduces a topic to the service address the services index is keyed by. Service
+// addresses always start with /rt:dev/rn:, while an inbound message topic carries a prefix in front
+// of it, so a lookup only needs to cut everything before that marker. A topic without the marker is
+// returned as it is: it can only miss, which is what scanning for a matching suffix did too.
+func serviceTopicKey(topic string) string {
+	if i := strings.Index(topic, serviceAddressPrefix); i >= 0 {
+		return topic[i:]
 	}
 
-	return nil
+	return topic
 }
 
 func (t *thing) InclusionReport() *fimptype.ThingInclusionReport {
