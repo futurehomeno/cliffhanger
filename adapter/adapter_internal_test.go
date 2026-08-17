@@ -3,6 +3,7 @@ package adapter
 import (
 	"encoding/json"
 	"errors"
+	"strconv"
 	"sync"
 	"testing"
 
@@ -262,4 +263,173 @@ func TestCreateThing_FailedStateWriteKeepsTheGhostRecord(t *testing.T) {
 	// that the record write is the step that fails.
 	require.Error(t, a.createThing(&ThingSeed{ID: "B", CustomAddress: "99"}))
 	assert.Equal(t, "42", s.modelByID("B").Address, "the ghost must keep its address when the state write fails")
+}
+
+// countingFactory builds things the way groupsFactory does and records how many it was asked for.
+type countingFactory struct{ created int }
+
+func (f *countingFactory) Create(a Adapter, publisher Publisher, ts ThingState) (Thing, error) {
+	f.created++
+
+	return groupsFactory{}.Create(a, publisher, ts)
+}
+
+// TestInitializeThings_KeepsAlreadyRegisteredThings pins that initialization does not rebuild a
+// thing that is already live. The router starts before the initialization task, so an inbound
+// command can create one in between; rebuilding it replaced a connected instance with a duplicate,
+// announced it a second time and left the original's connector open with nothing referencing it.
+func TestInitializeThings_KeepsAlreadyRegisteredThings(t *testing.T) {
+	t.Parallel()
+
+	s, err := NewState(t.TempDir())
+	require.NoError(t, err)
+
+	ts, err := s.add(&thingStateModel{ID: "B", Address: "2"})
+	require.NoError(t, err)
+
+	connector := &recordingConnector{}
+	live := NewThing(stubPublisher{}, ts, &ThingConfig{
+		InclusionReport: &fimptype.ThingInclusionReport{Address: "2"},
+		Connector:       connector,
+	})
+
+	factory := &countingFactory{}
+	a := &adapter{
+		publisher: stubPublisher{},
+		state:     s,
+		factory:   factory,
+		things:    map[string]Thing{"2": live},
+		lock:      &sync.RWMutex{},
+	}
+
+	require.NoError(t, a.InitializeThings())
+
+	assert.Equal(t, 0, factory.created, "a live thing must not be rebuilt")
+	assert.Same(t, live, a.things["2"], "the live instance must be kept")
+	assert.False(t, connector.wasDisconnected())
+}
+
+// failOnNthFactory builds things the way groupsFactory does but fails the nth Create, so a
+// mid-loop failure can be exercised without depending on map iteration order.
+type failOnNthFactory struct {
+	n       int
+	created int
+}
+
+func (f *failOnNthFactory) Create(a Adapter, publisher Publisher, ts ThingState) (Thing, error) {
+	f.created++
+
+	if f.created == f.n {
+		return nil, errors.New("factory refused")
+	}
+
+	return groupsFactory{}.Create(a, publisher, ts)
+}
+
+// TestInitializeThings_RegistersIncrementally pins that a failure partway through leaves the
+// things built before it registered. Collecting them all first meant one bad record dropped every
+// thing, while their inclusion reports had already gone out. The factory fails on its second call
+// rather than on a particular record, because state.all() ranges over a map and has no order.
+func TestInitializeThings_RegistersIncrementally(t *testing.T) {
+	t.Parallel()
+
+	s, err := NewState(t.TempDir())
+	require.NoError(t, err)
+
+	for i, id := range []string{"A", "B", "C"} {
+		_, err = s.add(&thingStateModel{ID: id, Address: strconv.Itoa(i + 1)})
+		require.NoError(t, err)
+	}
+
+	a := &adapter{
+		publisher: stubPublisher{},
+		state:     s,
+		factory:   &failOnNthFactory{n: 2},
+		things:    map[string]Thing{},
+		lock:      &sync.RWMutex{},
+	}
+
+	require.Error(t, a.InitializeThings(), "the refused build must surface")
+	assert.Len(t, a.things, 1, "the thing built before the failure must stay registered")
+	assert.False(t, a.initialized, "a failed initialization must not mark the adapter initialized")
+}
+
+// failingReportThing fails its inclusion report a given number of times before succeeding.
+type failingReportThing struct {
+	Thing
+
+	failures int
+	sent     int
+}
+
+func (f *failingReportThing) SendInclusionReport(bool) (bool, error) {
+	f.sent++
+
+	if f.sent <= f.failures {
+		return false, errors.New("publish refused")
+	}
+
+	return true, nil
+}
+
+// reportFactory hands out a thing whose inclusion report fails the first time.
+type reportFactory struct{ thing *failingReportThing }
+
+func (f *reportFactory) Create(_ Adapter, _ Publisher, _ ThingState) (Thing, error) {
+	return f.thing, nil
+}
+
+// TestInitializeThings_AnnounceFailureAllowsRetry pins that a thing whose inclusion report failed
+// is not registered. Registering first made the live check skip it on every later attempt, so the
+// hub never heard about it while the adapter counted it as done.
+func TestInitializeThings_AnnounceFailureAllowsRetry(t *testing.T) {
+	t.Parallel()
+
+	s, err := NewState(t.TempDir())
+	require.NoError(t, err)
+
+	ts, err := s.add(&thingStateModel{ID: "A", Address: "1"})
+	require.NoError(t, err)
+
+	thing := &failingReportThing{
+		Thing: NewThing(stubPublisher{}, ts, &ThingConfig{
+			InclusionReport: &fimptype.ThingInclusionReport{Address: "1"},
+			Connector:       &recordingConnector{},
+		}),
+		failures: 1,
+	}
+
+	a := &adapter{
+		publisher: stubPublisher{},
+		state:     s,
+		factory:   &reportFactory{thing: thing},
+		things:    map[string]Thing{},
+		lock:      &sync.RWMutex{},
+	}
+
+	require.Error(t, a.InitializeThings(), "the failed report must surface")
+	assert.Empty(t, a.things, "a thing that was never announced must not be registered")
+
+	require.NoError(t, a.InitializeThings(), "the retry must announce the thing again")
+	assert.NotNil(t, a.things["1"], "the retry must register it once announced")
+	assert.Equal(t, 2, thing.sent, "the report must actually be retried")
+}
+
+// TestThingServiceByTopic_ResolvesInboundTopics pins that the service index lookup matches both a
+// bare service address and a full inbound message topic, and misses anything else.
+func TestThingServiceByTopic_ResolvesInboundTopics(t *testing.T) {
+	t.Parallel()
+
+	address := "/rt:dev/rn:test_adapter/ad:1/sv:out_lvl_switch/ad:2"
+
+	svc := NewService(stubPublisher{}, &fimptype.Service{Name: "out_lvl_switch", Address: address})
+
+	thing := NewThing(stubPublisher{}, nil, &ThingConfig{
+		InclusionReport: &fimptype.ThingInclusionReport{Address: "1"},
+	}, svc)
+
+	assert.Same(t, svc, thing.ServiceByTopic(address))
+	assert.Same(t, svc, thing.ServiceByTopic("pt:j1/mt:cmd"+address))
+	assert.Nil(t, thing.ServiceByTopic("pt:j1/mt:cmd/rt:dev/rn:test_adapter/ad:1/sv:out_lvl_switch/ad:3"))
+	assert.Nil(t, thing.ServiceByTopic("rt:dev/rn:test_adapter/ad:1/sv:out_lvl_switch/ad:2"))
 }
