@@ -169,6 +169,10 @@ func (s *service) SetLevel(value int, duration *time.Duration) error {
 		duration = utils.Ptr(time.Duration(0))
 	}
 
+	if err := s.validateLevel(value); err != nil {
+		return fmt.Errorf("%s: %w", s.Name(), err)
+	}
+
 	err := s.controller.SetLevelSwitchLevel(value, *duration)
 	if err != nil {
 		return fmt.Errorf("%s: failed to set level: %w", s.Name(), err)
@@ -260,6 +264,17 @@ func (s *service) validateStartLevelOption(startLvl *int) error {
 		return nil
 	}
 
+	if err := s.validateLevel(*startLvl); err != nil {
+		return fmt.Errorf("invalid startLvl received: %w", err)
+	}
+
+	return nil
+}
+
+// validateLevel checks a level against the range the service declares. Applied to cmd.lvl.set as
+// well as to the start_lvl option: without it an out of range level was forwarded straight to the
+// third party API, while the very same value was rejected when sent as a transition start.
+func (s *service) validateLevel(level int) error {
 	lvlMax, ok := s.Specification().PropertyInteger(PropertyMaxLvl)
 	if !ok {
 		return fmt.Errorf("invalid service specification property: %s should be int", PropertyMaxLvl)
@@ -270,8 +285,8 @@ func (s *service) validateStartLevelOption(startLvl *int) error {
 		return fmt.Errorf("invalid service specification property: %s should be int", PropertyMinLvl)
 	}
 
-	if *startLvl < lvlMin || lvlMax < *startLvl {
-		return fmt.Errorf("invalid startLvl received: %d. Should be in range: %d - %d", startLvl, lvlMin, lvlMax)
+	if level < lvlMin || lvlMax < level {
+		return fmt.Errorf("level %d is out of the supported range: %d - %d", level, lvlMin, lvlMax)
 	}
 
 	return nil

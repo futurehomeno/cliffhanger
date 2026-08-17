@@ -449,22 +449,14 @@ func TestRouting_FormatGetSet_RoundTrips(t *testing.T) { //nolint:paralleltest
 }
 
 func TestRouting_FileGetSet_RoundTrips(t *testing.T) { //nolint:paralleltest
-	// SetFile rejects anything that isn't a plain file name, so chdir into
-	// a real directory and pass bare names. Using testdata/ keeps the
-	// generated log files inspectable on failure; cleanup removes them
-	// after the test.
-	require.NoError(t, os.MkdirAll("testdata", 0o750))
-	t.Chdir("testdata")
-
-	startFile := "start.log"
+	// SetFile rejects anything that isn't a plain file name and resolves it against the directory
+	// of the current log file, so the starting path is what decides where both files land.
+	dir := t.TempDir()
+	startFile := filepath.Join(dir, "start.log")
 	newFile := "rotated.log"
 
 	savedOut := logrus.StandardLogger().Out
-	t.Cleanup(func() {
-		logrus.SetOutput(savedOut)
-		_ = os.Remove(startFile)
-		_ = os.Remove(newFile)
-	})
+	t.Cleanup(func() { logrus.SetOutput(savedOut) })
 
 	s := &suite.Suite{
 		Cases: []*suite.Case{
@@ -644,15 +636,9 @@ func TestSetLevel_InfoOrHigher_ClearsRevert(t *testing.T) { //nolint:paralleltes
 // command goes through *DefaultStore.Save(), so changes survive a restart.
 // The existing routing roundtrip tests only cover in-memory state.
 func TestRouting_SetLog_PersistsToStore(t *testing.T) { //nolint:paralleltest
-	require.NoError(t, os.MkdirAll("testdata", 0o750))
-	t.Chdir("testdata")
+	dir := t.TempDir()
 
-	t.Cleanup(func() {
-		_ = os.Remove("app.log")
-		_ = os.Remove("rotated.log")
-	})
-
-	cfg := &config.Default{LogLevel: "info", LogFormat: "text", LogFile: "app.log"}
+	cfg := &config.Default{LogLevel: "info", LogFormat: "text", LogFile: filepath.Join(dir, "app.log")}
 
 	var saves atomic.Int32
 
@@ -765,6 +751,10 @@ func TestRouting_SetLog_PersistsToStore(t *testing.T) { //nolint:paralleltest
 	}
 
 	s.Run(t)
+
+	assert.Equal(t, filepath.Join(dir, "rotated.log"), cfg.LogFile,
+		"set_file must keep the log in its directory, not resolve it against the working directory")
+	assert.FileExists(t, filepath.Join(dir, "rotated.log"))
 }
 
 func TestInitializeLogger_ConcurrentSettersAreRaceFree(t *testing.T) { //nolint:paralleltest
