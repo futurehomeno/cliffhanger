@@ -10,6 +10,10 @@ import (
 )
 
 type Manager interface {
+	// Subscribe registers a new subscription under the given ID and returns its channel.
+	// Subscribers sharing an ID each get their own channel, buffer and filters rather than
+	// silently inheriting the first one's - but Unsubscribe closes every channel registered under
+	// that ID, so an ID is only safe to share between subscribers with the same lifetime.
 	Subscribe(subID string, buffer int, filters ...Filter) chan Event
 	Unsubscribe(subID string)
 	Publish(event Event)
@@ -19,14 +23,14 @@ type Manager interface {
 func NewManager() Manager {
 	return &manager{
 		lock:          &sync.RWMutex{},
-		subscriptions: make(map[string]*subscription),
+		subscriptions: make(map[string][]*subscription),
 		waitBuffer:    10,
 	}
 }
 
 type manager struct {
 	lock          *sync.RWMutex
-	subscriptions map[string]*subscription
+	subscriptions map[string][]*subscription
 	waitBuffer    int
 }
 
@@ -34,17 +38,19 @@ func (m *manager) Publish(event Event) {
 	m.lock.RLock()
 	defer m.lock.RUnlock()
 
-	for _, s := range m.subscriptions {
-		// Filter event out if it doesn't match the filter.
-		if !s.filter(event) {
-			continue
-		}
+	for _, subscriptions := range m.subscriptions {
+		for _, s := range subscriptions {
+			// Filter event out if it doesn't match the filter.
+			if !s.filter(event) {
+				continue
+			}
 
-		select {
-		case s.channel <- event:
-			continue
-		default:
-			log.Warnf("[cliff] Event subscriber ID=%s busy, event domain=%s class=%s dropped", s.id, event.Domain(), event.Class())
+			select {
+			case s.channel <- event:
+				continue
+			default:
+				log.Warnf("[cliff] Event subscriber ID=%s busy, event domain=%s class=%s dropped", s.id, event.Domain(), event.Class())
+			}
 		}
 	}
 }
@@ -53,18 +59,13 @@ func (m *manager) Subscribe(subID string, buffer int, filters ...Filter) chan Ev
 	m.lock.Lock()
 	defer m.lock.Unlock()
 
-	// Returning already existing subscription channel if it exists.
-	if _, ok := m.subscriptions[subID]; ok {
-		return m.subscriptions[subID].channel
-	}
-
 	subCh := make(chan Event, buffer)
 
-	m.subscriptions[subID] = &subscription{
+	m.subscriptions[subID] = append(m.subscriptions[subID], &subscription{
 		id:      subID,
 		channel: subCh,
 		filters: filters,
-	}
+	})
 
 	return subCh
 }
@@ -73,11 +74,10 @@ func (m *manager) Unsubscribe(subID string) {
 	m.lock.Lock()
 	defer m.lock.Unlock()
 
-	if _, ok := m.subscriptions[subID]; !ok {
-		return
+	for _, s := range m.subscriptions[subID] {
+		close(s.channel)
 	}
 
-	close(m.subscriptions[subID].channel)
 	delete(m.subscriptions, subID)
 }
 

@@ -23,6 +23,10 @@ import (
 const defaultTelemetryValidity = 30 * 24 * time.Hour
 
 type Telemetry interface {
+	// Start begins polling the cloud for telemetry configuration.
+	Start() error
+	// Stop ends the configuration poll and the validity window timer.
+	Stop() error
 	emit(domain, event string, data map[string]any) error
 	emitOnChange(domain, event string, data map[string]any, interval time.Duration) error
 	emitIfMore(domain, event string, threshold int, reset bool, data map[string]any, interval time.Duration) error
@@ -141,14 +145,7 @@ func New(mqtt *fimpgo.MqttTransport, sourceRn fimptype.ResourceNameT, store *con
 		return nil, err
 	}
 
-	cp := config_poll.New(mqtt, t.sourceRn, t.applyConfigFromCloud)
-	if err := cp.Start(); err != nil {
-		t.stopValidityTimer()
-
-		return nil, err
-	}
-
-	t.pullCfg = cp
+	t.pullCfg = config_poll.New(mqtt, t.sourceRn, t.applyConfigFromCloud)
 
 	return t, nil
 }
@@ -174,12 +171,32 @@ type ifMoreState struct {
 	data  map[string]any
 }
 
-func (ptr *telemetryT) Stop() {
+// Start begins polling the cloud for telemetry configuration. Kept out of the constructor so that
+// the goroutine, timers and MQTT subscription it owns are tied to the application lifecycle rather
+// than to the lifetime of the process.
+func (ptr *telemetryT) Start() error {
+	// Re-armed on every start, not only in the constructor: Stop tears the timer down, so without
+	// this a stop/start cycle in one process left telemetry enabled past its validity window until
+	// a cloud config report happened to re-enable it.
+	if err := ptr.resumeValidityWindow(); err != nil {
+		return err
+	}
+
+	if ptr.pullCfg == nil {
+		return nil
+	}
+
+	return ptr.pullCfg.Start()
+}
+
+func (ptr *telemetryT) Stop() error {
 	if ptr.pullCfg != nil {
 		ptr.pullCfg.Stop()
 	}
 
 	ptr.stopValidityTimer()
+
+	return nil
 }
 
 func (ptr *telemetryT) ServiceName() fimptype.ServiceNameT {
@@ -517,6 +534,11 @@ func (ptr *telemetryT) Suppressed() map[string]types.SuppressedEntry {
 func (ptr *telemetryT) resumeValidityWindow() error {
 	ptr.lock.Lock()
 	defer ptr.lock.Unlock()
+
+	// Start() resumes the window as well as the constructor, so without this the second call would
+	// arm a timer over the top of the first and leave it running until it expired. Stop-then-start,
+	// like SetValidity and Enable.
+	ptr.stopTimerLocked()
 
 	next := ptr.config()
 	if !next.Enabled {

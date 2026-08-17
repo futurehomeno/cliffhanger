@@ -4,6 +4,7 @@ import (
 	"sync"
 	"time"
 
+	"github.com/google/uuid"
 	log "github.com/sirupsen/logrus"
 
 	"github.com/futurehomeno/cliffhanger/config"
@@ -63,7 +64,7 @@ type SystemEventChannel chan SystemEvent
 type Lifecycle struct {
 	lock               *sync.RWMutex
 	systemEventBusLock *sync.RWMutex
-	systemEventBus     map[string]SystemEventChannel
+	systemEventBus     map[string][]SystemEventChannel
 	appHealth          State
 	connectionState    State
 	authState          State
@@ -74,7 +75,7 @@ type Lifecycle struct {
 
 func New(store *config.DefaultStore) *Lifecycle {
 	l := &Lifecycle{
-		systemEventBus:     make(map[string]SystemEventChannel),
+		systemEventBus:     make(map[string][]SystemEventChannel),
 		lock:               &sync.RWMutex{},
 		systemEventBusLock: &sync.RWMutex{},
 		appHealth:          AppHealthStarting,
@@ -205,22 +206,16 @@ func (l *Lifecycle) SetConnState(connectionState State) {
 // then read a consistent bundle, and the trigger cannot be evicted from their buffer by a
 // separate connection event.
 func (l *Lifecycle) SetConnAndAuthState(connectionState, authState State) {
-	l.lock.Lock()
-	defer l.lock.Unlock()
-
-	if connectionState == l.connectionState && authState == l.authState {
-		return
-	}
-
-	l.connectionState = connectionState
-	l.authState = authState
-
-	l.emitStateChangeEvent(StateTypeAuthState, authState, nil)
+	l.setConnAndAuthState(connectionState, authState, nil)
 }
 
 // SetConnAndAuthStateReason is SetConnAndAuthState that attaches a reason to the
 // emitted auth event so the auth-loss watcher can report why the session was lost.
 func (l *Lifecycle) SetConnAndAuthStateReason(connectionState, authState State, reason string) {
+	l.setConnAndAuthState(connectionState, authState, map[string]string{"reason": reason})
+}
+
+func (l *Lifecycle) setConnAndAuthState(connectionState, authState State, params map[string]string) {
 	l.lock.Lock()
 	defer l.lock.Unlock()
 
@@ -231,7 +226,7 @@ func (l *Lifecycle) SetConnAndAuthStateReason(connectionState, authState State, 
 	l.connectionState = connectionState
 	l.authState = authState
 
-	l.emitStateChangeEvent(StateTypeAuthState, authState, map[string]string{"reason": reason})
+	l.emitStateChangeEvent(StateTypeAuthState, authState, params)
 }
 
 // SetAppState sets app health, config, connection and auth state atomically and emits a single
@@ -276,18 +271,17 @@ func (l *Lifecycle) SetAppHealth(appState State, params map[string]string) {
 	l.emitStateChangeEvent(StateTypeAppHealth, appState, params)
 }
 
+// Subscribe registers a new subscription under the given ID and returns its channel. Subscribers
+// sharing an ID each get their own channel rather than one they would steal each other's events
+// from - but Unsubscribe still closes every channel registered under that ID, so an ID is only
+// safe to share between subscribers with the same lifetime.
 func (l *Lifecycle) Subscribe(subID string, bufSize int) SystemEventChannel {
 	l.systemEventBusLock.Lock()
 	defer l.systemEventBusLock.Unlock()
 
-	// Returning already existing subscription channel if it exists.
-	if _, ok := l.systemEventBus[subID]; ok {
-		return l.systemEventBus[subID]
-	}
-
 	msgChan := make(SystemEventChannel, bufSize)
 
-	l.systemEventBus[subID] = msgChan
+	l.systemEventBus[subID] = append(l.systemEventBus[subID], msgChan)
 
 	return msgChan
 }
@@ -296,24 +290,29 @@ func (l *Lifecycle) Unsubscribe(subID string) {
 	l.systemEventBusLock.Lock()
 	defer l.systemEventBusLock.Unlock()
 
-	if _, ok := l.systemEventBus[subID]; !ok {
-		return
+	for _, ch := range l.systemEventBus[subID] {
+		close(ch)
 	}
 
-	close(l.systemEventBus[subID])
 	delete(l.systemEventBus, subID)
 }
 
+// WaitFor blocks until the given state type reaches the target state.
 func (l *Lifecycle) WaitFor(subID string, stateType StateType, targetState State) {
+	// Subscribed before the state is read: the other order misses a transition landing between the
+	// two and then blocks forever waiting for an event that was already delivered to nobody. The ID
+	// is made unique so that concurrent waiters cannot close each other's channel.
+	subID = subID + "-" + uuid.New().String()
+
+	ch := l.Subscribe(subID, 5)
+	defer l.Unsubscribe(subID)
+
 	if l.State(stateType) == targetState {
 		return
 	}
 
-	ch := l.Subscribe(subID, 5)
-
 	for event := range ch {
 		if event.Type == stateType && event.State == targetState {
-			l.Unsubscribe(subID)
 			return
 		}
 	}
@@ -323,11 +322,13 @@ func (l *Lifecycle) emitStateChangeEvent(stateType StateType, currentState State
 	l.systemEventBusLock.RLock()
 	defer l.systemEventBusLock.RUnlock()
 
-	for i, ch := range l.systemEventBus {
-		select {
-		case ch <- SystemEvent{Type: stateType, State: currentState, Params: params}:
-		default:
-			log.Warnf("[cliff] State event channel=%s busy drop event %s/%s", i, stateType, currentState)
+	for i, channels := range l.systemEventBus {
+		for _, ch := range channels {
+			select {
+			case ch <- SystemEvent{Type: stateType, State: currentState, Params: params}:
+			default:
+				log.Warnf("[cliff] State event channel=%s busy drop event %s/%s", i, stateType, currentState)
+			}
 		}
 	}
 }

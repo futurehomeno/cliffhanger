@@ -1,6 +1,7 @@
 package root
 
 import (
+	"errors"
 	"sync"
 	"testing"
 	"time"
@@ -228,4 +229,51 @@ func TestNextAuthArm_Sequences(t *testing.T) {
 	_, armed = nextAuthArm(armed, lifecycle.AuthStateAuthenticated)
 	report, _ := nextAuthArm(armed, lifecycle.AuthStateLost)
 	assert.True(t, report, "a loss after re-authentication reports again")
+}
+
+// stoppableService records whether it was stopped so a rollback can be observed.
+type stoppableService struct {
+	startErr error
+	stopped  bool
+}
+
+func (s *stoppableService) Start() error { return s.startErr }
+
+func (s *stoppableService) Stop() error {
+	s.stopped = true
+
+	return nil
+}
+
+// TestDoStart_RollsBackWhatItStarted pins that a partly failed start unwinds itself. Without it
+// a.running stays false while MQTT, the services and the router keep running, so the Stop() the
+// caller makes next returns immediately and a Reset() wipes the app data from under them.
+func TestDoStart_RollsBackWhatItStarted(t *testing.T) {
+	t.Parallel()
+
+	mqtt := suite.DefaultMQTT("root_doStart_rollback", "", "", "")
+
+	started := &stoppableService{}
+	failing := &stoppableService{startErr: errors.New("boom")}
+
+	lc := lifecycle.New(nil)
+
+	a := &app{
+		lock:               &sync.Mutex{},
+		mqtt:               mqtt,
+		lifecycle:          lc,
+		resourceName:       "test_app",
+		messageRouter:      noopRouter{},
+		taskManager:        task.NewManager(),
+		services:           []Service{started, failing},
+		topicSubscriptions: []string{"pt:j1/mt:evt/rt:app/rn:test_app/ad:1"},
+	}
+
+	require.Error(t, a.Start())
+
+	assert.True(t, started.stopped, "a service started before the failure must be stopped again")
+	assert.False(t, failing.stopped, "a service that never started must not be stopped")
+	assert.False(t, a.running)
+	assert.Equal(t, lifecycle.AppHealthStartupError, lc.AppHealth(),
+		"a failed start must not leave the app reporting STARTING forever")
 }
