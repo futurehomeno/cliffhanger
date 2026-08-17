@@ -291,6 +291,10 @@ func TestManager_QueriesAdapterWithoutHoldingLock(t *testing.T) { //nolint:paral
 
 			assert.Error(t, query(), "should fail with no thing found")
 			assert.True(t, free, "manager lock must be free while the adapter is queried")
+
+			m.ad = nil
+
+			assert.Error(t, query(), "a manager with no adapter must report an error, not panic")
 		})
 	}
 }
