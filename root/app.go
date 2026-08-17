@@ -267,7 +267,7 @@ func (a *app) rollbackStart(mqttStarted bool, startedServices int, routerStarted
 
 	for i := startedServices - 1; i >= 0; i-- {
 		if err := a.services[i].Stop(); err != nil {
-			log.WithError(err).Error("[cliff] Failed to stop a service while rolling back a failed start")
+			log.WithError(err).Errorf("[cliff] Failed to stop service[%d] while rolling back a failed start", i)
 		}
 	}
 
@@ -432,7 +432,7 @@ func (a *app) doStop() error {
 
 	for i := len(a.services) - 1; i >= 0; i-- {
 		if err := a.services[i].Stop(); err != nil {
-			errs = append(errs, fmt.Errorf("stop service err: %w", err))
+			errs = append(errs, fmt.Errorf("stop service[%d] err: %w", i, err))
 		}
 	}
 
