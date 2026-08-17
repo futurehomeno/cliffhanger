@@ -139,7 +139,11 @@ func (m *manager) add(topic string, modes map[string]float64, unit string) error
 		return fmt.Errorf("manager: failed to send inclusion report on add: %w", err)
 	}
 
-	if !added {
+	// Keyed on the device never having been seeded rather than on the service having just been
+	// added: Update() inserts the service before the report below can fail, so a retry would find
+	// it present and skip the seed for good. update() only ever writes ModeOn or ModeOff and
+	// CleanDevice() zeroes the row, so an empty CurrentMode means exactly "no level event yet".
+	if device.CurrentMode == "" {
 		// device.Level/CurrentMode are only set by update(), reached through a level event.
 		// WaitForChange() (event.go) drops an unchanged one, so a meter added to a device
 		// already stable at a non-zero level would otherwise accrue no energy until the

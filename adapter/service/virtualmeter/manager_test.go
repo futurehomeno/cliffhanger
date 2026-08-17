@@ -99,10 +99,26 @@ func TestVirtualMeterManager_Add(t *testing.T) { //nolint:paralleltest
 			// out anyway, or the meter never reaches the hub while add() keeps answering success.
 			name:              "should re-announce an already added service without adding it again",
 			configuredService: outLvlSwitchService,
-			existingDevice:    &Device{Modes: map[string]float64{"on": 123}},
+			existingDevice:    &Device{Modes: map[string]float64{"on": 123}, CurrentMode: "on"},
 			mockedThing: mockedadapter.NewThing(t).
 				WithSendInclusionReport(true, true, true, nil).
 				WithServices(numericmeter.MeterElec, true, []adapter.Service{meterElecService}),
+			teardown:    adapterhelper.TearDownAdapter(workdir)[0],
+			expectError: false,
+		},
+		{
+			// Regression: the same retry also used to skip the forced level report, because the
+			// service being present was read as "already seeded". Nothing else ever seeds
+			// CurrentMode for a device that is not changing state, so the meter stayed at zero.
+			// No outlvlswitch stub on the case above: a device that already has a CurrentMode
+			// must not be re-seeded.
+			name:              "should force an initial level report when a retried add finds the service already present",
+			configuredService: outLvlSwitchService,
+			existingDevice:    &Device{Modes: map[string]float64{"on": 123}},
+			mockedThing: mockedadapter.NewThing(t).
+				WithSendInclusionReport(true, true, true, nil).
+				WithServices(numericmeter.MeterElec, true, []adapter.Service{meterElecService}).
+				WithServices(outlvlswitch.OutLvlSwitch, true, []adapter.Service{levelSwitchForceReport(t, addr)}),
 			teardown:    adapterhelper.TearDownAdapter(workdir)[0],
 			expectError: false,
 		},
