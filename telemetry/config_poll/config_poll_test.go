@@ -301,3 +301,52 @@ func TestNextUpdate_InvalidNextUpdate_FallsBack(t *testing.T) { //nolint:paralle
 	d := cfg.nextUpdate("not-a-timestamp")
 	assert.GreaterOrEqual(t, d, cfg.fallbackPoll)
 }
+
+// TestStopStart_DoesNotUnregisterTheNewChannel pins that restarting the poller does not lose its
+// MQTT registration. The channel used to be named per package and unregistered by the goroutine's
+// deferred call, so the one being stopped could tear down the registration the new one had just
+// made; Stop now waits for it to exit.
+func TestStopStart_DoesNotUnregisterTheNewChannel(t *testing.T) { //nolint:paralleltest
+	mqtt := suite.DefaultMQTT("cliff_cfgpoll_restart", "", "", "")
+	require.NoError(t, mqtt.Start(2*time.Second))
+	t.Cleanup(mqtt.Stop)
+
+	applied := make(chan bool, 1)
+	cfg := New(mqtt, "src", func(enabled bool, _ map[string]types.SuppressedEntry) {
+		select {
+		case applied <- enabled:
+		default:
+		}
+	})
+
+	require.NoError(t, cfg.Start())
+	cfg.Stop()
+	require.NoError(t, cfg.Start())
+	t.Cleanup(cfg.Stop)
+
+	select {
+	case <-cfg.subscribedCh:
+	case <-time.After(10 * time.Second):
+		t.Fatal("the restarted poller never subscribed")
+	}
+
+	require.NoError(t, mqtt.Publish(mustAddress(t, ConfigResponseTopic), fimpgo.NewObjectMessage(
+		EvtConfigReport, "src", configResponseT{Enabled: true}, nil, nil, nil,
+	)))
+
+	select {
+	case enabled := <-applied:
+		assert.True(t, enabled, "the restarted poller must still receive config reports")
+	case <-time.After(10 * time.Second):
+		t.Fatal("the restarted poller received no config report")
+	}
+}
+
+func mustAddress(t *testing.T, topic string) *fimpgo.Address {
+	t.Helper()
+
+	addr, err := fimpgo.NewAddressFromString(topic)
+	require.NoError(t, err)
+
+	return addr
+}
