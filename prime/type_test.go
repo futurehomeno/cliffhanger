@@ -45,6 +45,14 @@ func TestDevices(t *testing.T) {
 			want:    prime.Devices{{ID: 1}, {ID: 2}},
 		},
 		{
+			// A repeated id used to return the same device twice, so a caller acting per result
+			// acted on it twice.
+			name:    "filter by ids - repeated id",
+			devices: prime.Devices{{ID: 1}, {ID: 2}, {ID: 3}},
+			call:    func(devices prime.Devices) any { return devices.FilterByIDs(2, 2, 1) },
+			want:    prime.Devices{{ID: 1}, {ID: 2}},
+		},
+		{
 			name:    "find by id",
 			devices: prime.Devices{{ID: 1}, {ID: 2}, {ID: 3}},
 			call:    func(devices prime.Devices) any { return devices.FindByID(1) },
