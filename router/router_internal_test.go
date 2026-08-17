@@ -3,6 +3,7 @@ package router
 import (
 	"testing"
 
+	"github.com/futurehomeno/fimpgo"
 	"github.com/stretchr/testify/assert"
 )
 
@@ -80,4 +81,25 @@ func TestRouter_WithOptions(t *testing.T) {
 			assert.Equal(t, tc.want, r.cfg)
 		})
 	}
+}
+
+// valueHandler is a MessageHandler implemented on a value receiver, which the interface allows.
+type valueHandler struct{}
+
+func (valueHandler) Handle(*fimpgo.Message) *fimpgo.Message { return nil }
+
+// TestIsNilHandler pins that the missing-handler guard tolerates handlers that are not pointers.
+// reflect.Value.IsNil panics for a struct value, so such a handler used to panic on every message
+// and have it dropped by the recover in processMessage.
+func TestIsNilHandler(t *testing.T) {
+	t.Parallel()
+
+	var nilPointer *messageHandler
+
+	assert.True(t, isNilHandler(nil))
+	assert.True(t, isNilHandler(nilPointer))
+	assert.False(t, isNilHandler(valueHandler{}))
+	assert.False(t, isNilHandler(NewMessageHandler(MessageProcessorFn(
+		func(*fimpgo.Message) (*fimpgo.FimpMessage, error) { return nil, nil },
+	))))
 }
