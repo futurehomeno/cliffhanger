@@ -193,6 +193,15 @@ func (a *app) doStart() (err error) {
 
 	mqttStarted = true
 
+	// Started right after the transport so its subscription meets a live one, and only logged on
+	// failure: telemetry is best effort, and aborting the whole start over it would be worse than
+	// running without it.
+	if a.telemetry != nil {
+		if telErr := a.telemetry.Start(); telErr != nil {
+			log.WithError(telErr).Error("[cliff] Failed to start telemetry")
+		}
+	}
+
 	for _, service := range a.services {
 		if err = service.Start(); err != nil {
 			return fmt.Errorf("start service err: %w", err)
@@ -237,6 +246,12 @@ func (a *app) doStart() (err error) {
 // on a.running and whose task manager and router stops error out when they were never started.
 func (a *app) rollbackStart(mqttStarted bool, startedServices int, routerStarted bool, subscribed []string) {
 	a.stopAuthLossWatcher()
+
+	if a.telemetry != nil {
+		if err := a.telemetry.Stop(); err != nil {
+			log.WithError(err).Error("[cliff] Failed to stop telemetry while rolling back a failed start")
+		}
+	}
 
 	for _, topic := range subscribed {
 		if err := a.mqtt.Unsubscribe(topic); err != nil {
@@ -418,6 +433,14 @@ func (a *app) doStop() error {
 	for i := len(a.services) - 1; i >= 0; i-- {
 		if err := a.services[i].Stop(); err != nil {
 			errs = append(errs, fmt.Errorf("stop service[%d] err: %w", i, err))
+		}
+	}
+
+	// Stopped before the transport it publishes on. Leaving it running let a late cloud config
+	// report land after a Reset() and write telemetry config back into the store just wiped.
+	if a.telemetry != nil {
+		if err := a.telemetry.Stop(); err != nil {
+			errs = append(errs, fmt.Errorf("stop telemetry err: %w", err))
 		}
 	}
 

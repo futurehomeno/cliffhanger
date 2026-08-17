@@ -280,6 +280,16 @@ type routingOptions struct {
 	eventManager event.Manager
 }
 
+// PublishConfigurationChange publishes a configuration change event if an event manager was
+// supplied through the routing options. For settings routed by hand rather than through the
+// helpers above, which would otherwise silently produce no events for a caller that asked for
+// them with WithConfigurationChangeEvent.
+func PublishConfigurationChange(serviceName fimptype.ServiceNameT, setting string, options ...RoutingOption) {
+	if opt := getRoutingOptions(options...); opt.eventManager != nil {
+		opt.eventManager.Publish(NewConfigurationChangeEvent(serviceName, setting))
+	}
+}
+
 func getRoutingOptions(options ...RoutingOption) *routingOptions {
 	o := &routingOptions{}
 	for _, option := range options {

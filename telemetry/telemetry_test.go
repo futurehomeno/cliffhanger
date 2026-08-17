@@ -15,6 +15,7 @@ import (
 	cliffstorage "github.com/futurehomeno/cliffhanger/storage"
 	"github.com/futurehomeno/cliffhanger/task"
 	"github.com/futurehomeno/cliffhanger/telemetry"
+	"github.com/futurehomeno/cliffhanger/telemetry/config_poll"
 	"github.com/futurehomeno/cliffhanger/telemetry/types"
 	"github.com/futurehomeno/cliffhanger/test/suite"
 )
@@ -43,9 +44,7 @@ func newStore() *inMemoryStore {
 func stopTel(t *testing.T, tel telemetry.Telemetry) {
 	t.Helper()
 	t.Cleanup(func() {
-		if stop, ok := tel.(interface{ Stop() }); ok {
-			stop.Stop()
-		}
+		_ = tel.Stop()
 	})
 }
 
@@ -1071,7 +1070,7 @@ func TestRouting_SetTelemetry_UpdatesConfiguredAt(t *testing.T) { //nolint:paral
 						InitCallbacks: []suite.Callback{
 							func(t *testing.T) {
 								t.Helper()
-								configuredAtBefore = parseConfiguredAt(t, cfg.ConfiguredAt)
+								configuredAtBefore = parseConfiguredAt(t, store.Default().ConfiguredAt)
 							},
 						},
 						Expectations: []*suite.Expectation{
@@ -1081,7 +1080,7 @@ func TestRouting_SetTelemetry_UpdatesConfiguredAt(t *testing.T) { //nolint:paral
 							func(t *testing.T) {
 								t.Helper()
 								require.Eventually(t, func() bool {
-									return parseConfiguredAt(t, cfg.ConfiguredAt).After(configuredAtBefore)
+									return parseConfiguredAt(t, store.Default().ConfiguredAt).After(configuredAtBefore)
 								}, time.Second, 10*time.Millisecond, "ConfiguredAt must be stamped on save")
 							},
 						},
@@ -1337,4 +1336,75 @@ func TestResetEventCounters_Scope_MatchesAcrossNumericTypes(t *testing.T) { //no
 
 	telemetry.EmitIfMore(tel, "d", "e", 2, false, data, 0) // count = 1 again (was cleared)
 	assertNotPublished(t, ch, "reset must match across numeric types via JSON semantics")
+}
+
+// TestNew_DoesNotStartPolling pins that constructing telemetry no longer starts the cloud config
+// poll. It used to be started in the constructor with no way to stop it through the interface, so
+// its goroutine, timers and subscription outlived the application that owned them.
+func TestNew_DoesNotStartPolling(t *testing.T) { //nolint:paralleltest
+	mqtt := suite.DefaultMQTT("cliff_tel_no_autostart", "", "", "")
+	require.NoError(t, mqtt.Start(2*time.Second))
+	t.Cleanup(mqtt.Stop)
+
+	requests := make(chan struct{}, 1)
+	msgCh := make(fimpgo.MessageCh, 8)
+
+	mqtt.RegisterChannel("tel-no-autostart", msgCh)
+	t.Cleanup(func() {
+		// UnregisterChannel only drops the registration, it never closes the channel, so the
+		// ranging goroutine below would block on it for the rest of the suite. Safe to close
+		// once unregistered: fimpgo holds its registration lock across the send.
+		mqtt.UnregisterChannel("tel-no-autostart")
+		close(msgCh)
+	})
+	require.NoError(t, mqtt.Subscribe(config_poll.ConfigRequestTopic))
+
+	go func() {
+		for range msgCh {
+			select {
+			case requests <- struct{}{}:
+			default:
+			}
+		}
+	}()
+
+	tel, err := telemetry.New(mqtt, "tel_no_autostart", newStore().DefaultStore, "")
+	require.NoError(t, err)
+
+	select {
+	case <-requests:
+		t.Fatal("the constructor must not poll for configuration")
+	case <-time.After(500 * time.Millisecond):
+	}
+
+	require.NoError(t, tel.Start())
+	require.NoError(t, tel.Stop())
+	require.NoError(t, tel.Stop(), "stopping twice must be safe")
+}
+
+// TestStartAfterStop_RearmsValidityTimer pins that stopping telemetry and starting it again inside
+// one process restores the validity window. Stop tears the timer down and it used to be armed only
+// by the constructor, so after a stop/start cycle telemetry stayed enabled past its validity until
+// a cloud config report happened to re-enable it.
+func TestStartAfterStop_RearmsValidityTimer(t *testing.T) { //nolint:paralleltest
+	mqtt := suite.DefaultMQTT("cliff_tel_restart_validity", "", "", "")
+	require.NoError(t, mqtt.Start(2*time.Second))
+	t.Cleanup(mqtt.Stop)
+
+	store := newStore()
+	store.model.Telemetry = &types.TelemetryConfig{Enabled: true, EnabledAt: time.Now(), Validity: time.Hour}
+
+	tel, err := telemetry.New(mqtt, "src", store.DefaultStore, "")
+	require.NoError(t, err)
+	t.Cleanup(func() { _ = tel.Stop() })
+
+	require.NoError(t, tel.Start())
+	require.NoError(t, tel.Stop())
+	require.True(t, tel.IsEnabled(), "stopping must not disable telemetry by itself")
+
+	// The window has run out while telemetry was stopped, so the restart must notice.
+	store.model.Telemetry.EnabledAt = time.Now().Add(-2 * time.Hour)
+
+	require.NoError(t, tel.Start())
+	assert.False(t, tel.IsEnabled(), "a restart must re-evaluate and expire the validity window")
 }

@@ -17,17 +17,17 @@ const (
 	SettingSuppressed = "telemetry_suppressed"
 )
 
-func Route(tel Telemetry, _ ...config.RoutingOption) []*router.Routing {
+func Route(tel Telemetry, options ...config.RoutingOption) []*router.Routing {
 	if tel == nil {
 		return []*router.Routing{}
 	}
 
 	return []*router.Routing{
-		RouteCmdTelemetrySetEnabled(tel),
+		RouteCmdTelemetrySetEnabled(tel, options...),
 		RouteCmdTelemetryEnabled(tel),
-		RouteCmdTelemetrySetValidity(tel),
+		RouteCmdTelemetrySetValidity(tel, options...),
 		RouteCmdTelemetryValidity(tel),
-		RouteCmdTelemetrySetSuppressed(tel),
+		RouteCmdTelemetrySetSuppressed(tel, options...),
 		RouteCmdTelemetrySuppressed(tel),
 	}
 }
@@ -50,7 +50,7 @@ func RouteCmdTelemetryEnabled(tel Telemetry) *router.Routing {
 	)
 }
 
-func RouteCmdTelemetrySetEnabled(tel Telemetry) *router.Routing {
+func RouteCmdTelemetrySetEnabled(tel Telemetry, options ...config.RoutingOption) *router.Routing {
 	return router.NewRouting(
 		router.NewMessageHandler(
 			router.MessageProcessorFn(func(message *fimpgo.Message) (reply *fimpgo.FimpMessage, err error) {
@@ -62,6 +62,8 @@ func RouteCmdTelemetrySetEnabled(tel Telemetry) *router.Routing {
 				if err := tel.Enable(enabled); err != nil {
 					return nil, err
 				}
+
+				config.PublishConfigurationChange(tel.ServiceName(), SettingEnabled, options...)
 
 				return fimpgo.NewBoolMessage(
 					fmt.Sprintf("evt.config.%s_report", SettingEnabled),
@@ -95,7 +97,7 @@ func RouteCmdTelemetryValidity(tel Telemetry) *router.Routing {
 	)
 }
 
-func RouteCmdTelemetrySetValidity(tel Telemetry) *router.Routing {
+func RouteCmdTelemetrySetValidity(tel Telemetry, options ...config.RoutingOption) *router.Routing {
 	return router.NewRouting(
 		router.NewMessageHandler(
 			router.MessageProcessorFn(func(message *fimpgo.Message) (reply *fimpgo.FimpMessage, err error) {
@@ -112,6 +114,8 @@ func RouteCmdTelemetrySetValidity(tel Telemetry) *router.Routing {
 				if err := tel.SetValidity(d); err != nil {
 					return nil, err
 				}
+
+				config.PublishConfigurationChange(tel.ServiceName(), SettingValidity, options...)
 
 				return fimpgo.NewStringMessage(
 					fmt.Sprintf("evt.config.%s_report", SettingValidity),
@@ -145,7 +149,7 @@ func RouteCmdTelemetrySuppressed(tel Telemetry) *router.Routing {
 	)
 }
 
-func RouteCmdTelemetrySetSuppressed(tel Telemetry) *router.Routing {
+func RouteCmdTelemetrySetSuppressed(tel Telemetry, options ...config.RoutingOption) *router.Routing {
 	return router.NewRouting(
 		router.NewMessageHandler(
 			router.MessageProcessorFn(func(message *fimpgo.Message) (reply *fimpgo.FimpMessage, err error) {
@@ -157,6 +161,8 @@ func RouteCmdTelemetrySetSuppressed(tel Telemetry) *router.Routing {
 				if err := tel.SetSuppressed(suppressed); err != nil {
 					return nil, err
 				}
+
+				config.PublishConfigurationChange(tel.ServiceName(), SettingSuppressed, options...)
 
 				return fimpgo.NewObjectMessage(
 					fmt.Sprintf("evt.config.%s_report", SettingSuppressed),
