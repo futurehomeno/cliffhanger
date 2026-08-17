@@ -18,6 +18,7 @@ import (
 const (
 	backupExtension = ".bak"
 	configFileName  = "config.json"
+	secretsFileName = "secrets.json"
 )
 
 type testConfig struct {
@@ -377,4 +378,28 @@ func TestStorage_DefaultStoreFromStorage_PersistsThroughStorage(t *testing.T) { 
 	assert.True(t, reloaded.Telemetry.Enabled)
 	assert.Equal(t, time.Hour, reloaded.Telemetry.Validity)
 	assert.Equal(t, cfg.ConfiguredAt, reloaded.ConfiguredAt)
+}
+
+func TestStorage_SaveTightensPermissionsOfAPreExistingSecretsBackup(t *testing.T) { //nolint:paralleltest
+	workDir := t.TempDir()
+	secretsPath := path.Join(workDir, secretsFileName)
+
+	// A secrets file left world-readable by an older revision. makeBackup renames it rather than
+	// copying it through writeFile, so without an explicit chmod the backup would keep 0644 and
+	// expose the previous credentials until the next save happened to replace it.
+	require.NoError(t, os.WriteFile(secretsPath, []byte(`{"SettingA":"old"}`), 0o644)) //nolint:gosec
+
+	store := storage.NewCanonicalSecrets(&testConfig{}, workDir, secretsFileName)
+	require.NoError(t, store.Load())
+
+	store.Model().SettingA = "new"
+	require.NoError(t, store.Save())
+
+	backup, err := os.Stat(secretsPath + backupExtension)
+	require.NoError(t, err)
+	assert.Equal(t, os.FileMode(0o640), backup.Mode().Perm(), "the backup must not stay world-readable")
+
+	data, err := os.Stat(secretsPath)
+	require.NoError(t, err)
+	assert.Equal(t, os.FileMode(0o640), data.Mode().Perm())
 }

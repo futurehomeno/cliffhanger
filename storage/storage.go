@@ -261,6 +261,13 @@ func (s *storage[T]) makeBackup() error {
 		return fmt.Errorf("storage: failed to move the configuration file at path %s to a backup: %w", s.dataPath, err)
 	}
 
+	// The rename carries the old file's mode over, which writeFile used to correct on the way in.
+	// A secrets file that pre-dated the 0640 mode would otherwise leave its credentials in a
+	// world-readable .bak until the next save renamed a tightened file over it.
+	if err := os.Chmod(s.backupPath, s.fileMode()); err != nil {
+		return fmt.Errorf("storage: failed to set permissions of the backup file at path %s: %w", s.backupPath, err)
+	}
+
 	return nil
 }
 
