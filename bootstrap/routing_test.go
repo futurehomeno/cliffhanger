@@ -46,9 +46,7 @@ func TestDefaultRoute_BundlesConfigDebugTelemetry(t *testing.T) { //nolint:paral
 	tel, err := telemetry.New(mqtt, "boot_svc", store, "")
 	require.NoError(t, err)
 	t.Cleanup(func() {
-		if stop, ok := tel.(interface{ Stop() }); ok {
-			stop.Stop()
-		}
+		_ = tel.Stop()
 	})
 
 	routes := bootstrap.DefaultRoute("boot_svc", func() any { return store.Default() }, tel)
@@ -86,9 +84,7 @@ func TestDefaultRoute_DispatchesConfigDebugAndTelemetry(t *testing.T) { //nolint
 					tel, err := telemetry.New(mqtt, "boot_svc", store, "")
 					require.NoError(t, err)
 					t.Cleanup(func() {
-						if stop, ok := tel.(interface{ Stop() }); ok {
-							stop.Stop()
-						}
+						_ = tel.Stop()
 					})
 
 					return bootstrap.DefaultRoute("boot_svc", func() any { return store.Default() }, tel), nil, nil
@@ -157,9 +153,7 @@ func TestDefaultRoute_CustomConfigGetterPayload(t *testing.T) { //nolint:paralle
 					tel, err := telemetry.New(mqtt, "boot_svc", store, "")
 					require.NoError(t, err)
 					t.Cleanup(func() {
-						if stop, ok := tel.(interface{ Stop() }); ok {
-							stop.Stop()
-						}
+						_ = tel.Stop()
 					})
 
 					return bootstrap.DefaultRoute("boot_svc", func() any { return custom }, tel), nil, nil

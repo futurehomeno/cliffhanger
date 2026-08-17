@@ -28,20 +28,20 @@ const (
 	EvtLogRevertTimeoutReport = "evt.log.revert_timeout_report"
 )
 
-func Route(serviceName fimptype.ServiceNameT, _ ...config.RoutingOption) []*router.Routing {
+func Route(serviceName fimptype.ServiceNameT, options ...config.RoutingOption) []*router.Routing {
 	if logManager == nil {
 		panic("debug: Route called before InitializeLogger")
 	}
 
 	return []*router.Routing{
 		RouteCmdLogGetLevel(serviceName),
-		RouteCmdLogSetLevel(serviceName),
+		RouteCmdLogSetLevel(serviceName, options...),
 		RouteCmdLogGetFormat(serviceName),
-		RouteCmdLogSetFormat(serviceName),
+		RouteCmdLogSetFormat(serviceName, options...),
 		RouteCmdLogGetFile(serviceName),
-		RouteCmdLogSetFile(serviceName),
+		RouteCmdLogSetFile(serviceName, options...),
 		RouteCmdLogGetRevertTimeout(serviceName),
-		RouteCmdLogSetRevertTimeout(serviceName),
+		RouteCmdLogSetRevertTimeout(serviceName, options...),
 	}
 }
 
@@ -63,7 +63,7 @@ func RouteCmdLogGetLevel(serviceName fimptype.ServiceNameT) *router.Routing {
 	)
 }
 
-func RouteCmdLogSetLevel(serviceName fimptype.ServiceNameT) *router.Routing {
+func RouteCmdLogSetLevel(serviceName fimptype.ServiceNameT, options ...config.RoutingOption) *router.Routing {
 	return router.NewRouting(
 		router.NewMessageHandler(
 			router.MessageProcessorFn(func(message *fimpgo.Message) (reply *fimpgo.FimpMessage, err error) {
@@ -75,6 +75,8 @@ func RouteCmdLogSetLevel(serviceName fimptype.ServiceNameT) *router.Routing {
 				if err := logManager.SetLevel(level); err != nil {
 					return nil, err
 				}
+
+				config.PublishConfigurationChange(serviceName, "log_level", options...)
 
 				return fimpgo.NewStringMessage(
 					EvtLogLevelReport,
@@ -108,7 +110,7 @@ func RouteCmdLogGetFormat(serviceName fimptype.ServiceNameT) *router.Routing {
 	)
 }
 
-func RouteCmdLogSetFormat(serviceName fimptype.ServiceNameT) *router.Routing {
+func RouteCmdLogSetFormat(serviceName fimptype.ServiceNameT, options ...config.RoutingOption) *router.Routing {
 	return router.NewRouting(
 		router.NewMessageHandler(
 			router.MessageProcessorFn(func(message *fimpgo.Message) (reply *fimpgo.FimpMessage, err error) {
@@ -120,6 +122,8 @@ func RouteCmdLogSetFormat(serviceName fimptype.ServiceNameT) *router.Routing {
 				if err := logManager.SetFormat(format); err != nil {
 					return nil, err
 				}
+
+				config.PublishConfigurationChange(serviceName, "log_format", options...)
 
 				logrus.Infof("[cliff] Log format updated to %s", format)
 
@@ -155,7 +159,7 @@ func RouteCmdLogGetFile(serviceName fimptype.ServiceNameT) *router.Routing {
 	)
 }
 
-func RouteCmdLogSetFile(serviceName fimptype.ServiceNameT) *router.Routing {
+func RouteCmdLogSetFile(serviceName fimptype.ServiceNameT, options ...config.RoutingOption) *router.Routing {
 	return router.NewRouting(
 		router.NewMessageHandler(
 			router.MessageProcessorFn(func(message *fimpgo.Message) (reply *fimpgo.FimpMessage, err error) {
@@ -171,6 +175,8 @@ func RouteCmdLogSetFile(serviceName fimptype.ServiceNameT) *router.Routing {
 				if err := logManager.SetFile(file); err != nil {
 					return nil, err
 				}
+
+				config.PublishConfigurationChange(serviceName, "log_file", options...)
 
 				logrus.Infof("[cliff] Log file updated to %s", file)
 
@@ -211,7 +217,7 @@ func RouteCmdLogGetRevertTimeout(serviceName fimptype.ServiceNameT) *router.Rout
 	)
 }
 
-func RouteCmdLogSetRevertTimeout(serviceName fimptype.ServiceNameT) *router.Routing {
+func RouteCmdLogSetRevertTimeout(serviceName fimptype.ServiceNameT, options ...config.RoutingOption) *router.Routing {
 	return router.NewRouting(
 		router.NewMessageHandler(
 			router.MessageProcessorFn(func(message *fimpgo.Message) (reply *fimpgo.FimpMessage, err error) {
@@ -228,6 +234,8 @@ func RouteCmdLogSetRevertTimeout(serviceName fimptype.ServiceNameT) *router.Rout
 				if err := logManager.SetRevertTimeout(d); err != nil {
 					return nil, err
 				}
+
+				config.PublishConfigurationChange(serviceName, "log_revert_timeout", options...)
 
 				return fimpgo.NewStringMessage(
 					EvtLogRevertTimeoutReport,
