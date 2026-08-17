@@ -2,7 +2,6 @@ package battery
 
 import (
 	"fmt"
-	"strings"
 	"sync"
 
 	"github.com/futurehomeno/fimpgo"
@@ -10,6 +9,7 @@ import (
 
 	"github.com/futurehomeno/cliffhanger/adapter"
 	"github.com/futurehomeno/cliffhanger/adapter/cache"
+	"github.com/futurehomeno/cliffhanger/utils"
 )
 
 // DefaultReportingStrategy is the default state reporting strategy used by the service for periodic reports of state changes.
@@ -195,11 +195,5 @@ func (s *service) SupportedEvents() []string {
 
 // normalizeEvent checks if event is supported and returns its normalized form.
 func (s *service) normalizeEvent(unit string) (string, bool) {
-	for _, u := range s.SupportedEvents() {
-		if strings.EqualFold(unit, u) {
-			return u, true
-		}
-	}
-
-	return "", false
+	return utils.Normalize(unit, s.SupportedEvents())
 }
