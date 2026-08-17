@@ -2,6 +2,7 @@ package observer_test
 
 import (
 	"encoding/json"
+	"errors"
 	"sync"
 	"sync/atomic"
 	"testing"
@@ -898,4 +899,56 @@ func TestObserver_RefreshKeepsUpdatesArrivingDuringFetch(t *testing.T) {
 	devices, err := o.GetDevices()
 	require.NoError(t, err)
 	assert.Len(t, devices, 2, "the device added during the fetch must not be discarded")
+}
+
+// failingClient stands in for an unreachable vinculum, answering slowly as a timing out request
+// would.
+type failingClient struct {
+	prime.Client
+
+	calls atomic.Int32
+}
+
+func (c *failingClient) GetComponents(...string) (*prime.ComponentSet, error) {
+	c.calls.Add(1)
+
+	time.Sleep(200 * time.Millisecond)
+
+	return nil, errors.New("vinculum is down")
+}
+
+// TestObserver_ConcurrentGettersShareAFailedRefresh pins that a failed fetch is shared with the
+// readers waiting behind it, the same way a successful one is. Without it every waiter would find
+// the cache still stale and issue its own blocking retry, so an outage cost one request and one
+// timeout per reader. Readers arriving afterwards must still retry.
+func TestObserver_ConcurrentGettersShareAFailedRefresh(t *testing.T) {
+	t.Parallel()
+
+	client := &failingClient{}
+
+	o, err := observer.New(client, event.NewManager(), time.Hour, prime.ComponentDevice)
+	require.NoError(t, err)
+
+	const readers = 8
+
+	var wg sync.WaitGroup
+
+	wg.Add(readers)
+
+	for range readers {
+		go func() {
+			defer wg.Done()
+
+			_, err := o.GetDevices()
+			assert.Error(t, err)
+		}()
+	}
+
+	wg.Wait()
+
+	assert.Equal(t, int32(1), client.calls.Load(), "concurrent stale readers must share one failed refresh")
+
+	_, err = o.GetDevices()
+	require.Error(t, err)
+	assert.Equal(t, int32(2), client.calls.Load(), "a reader arriving after the failure must retry")
 }
