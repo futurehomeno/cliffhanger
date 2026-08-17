@@ -74,27 +74,32 @@ func (s *state) Save() error {
 	return s.Storage.Save()
 }
 
-// batch collapses every save made while fn runs into a single write. The flush happens even when fn
-// fails: callers apply changes best effort per thing, so a partially applied pass must still reach
-// the disk. Deferral is lifted before the flush rather than after, so a concurrent save landing in
+// batch collapses every save made while fn runs into a single write. Lifting the deferral and
+// flushing are deferred so that they also run when fn panics: the task manager recovers panics and
+// keeps the process alive, and a deferral left set would turn every later save into a silent no-op.
+// The deferral is lifted before the flush rather than after, so a concurrent save landing in
 // between writes for itself instead of being dropped.
 //
-// The trade is that the per-thing rollbacks cannot fire inside a batch - a save only fails at the
-// flush, by which point the whole pass is in memory and none of it on disk. That leaves records the
-// next boot sees as ghosts, which EnsureThings heals, rather than the divergence the rollbacks
-// guard against.
-func (s *state) batch(fn func() error) error {
+// The flush happens even when fn fails: callers apply changes best effort per thing, so a partially
+// applied pass must still reach the disk. The trade is that the per-thing rollbacks cannot fire
+// inside a batch - a save only fails at the flush, by which point the whole pass is in memory and
+// none of it on disk. That leaves records the next boot sees as ghosts, which EnsureThings heals,
+// rather than the divergence the rollbacks guard against.
+//
+// The deferral is process wide rather than scoped to the pass, so a save made concurrently by an
+// unrelated code path is collapsed into the same flush and shares its fate.
+func (s *state) batch(fn func() error) (err error) {
 	s.deferred.Store(true)
 
-	err := fn()
+	defer func() {
+		s.deferred.Store(false)
 
-	s.deferred.Store(false)
+		if s.dirty.Swap(false) {
+			err = errors.Join(err, s.Storage.Save())
+		}
+	}()
 
-	if s.dirty.Swap(false) {
-		err = errors.Join(err, s.Storage.Save())
-	}
-
-	return err
+	return fn()
 }
 
 func (s *state) all() []ThingState {

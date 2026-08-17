@@ -126,6 +126,31 @@ func TestState_BatchCollapsesWrites(t *testing.T) {
 	assert.Equal(t, 3, failing.saves, "deferral must be lifted once the batch is over")
 }
 
+// TestState_BatchSurvivesAPanic pins that a panicking pass still lifts the deferral and flushes.
+// The task manager recovers panics and keeps the process alive, so a deferral left set would turn
+// every later save into a silent no-op until restart.
+func TestState_BatchSurvivesAPanic(t *testing.T) {
+	t.Parallel()
+
+	failing := &failingSaveStorage{Storage: storage.NewState(&adapterStateModel{}, t.TempDir(), "adapter.json")}
+	s := &state{Storage: failing}
+
+	require.Panics(t, func() {
+		_ = s.batch(func() error {
+			_, err := s.add(&thingStateModel{ID: "1"})
+			require.NoError(t, err)
+
+			panic("boom")
+		})
+	})
+
+	assert.Equal(t, 1, failing.saves, "the pass applied before the panic must still reach the disk")
+
+	_, err := s.add(&thingStateModel{ID: "2"})
+	require.NoError(t, err)
+	assert.Equal(t, 2, failing.saves, "a panic must not leave every later save deferred for good")
+}
+
 // TestThingState_SetInclusionChecksumSkipsUnchangedWrites pins that re-stamping the same checksum
 // does not persist. SendInclusionReport(true) bypasses the checksum short-circuit, so every forced
 // report rewrote the whole adapter state file with an identical value.
