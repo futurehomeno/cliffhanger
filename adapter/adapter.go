@@ -220,24 +220,27 @@ func (a *adapter) InitializeThings() error {
 		return nil
 	}
 
-	var things []Thing
-
 	for _, ts := range a.state.all() {
+		// A thing can already be live: the router runs before the initialization task, so an
+		// inbound command can have created one. Rebuilding it would replace a connected instance
+		// with a duplicate and announce it a second time.
+		if _, live := a.things[ts.Address()]; live {
+			continue
+		}
+
 		t, err := a.factory.Create(a, a.publisher, ts)
 		if err != nil {
 			return fmt.Errorf("failed to create thing with address %s: %w", ts.Address(), err)
 		}
 
-		_, err = t.SendInclusionReport(false)
-		if err != nil {
+		// Registered as we go: collecting them all first meant a failure halfway through left the
+		// adapter with no registered things at all, yet with inclusion reports already published
+		// for the ones that did get built.
+		a.registerThing(t)
+
+		if _, err = t.SendInclusionReport(false); err != nil {
 			return fmt.Errorf("failed to send inclusion report for thing with address %s: %w", ts.Address(), err)
 		}
-
-		things = append(things, t)
-	}
-
-	for _, t := range things {
-		a.registerThing(t)
 	}
 
 	a.initialized = true
@@ -397,12 +400,18 @@ func (a *adapter) SendConnectivityReport() error {
 
 // registerThing registers thing in the adapter but does not send an inclusion report for it.
 func (a *adapter) registerThing(t Thing) {
+	// A displaced instance is disconnected rather than just dropped from the map, which would leak
+	// whatever its connector holds open with the adapter no longer holding a reference to it.
+	if old, ok := a.things[t.Address()]; ok && old != t {
+		old.Disconnect()
+	}
+
 	a.things[t.Address()] = t
 
 	t.Connect()
 }
 
-// registerThing registers thing in the adapter but does not send an inclusion report for it.
+// unregisterThing removes a thing from the adapter and disconnects it.
 func (a *adapter) unregisterThing(t Thing) {
 	delete(a.things, t.Address())
 
