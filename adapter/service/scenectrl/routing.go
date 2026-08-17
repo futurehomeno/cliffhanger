@@ -88,7 +88,7 @@ func HandleCmdSceneGetReport(serviceRegistry adapter.ServiceRegistry) router.Mes
 
 			_, err := scene.SendSceneReport(true)
 			if err != nil {
-				return nil, fmt.Errorf("failed to send presence report: %w", err)
+				return nil, fmt.Errorf("failed to send scene report: %w", err)
 			}
 
 			return nil, nil

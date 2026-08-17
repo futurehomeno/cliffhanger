@@ -3,7 +3,6 @@ package waterheater
 import (
 	"fmt"
 	"math"
-	"strings"
 	"sync"
 
 	"github.com/futurehomeno/fimpgo"
@@ -11,6 +10,7 @@ import (
 
 	"github.com/futurehomeno/cliffhanger/adapter"
 	"github.com/futurehomeno/cliffhanger/adapter/cache"
+	"github.com/futurehomeno/cliffhanger/utils"
 )
 
 // Constants defining important properties specific for the service.
@@ -293,24 +293,12 @@ func (s *service) SupportsSetpoint(setpoint string) bool {
 
 // normalizeMode checks if mode is supported and returns its normalized form.
 func (s *service) normalizeMode(mode string) (string, bool) {
-	for _, value := range s.SupportedModes() {
-		if strings.EqualFold(mode, value) {
-			return value, true
-		}
-	}
-
-	return "", false
+	return utils.Normalize(mode, s.SupportedModes())
 }
 
 // normalizeSetpoint checks if setpoint is supported and returns its normalized form.
 func (s *service) normalizeSetpoint(mode string) (string, bool) {
-	for _, value := range s.SupportedSetpoints() {
-		if strings.EqualFold(mode, value) {
-			return value, true
-		}
-	}
-
-	return "", false
+	return utils.Normalize(mode, s.SupportedSetpoints())
 }
 
 // normalizeValue normalizes setpoint value for a specific mode.
