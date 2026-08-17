@@ -2,9 +2,11 @@ package adapter
 
 import (
 	"encoding/json"
+	"errors"
 	"fmt"
 	"strconv"
 	"sync"
+	"sync/atomic"
 
 	"github.com/futurehomeno/cliffhanger/storage"
 )
@@ -37,6 +39,8 @@ type State interface {
 	modelByID(id string) *thingStateModel
 	// byAddress returns a thing state for a thing with a given address.
 	byAddress(address string) ThingState
+	// batch collapses every save made while fn runs into a single write.
+	batch(fn func() error) error
 }
 
 func NewState(workDir string) (State, error) {
@@ -53,7 +57,44 @@ func NewState(workDir string) (State, error) {
 
 type state struct {
 	storage.Storage[*adapterStateModel]
-	lock sync.RWMutex
+	lock     sync.RWMutex
+	deferred atomic.Bool
+	dirty    atomic.Bool
+}
+
+// Save shadows the storage one so that a batch in progress can collapse it. Every record lives in
+// the same file, so a pass touching many things rewrote and fsynced all of them once per thing.
+func (s *state) Save() error {
+	if s.deferred.Load() {
+		s.dirty.Store(true)
+
+		return nil
+	}
+
+	return s.Storage.Save()
+}
+
+// batch collapses every save made while fn runs into a single write. The flush happens even when fn
+// fails: callers apply changes best effort per thing, so a partially applied pass must still reach
+// the disk. Deferral is lifted before the flush rather than after, so a concurrent save landing in
+// between writes for itself instead of being dropped.
+//
+// The trade is that the per-thing rollbacks cannot fire inside a batch - a save only fails at the
+// flush, by which point the whole pass is in memory and none of it on disk. That leaves records the
+// next boot sees as ghosts, which EnsureThings heals, rather than the divergence the rollbacks
+// guard against.
+func (s *state) batch(fn func() error) error {
+	s.deferred.Store(true)
+
+	err := fn()
+
+	s.deferred.Store(false)
+
+	if s.dirty.Swap(false) {
+		err = errors.Join(err, s.Storage.Save())
+	}
+
+	return err
 }
 
 func (s *state) all() []ThingState {

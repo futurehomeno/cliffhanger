@@ -90,6 +90,42 @@ func TestState_AddAssignsAddressInASingleWrite(t *testing.T) {
 	assert.Equal(t, "3", next.Address(), "a failed write must not consume an address")
 }
 
+// TestState_BatchCollapsesWrites pins that a pass touching many things costs one write. Every
+// record lives in the same file, so a fleet rebuild rewrote and fsynced all of them per thing.
+func TestState_BatchCollapsesWrites(t *testing.T) {
+	t.Parallel()
+
+	failing := &failingSaveStorage{Storage: storage.NewState(&adapterStateModel{}, t.TempDir(), "adapter.json")}
+	s := &state{Storage: failing}
+
+	err := s.batch(func() error {
+		for _, id := range []string{"1", "2", "3"} {
+			ts, err := s.add(&thingStateModel{ID: id})
+			require.NoError(t, err)
+			require.NoError(t, ts.SetInclusionChecksum(42))
+		}
+
+		return nil
+	})
+	require.NoError(t, err)
+	assert.Equal(t, 1, failing.saves)
+
+	assert.NoError(t, s.batch(func() error { return nil }))
+	assert.Equal(t, 1, failing.saves, "a batch that changes nothing must not write")
+
+	err = s.batch(func() error {
+		require.NoError(t, s.remove("1"))
+
+		return errors.New("partially applied")
+	})
+	require.Error(t, err)
+	assert.Equal(t, 2, failing.saves, "a partially applied pass must still reach the disk")
+
+	_, err = s.add(&thingStateModel{ID: "4"})
+	require.NoError(t, err)
+	assert.Equal(t, 3, failing.saves, "deferral must be lifted once the batch is over")
+}
+
 // TestThingState_SetInclusionChecksumSkipsUnchangedWrites pins that re-stamping the same checksum
 // does not persist. SendInclusionReport(true) bypasses the checksum short-circuit, so every forced
 // report rewrote the whole adapter state file with an identical value.
