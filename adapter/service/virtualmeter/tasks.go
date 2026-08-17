@@ -72,15 +72,16 @@ func handleGarbageCleaning(sr adapter.ServiceRegistry, mr Manager) func() {
 	}
 
 	return func() {
-		for _, s := range sr.Services(VirtualMeterElec) {
-			vmeter, ok := s.(Service)
-			if !ok {
-				continue
-			}
+		liveTopics := make(map[string]struct{})
 
-			if err := m.deleteDeviceEntry(vmeter.Topic()); err != nil {
-				log.WithError(err).Errorf("task(vms): failed to clean garbage")
+		for _, s := range sr.Services(VirtualMeterElec) {
+			if vmeter, ok := s.(Service); ok {
+				liveTopics[vmeter.Topic()] = struct{}{}
 			}
+		}
+
+		if err := m.cleanOrphanedDevices(liveTopics); err != nil {
+			log.WithError(err).Errorf("task(vms): failed to clean garbage")
 		}
 	}
 }

@@ -1,6 +1,7 @@
 package virtualmeter
 
 import (
+	"errors"
 	"fmt"
 	"math"
 	"sync"
@@ -95,13 +96,22 @@ func (m *manager) add(topic string, modes map[string]float64, unit string) error
 		return fmt.Errorf("manager: no thing found by topic: %s. can't add meter", topic)
 	}
 
-	device, err := m.storage.Device(topic)
-	if err != nil || device == nil {
-		return fmt.Errorf("manager: failed to get device - %v: %w", device, err)
+	device, err := m.device(topic)
+	if err != nil {
+		return err
 	}
 
-	oldModes := device.Modes
-	if len(oldModes) > 0 {
+	added := false
+
+	for _, existing := range thing.Services(numericmeter.MeterElec) {
+		if existing.Topic() == s.Topic() {
+			added = true
+
+			break
+		}
+	}
+
+	if len(device.Modes) > 0 {
 		if _, err := m.recalculateEnergy(true, device); err != nil {
 			return fmt.Errorf("manager: failed to update energy: %w", err)
 		}
@@ -115,16 +125,25 @@ func (m *manager) add(topic string, modes map[string]float64, unit string) error
 		return fmt.Errorf("manager: failed add meter, can't save data: %w", err)
 	}
 
-	// update thing only if a service has been just added.
-	if len(oldModes) == 0 {
+	if !added {
 		if err := thing.Update(adapter.ThingUpdateAddService(s)); err != nil {
 			return fmt.Errorf("manager: failed to update thing. Can't add service. Topic - %s. %w", topic, err)
 		}
+	}
 
-		if _, err := thing.SendInclusionReport(true); err != nil {
-			return fmt.Errorf("manager: failed to send inclusion report on add: %w", err)
-		}
+	// Announced on every add rather than only when the service was just added. Update() inserts the
+	// service before the report is published, so a retry of an add whose publish failed would find
+	// the service present, skip the report and answer success without the meter ever reaching the
+	// hub. Re-announcing an unchanged thing is cheap; never announcing it is not.
+	if _, err := thing.SendInclusionReport(true); err != nil {
+		return fmt.Errorf("manager: failed to send inclusion report on add: %w", err)
+	}
 
+	// Keyed on the device never having been seeded rather than on the service having just been
+	// added: Update() inserts the service before the report below can fail, so a retry would find
+	// it present and skip the seed for good. update() only ever writes ModeOn or ModeOff and
+	// CleanDevice() zeroes the row, so an empty CurrentMode means exactly "no level event yet".
+	if device.CurrentMode == "" {
 		// device.Level/CurrentMode are only set by update(), reached through a level event.
 		// WaitForChange() (event.go) drops an unchanged one, so a meter added to a device
 		// already stable at a non-zero level would otherwise accrue no energy until the
@@ -175,14 +194,28 @@ func (m *manager) remove(topic string) error {
 	return nil
 }
 
+// device returns a stored device, reporting a missing entry as an error as all callers require one.
+func (m *manager) device(topic string) (*Device, error) {
+	device, err := m.storage.Device(topic)
+	if err != nil {
+		return nil, fmt.Errorf("manager: failed to get device by topic %s: %w", topic, err)
+	}
+
+	if device == nil {
+		return nil, fmt.Errorf("manager: device not found by topic %s", topic)
+	}
+
+	return device, nil
+}
+
 // modes returns a map of modes for a device by provided topic.
 func (m *manager) modes(topic string) (map[string]float64, error) {
 	m.lock.RLock()
 	defer m.lock.RUnlock()
 
-	device, err := m.storage.Device(topic)
-	if err != nil || device == nil {
-		return nil, fmt.Errorf("manager: failed to get modes, device - %v: %w", device, err)
+	device, err := m.device(topic)
+	if err != nil {
+		return nil, err
 	}
 
 	return device.Modes, nil
@@ -194,13 +227,9 @@ func (m *manager) update(topic, newMode string, newLevel float64) error {
 	m.lock.Lock()
 	defer m.lock.Unlock()
 
-	device, err := m.storage.Device(topic)
+	device, err := m.device(topic)
 	if err != nil {
-		return fmt.Errorf("manager: virtual meter update failed err: %w", err)
-	}
-
-	if device == nil {
-		return fmt.Errorf("manager: virtual meter update failed, device not found topic=%s", topic)
+		return err
 	}
 
 	if !device.Initialised() {
@@ -232,9 +261,9 @@ func (m *manager) report(topic string, unit numericmeter.Unit) (float64, error) 
 	m.lock.Lock()
 	defer m.lock.Unlock()
 
-	device, err := m.storage.Device(topic)
-	if err != nil || device == nil {
-		return 0, fmt.Errorf("manager: virtual meter report failed, device - %v: %w", device, err)
+	device, err := m.device(topic)
+	if err != nil {
+		return 0, err
 	}
 
 	if updated, err := m.recalculateEnergy(false, device); err != nil {
@@ -270,9 +299,9 @@ func (m *manager) reset(topic string) error {
 	m.lock.Lock()
 	defer m.lock.Unlock()
 
-	device, err := m.storage.Device(topic)
-	if err != nil || device == nil {
-		return fmt.Errorf("manager: virtual meter reset failed, device - %v: %w", device, err)
+	device, err := m.device(topic)
+	if err != nil {
+		return err
 	}
 
 	device.AccumulatedEnergy = 0
@@ -285,21 +314,80 @@ func (m *manager) reset(topic string) error {
 	return nil
 }
 
-// deleteDeviceEntry removes the device data from the database.
-func (m *manager) deleteDeviceEntry(topic string) error {
+// cleanOrphanedDevices removes stored device data that no longer has a corresponding live virtual
+// meter service, i.e. the thing it belonged to is gone. Entries backing a live service are never
+// removed: nothing refreshes LastTimeUpdated while a device is inactive, so staleness alone means
+// "offline", not "obsolete", and deleting on it would destroy the configured modes and the
+// accumulated energy of a device that is merely unreachable.
+func (m *manager) cleanOrphanedDevices(liveTopics map[string]struct{}) error {
 	m.lock.Lock()
 	defer m.lock.Unlock()
 
-	device, err := m.storage.Device(topic)
-	if err != nil || device == nil {
-		return fmt.Errorf("manager: failed to get device by address %s: %w", topic, err)
+	addresses, err := m.storage.Addresses()
+	if err != nil {
+		return err
 	}
 
-	if time.Since(device.LastTimeUpdated) > m.garbageCleaningPeriod {
-		return m.storage.DeleteDevice(topic)
+	var errs []error
+
+	for _, topic := range addresses {
+		device, err := m.device(topic)
+		if err != nil {
+			errs = append(errs, err)
+
+			continue
+		}
+
+		if _, live := liveTopics[topic]; live {
+			if device.OrphanedSince != nil {
+				device.OrphanedSince = nil
+
+				if err := m.storage.SetDevice(topic, device); err != nil {
+					errs = append(errs, err)
+				}
+			}
+
+			continue
+		}
+
+		// The grace period runs from when the entry was first seen without a service, not from
+		// LastTimeUpdated: that one never advances while a device is inactive, so a meter offline
+		// for a week would be deleted by the first transient absence - a thing being rebuilt, or a
+		// ghost left by a failed one. It is stored rather than kept in memory because restarts more
+		// frequent than the grace period would otherwise postpone collection forever.
+		if device.OrphanedSince == nil {
+			now := time.Now()
+			device.OrphanedSince = &now
+
+			if err := m.storage.SetDevice(topic, device); err != nil {
+				errs = append(errs, err)
+			}
+
+			continue
+		}
+
+		if time.Since(*device.OrphanedSince) <= m.garbageCleaningPeriod {
+			continue
+		}
+
+		// liveTopics is snapshotted by the caller before this lock is taken: reading the service
+		// registry here would invert the adapter-then-manager lock order that thing factories
+		// establish by calling RegisterThing while the adapter lock is held, and deadlock.
+		// virtualServices is guarded by this lock and only ever grows, so it vetoes deleting a topic
+		// this process has registered - a row a stale snapshot missed is kept and collected after
+		// the next restart instead of being destroyed mid-registration.
+		if m.virtualServices[topic] != nil {
+			continue
+		}
+
+		// Reported but not returned on: one unreadable record must not block the rest of the scan
+		// for good.
+		if err := m.storage.DeleteDevice(topic); err != nil {
+			errs = append(errs, fmt.Errorf("manager: failed to delete device by address %s: %w", topic, err))
+		}
 	}
 
-	return nil
+	return errors.Join(errs...)
 }
 
 // updateDeviceActivity updates a device activity for each virtual service of a thing by provided thing address.
@@ -318,9 +406,9 @@ func (m *manager) updateDeviceActivity(thingAddr string, active bool) error {
 			continue
 		}
 
-		device, err := m.storage.Device(topic)
-		if err != nil || device == nil {
-			return fmt.Errorf("manager: failed to get device - %v: %w", device, err)
+		device, err := m.device(topic)
+		if err != nil {
+			return err
 		}
 
 		if device.Active != active {
