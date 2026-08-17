@@ -85,12 +85,17 @@ func TestVirtualMeterManager_Add(t *testing.T) { //nolint:paralleltest
 			expectError:       true,
 		},
 		{
-			name:              "should succeed and updated modes",
+			// Regression: Update() inserts the service before the report is published, so a retry
+			// of an add whose publish failed finds the service already there. The report must go
+			// out anyway, or the meter never reaches the hub while add() keeps answering success.
+			name:              "should re-announce an already added service without adding it again",
 			configuredService: outLvlSwitchService,
 			existingDevice:    &Device{Modes: map[string]float64{"on": 123}},
-			mockedThing:       mockedadapter.NewThing(t),
-			teardown:          adapterhelper.TearDownAdapter(workdir)[0],
-			expectError:       false,
+			mockedThing: mockedadapter.NewThing(t).
+				WithSendInclusionReport(true, true, true, nil).
+				WithServices(numericmeter.MeterElec, true, []adapter.Service{outLvlSwitchService}),
+			teardown:    adapterhelper.TearDownAdapter(workdir)[0],
+			expectError: false,
 		},
 		{
 			name:              "should succeed and updated modes, and send inclusion report",
@@ -99,6 +104,7 @@ func TestVirtualMeterManager_Add(t *testing.T) { //nolint:paralleltest
 			mockedThing: mockedadapter.NewThing(t).
 				WithUpdate(true, nil).
 				WithSendInclusionReport(true, true, true, nil).
+				WithServices(numericmeter.MeterElec, true, []adapter.Service{}).
 				WithServices(outlvlswitch.OutLvlSwitch, true, []adapter.Service{}),
 			teardown:    adapterhelper.TearDownAdapter(workdir)[0],
 			expectError: false,
@@ -110,6 +116,7 @@ func TestVirtualMeterManager_Add(t *testing.T) { //nolint:paralleltest
 			mockedThing: mockedadapter.NewThing(t).
 				WithUpdate(true, nil).
 				WithSendInclusionReport(true, true, true, nil).
+				WithServices(numericmeter.MeterElec, true, []adapter.Service{}).
 				WithServices(outlvlswitch.OutLvlSwitch, true, []adapter.Service{levelSwitchForceReport(t, addr)}),
 			teardown:    adapterhelper.TearDownAdapter(workdir)[0],
 			expectError: false,
@@ -445,6 +452,96 @@ func TestManager_Reset(t *testing.T) { //nolint:paralleltest
 				device, err := m.storage.Device(addr)
 				assert.NoError(t, err, "should get a device")
 				assert.Equal(t, float64(0), device.AccumulatedEnergy, "unexpected report")
+			}
+		})
+	}
+}
+
+func TestManager_CleanOrphanedDevices(t *testing.T) { //nolint:paralleltest
+	const gracePeriod = time.Hour
+
+	stale := time.Now().Add(-2 * gracePeriod)
+
+	cases := []struct {
+		name string
+		// orphanedFor is how long the entry has already been seen without a live service when the
+		// pass under test runs. The grace period measures that, not the device timestamp.
+		orphanedFor  time.Duration
+		device       *Device
+		live         bool
+		expectDelete bool
+	}{
+		{
+			// The regression this whole task guards: nothing refreshes LastTimeUpdated while a
+			// device is inactive, so a configured meter on an offline thing looks arbitrarily stale.
+			name:         "should keep a stale configured device whose service is still live",
+			device:       &Device{Modes: map[string]float64{"on": 123}, AccumulatedEnergy: 42, LastTimeUpdated: stale},
+			live:         true,
+			expectDelete: false,
+		},
+		{
+			// registerVirtualServices seeds these and never refreshes them; deleting one makes
+			// every later cmd.meter.add on that device fail until the adapter restarts.
+			name:         "should keep a stale unconfigured placeholder whose service is still live",
+			device:       &Device{Modes: nil, LastTimeUpdated: stale},
+			live:         true,
+			expectDelete: false,
+		},
+		{
+			name:         "should delete a device orphaned for longer than the grace period",
+			orphanedFor:  2 * gracePeriod,
+			device:       &Device{Modes: map[string]float64{"on": 123}, LastTimeUpdated: stale},
+			live:         false,
+			expectDelete: true,
+		},
+		{
+			name:         "should keep an orphaned device within the grace period",
+			orphanedFor:  gracePeriod / 2,
+			device:       &Device{Modes: map[string]float64{"on": 123}, LastTimeUpdated: stale},
+			live:         false,
+			expectDelete: false,
+		},
+		{
+			// A stale device seen orphaned for the first time only starts the grace period; the
+			// pass that first notices it must never be the one that deletes it.
+			name:         "should keep a device seen orphaned for the first time",
+			device:       &Device{Modes: map[string]float64{"on": 123}, LastTimeUpdated: stale},
+			live:         false,
+			expectDelete: false,
+		},
+	}
+
+	for _, cc := range cases { //nolint:paralleltest
+		c := cc
+		t.Run(c.name, func(t *testing.T) {
+			defer adapterhelper.TearDownAdapter(workdir)[0](t)
+
+			db, _ := database.NewDatabase(workdir)
+			mr := NewManager(db, time.Second, gracePeriod)
+			m := mr.(*manager) //nolint:forcetypeassert
+
+			assert.NoError(t, m.storage.SetDevice(addr, c.device), "should set device")
+
+			liveTopics := make(map[string]struct{})
+			if c.live {
+				liveTopics[addr] = struct{}{}
+			}
+
+			if c.orphanedFor > 0 {
+				m.orphanedSince[addr] = time.Now().Add(-c.orphanedFor)
+			}
+
+			assert.NoError(t, m.cleanOrphanedDevices(liveTopics), "should clean without error")
+
+			device, err := m.storage.Device(addr)
+			assert.NoError(t, err, "should get a device")
+
+			if c.expectDelete {
+				assert.Nil(t, device, "device should have been deleted")
+			} else {
+				assert.NotNil(t, device, "device should have been kept")
+				assert.Equal(t, c.device.Modes, device.Modes, "modes should survive")
+				assert.Equal(t, c.device.AccumulatedEnergy, device.AccumulatedEnergy, "accumulated energy should survive")
 			}
 		})
 	}
