@@ -2,6 +2,8 @@ package observer_test
 
 import (
 	"encoding/json"
+	"sync"
+	"sync/atomic"
 	"testing"
 	"time"
 
@@ -10,6 +12,7 @@ import (
 	"github.com/sirupsen/logrus"
 	"github.com/sirupsen/logrus/hooks/test"
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 
 	"github.com/futurehomeno/cliffhanger/event"
 	"github.com/futurehomeno/cliffhanger/prime"
@@ -790,4 +793,55 @@ func assertNoPanicLogs(t *testing.T, hook *test.Hook) {
 	for _, entry := range hook.AllEntries() {
 		assert.NotContains(t, entry.Message, "panic")
 	}
+}
+
+// TestObserver_ConcurrentGettersDoNotSerializeOnOneFetch pins that readers do not queue behind a
+// slow request to vinculum. The getters used to take the write lock and make the request under it,
+// so one stalled call blocked every other reader and the whole notification stream for its
+// duration; they also made one request each rather than sharing one.
+func TestObserver_ConcurrentGettersDoNotSerializeOnOneFetch(t *testing.T) {
+	t.Parallel()
+
+	client := &slowClient{}
+
+	o, err := observer.New(client, event.NewManager(), time.Hour, prime.ComponentDevice)
+	require.NoError(t, err)
+
+	const readers = 8
+
+	var wg sync.WaitGroup
+
+	wg.Add(readers)
+
+	start := time.Now()
+
+	for range readers {
+		go func() {
+			defer wg.Done()
+
+			devices, err := o.GetDevices()
+			assert.NoError(t, err)
+			assert.Len(t, devices, 1)
+		}()
+	}
+
+	wg.Wait()
+
+	assert.Equal(t, int32(1), client.calls.Load(), "concurrent stale readers must share one refresh")
+	assert.Less(t, time.Since(start), 1*time.Second, "readers must not serialize behind one another")
+}
+
+// slowClient stands in for a vinculum that answers slowly. Only GetComponents is ever called.
+type slowClient struct {
+	prime.Client
+
+	calls atomic.Int32
+}
+
+func (c *slowClient) GetComponents(...string) (*prime.ComponentSet, error) {
+	c.calls.Add(1)
+
+	time.Sleep(200 * time.Millisecond)
+
+	return &prime.ComponentSet{Devices: prime.Devices{{ID: 1}}}, nil
 }
