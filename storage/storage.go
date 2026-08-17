@@ -130,6 +130,15 @@ func (s *storage[T]) Load() error {
 		return err
 	}
 
+	if !dataExists {
+		// A crash between the backup rename and the rewrite that follows it in save() leaves only
+		// the backup behind; loadData() picks it up, but only if we get that far.
+		dataExists, err = s.fileExists(s.backupPath)
+		if err != nil {
+			return err
+		}
+	}
+
 	var defaultsExists bool
 	if s.defaultsPath != "" {
 		defaultsExists, err = s.fileExists(s.defaultsPath)
@@ -194,9 +203,8 @@ func (s *storage[T]) loadData() error {
 		return err
 	}
 
-	err = s.loadFile(s.backupPath)
-	if err != nil {
-		return err
+	if backupErr := s.loadFile(s.backupPath); backupErr != nil {
+		return backupErr
 	}
 
 	log.WithError(err).Errorf("storage: failed to read the configuration file at path %s, falling back to last backup", s.dataPath)
@@ -218,14 +226,14 @@ func (s *storage[T]) save() error {
 		return fmt.Errorf("storage: cannot create a configuration directory at path %s: %w", path.Dir(s.dataPath), err)
 	}
 
-	err = s.makeBackup()
-	if err != nil {
-		return fmt.Errorf("storage: failed to make a configuration backup: %w", err)
-	}
-
 	body, err := json.MarshalIndent(s.model, "", "\t")
 	if err != nil {
 		return fmt.Errorf("storage: cannot marshal a configuration file at path %s: %w", s.dataPath, err)
+	}
+
+	err = s.makeBackup()
+	if err != nil {
+		return fmt.Errorf("storage: failed to make a configuration backup: %w", err)
 	}
 
 	err = s.writeFile(s.dataPath, body)
@@ -246,14 +254,11 @@ func (s *storage[T]) makeBackup() error {
 		return nil
 	}
 
-	body, err := os.ReadFile(s.dataPath)
-	if err != nil {
-		return err
-	}
-
-	err = s.writeFile(s.backupPath, body)
-	if err != nil {
-		return err
+	// Rename rather than copy: a copy costs a second full write and fsync of the whole file on every
+	// Save. loadData() falls back to the backup, which covers a crash between the rename and the
+	// rewrite that follows it.
+	if err := os.Rename(s.dataPath, s.backupPath); err != nil {
+		return fmt.Errorf("storage: failed to move the configuration file at path %s to a backup: %w", s.dataPath, err)
 	}
 
 	return nil
@@ -284,25 +289,38 @@ func (s *storage[T]) Reset() error {
 
 	if s.isSecret {
 		// Secrets stores have no defaults to reload from; clear the in-memory model so a reset
-		// (logout) does not keep serving stale credentials. Zero the pointed-to struct in place
-		// rather than nil the reference: that wipes the fields any cached pointer still holds and
-		// keeps s.model a valid (non-nil) target for a later Load() or credential re-persist.
-		if v := reflect.ValueOf(s.model); v.Kind() == reflect.Pointer && !v.IsNil() {
-			v.Elem().Set(reflect.Zero(v.Elem().Type()))
-		} else {
-			var zero T
-
-			s.model = zero
-		}
+		// (logout) does not keep serving stale credentials.
+		s.zeroModel()
 
 		return nil
 	}
 
+	// A no-defaults state store (adapter.json, config caches) keeps its model: there is nothing to
+	// reload and callers hold on to it past the reset.
 	if s.defaultsPath == "" {
 		return nil
 	}
 
+	// Zero before reloading: loadFile unmarshals into the existing model, so fields and map entries
+	// absent from the defaults would survive the reset and be written back by the next Save().
+	s.zeroModel()
+
 	return s.load(true, false)
+}
+
+// zeroModel clears the in-memory model. Zeroes the pointed-to struct in place rather than nilling
+// the reference: that wipes the fields any cached pointer still holds and keeps s.model a valid
+// (non-nil) target for a later Load().
+func (s *storage[T]) zeroModel() {
+	if v := reflect.ValueOf(s.model); v.Kind() == reflect.Pointer && !v.IsNil() {
+		v.Elem().Set(reflect.Zero(v.Elem().Type()))
+
+		return
+	}
+
+	var zero T
+
+	s.model = zero
 }
 
 func (s *storage[T]) fileExists(path string) (bool, error) {

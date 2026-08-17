@@ -203,6 +203,43 @@ func TestStorage_Reset(t *testing.T) { //nolint:paralleltest
 	assert.True(t, os.IsNotExist(err))
 }
 
+func TestStorage_ResetReplacesRatherThanMergesDefaults(t *testing.T) { //nolint:paralleltest
+	p := "../testdata/storage/reset_partial_defaults/"
+
+	require.NoError(t, os.MkdirAll(path.Join(p, "data"), 0o755)) //nolint:gosec
+	t.Cleanup(func() { _ = os.RemoveAll(path.Join(p, "data")) })
+
+	configData := []byte(`{"SettingA": "A","SettingB": "B","SettingC": "C"}`)
+	require.NoError(t, os.WriteFile(path.Join(p, "data", configFileName), configData, 0o644)) //nolint:gosec
+
+	store := storage.New(&testConfig{}, p, configFileName)
+
+	require.NoError(t, store.Load())
+	require.NoError(t, store.Reset())
+
+	// The defaults file only declares SettingA. Unmarshalling it over the live model would leave
+	// SettingB and SettingC behind, and the next Save would write the supposedly reset values back.
+	assert.Equal(t, &testConfig{SettingA: "X"}, store.Model())
+}
+
+func TestStorage_LoadFallsBackToBackupWhenDataFileIsMissing(t *testing.T) { //nolint:paralleltest
+	workDir := t.TempDir()
+
+	store := storage.NewCanonicalState(&testConfig{SettingA: "A"}, workDir, configFileName)
+	require.NoError(t, store.Save())
+
+	store.Model().SettingA = "B"
+	require.NoError(t, store.Save())
+
+	// save() renames the data file to the backup before rewriting it; a crash in that window leaves
+	// only the backup, which a state store with no defaults must still recover from.
+	require.NoError(t, os.Remove(path.Join(workDir, configFileName)))
+
+	reloaded := storage.NewCanonicalState(&testConfig{}, workDir, configFileName)
+	require.NoError(t, reloaded.Load())
+	assert.Equal(t, "A", reloaded.Model().SettingA)
+}
+
 func TestStorage_RoundTrip_WithEmbeddedDefault(t *testing.T) { //nolint:paralleltest
 	p := "../testdata/storage/empty_dir/"
 

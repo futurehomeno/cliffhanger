@@ -258,8 +258,8 @@ func TestCreateThing_FailedStateWriteKeepsTheGhostRecord(t *testing.T) {
 
 	failing.failSave = true
 
-	// CustomAddress keeps acquireAddress, which persists too, out of the way so that the record
-	// write is the step that fails.
+	// CustomAddress keeps the address assignment, which would consume an index, out of the way so
+	// that the record write is the step that fails.
 	require.Error(t, a.createThing(&ThingSeed{ID: "B", CustomAddress: "99"}))
 	assert.Equal(t, "42", s.modelByID("B").Address, "the ghost must keep its address when the state write fails")
 }

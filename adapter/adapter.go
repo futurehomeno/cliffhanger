@@ -458,19 +458,9 @@ func (a *adapter) createThing(seed *ThingSeed) (err error) {
 
 // createThingState creates new state of a thing and acquires a new address for it.
 func (a *adapter) createThingState(seed *ThingSeed) (ThingState, error) {
-	var err error
-
-	address := seed.CustomAddress
-	if address == "" {
-		address, err = a.state.acquireAddress()
-		if err != nil {
-			return nil, fmt.Errorf("failed to accquire a new address for thing with ID %s: %w", seed.ID, err)
-		}
-	}
-
 	model := &thingStateModel{
 		ID:      seed.ID,
-		Address: address,
+		Address: seed.CustomAddress,
 	}
 
 	if seed.Info != nil {
