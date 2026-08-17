@@ -491,6 +491,14 @@ func (ptr *logManagerT) SetFile(file string) error {
 	ptr.lock.Lock()
 	defer ptr.lock.Unlock()
 
+	// The command only carries a plain file name, which used to be handed to lumberjack as it is
+	// and so resolved against the process working directory - under systemd, wherever that happens
+	// to be. Keep the new file next to the current one, and persist it resolved so a restart does
+	// not send the logs somewhere else again.
+	if current := ptr.store.LogFile(); current != "" && !filepath.IsAbs(file) {
+		file = filepath.Join(filepath.Dir(current), file)
+	}
+
 	if err := ptr.setLogOutput(file); err != nil {
 		return err
 	}

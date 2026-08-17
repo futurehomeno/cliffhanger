@@ -135,8 +135,7 @@ func (r *router) processMessage(routing *Routing, msg *fimpgo.Message) {
 
 	startTime := time.Now()
 
-	if routing.handler == nil ||
-		reflect.ValueOf(routing.handler).IsNil() {
+	if isNilHandler(routing.handler) {
 		log.Errorf("[cliff] No handler for msg topic=%v", msg.Topic)
 		return
 	}
@@ -173,6 +172,22 @@ func (r *router) processMessage(routing *Routing, msg *fimpgo.Message) {
 			WithField("topic", response.Addr.Serialize()).
 			WithField("message", response.Payload).
 			Error("failed to publish response")
+	}
+}
+
+// isNilHandler reports whether a handler is missing. reflect.Value.IsNil panics for kinds that
+// cannot be nil, so a handler implemented on a value receiver - perfectly legal for the interface -
+// used to panic here and have every one of its messages dropped by the recover above.
+func isNilHandler(handler MessageHandler) bool {
+	if handler == nil {
+		return true
+	}
+
+	switch v := reflect.ValueOf(handler); v.Kind() {
+	case reflect.Chan, reflect.Func, reflect.Interface, reflect.Map, reflect.Pointer, reflect.Slice:
+		return v.IsNil()
+	default:
+		return false
 	}
 }
 

@@ -146,6 +146,10 @@ func Decrypt(encryptedString string, keyString string) (decryptedString string, 
 	// Get the nonce size
 	nonceSize := aesGCM.NonceSize()
 
+	if len(enc) < nonceSize {
+		return "", fmt.Errorf("security: encrypted string is shorter than the %d byte nonce", nonceSize)
+	}
+
 	// Extract the nonce from the encrypted data
 	nonce, ciphertext := enc[:nonceSize], enc[nonceSize:]
 

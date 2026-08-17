@@ -8,6 +8,7 @@ import (
 
 	"github.com/futurehomeno/fimpgo"
 	"github.com/futurehomeno/fimpgo/fimptype"
+	"github.com/google/uuid"
 	log "github.com/sirupsen/logrus"
 
 	"github.com/futurehomeno/cliffhanger/backoff"
@@ -33,7 +34,7 @@ const (
 	AdditionalRandomPollIntervalRange = 30 * time.Minute
 	MaxPollInterval                   = 24 * time.Hour
 
-	channelName = "telemetry-config-poll"
+	channelNamePrefix = "telemetry-config-poll"
 )
 
 func subscribeBackoff() backoff.Stateful {
@@ -54,11 +55,16 @@ type Config struct {
 	requestTopic string
 	applyConfig  func(enabled bool, suppressed map[string]types.SuppressedEntry)
 
+	// channelName is per instance: a shared one lets the deferred unregister of a goroutine being
+	// stopped tear down the registration a concurrent instance just made under the same name.
+	channelName string
+
 	lock           sync.Mutex
 	timer          *time.Timer
 	stopped        bool
 	msgCh          fimpgo.MessageCh
 	stopCh         chan struct{}
+	doneCh         chan struct{}
 	subscribedCh   chan struct{}
 	lastReceivedAt time.Time
 }
@@ -70,6 +76,7 @@ func New(mqtt *fimpgo.MqttTransport, sourceRn fimptype.ResourceNameT, applyConfi
 		fallbackPoll: DefaultPollInterval,
 		requestTopic: ConfigRequestTopic,
 		applyConfig:  applyConfig,
+		channelName:  channelNamePrefix + "-" + uuid.New().String(),
 	}
 }
 
@@ -91,27 +98,28 @@ func (ptr *Config) Start() error {
 
 	ptr.stopped = false
 	ptr.stopCh = make(chan struct{})
+	ptr.doneCh = make(chan struct{})
 	ptr.subscribedCh = make(chan struct{})
 	ptr.msgCh = make(fimpgo.MessageCh, 8)
-	stopCh := ptr.stopCh
 
-	ptr.mqtt.RegisterChannelWithFilter(channelName, ptr.msgCh, fimpgo.FimpFilter{
+	ptr.mqtt.RegisterChannelWithFilter(ptr.channelName, ptr.msgCh, fimpgo.FimpFilter{
 		Topic:     ConfigResponseTopic,
 		Interface: EvtConfigReport,
 		Service:   "*",
 	})
 
-	go ptr.listen(stopCh)
+	go ptr.listen(ptr.stopCh, ptr.doneCh, ptr.subscribedCh)
 
 	ptr.scheduleLocked(DefaultPollInterval)
 
 	return nil
 }
 
-func (ptr *Config) listen(stopCh <-chan struct{}) {
-	defer ptr.mqtt.UnregisterChannel(channelName)
+func (ptr *Config) listen(stopCh <-chan struct{}, doneCh, subscribedCh chan struct{}) {
+	defer close(doneCh)
+	defer ptr.mqtt.UnregisterChannel(ptr.channelName)
 
-	if !ptr.ensureSubscribed(stopCh) {
+	if !ptr.ensureSubscribed(stopCh, subscribedCh) {
 		return
 	}
 
@@ -143,7 +151,7 @@ func (ptr *Config) listen(stopCh <-chan struct{}) {
 	}
 }
 
-func (ptr *Config) ensureSubscribed(stopCh <-chan struct{}) bool {
+func (ptr *Config) ensureSubscribed(stopCh <-chan struct{}, subscribedCh chan struct{}) bool {
 	bo := subscribeBackoff()
 
 	for {
@@ -159,7 +167,7 @@ func (ptr *Config) ensureSubscribed(stopCh <-chan struct{}) bool {
 			continue
 		}
 
-		close(ptr.subscribedCh)
+		close(subscribedCh)
 		log.Debug("[cliff] Telemetry config poll subscribed")
 
 		return true
@@ -210,7 +218,6 @@ func (ptr *Config) nextUpdate(at string) time.Duration {
 
 func (ptr *Config) Stop() {
 	ptr.lock.Lock()
-	defer ptr.lock.Unlock()
 
 	ptr.stopped = true
 
@@ -222,6 +229,18 @@ func (ptr *Config) Stop() {
 	if ptr.timer != nil {
 		ptr.timer.Stop()
 		ptr.timer = nil
+	}
+
+	doneCh := ptr.doneCh
+	ptr.doneCh = nil
+
+	ptr.lock.Unlock()
+
+	// Waited for outside the lock, which the goroutine itself takes: a Start following this one
+	// would otherwise have its channel registration torn down by the deferred unregister of the
+	// goroutine still on its way out.
+	if doneCh != nil {
+		<-doneCh
 	}
 
 	log.Info("[cliff] Telemetry config poll stopped")
