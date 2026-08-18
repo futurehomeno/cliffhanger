@@ -31,7 +31,7 @@ func handleReporting(serviceRegistry adapter.ServiceRegistry) func() {
 
 			_, err := presence.SendPresenceReport(false)
 			if err != nil {
-				log.WithError(err).Errorf("failed to send presence report")
+				log.Errorf("[presence] Send presence report. err: %v", err)
 			}
 		}
 	}

@@ -100,7 +100,7 @@ func (a *app) Reset() error {
 
 	err := a.doStop()
 	if err != nil {
-		log.WithError(err).Error("[cliff] Stop before reset err")
+		log.Errorf("[cliff] Stop before reset err: %v", err)
 	}
 
 	return a.passErr(a.doReset())
@@ -139,7 +139,7 @@ func (a *app) Run() error {
 		<-signals
 		s := strings.Builder{}
 		if err := pprof.Lookup("goroutine").WriteTo(&s, 2); err == nil {
-			log.Warnf("%s\n", utils.FilterGoroutinesByKeywords(s.String(), []string{"mutex", "semaphore", "panic", "lock"}))
+			log.Warnf("[cliff] Goroutine dump:\n%s", utils.FilterGoroutinesByKeywords(s.String(), []string{"mutex", "semaphore", "panic", "lock"}))
 		}
 
 		err = a.Stop()
@@ -204,12 +204,12 @@ func (a *app) doStart() (err error) {
 	// running without it.
 	if a.telemetry != nil {
 		if telErr := a.telemetry.Start(); telErr != nil {
-			log.WithError(telErr).Error("[cliff] Failed to start telemetry")
+			log.Errorf("[cliff] Start telemetry err: %v", telErr)
 		}
 
 		undo = append(undo, func() {
 			if telErr := a.telemetry.Stop(); telErr != nil {
-				log.WithError(telErr).Error("[cliff] Failed to stop telemetry while rolling back a failed start")
+				log.Errorf("[cliff] Rollback stop telemetry err: %v", telErr)
 			}
 		})
 	}
@@ -221,7 +221,7 @@ func (a *app) doStart() (err error) {
 
 		undo = append(undo, func() {
 			if stopErr := service.Stop(); stopErr != nil {
-				log.WithError(stopErr).Errorf("[cliff] Failed to stop service[%d] while rolling back a failed start", i)
+				log.Errorf("[cliff] Rollback stop service[%d] err: %v", i, stopErr)
 			}
 		})
 	}
@@ -232,7 +232,7 @@ func (a *app) doStart() (err error) {
 
 	undo = append(undo, func() {
 		if stopErr := a.messageRouter.Stop(); stopErr != nil {
-			log.WithError(stopErr).Error("[cliff] Failed to stop the message router while rolling back a failed start")
+			log.Errorf("[cliff] Rollback stop message router err: %v", stopErr)
 		}
 	})
 
@@ -243,7 +243,7 @@ func (a *app) doStart() (err error) {
 
 		undo = append(undo, func() {
 			if unsubErr := a.mqtt.Unsubscribe(topic); unsubErr != nil {
-				log.WithError(unsubErr).Errorf("[cliff] Failed to unsubscribe topic=%s while rolling back a failed start", topic)
+				log.Errorf("[cliff] Rollback unsubscribe topic=%s err: %v", topic, unsubErr)
 			}
 		})
 	}
@@ -349,7 +349,7 @@ func (a *app) reportAuthLoss(tel telemetry.Telemetry, reason string) {
 	}
 
 	if err := sendAppStateReport(a.mqtt, a.resourceName, fimptype.ServiceNameT(a.resourceName), a.lifecycle); err != nil {
-		log.WithError(err).Errorf("[cliff] failed to publish app state report on auth loss (%s)", reason)
+		log.Errorf("[cliff] Publish app state report err: %v, auth loss reason: %s", err, reason)
 	}
 
 	// Emit under the historical "cause" key that shipped on develop so downstream telemetry
@@ -358,7 +358,7 @@ func (a *app) reportAuthLoss(tel telemetry.Telemetry, reason string) {
 
 	if a.authLossNotifier != nil && a.authLossEvent != nil {
 		if err := a.authLossNotifier.Event(a.authLossEvent); err != nil {
-			log.WithError(err).Errorf("[cliff] failed to send auth-loss notification (%s)", reason)
+			log.Errorf("[cliff] Send auth-loss notification err: %v, reason: %s", err, reason)
 		}
 	}
 }
@@ -438,7 +438,7 @@ func (a *app) doStop() error {
 
 // doReset performs the application factory reset.
 func (a *app) doReset() error {
-	log.Info("[cliff] Factory reset of the app data")
+	log.Info("[cliff] Start app data reset")
 
 	for _, resetter := range a.resetters {
 		err := resetter.Reset()
@@ -447,7 +447,7 @@ func (a *app) doReset() error {
 		}
 	}
 
-	log.Info("[cliff] Factory reset of the app data completed")
+	log.Info("[cliff] App data reset done")
 
 	return nil
 }

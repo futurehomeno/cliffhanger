@@ -181,7 +181,7 @@ func (s *storage[T]) load(defaultsExists, dataExists bool) error {
 			return err
 		}
 
-		log.WithError(err).Errorf("storage: failed to read the configuration file at path %s, falling back to defaults", s.dataPath)
+		log.Errorf("[storage] Read %s, fall back to defaults. err: %v", s.dataPath, err)
 	}
 
 	return nil
@@ -207,7 +207,7 @@ func (s *storage[T]) loadData() error {
 		return backupErr
 	}
 
-	log.WithError(err).Errorf("storage: failed to read the configuration file at path %s, falling back to last backup", s.dataPath)
+	log.Errorf("[storage] Read %s, fall back to backup. err: %v", s.dataPath, err)
 
 	return nil
 }

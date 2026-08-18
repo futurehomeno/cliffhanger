@@ -225,7 +225,7 @@ func routeCmdConfigSet[T any](serviceName fimptype.ServiceNameT, setting string,
 				log.WithField("srv", serviceName).
 					WithField("param", setting).
 					WithField("val", value).
-					Info("Cfg changed")
+					Info("[cliff] Cfg changed")
 
 				return fimpgo.NewMessage(
 					settingInterface,

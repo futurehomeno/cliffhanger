@@ -215,7 +215,7 @@ func (a *Authenticator) AccessToken() (string, error) {
 		// The exchange already succeeded, so the stored refresh token may have been invalidated
 		// by a rotating provider: keeping the new credentials in memory avoids retrying with a
 		// token the server has thrown away, and the access token stays usable meanwhile.
-		log.Errorf("[auth] Store credentials err, keeping them in memory: %v", err)
+		log.Errorf("[auth] Store credentials err: %v, keep in memory", err)
 
 		// unsavedFrom already holds what the store had when credentials() read it, which is
 		// what the memory copy supersedes even across a second failed rotation.
@@ -258,6 +258,8 @@ func (a *Authenticator) persistUnsaved() {
 	}
 
 	if err := a.store.SetCredentials(a.unsaved); err != nil {
+		log.Warnf("[auth] Persist unsaved credentials err: %v", err)
+
 		return
 	}
 

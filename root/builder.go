@@ -138,13 +138,13 @@ func logBootstrapDirs() {
 	if workDir, err := filepath.Abs(bootstrap.GetWorkingDirectory()); err != nil {
 		log.Warnf("[cliff] Resolve working dir=%s err: %v", bootstrap.GetWorkingDirectory(), err)
 	} else {
-		log.Infof("Working dir=%s", workDir)
+		log.Infof("[cliff] Working dir=%s", workDir)
 	}
 
 	if cfgDir, err := filepath.Abs(bootstrap.GetConfigurationDirectory()); err != nil {
 		log.Warnf("[cliff] Resolve config dir=%s err: %v", bootstrap.GetConfigurationDirectory(), err)
 	} else {
-		log.Infof("Config dir=%s", cfgDir)
+		log.Infof("[cliff] Config dir=%s", cfgDir)
 	}
 }
 

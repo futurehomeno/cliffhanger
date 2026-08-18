@@ -47,7 +47,7 @@ func Emit(tel Telemetry, domain, event string, data map[string]any) {
 	}
 
 	if err := tel.emit(domain, event, data); err != nil {
-		log.WithError(err).Warnf("[cliff] Emit event= %q", event)
+		log.Warnf("[cliff] Emit event=%q. err: %v", event, err)
 	}
 }
 
@@ -57,7 +57,7 @@ func EmitOnChange(tel Telemetry, domain, event string, data map[string]any, inte
 	}
 
 	if err := tel.emitOnChange(domain, event, data, interval); err != nil {
-		log.WithError(err).Warnf("[cliff] EmitOnChange event=%q", event)
+		log.Warnf("[cliff] EmitOnChange event=%q. err: %v", event, err)
 	}
 }
 
@@ -67,7 +67,7 @@ func EmitIfMore(tel Telemetry, domain, event string, threshold int, reset bool, 
 	}
 
 	if err := tel.emitIfMore(domain, event, threshold, reset, data, interval); err != nil {
-		log.WithError(err).Warnf("[cliff] EmitIfMore event=%q", event)
+		log.Warnf("[cliff] EmitIfMore event=%q. err: %v", event, err)
 	}
 }
 
@@ -82,7 +82,7 @@ func ResetEventCounters(tel Telemetry, domain, event string, scope map[string]an
 	}
 
 	if err := tel.resetEventCounters(domain, event, scope); err != nil {
-		log.WithError(err).Warnf("[cliff] ResetEventCounters event=%q", event)
+		log.Warnf("[cliff] ResetEventCounters event=%q. err: %v", event, err)
 	}
 }
 
@@ -103,15 +103,13 @@ func RecoverAndEmit(tel Telemetry, name string, terminate bool) {
 		return
 	}
 
-	log.Errorf("[cliff] Panic in %s:\n%s", name, string(debug.Stack()))
+	log.Errorf("[cliff] Panic in %s: %v\n%s", name, r, debug.Stack())
 
 	Emit(tel, DomainPanic, name, map[string]any{"terminate": terminate})
 
 	if terminate {
 		panic(r)
 	}
-
-	log.Error(r)
 }
 
 func New(mqtt *fimpgo.MqttTransport, sourceRn fimptype.ResourceNameT, store *config.DefaultStore, version string) (Telemetry, error) {
@@ -357,6 +355,8 @@ func (ptr *telemetryT) config() types.TelemetryConfig {
 
 	snap, err := ptr.store.Telemetry()
 	if err != nil {
+		log.Warnf("[cliff] Read telemetry config, use defaults. err: %v", err)
+
 		return types.TelemetryConfig{}
 	}
 
@@ -568,7 +568,7 @@ func (ptr *telemetryT) resumeValidityWindow() error {
 
 	if dirty {
 		if err := ptr.store.SetTelemetry(&next); err != nil {
-			log.WithError(err).Errorf("[cliff] Telemetry: persist resume")
+			log.Errorf("[cliff] Telemetry persist resume. err: %v", err)
 		}
 	}
 
@@ -616,7 +616,7 @@ func (ptr *telemetryT) disableLocked(reason string) {
 	next.EnabledAt = time.Time{}
 
 	if err := ptr.store.SetTelemetry(&next); err != nil {
-		log.WithError(err).Errorf("[cliff] Telemetry: persist disable")
+		log.Errorf("[cliff] Telemetry persist disable. err: %v", err)
 	}
 
 	log.Infof("[cliff] Telemetry disabled: %s", reason)
@@ -624,10 +624,10 @@ func (ptr *telemetryT) disableLocked(reason string) {
 
 func (ptr *telemetryT) applyConfigFromCloud(enabled bool, suppressed map[string]types.SuppressedEntry) {
 	if err := ptr.Enable(enabled); err != nil {
-		log.Errorf("[cliff] Telemetry enable=%v err: %v", enabled, err)
+		log.Errorf("[cliff] Enable telemetry=%v. err: %v", enabled, err)
 	}
 
 	if err := ptr.SetSuppressed(suppressed); err != nil {
-		log.Errorf("[cliff] Telemetry set suppressed err: %v", err)
+		log.Errorf("[cliff] Set telemetry suppressed. err: %v", err)
 	}
 }

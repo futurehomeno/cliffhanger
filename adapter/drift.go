@@ -83,7 +83,7 @@ func (a *adapter) rebuildChangedThing(seed *ThingSeed) error {
 	// in the recreate below overwrites it. Aborting instead would leave the device gone or
 	// ghosted until the next sync - and discard savedState with it.
 	if err := a.destroyThing(ts.Address()); err != nil {
-		log.Warnf("adapter: rebuild of thing with ID %s: destroy reported errors, recreating anyway: %v", seed.ID, err)
+		log.Warnf("[adapter] Rebuild thing %s: destroy reported errors, recreating anyway. err: %v", seed.ID, err)
 	}
 
 	if err := a.createThing(rebuildSeed); err != nil {

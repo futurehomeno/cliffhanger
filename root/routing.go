@@ -34,13 +34,14 @@ func handleFactoryReset(rootApp App) router.MessageHandler {
 			go func() {
 				defer func() {
 					if r := recover(); r != nil {
-						log.Error(string(debug.Stack()))
-						log.Error(r)
+						log.Errorf("[cliff] Panic recovered: %v\n%s", r, debug.Stack())
 						panic(r)
 					}
 				}()
 
-				_ = rootApp.Reset()
+				if err := rootApp.Reset(); err != nil {
+					log.Errorf("[cliff] Factory reset err: %v", err)
+				}
 			}()
 
 			return nil, nil

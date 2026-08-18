@@ -97,8 +97,7 @@ func (d *diskSpace) run() {
 
 	defer func() {
 		if r := recover(); r != nil {
-			log.Error(string(debug.Stack()))
-			log.Error(r)
+			log.Errorf("[monitor] Panic: %v\n%s", r, debug.Stack())
 			panic(r)
 		}
 	}()
@@ -119,7 +118,7 @@ func (d *diskSpace) run() {
 func (d *diskSpace) checkSpace() {
 	usage, err := disk.Usage("/")
 	if err != nil {
-		log.WithError(err).Error("disk space monitor: failed to get disk usage")
+		log.Errorf("[monitor] Get disk usage. err: %v", err)
 
 		return
 	}

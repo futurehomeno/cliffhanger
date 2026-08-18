@@ -82,8 +82,7 @@ func (r *manager) runOnce(task *Task) {
 func (m *manager) runContinuously(task *Task) {
 	defer func() {
 		if r := recover(); r != nil {
-			log.Error(string(debug.Stack()))
-			log.Error(r)
+			log.Errorf("[cliff] Panic recovered: %v\n%s", r, debug.Stack())
 			panic(r)
 		}
 	}()
@@ -109,8 +108,7 @@ func (m *manager) runContinuously(task *Task) {
 func run(task *Task) {
 	defer func() {
 		if r := recover(); r != nil {
-			log.WithField("stack", string(debug.Stack())).
-				Errorf("task manager: panic occurred while running a task: %+v", r)
+			log.Errorf("[cliff] Panic running task: %+v\n%s", r, debug.Stack())
 		}
 	}()
 
