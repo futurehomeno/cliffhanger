@@ -19,6 +19,10 @@ func NewBus[T any]() *Bus[T] {
 }
 
 // Subscribe registers a new subscription under the given ID and returns its channel.
+//
+// A filter runs while the bus is read locked, under the same constraint as Publish's drop
+// callback: it must not subscribe or unsubscribe, both of which take the write lock and would
+// deadlock. A nil filter is ignored.
 func (b *Bus[T]) Subscribe(subID string, buffer int, filters ...func(T) bool) chan T {
 	b.lock.Lock()
 	defer b.lock.Unlock()
