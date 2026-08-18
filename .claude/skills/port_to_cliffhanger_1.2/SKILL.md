@@ -1,9 +1,14 @@
 ---
 name: port_to_cliffhanger_1.2
-description: Port a Futurehome edge adapter (legacy fimpgo or cliffhanger v0.x) to cliffhanger v1.2.10, or build a new adapter on it. Use when asked to port/migrate an edge adapter to cliffhanger, modernize an adapter, or align an adapter with the mill/sensibo/zaptec architecture (futurehome packaging, unified Makefile/CI, mockery tests).
+description: Port a Futurehome edge adapter (legacy fimpgo or cliffhanger v0.x) to cliffhanger v1.2.10 as the base step before the 1.3.4 upgrade, or build a new adapter on it. Use when asked to port/migrate an edge adapter to cliffhanger, modernize an adapter, or align an adapter with the mill/sensibo/zaptec architecture (futurehome packaging, unified Makefile/CI, mockery tests).
 ---
 
 # Port an edge adapter to cliffhanger v1.2.10
+
+**This is the base port, not the destination.** v1.2.10 establishes the architecture, packaging and
+tooling; the current release line is v1.3.4. Finish here, then run the `port_to_cliffhanger_1.3`
+skill to adopt the common blocks and land on v1.3.4. Splitting it this way keeps two large diffs
+reviewable — do not try to do both at once.
 
 Read [references/porting-manual.md](references/porting-manual.md) first — it contains the full
 architecture, package structure, template table, and code patterns. This file is the procedure.
