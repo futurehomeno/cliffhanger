@@ -220,6 +220,16 @@ func (a *adapter) InitializeThings() error {
 		return nil
 	}
 
+	if err := a.state.batch(a.initializeThings); err != nil {
+		return err
+	}
+
+	a.initialized = true
+
+	return nil
+}
+
+func (a *adapter) initializeThings() error {
 	for _, ts := range a.state.all() {
 		// A thing can already be live: the router runs before the initialization task, so an
 		// inbound command can have created one. Rebuilding it would replace a connected instance
@@ -246,8 +256,6 @@ func (a *adapter) InitializeThings() error {
 		a.registerThing(t)
 	}
 
-	a.initialized = true
-
 	return nil
 }
 
@@ -257,6 +265,10 @@ func (a *adapter) EnsureThings(seeds ThingSeeds) error {
 	a.lock.Lock()
 	defer a.lock.Unlock()
 
+	return a.state.batch(func() error { return a.ensureThings(seeds) })
+}
+
+func (a *adapter) ensureThings(seeds ThingSeeds) error {
 	var addressesToRemove []string
 
 	// Ghost records keep the address and persisted state they had before healing, mirroring
