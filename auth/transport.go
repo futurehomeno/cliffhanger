@@ -56,6 +56,13 @@ func strippedOnRedirect(req *http.Request) bool {
 	for hop := req; hop.Response != nil; {
 		previous := hop.Response.Request
 
+		// Only net/http's own transport fills Response.Request in; a Base synthesizing responses
+		// (a mock, a replay or caching layer) leaves it nil. An unverifiable hop counts as stripped,
+		// since the bearer must not be reattached on a chain this cannot vouch for.
+		if previous == nil || previous.URL == nil {
+			return true
+		}
+
 		if previous.URL.Host != hop.URL.Host || (previous.URL.Scheme == "https" && hop.URL.Scheme != "https") {
 			return true
 		}

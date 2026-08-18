@@ -271,6 +271,8 @@ func (s *storage[T]) makeBackup() error {
 	return nil
 }
 
+// Reset drops the stored data and reloads the defaults file. Fields the defaults cannot carry,
+// json:"-" ones in particular, are left zeroed for the caller to restore.
 func (s *storage[T]) Reset() error {
 	s.lock.Lock()
 	defer s.lock.Unlock()

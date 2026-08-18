@@ -112,5 +112,56 @@ func TestSetFile_AlwaysPersistsAnAbsolutePath(t *testing.T) { //nolint:parallelt
 		assert.True(t, filepath.IsAbs(cfg.LogFile),
 			"a current path of %q must still persist an absolute path, got %q", current, cfg.LogFile)
 		assert.Equal(t, "rotated.log", filepath.Base(cfg.LogFile))
+
+		m.stopFlusher()
 	}
+}
+
+// TestInitializeLogger_FailedFirstInitKeepsManager pins that a first initialization that cannot
+// open its log file still leaves a manager behind: Route panics on a nil one, so an application
+// that logs the error and carries on would crash loop instead of running without file logging.
+func TestInitializeLogger_FailedFirstInitKeepsManager(t *testing.T) { //nolint:paralleltest
+	saved := logManager
+	savedLevel := logrus.GetLevel()
+	t.Cleanup(func() {
+		logManager = saved
+		logrus.SetLevel(savedLevel)
+	})
+
+	logManager = nil
+
+	cfg := &config.Default{LogLevel: "info", LogFormat: "text"} // no LogFile: setLogOutput fails
+	store := config.NewDefaultStore(func() *config.Default { return cfg }, func() error { return nil })
+
+	require.Error(t, InitializeLogger(store))
+	require.NotNil(t, logManager, "a failed first initialization must not leave the manager nil")
+
+	assert.NotPanics(t, func() { Route("test") })
+}
+
+// TestSetFile_AfterFailedFirstInitStartsFlusher pins that recovering through set_file also starts
+// the periodic flusher the failed initialization never reached: only error-level writes flush on
+// their own, so everything below it would otherwise sit in the buffer until it fills.
+func TestSetFile_AfterFailedFirstInitStartsFlusher(t *testing.T) { //nolint:paralleltest
+	saved := logManager
+	savedLevel := logrus.GetLevel()
+	savedOut := logrus.StandardLogger().Out
+	t.Cleanup(func() {
+		logManager = saved
+		logrus.SetLevel(savedLevel)
+		logrus.SetOutput(savedOut)
+	})
+
+	logManager = nil
+
+	cfg := &config.Default{LogLevel: "info", LogFormat: "text"} // no LogFile: setLogOutput fails
+	store := config.NewDefaultStore(func() *config.Default { return cfg }, func() error { return nil })
+
+	require.Error(t, InitializeLogger(store))
+	require.Nil(t, logManager.flushStop, "a failed initialization must not have started a flusher")
+
+	require.NoError(t, logManager.SetFile(filepath.Join(t.TempDir(), "app.log")))
+	t.Cleanup(func() { logManager.stopFlusher() })
+
+	assert.NotNil(t, logManager.flushStop, "recovering through SetFile must start the periodic flusher")
 }

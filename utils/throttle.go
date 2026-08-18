@@ -11,7 +11,8 @@ type Throttle struct {
 	last    string
 }
 
-// Do invokes emit unless key matches the last key passed to Do.
+// Do invokes emit unless key matches the last key passed to Do. emit runs under the lock, so it
+// must not block or call back into the same Throttle.
 func (t *Throttle) Do(key string, emit func()) {
 	t.mu.Lock()
 	defer t.mu.Unlock()
