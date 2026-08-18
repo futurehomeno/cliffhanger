@@ -57,16 +57,14 @@ func (s *Service[C]) Reset() error {
 	// WorkDir and ConfigDir are json:"-" and come from the command line, so the defaults file
 	// the reset reloads cannot restore them. Without this the application keeps running (the
 	// reset flow only asks for a reload) and resolves every later path against the CWD.
+	// Deferred rather than run after a successful reset: Storage.Reset zeroes the model before
+	// reloading the defaults, so an unreadable defaults file blanks them on the error path too.
 	def := s.defaultStore.accessor()
 	workDir, configDir := def.WorkDir, def.ConfigDir
 
-	if err := s.Storage.Reset(); err != nil {
-		return err
-	}
+	defer func() { def.WorkDir, def.ConfigDir = workDir, configDir }()
 
-	def.WorkDir, def.ConfigDir = workDir, configDir
-
-	return nil
+	return s.Storage.Reset()
 }
 
 // Migrate runs migrations under lock and saves the model if any step was applied.

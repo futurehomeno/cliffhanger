@@ -182,3 +182,22 @@ func TestService_Reset_KeepsRunTimeDirectories(t *testing.T) {
 	assert.Equal(t, workDir, srv.Model().WorkDir)
 	assert.Equal(t, filepath.Join(workDir, "etc"), srv.Model().ConfigDir)
 }
+
+// TestService_Reset_KeepsRunTimeDirectoriesOnFailedReload pins the same for a reset that cannot
+// reload: Storage.Reset zeroes the model before reading the defaults file, so a corrupt one would
+// otherwise leave the directories blank behind the returned error.
+func TestService_Reset_KeepsRunTimeDirectoriesOnFailedReload(t *testing.T) {
+	t.Parallel()
+
+	workDir := t.TempDir()
+	require.NoError(t, os.MkdirAll(filepath.Join(workDir, "defaults"), 0o750))
+	require.NoError(t, os.WriteFile(filepath.Join(workDir, "defaults", "config.json"), []byte(`{"Name":`), 0o600))
+
+	model := &testConfig{Default: config.Default{WorkDir: workDir, ConfigDir: filepath.Join(workDir, "etc")}, Name: "user"}
+	srv := config.NewService(storage.New(model, workDir, "config.json"), func(c *testConfig) *config.Default { return &c.Default }, nil)
+
+	require.Error(t, srv.Reset())
+
+	assert.Equal(t, workDir, srv.Model().WorkDir)
+	assert.Equal(t, filepath.Join(workDir, "etc"), srv.Model().ConfigDir)
+}

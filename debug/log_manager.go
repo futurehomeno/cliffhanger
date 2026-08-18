@@ -514,6 +514,13 @@ func (ptr *logManagerT) SetFile(file string) error {
 		return err
 	}
 
+	// A first initialization that could not open its log file keeps the manager but never reaches
+	// startFlusher, so this is the recovery path: without it everything below error level stays in
+	// the buffer until it fills, as only urgent writes flush on their own.
+	if ptr.flushStop == nil {
+		ptr.startFlusherLocked()
+	}
+
 	return ptr.store.SetLogFile(file)
 }
 
