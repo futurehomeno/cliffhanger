@@ -296,5 +296,12 @@ func (s *service) levelRange() (int, int, error) {
 		return 0, 0, fmt.Errorf("invalid service specification property: %s should be int", PropertyMinLvl)
 	}
 
+	// An inverted range would clamp every level to max_lvl instead of failing. Specification()
+	// takes maxLvl before minLvl, so a caller passing them the natural way round would otherwise
+	// send one fixed level to the device for every command, silently.
+	if lvlMin > lvlMax {
+		return 0, 0, fmt.Errorf("invalid service specification: %s %d is above %s %d", PropertyMinLvl, lvlMin, PropertyMaxLvl, lvlMax)
+	}
+
 	return lvlMin, lvlMax, nil
 }
