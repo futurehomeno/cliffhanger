@@ -109,7 +109,7 @@ func (g *tokenLoader) requestToken(client *fimpgo.SyncClient) (string, error) {
 			break
 		}
 
-		log.Errorf("token loader: CloudBridge is not responding, retrying in %s...", g.cfg.RetryDelay.String())
+		log.Errorf("[hub] CloudBridge unresponsive, retry in %s", g.cfg.RetryDelay)
 
 		time.Sleep(g.cfg.RetryDelay)
 	}

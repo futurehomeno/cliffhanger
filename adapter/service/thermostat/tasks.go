@@ -32,21 +32,21 @@ func handleReporting(serviceRegistry adapter.ServiceRegistry) func() {
 			if len(thermostat.SupportedModes()) > 0 {
 				_, err := thermostat.SendModeReport(false)
 				if err != nil {
-					log.WithError(err).Errorf("failed to send thermostat mode report")
+					log.Errorf("[thermostat] Send mode report. err: %v", err)
 				}
 			}
 
 			for _, mode := range thermostat.SupportedSetpoints() {
 				_, err := thermostat.SendSetpointReport(mode, false)
 				if err != nil {
-					log.WithError(err).Errorf("failed to send thermostat setpoint report for mode %s", mode)
+					log.Errorf("[thermostat] Send setpoint report. mode: %s err: %v", mode, err)
 				}
 			}
 
 			if len(thermostat.SupportedStates()) > 0 {
 				_, err := thermostat.SendStateReport(false)
 				if err != nil {
-					log.WithError(err).Errorf("failed to send thermostat state report")
+					log.Errorf("[thermostat] Send state report. err: %v", err)
 				}
 			}
 		}

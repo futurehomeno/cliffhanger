@@ -20,7 +20,7 @@ func NewInclusionReportSentEventHandler(thing adapter.ThingRegistry) *event.Hand
 		thing := thing.ThingByAddress(ep.Address())
 
 		if thing == nil {
-			log.Errorf("inclusion report sent event: thing with address %s not found", ep.Address())
+			log.Errorf("[parameters] Thing not found. address: %s", ep.Address())
 
 			return
 		}
@@ -31,7 +31,7 @@ func NewInclusionReportSentEventHandler(thing adapter.ThingRegistry) *event.Hand
 		}
 
 		if _, err := parameterSrv.SendSupportedParamsReport(true); err != nil {
-			log.WithError(err)
+			log.Errorf("[parameters] Send supported params report. err: %v", err)
 		}
 	})
 

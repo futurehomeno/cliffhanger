@@ -31,7 +31,7 @@ func handleReporting(serviceRegistry adapter.ServiceRegistry) func() {
 
 			for _, event := range alarm.SupportedEvents() {
 				if _, err := alarm.SendAlarmReport(event, false); err != nil {
-					log.WithError(err).Errorf("failed to send alarm report for event: %s", event)
+					log.Errorf("[alarm] Send alarm report. event: %s err: %v", event, err)
 				}
 			}
 		}

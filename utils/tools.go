@@ -65,11 +65,10 @@ func FilterGoroutinesByKeywords(input string, keywords []string) string {
 
 func PrintStackOnRecover(name string, terminate bool) {
 	if r := recover(); r != nil {
-		log.Errorf("panic in %s:\n%s", name, string(debug.Stack()))
+		log.Errorf("[utils] Panic in %s: %v\n%s", name, r, debug.Stack())
+
 		if terminate {
 			panic(r)
-		} else {
-			log.Error(r)
 		}
 	}
 }

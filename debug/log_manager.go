@@ -115,7 +115,7 @@ func InitializeLogger(store Store) error {
 		// now that logrus has been switched to the new one above.
 		if previous.logOutput != nil {
 			if err := previous.logOutput.Close(); err != nil {
-				logrus.Errorf("[cliff] close previous log output err: %v", err)
+				logrus.Errorf("[cliff] Close previous log output err: %v", err)
 			}
 		}
 	}
@@ -142,7 +142,7 @@ func (ptr *logManagerT) flush() {
 	}
 
 	if err := out.Flush(); err != nil {
-		logrus.Errorf("[cliff] flush log output err: %v", err)
+		logrus.Errorf("[cliff] Flush log output err: %v", err)
 	}
 }
 
@@ -240,7 +240,7 @@ func (ptr *logManagerT) applyPersistedLevel() error {
 	logLevel, err := logrus.ParseLevel(ptr.store.Level())
 	if err != nil {
 		logrus.SetLevel(logrus.InfoLevel)
-		logrus.Warnf("[cliff] Invalid log level %q, falling back to %s", ptr.store.Level(), logrus.InfoLevel)
+		logrus.Warnf("[cliff] Invalid log level %q, revert to %s", ptr.store.Level(), logrus.InfoLevel)
 
 		return fmt.Errorf("log: invalid level %q: %w", ptr.store.Level(), err)
 	}
@@ -256,7 +256,7 @@ func (ptr *logManagerT) applyPersistedLevel() error {
 			}
 
 			if err := ptr.clearRevertStateLocked(); err != nil {
-				logrus.WithError(err).Warnf("[cliff] failed to clear log revert state on startup")
+				logrus.Warnf("[cliff] Clear log revert state err: %v", err)
 			}
 
 			logrus.SetLevel(logrus.InfoLevel)
@@ -355,7 +355,7 @@ func (ptr *logManagerT) setLogOutput(logFile string) error {
 	if f, err := os.OpenFile(logFile, os.O_WRONLY|os.O_CREATE|os.O_APPEND, 0644); err != nil { //nolint:gosec
 		return fmt.Errorf("open log file=%s err: %w", logFile, err)
 	} else if cerr := f.Close(); cerr != nil {
-		logrus.Errorf("close err: %v", cerr)
+		logrus.Errorf("[cliff] Close err: %v", cerr)
 	}
 
 	newOutput := newBufferedWriter(&lumberjack.Logger{
@@ -370,7 +370,7 @@ func (ptr *logManagerT) setLogOutput(logFile string) error {
 
 	if previous != nil {
 		if err := previous.Close(); err != nil {
-			logrus.Errorf("close previous log output err: %v", err)
+			logrus.Errorf("[cliff] Close previous log output err: %v", err)
 		}
 	}
 
@@ -406,7 +406,7 @@ func (ptr *logManagerT) SetLevel(level string) error {
 		}
 
 		if err := ptr.clearRevertStateLocked(); err != nil {
-			logrus.WithError(err).Warnf("[cliff] failed to clear log revert state; startup recovery will retry")
+			logrus.Warnf("[cliff] Clear log revert state err: %v, retry next startup", err)
 		}
 
 		logrus.SetLevel(logLevel)
@@ -439,7 +439,7 @@ func (ptr *logManagerT) SetLevel(level string) error {
 		ptr.restartFlusher()
 	}
 
-	logrus.Infof("[cliff] Log level updated to %s; will revert to info on next startup after %s", logLevel, timeout)
+	logrus.Infof("[cliff] Log level updated to %s, revert to info after %s", logLevel, timeout)
 
 	return nil
 }

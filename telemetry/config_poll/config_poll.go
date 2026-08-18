@@ -161,13 +161,13 @@ func (ptr *Config) ensureSubscribed(stopCh <-chan struct{}, subscribedCh chan st
 		}
 
 		if err := ptr.mqtt.Subscribe(ConfigResponseTopic); err != nil {
-			log.Warnf("[cliff] Telemetry config subscribe err: %v", err)
+			log.Warnf("[cliff] Subscribe telemetry config. err: %v", err)
 
 			continue
 		}
 
 		close(subscribedCh)
-		log.Debug("[cliff] Telemetry config poll subscribed")
+		log.Debug("[cliff] Telemetry config subscribed")
 
 		return true
 	}
@@ -176,7 +176,7 @@ func (ptr *Config) ensureSubscribed(stopCh <-chan struct{}, subscribedCh chan st
 func (ptr *Config) handleConfigReport(payload *fimpgo.FimpMessage) {
 	var cfg configResponseT
 	if err := payload.GetObjectValue(&cfg); err != nil {
-		log.Warnf("[cliff] Telemetry config config parse err: %v", err)
+		log.Warnf("[cliff] Parse telemetry config. err: %v", err)
 
 		return
 	}
@@ -204,7 +204,7 @@ func (ptr *Config) nextUpdate(at string) time.Duration {
 
 	t, err := time.Parse(time.RFC3339, at)
 	if err != nil {
-		log.Warnf("[cliff] Parse next_update %q err: %v", at, err)
+		log.Warnf("[cliff] Parse next_update %q. err: %v", at, err)
 		return ptr.fallbackPoll + jitter
 	}
 
@@ -242,7 +242,7 @@ func (ptr *Config) Stop() {
 		<-doneCh
 	}
 
-	log.Info("[cliff] Telemetry config poll stopped")
+	log.Info("[cliff] Telemetry config stopped")
 }
 
 func (ptr *Config) scheduleLocked(delay time.Duration) {
@@ -282,7 +282,7 @@ func (ptr *Config) sendGetConfigCmd() {
 	msg.ResponseToTopic = ConfigResponseTopic
 
 	if err := ptr.mqtt.PublishToTopic(ptr.requestTopic, msg); err != nil {
-		log.WithError(err).Warnf("[cliff] Telemetry config poll: send request failed, retrying in %s", ptr.fallbackPoll)
+		log.Warnf("[cliff] Send config request, retry in %s. err: %v", ptr.fallbackPoll, err)
 	}
 
 	// Always schedule a fallback retry; handleConfigReport reschedules sooner

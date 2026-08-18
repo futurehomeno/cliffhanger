@@ -33,7 +33,7 @@ type manager struct {
 
 func (m *manager) Publish(event Event) {
 	m.bus.Publish(event, func(subID string) {
-		log.Warnf("[cliff] Event subscriber ID=%s busy, event domain=%s class=%s dropped", subID, event.Domain(), event.Class())
+		log.Warnf("[event] Subscriber %s busy, dropped domain=%s class=%s", subID, event.Domain(), event.Class())
 	})
 }
 
@@ -59,8 +59,7 @@ func (m *manager) WaitFor(timeout time.Duration, filters ...Filter) <-chan Event
 	go func() {
 		defer func() {
 			if r := recover(); r != nil {
-				log.Error(string(debug.Stack()))
-				log.Error(r)
+				log.Errorf("[event] Panic: %v\n%s", r, debug.Stack())
 				panic(r)
 			}
 		}()

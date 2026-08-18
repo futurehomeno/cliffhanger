@@ -103,8 +103,7 @@ func (r *router) routeMessages(messageCh fimpgo.MessageCh) {
 
 	defer func() {
 		if rec := recover(); rec != nil {
-			log.Error(string(debug.Stack()))
-			log.Error(rec)
+			log.Errorf("[router] Panic: %v\n%s", rec, debug.Stack())
 			panic(rec)
 		}
 	}()
@@ -136,7 +135,7 @@ func (r *router) processMessage(routing *Routing, msg *fimpgo.Message) {
 	startTime := time.Now()
 
 	if isNilHandler(routing.handler) {
-		log.Errorf("[cliff] No handler for msg topic=%v", msg.Topic)
+		log.Errorf("[router] No handler for topic %s", msg.Topic)
 		return
 	}
 
@@ -168,10 +167,9 @@ func (r *router) processMessage(routing *Routing, msg *fimpgo.Message) {
 
 	err := r.mqtt.Publish(responseAddress, response.Payload)
 	if err != nil {
-		log.WithError(err).
-			WithField("topic", response.Addr.Serialize()).
+		log.WithField("topic", response.Addr.Serialize()).
 			WithField("message", response.Payload).
-			Error("failed to publish response")
+			Errorf("[router] Publish response. err: %v", err)
 	}
 }
 
@@ -196,7 +194,7 @@ func (r *router) handleProcessingPanic(message *fimpgo.Message, panicErr any) {
 		WithField("service", message.Payload.Service).
 		WithField("type", message.Payload.Interface).
 		WithField("stack", string(debug.Stack())).
-		Errorf("message router: panic occurred while processing message: %+v", panicErr)
+		Errorf("[router] Panic while processing message. err: %+v", panicErr)
 
 	if r.cfg.panicCallback != nil {
 		r.cfg.panicCallback(message, panicErr)
@@ -217,10 +215,9 @@ func (r *router) getResponseAddress(message, response *fimpgo.Message) *fimpgo.A
 	if message.Payload.ResponseToTopic != "" {
 		responseAddress, err = fimpgo.NewAddressFromString(message.Payload.ResponseToTopic)
 		if err != nil {
-			log.WithError(err).
-				WithField("topic", message.Addr.Serialize()).
+			log.WithField("topic", message.Addr.Serialize()).
 				WithField("message", message).
-				Error("failed to parse respond to topic address")
+				Errorf("[router] Parse response topic address. err: %v", err)
 
 			return nil
 		}

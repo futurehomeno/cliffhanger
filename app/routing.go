@@ -267,7 +267,7 @@ func HandleCmdAppUninstall(
 		router.MessageProcessorFn(func(message *fimpgo.Message) (*fimpgo.FimpMessage, error) {
 			if excludeAllThings != nil {
 				if err := excludeAllThings(); err != nil {
-					log.Errorf("Exclude all things err: %v", err)
+					log.Errorf("[app] Exclude all things err: %v", err)
 				}
 			}
 
@@ -290,8 +290,7 @@ func RouteCmdAppReset(
 	action := func(_ string) *manifest.ButtonActionResponse {
 		err := app.Reset()
 		if err != nil {
-			log.WithError(err).
-				Error("failed to reset the application")
+			log.Errorf("[app] Reset app err: %v", err)
 
 			return &manifest.ButtonActionResponse{
 				Operation:       CmdAppReset,
@@ -411,11 +410,10 @@ func makeConfigurationReply(
 	}
 
 	if err != nil {
-		log.WithError(err).
-			WithField("topic", message.Topic).
+		log.WithField("topic", message.Topic).
 			WithField("service", message.Payload.Service).
 			WithField("type", message.Payload.Interface).
-			Error("failed to configure the application")
+			Errorf("[app] Configure app err: %v", err)
 
 		configReport.OpStatus = OperationStatusError
 		configReport.OpError = fmt.Sprintf("configure the app err: %s", err)
@@ -465,7 +463,7 @@ func HandleCmdAuthLogin(
 			report := &AuthenticationReport{}
 
 			if err = app.Login(credentials); err != nil {
-				log.Errorf("Login err: %v", err)
+				log.Errorf("[app] Login err: %v", err)
 
 				report.ErrorText = "failed to login"
 			}
@@ -541,7 +539,7 @@ func HandleCmdAuthSetTokens(
 			report := &AuthenticationReport{}
 
 			if err = app.Authorize(credentials); err != nil {
-				log.Errorf("Authorize err: %v", err)
+				log.Errorf("[app] Authorize err: %v", err)
 
 				report.ErrorText = "failed to authorize"
 			}
@@ -575,7 +573,7 @@ func HandleCmdAuthLogout(
 			report := &AuthenticationReport{}
 
 			if err := app.Logout(); err != nil {
-				log.Errorf("Logout err: %v", err)
+				log.Errorf("[app] Logout err: %v", err)
 
 				report.ErrorText = "failed to logout"
 			}

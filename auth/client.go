@@ -124,7 +124,7 @@ func (c *proxyClient) getToken(request any, url string) (*OAuth2TokenResponse, e
 		}
 
 		if i < c.cfg.Retry {
-			log.Errorf("proxy proxyClient: Partner API is not responding with success, retrying in %s...", c.cfg.RetryDelay.String())
+			log.Errorf("[auth] Partner API unresponsive, retry in %s", c.cfg.RetryDelay)
 
 			time.Sleep(c.cfg.RetryDelay)
 		}
@@ -141,7 +141,7 @@ func (c *proxyClient) requestToken(r *http.Request) (*OAuth2TokenResponse, error
 
 	defer func() {
 		if err := response.Body.Close(); err != nil {
-			log.Errorf("close err: %v", err)
+			log.Errorf("[auth] Close err: %v", err)
 		}
 	}()
 

@@ -249,7 +249,7 @@ func setupService(
 		thing := adapter.NewThing(publisher, thingState, thingCfg, outLvlSwitchService)
 
 		if err := managerWrapper.RegisterThing(thing, publisher); err != nil {
-			log.WithError(err).Errorf("virtual meter: failed to register service template. Thing addr: %s", thing.Address())
+			log.Errorf("virtual meter: failed to register service template. Thing addr: %s. err: %v", thing.Address(), err)
 		}
 
 		return thing, nil

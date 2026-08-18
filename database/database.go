@@ -128,7 +128,9 @@ func recoverData(workdir, filename string) error {
 		return fmt.Errorf("database: failed to open temporary database: %w", err)
 	}
 
-	_ = tempDB.Load(bytes.NewReader(corruptedData))
+	if err := tempDB.Load(bytes.NewReader(corruptedData)); err != nil {
+		log.Warnf("[db] Load corrupted data err: %v", err)
+	}
 
 	f, err := os.OpenFile(path.Join(workdir, filename+".db.recovered"), os.O_CREATE|os.O_RDWR|os.O_TRUNC, 0o644) //nolint:gosec
 	if err != nil {
@@ -137,7 +139,7 @@ func recoverData(workdir, filename string) error {
 
 	defer func() {
 		if err := f.Close(); err != nil {
-			log.Errorf("close err: %v", err)
+			log.Errorf("[db] Close err: %v", err)
 		}
 	}()
 

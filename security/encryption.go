@@ -48,7 +48,7 @@ func writeKeyFile(path string) (newKey string, err error) {
 
 	defer func() {
 		if err := f.Close(); err != nil {
-			log.Errorf("close err: %v", err)
+			log.Errorf("[security] Close err: %v", err)
 		}
 	}()
 

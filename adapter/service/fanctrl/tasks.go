@@ -22,7 +22,7 @@ func handleReporting(serviceRegistry adapter.ServiceRegistry) func() {
 		for _, s := range serviceRegistry.Services(FanCtrl) {
 			fanCtrl, ok := s.(Service)
 			if !ok {
-				log.Warnf("handleReporting cast to Service err exp=%T", s)
+				log.Warnf("[fanctrl] Service cast failed. got: %T", s)
 				continue
 			}
 
@@ -32,7 +32,7 @@ func handleReporting(serviceRegistry adapter.ServiceRegistry) func() {
 
 			_, err := fanCtrl.SendModeReport(false)
 			if err != nil {
-				log.WithError(err).Errorf("failed to send mode report")
+				log.Errorf("[fanctrl] Send mode report. err: %v", err)
 			}
 		}
 	}

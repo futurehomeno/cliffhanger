@@ -301,7 +301,10 @@ func (a *adapter) ensureThings(seeds ThingSeeds) error {
 		ghostAddresses[ts.ID()] = ts.Address()
 
 		var savedState json.RawMessage
-		if err := ts.State(&savedState); err == nil && len(savedState) > 0 {
+
+		if err := ts.State(&savedState); err != nil {
+			log.Warnf("[adapter] Read state for thing %s. err: %v", ts.ID(), err)
+		} else if len(savedState) > 0 {
 			ghostStates[ts.ID()] = savedState
 		}
 	}
@@ -461,7 +464,7 @@ func (a *adapter) createThing(seed *ThingSeed) (err error) {
 		}
 
 		if rollbackErr != nil {
-			log.Warnf("adapter: failed to roll back state of thing with ID %s: %v", seed.ID, rollbackErr)
+			log.Warnf("[adapter] Roll back state for thing %s. err: %v", seed.ID, rollbackErr)
 		}
 	}()
 

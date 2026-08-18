@@ -180,7 +180,7 @@ func (m *manager) add(topic string, modes map[string]float64, unit string) error
 		for _, ls := range thing.Services(outlvlswitch.OutLvlSwitch) {
 			if levelSwitch, ok := ls.(outlvlswitch.Service); ok && ls.Topic() == topic {
 				if _, err := levelSwitch.SendLevelReport(true); err != nil {
-					log.WithError(err).Warnf("manager: failed to force initial level report for topic %s", topic)
+					log.Warnf("[cliff] Force initial level report. topic: %s err: %v", topic, err)
 				}
 
 				break
@@ -471,8 +471,7 @@ func (m *manager) recalculateEnergy(force bool, d *Device) (bool, error) {
 		timeSinceUpdated := time.Since(d.LastTimeUpdated)
 
 		if 2*m.energyRecalculationPeriod < timeSinceUpdated {
-			log.Warnf("[cliff] Recalculate energy after a long interruption. Accounting for 2 periods only\nRecalculation period=%v elapsed=%v",
-				m.energyRecalculationPeriod, timeSinceUpdated)
+			log.Warnf("[cliff] Recalculate energy after long interruption. period: %v elapsed: %v", m.energyRecalculationPeriod, timeSinceUpdated)
 		}
 
 		timeSinceUpdatedHours := math.Min(timeSinceUpdated.Hours(), 2*m.energyRecalculationPeriod.Hours())
@@ -558,7 +557,7 @@ func (m *manager) createVirtualServicesForThing(t adapter.Thing, group string) (
 
 		addr, err := fimpgo.NewAddressFromString(s.Topic())
 		if err != nil {
-			log.WithError(err).Errorf("manager: failed to parse address from topic %s when creating virtual service", s.Topic())
+			log.Errorf("[cliff] Parse topic address. topic: %s err: %v", s.Topic(), err)
 
 			continue
 		}
