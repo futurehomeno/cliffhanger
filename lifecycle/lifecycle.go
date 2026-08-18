@@ -8,6 +8,7 @@ import (
 	log "github.com/sirupsen/logrus"
 
 	"github.com/futurehomeno/cliffhanger/config"
+	"github.com/futurehomeno/cliffhanger/event"
 )
 
 const (
@@ -62,27 +63,25 @@ type SystemEvent struct {
 type SystemEventChannel chan SystemEvent
 
 type Lifecycle struct {
-	lock               *sync.RWMutex
-	systemEventBusLock *sync.RWMutex
-	systemEventBus     map[string][]SystemEventChannel
-	appHealth          State
-	connectionState    State
-	authState          State
-	configState        State
-	startTime          time.Time
-	restartsCount      int
+	lock            *sync.RWMutex
+	systemEventBus  *event.Bus[SystemEvent]
+	appHealth       State
+	connectionState State
+	authState       State
+	configState     State
+	startTime       time.Time
+	restartsCount   int
 }
 
 func New(store *config.DefaultStore) *Lifecycle {
 	l := &Lifecycle{
-		systemEventBus:     make(map[string][]SystemEventChannel),
-		lock:               &sync.RWMutex{},
-		systemEventBusLock: &sync.RWMutex{},
-		appHealth:          AppHealthStarting,
-		authState:          AuthStateNA,
-		configState:        ConfigStateNotConfigured,
-		connectionState:    ConnStateNA,
-		startTime:          time.Now(),
+		systemEventBus:  event.NewBus[SystemEvent](),
+		lock:            &sync.RWMutex{},
+		appHealth:       AppHealthStarting,
+		authState:       AuthStateNA,
+		configState:     ConfigStateNotConfigured,
+		connectionState: ConnStateNA,
+		startTime:       time.Now(),
 	}
 
 	if store != nil {
@@ -271,30 +270,15 @@ func (l *Lifecycle) SetAppHealth(appState State, params map[string]string) {
 	l.emitStateChangeEvent(StateTypeAppHealth, appState, params)
 }
 
-// Subscribe registers a new subscription under the given ID and returns its channel. Subscribers
-// sharing an ID each get their own channel rather than one they would steal each other's events
-// from - but Unsubscribe still closes every channel registered under that ID, so an ID is only
-// safe to share between subscribers with the same lifetime.
+// Subscribe registers a new subscription under the given ID and returns its channel. Unsubscribe
+// closes every channel registered under that ID, so an ID is only safe to share between
+// subscribers with the same lifetime.
 func (l *Lifecycle) Subscribe(subID string, bufSize int) SystemEventChannel {
-	l.systemEventBusLock.Lock()
-	defer l.systemEventBusLock.Unlock()
-
-	msgChan := make(SystemEventChannel, bufSize)
-
-	l.systemEventBus[subID] = append(l.systemEventBus[subID], msgChan)
-
-	return msgChan
+	return l.systemEventBus.Subscribe(subID, bufSize)
 }
 
 func (l *Lifecycle) Unsubscribe(subID string) {
-	l.systemEventBusLock.Lock()
-	defer l.systemEventBusLock.Unlock()
-
-	for _, ch := range l.systemEventBus[subID] {
-		close(ch)
-	}
-
-	delete(l.systemEventBus, subID)
+	l.systemEventBus.Unsubscribe(subID)
 }
 
 // WaitFor blocks until the given state type reaches the target state.
@@ -319,16 +303,7 @@ func (l *Lifecycle) WaitFor(subID string, stateType StateType, targetState State
 }
 
 func (l *Lifecycle) emitStateChangeEvent(stateType StateType, currentState State, params map[string]string) {
-	l.systemEventBusLock.RLock()
-	defer l.systemEventBusLock.RUnlock()
-
-	for i, channels := range l.systemEventBus {
-		for _, ch := range channels {
-			select {
-			case ch <- SystemEvent{Type: stateType, State: currentState, Params: params}:
-			default:
-				log.Warnf("[cliff] State event channel=%s busy drop event %s/%s", i, stateType, currentState)
-			}
-		}
-	}
+	l.systemEventBus.Publish(SystemEvent{Type: stateType, State: currentState, Params: params}, func(subID string) {
+		log.Warnf("[cliff] State event channel=%s busy drop event %s/%s", subID, stateType, currentState)
+	})
 }
