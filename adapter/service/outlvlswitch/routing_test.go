@@ -128,7 +128,9 @@ func TestRouteService(t *testing.T) { //nolint:paralleltest
 					mockedoutlvlswitch.NewMockedOutSwitchLvl(
 						mockedoutlvlswitch.NewController(t).
 							MockSetLevelSwitchBinaryState(true, fmt.Errorf("some error"), false).
-							MockSetLevelSwitchLevel(1, 0, fmt.Errorf("error"), false),
+							MockSetLevelSwitchLevel(1, 0, fmt.Errorf("error"), false).
+							MockSetLevelSwitchLevel(99, 0, fmt.Errorf("error"), false).
+							MockSetLevelSwitchLevel(0, 0, fmt.Errorf("error"), false),
 						mockedoutlvlswitch.NewLevelTransitionController(t).
 							MockStartLevelTransition("up", outlvlswitch.LevelTransitionParams{}, fmt.Errorf("error")).
 							MockStopLevelTransition(fmt.Errorf("some error")),
@@ -234,8 +236,8 @@ func TestRouteService(t *testing.T) { //nolint:paralleltest
 						},
 					},
 					{
-						// The controller mock does not expect this call: an out of range level used
-						// to be forwarded to it, while the same value was rejected as a start_lvl.
+						// The controller mock only accepts the clamped value, so it is what asserts
+						// that an out of range level is bounded rather than rejected or forwarded.
 						Name:    "Set level. Above the supported range.",
 						Command: suite.IntMessage("pt:j1/mt:cmd/rt:dev/rn:test_adapter/ad:1/sv:out_lvl_switch/ad:2", "cmd.lvl.set", "out_lvl_switch", 500),
 						Expectations: []*suite.Expectation{

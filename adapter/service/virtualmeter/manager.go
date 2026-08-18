@@ -55,6 +55,33 @@ func (m *manager) WithAdapter(ad adapter.Adapter) {
 	m.ad = ad
 }
 
+// thingByTopic and thingByAddress resolve a thing before the manager lock is taken. Thing factories
+// call RegisterThing while the adapter lock is held, so reaching for the adapter from under the
+// manager lock inverts that order and deadlocks. A manager not yet given an adapter resolves to no
+// thing rather than panicking, which every caller already reports.
+func (m *manager) thingByTopic(topic string) adapter.Thing {
+	if ad := m.adapter(); ad != nil {
+		return ad.ThingByTopic(topic)
+	}
+
+	return nil
+}
+
+func (m *manager) thingByAddress(address string) adapter.Thing {
+	if ad := m.adapter(); ad != nil {
+		return ad.ThingByAddress(address)
+	}
+
+	return nil
+}
+
+func (m *manager) adapter() adapter.Adapter {
+	m.lock.RLock()
+	defer m.lock.RUnlock()
+
+	return m.ad
+}
+
 // RegisterThing creates a virtual meter and numeric meter services for a thing based on the existing
 // services. VMS is then added to a think and numeric is added based on whether the virtual meter is already active.
 func (m *manager) RegisterThing(thing adapter.Thing, publisher adapter.Publisher) error {
@@ -83,6 +110,8 @@ func (m *manager) RegisterThing(thing adapter.Thing, publisher adapter.Publisher
 // add adds a virtual service to a device by provided virtual meter topic.
 // Updates a thing with the adjusted list of services if the service isn't already added.
 func (m *manager) add(topic string, modes map[string]float64, unit string) error { //nolint:cyclop
+	thing := m.thingByTopic(topic)
+
 	m.lock.Lock()
 	defer m.lock.Unlock()
 
@@ -91,7 +120,6 @@ func (m *manager) add(topic string, modes map[string]float64, unit string) error
 		return fmt.Errorf("manager: failed to add meter to the thing: %s. no service template found. %v", topic, m.virtualServices)
 	}
 
-	thing := m.ad.ThingByTopic(topic)
 	if thing == nil {
 		return fmt.Errorf("manager: no thing found by topic: %s. can't add meter", topic)
 	}
@@ -166,6 +194,8 @@ func (m *manager) add(topic string, modes map[string]float64, unit string) error
 // remove removes a virtual service from a device by provided topic.
 // Updates a thing with the adjusted list of services.
 func (m *manager) remove(topic string) error {
+	thing := m.thingByTopic(topic)
+
 	m.lock.Lock()
 	defer m.lock.Unlock()
 
@@ -174,7 +204,6 @@ func (m *manager) remove(topic string) error {
 		return fmt.Errorf("manager: failed to remove meter from a thing: %s. No service template found", topic)
 	}
 
-	thing := m.ad.ThingByTopic(topic)
 	if thing == nil {
 		return fmt.Errorf("manager: no thing found by topic: %s. can't remove meter", topic)
 	}
@@ -392,10 +421,11 @@ func (m *manager) cleanOrphanedDevices(liveTopics map[string]struct{}) error {
 
 // updateDeviceActivity updates a device activity for each virtual service of a thing by provided thing address.
 func (m *manager) updateDeviceActivity(thingAddr string, active bool) error {
+	thing := m.thingByAddress(thingAddr)
+
 	m.lock.Lock()
 	defer m.lock.Unlock()
 
-	thing := m.ad.ThingByAddress(thingAddr)
 	if thing == nil {
 		return fmt.Errorf("manager: no thing found by address: %s. can't update device activity", thingAddr)
 	}
@@ -472,7 +502,7 @@ func (m *manager) vmsAddressFromTopic(topic string) (string, error) {
 		return "", fmt.Errorf("manager: failed to find vms by topic, can't parse in topic: %w", err)
 	}
 
-	t := m.ad.ThingByTopic(topic)
+	t := m.thingByTopic(topic)
 	if t == nil {
 		return "", fmt.Errorf("manager: failed to find thing for topic %s", topic)
 	}
@@ -497,7 +527,7 @@ func (m *manager) vmsAddressFromTopic(topic string) (string, error) {
 }
 
 func (m *manager) normalizeOutLvlSwitchLevel(level int, serviceAddr string) (float64, error) {
-	t := m.ad.ThingByTopic(serviceAddr)
+	t := m.thingByTopic(serviceAddr)
 
 	if t == nil {
 		return 0.0, fmt.Errorf("manager: failed to find thing for service %s", serviceAddr)
