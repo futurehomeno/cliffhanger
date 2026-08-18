@@ -135,6 +135,13 @@ func (s *service) SendAlarmReport(event string, force bool) (bool, error) {
 		return false, nil
 	}
 
+	// The reporter is free to return any spelling, and may reuse the struct between calls.
+	// Keys and payload must stay tied to the advertised event, or distinct alarms collapse
+	// onto one cache key; the copy also keeps the cached snapshot immune to reporter reuse.
+	normalized := *report
+	normalized.Event = normalizedEvent
+	report = &normalized
+
 	if !force && !s.reportingCache.ReportRequired(s.reportingStrategy, EvtAlarmReport, report.Event, report) {
 		return false, nil
 	}
