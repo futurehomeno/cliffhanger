@@ -4,6 +4,7 @@ import (
 	"time"
 
 	"github.com/futurehomeno/cliffhanger/adapter"
+	"github.com/futurehomeno/cliffhanger/adapter/service/alarm"
 	"github.com/futurehomeno/cliffhanger/adapter/service/chargepoint"
 	"github.com/futurehomeno/cliffhanger/adapter/service/devsys"
 	"github.com/futurehomeno/cliffhanger/adapter/service/diagnostic"
@@ -18,6 +19,7 @@ import (
 type CarChargerConfig struct {
 	ThingConfig            *adapter.ThingConfig
 	ChargepointConfig      *chargepoint.Config
+	AlarmConfig            *alarm.Config        // Optional
 	DevSysConfig           *devsys.Config       // Optional
 	DiagnosticConfig       *diagnostic.Config   // Optional
 	MeterElecConfig        *numericmeter.Config // Optional
@@ -34,6 +36,10 @@ func NewCarCharger(
 ) adapter.Thing {
 	services := []adapter.Service{
 		chargepoint.NewService(publisher, cfg.ChargepointConfig),
+	}
+
+	if cfg.AlarmConfig != nil {
+		services = append(services, alarm.NewService(publisher, cfg.AlarmConfig))
 	}
 
 	if cfg.DiagnosticConfig != nil {
@@ -63,6 +69,7 @@ func NewCarCharger(
 func RouteCarCharger(adapter adapter.Adapter) []*router.Routing {
 	return router.Combine(
 		chargepoint.RouteService(adapter),
+		alarm.RouteService(adapter),
 		diagnostic.RouteService(adapter),
 		devsys.RouteService(adapter),
 		numericmeter.RouteService(adapter),
@@ -79,6 +86,7 @@ func TaskCarCharger(
 ) []*task.Task {
 	return []*task.Task{
 		chargepoint.TaskReporting(adapter, reportingInterval, reportingVoters...),
+		alarm.TaskReporting(adapter, reportingInterval, reportingVoters...),
 		numericmeter.TaskReporting(adapter, reportingInterval, reportingVoters...),
 	}
 }
