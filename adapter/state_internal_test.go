@@ -126,6 +126,35 @@ func TestState_BatchCollapsesWrites(t *testing.T) {
 	assert.Equal(t, 3, failing.saves, "deferral must be lifted once the batch is over")
 }
 
+// TestState_BatchRetriesAFailedFlush pins that a failed flush is retried by the next batch. The
+// pass that failed announced and registered its things, so a retry skips them and has nothing left
+// to save - without carrying the dirty mark over, their checksums would never reach the disk and
+// every device would be re-announced after a restart.
+func TestState_BatchRetriesAFailedFlush(t *testing.T) {
+	t.Parallel()
+
+	failing := &failingSaveStorage{Storage: storage.NewState(&adapterStateModel{}, t.TempDir(), "adapter.json")}
+	s := &state{Storage: failing}
+
+	failing.failSave = true
+
+	err := s.batch(func() error {
+		_, addErr := s.add(&thingStateModel{ID: "1"})
+
+		return addErr
+	})
+	require.Error(t, err)
+	assert.Zero(t, failing.saves)
+
+	failing.failSave = false
+
+	require.NoError(t, s.batch(func() error { return nil }))
+	assert.Equal(t, 1, failing.saves, "a batch that changed nothing must still retry the failed flush")
+
+	require.NoError(t, s.batch(func() error { return nil }))
+	assert.Equal(t, 1, failing.saves, "once the retry lands there is nothing left to write")
+}
+
 // TestState_BatchSurvivesAPanic pins that a panicking pass still lifts the deferral and flushes.
 // The task manager recovers panics and keeps the process alive, so a deferral left set would turn
 // every later save into a silent no-op until restart.

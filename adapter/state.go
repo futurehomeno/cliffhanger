@@ -94,9 +94,19 @@ func (s *state) batch(fn func() error) (err error) {
 	defer func() {
 		s.deferred.Store(false)
 
-		if s.dirty.Swap(false) {
-			err = errors.Join(err, s.Storage.Save())
+		if !s.dirty.Swap(false) {
+			return
 		}
+
+		saveErr := s.Storage.Save()
+		if saveErr != nil {
+			// Left dirty so the next batch retries it. A pass whose flush failed can otherwise
+			// leave nothing to save on a retry - the things it announced are live, so the retry
+			// skips them and their checksums never reach the disk.
+			s.dirty.Store(true)
+		}
+
+		err = errors.Join(err, saveErr)
 	}()
 
 	return fn()
