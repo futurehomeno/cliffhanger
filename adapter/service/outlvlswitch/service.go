@@ -169,11 +169,18 @@ func (s *service) SetLevel(value int, duration *time.Duration) error {
 		duration = utils.Ptr(time.Duration(0))
 	}
 
-	if err := s.validateLevel(value); err != nil {
+	lvlMin, lvlMax, err := s.levelRange()
+	if err != nil {
 		return fmt.Errorf("%s: %w", s.Name(), err)
 	}
 
-	err := s.controller.SetLevelSwitchLevel(value, *duration)
+	// Clamped rather than rejected: a controller reached by an out of range level bounds it itself
+	// (edge-hue clamps into [0, max]), so rejecting would turn a command that used to change the
+	// device into an error and no action at all. Switching off is cmd.binary.set, not a level of 0,
+	// so nothing depends on a below-range level reaching the controller unchanged.
+	value = min(max(value, lvlMin), lvlMax)
+
+	err = s.controller.SetLevelSwitchLevel(value, *duration)
 	if err != nil {
 		return fmt.Errorf("%s: failed to set level: %w", s.Name(), err)
 	}
@@ -264,30 +271,37 @@ func (s *service) validateStartLevelOption(startLvl *int) error {
 		return nil
 	}
 
-	if err := s.validateLevel(*startLvl); err != nil {
-		return fmt.Errorf("invalid startLvl received: %w", err)
+	lvlMin, lvlMax, err := s.levelRange()
+	if err != nil {
+		return fmt.Errorf("%s: %w", s.Name(), err)
+	}
+
+	// Rejected rather than clamped, unlike cmd.lvl.set: an out of range start_lvl has always been
+	// an error and nothing downstream compensates for it.
+	if *startLvl < lvlMin || lvlMax < *startLvl {
+		return fmt.Errorf("invalid startLvl received: level %d is out of the supported range: %d - %d", *startLvl, lvlMin, lvlMax)
 	}
 
 	return nil
 }
 
-// validateLevel checks a level against the range the service declares. Applied to cmd.lvl.set as
-// well as to the start_lvl option: without it an out of range level was forwarded straight to the
-// third party API, while the very same value was rejected when sent as a transition start.
-func (s *service) validateLevel(level int) error {
+func (s *service) levelRange() (int, int, error) {
 	lvlMax, ok := s.Specification().PropertyInteger(PropertyMaxLvl)
 	if !ok {
-		return fmt.Errorf("invalid service specification property: %s should be int", PropertyMaxLvl)
+		return 0, 0, fmt.Errorf("invalid service specification property: %s should be int", PropertyMaxLvl)
 	}
 
 	lvlMin, ok := s.Specification().PropertyInteger(PropertyMinLvl)
 	if !ok {
-		return fmt.Errorf("invalid service specification property: %s should be int", PropertyMinLvl)
+		return 0, 0, fmt.Errorf("invalid service specification property: %s should be int", PropertyMinLvl)
 	}
 
-	if level < lvlMin || lvlMax < level {
-		return fmt.Errorf("level %d is out of the supported range: %d - %d", level, lvlMin, lvlMax)
+	// An inverted range would clamp every level to max_lvl instead of failing. Specification()
+	// takes maxLvl before minLvl, so a caller passing them the natural way round would otherwise
+	// send one fixed level to the device for every command, silently.
+	if lvlMin > lvlMax {
+		return 0, 0, fmt.Errorf("invalid service specification: %s %d is above %s %d", PropertyMinLvl, lvlMin, PropertyMaxLvl, lvlMax)
 	}
 
-	return nil
+	return lvlMin, lvlMax, nil
 }

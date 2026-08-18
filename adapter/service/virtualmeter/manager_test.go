@@ -7,6 +7,7 @@ import (
 
 	"github.com/futurehomeno/fimpgo/fimptype"
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/mock"
 
 	"github.com/futurehomeno/cliffhanger/adapter"
 	"github.com/futurehomeno/cliffhanger/adapter/service/numericmeter"
@@ -157,10 +158,9 @@ func TestVirtualMeterManager_Add(t *testing.T) { //nolint:paralleltest
 			mr := NewManager(db, time.Second, time.Hour)
 			m := mr.(*manager) //nolint:forcetypeassert
 
-			mockAdapter := mockedadapter.NewAdapter(t)
-			if c.configuredService != nil {
-				mockAdapter = mockAdapter.WithThingByTopic(addr, true, c.mockedThing)
-			}
+			// Expected in every case: the thing is now resolved before the manager lock is taken,
+			// so the lookup happens even when the service template check rejects the call.
+			mockAdapter := mockedadapter.NewAdapter(t).WithThingByTopic(addr, true, c.mockedThing)
 
 			if c.existingDevice != nil {
 				err := m.storage.SetDevice(addr, c.existingDevice)
@@ -233,10 +233,9 @@ func TestManager_Remove(t *testing.T) { //nolint:paralleltest
 			mr := NewManager(db, time.Second, time.Hour)
 			m := mr.(*manager) //nolint:forcetypeassert
 
-			mockAdapter := mockedadapter.NewAdapter(t)
-			if c.configuredService != nil {
-				mockAdapter = mockAdapter.WithThingByTopic(addr, true, c.mockedThing)
-			}
+			// Expected in every case: the thing is now resolved before the manager lock is taken,
+			// so the lookup happens even when the service template check rejects the call.
+			mockAdapter := mockedadapter.NewAdapter(t).WithThingByTopic(addr, true, c.mockedThing)
 
 			err := m.storage.SetDevice(addr, &Device{Modes: make(map[string]float64)})
 			assert.NoError(t, err, "should set device")
@@ -253,6 +252,49 @@ func TestManager_Remove(t *testing.T) { //nolint:paralleltest
 				assert.NoError(t, err, "should get modes")
 				assert.Equal(t, map[string]float64(nil), modes, "should remove modes")
 			}
+		})
+	}
+}
+
+// TestManager_QueriesAdapterWithoutHoldingLock pins the lock order. Thing factories call
+// RegisterThing while the adapter lock is held, so an adapter query made from under the manager
+// lock inverts that order and deadlocks - a failure that only shows up as a hung process.
+func TestManager_QueriesAdapterWithoutHoldingLock(t *testing.T) { //nolint:paralleltest
+	workdir := t.TempDir()
+
+	db, err := database.NewDatabase(workdir)
+	assert.NoError(t, err, "should create database")
+
+	mr := NewManager(db, time.Second, time.Hour)
+	m := mr.(*manager) //nolint:forcetypeassert
+
+	for name, query := range map[string]func() error{
+		"add":                  func() error { return m.add(addr, map[string]float64{"on": 1}, "W") },
+		"remove":               func() error { return m.remove(addr) },
+		"updateDeviceActivity": func() error { return m.updateDeviceActivity(addr, true) },
+	} {
+		t.Run(name, func(t *testing.T) {
+			free := false
+
+			mockAdapter := mockedadapter.NewAdapter(t)
+			for _, method := range []string{"ThingByTopic", "ThingByAddress"} {
+				mockAdapter.On(method, addr).Run(func(mock.Arguments) {
+					free = m.lock.TryLock()
+					if free {
+						m.lock.Unlock()
+					}
+				}).Return(nil).Maybe()
+			}
+
+			m.ad = mockAdapter
+			m.virtualServices = map[string]adapter.Service{addr: outLvlSwitchService}
+
+			assert.Error(t, query(), "should fail with no thing found")
+			assert.True(t, free, "manager lock must be free while the adapter is queried")
+
+			m.ad = nil
+
+			assert.Error(t, query(), "a manager with no adapter must report an error, not panic")
 		})
 	}
 }
