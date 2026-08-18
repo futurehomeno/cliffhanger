@@ -40,6 +40,19 @@ func TestBus_PublishReportsDropsAndAppliesFilters(t *testing.T) {
 	assert.Equal(t, []string{"odd"}, drops, "a full subscriber must be reported once")
 }
 
+func TestBus_SubscribeIgnoresNilFilters(t *testing.T) {
+	t.Parallel()
+
+	bus := event.NewBus[int]()
+	sub := bus.Subscribe("test", 1, nil, func(v int) bool { return v == 1 })
+
+	assert.NotPanics(t, func() { bus.Publish(2, nil) })
+	assert.Empty(t, sub, "the non-nil predicate must still be applied")
+
+	assert.NotPanics(t, func() { bus.Publish(1, nil) })
+	assert.Len(t, sub, 1)
+}
+
 func TestBus_SubscribeDoesNotAliasTheCallersFilters(t *testing.T) {
 	t.Parallel()
 

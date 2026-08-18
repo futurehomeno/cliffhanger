@@ -82,7 +82,9 @@ type subscription[T any] struct {
 
 func (s *subscription[T]) matches(value T) bool {
 	for _, f := range s.filters {
-		if !f(value) {
+		// A nil predicate is skipped rather than called: it would otherwise panic on the first
+		// publish that reached this subscription, long after the Subscribe that accepted it.
+		if f != nil && !f(value) {
 			return false
 		}
 	}
