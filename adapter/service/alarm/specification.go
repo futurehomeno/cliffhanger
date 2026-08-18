@@ -4,6 +4,8 @@ import (
 	"fmt"
 
 	"github.com/futurehomeno/fimpgo/fimptype"
+
+	"github.com/futurehomeno/cliffhanger/router"
 )
 
 // Specification creates a service specification.
@@ -32,13 +34,19 @@ func requiredInterfaces() []fimptype.Interface {
 		{
 			Type:      fimptype.TypeIn,
 			MsgType:   CmdAlarmGetReport,
-			ValueType: fimptype.VTypeStrMap,
+			ValueType: fimptype.VTypeNull,
 			Version:   "1",
 		},
 		{
 			Type:      fimptype.TypeOut,
 			MsgType:   EvtAlarmReport,
 			ValueType: fimptype.VTypeStrMap,
+			Version:   "1",
+		},
+		{
+			Type:      fimptype.TypeOut,
+			MsgType:   router.EvtErrorReport,
+			ValueType: fimptype.VTypeString,
 			Version:   "1",
 		},
 	}
