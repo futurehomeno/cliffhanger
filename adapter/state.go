@@ -71,7 +71,14 @@ func (s *state) Save() error {
 		return nil
 	}
 
-	return s.Storage.Save()
+	err := s.Storage.Save()
+	if err == nil {
+		// The whole model reaches the disk, so a retry mark left by a failed batch flush is
+		// satisfied by this write too.
+		s.dirty.Store(false)
+	}
+
+	return err
 }
 
 // batch collapses every save made while fn runs into a single write. Lifting the deferral and
@@ -98,7 +105,16 @@ func (s *state) batch(fn func() error) (err error) {
 			return
 		}
 
-		saveErr := s.Storage.Save()
+		// Locked around the write: every other save is made from inside a mutation that already
+		// holds this lock, so the flush is the only one that would marshal the model while another
+		// goroutine is still writing to it.
+		saveErr := func() error {
+			s.lock.Lock()
+			defer s.lock.Unlock()
+
+			return s.Storage.Save()
+		}()
+
 		if saveErr != nil {
 			// Left dirty so the next batch retries it. A pass whose flush failed can otherwise
 			// leave nothing to save on a retry - the things it announced are live, so the retry

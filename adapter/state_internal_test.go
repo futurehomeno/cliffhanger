@@ -2,6 +2,7 @@ package adapter
 
 import (
 	"errors"
+	"sync"
 	"testing"
 	"time"
 
@@ -153,6 +154,72 @@ func TestState_BatchRetriesAFailedFlush(t *testing.T) {
 
 	require.NoError(t, s.batch(func() error { return nil }))
 	assert.Equal(t, 1, failing.saves, "once the retry lands there is nothing left to write")
+}
+
+// TestState_SaveOutsideABatchSatisfiesTheRetry pins that a save made between a failed flush and the
+// next batch clears the retry mark. It writes the whole model, so leaving the mark set would cost
+// the next batch a redundant rewrite of a file that is already current.
+func TestState_SaveOutsideABatchSatisfiesTheRetry(t *testing.T) {
+	t.Parallel()
+
+	failing := &failingSaveStorage{Storage: storage.NewState(&adapterStateModel{}, t.TempDir(), "adapter.json")}
+	s := &state{Storage: failing}
+
+	failing.failSave = true
+
+	require.Error(t, s.batch(func() error {
+		_, addErr := s.add(&thingStateModel{ID: "1"})
+
+		return addErr
+	}))
+
+	failing.failSave = false
+
+	_, err := s.add(&thingStateModel{ID: "2"})
+	require.NoError(t, err)
+	assert.Equal(t, 1, failing.saves)
+
+	require.NoError(t, s.batch(func() error { return nil }))
+	assert.Equal(t, 1, failing.saves, "a standalone save already put the whole model on disk")
+}
+
+// TestState_BatchFlushDoesNotRaceWithConcurrentSaves pins that the flush marshals the model under
+// the same lock every mutation holds. The flush is the only save not made from inside a locked
+// mutation, so without it a concurrent SetState writes to the model while it is being marshalled.
+// Only meaningful under -race.
+func TestState_BatchFlushDoesNotRaceWithConcurrentSaves(t *testing.T) {
+	t.Parallel()
+
+	s := &state{Storage: storage.NewState(&adapterStateModel{}, t.TempDir(), "adapter.json")}
+
+	ts, err := s.add(&thingStateModel{ID: "1"})
+	require.NoError(t, err)
+
+	var wg sync.WaitGroup
+
+	wg.Add(2)
+
+	go func() {
+		defer wg.Done()
+
+		for i := range 100 {
+			assert.NoError(t, ts.SetState(map[string]int{"n": i}))
+		}
+	}()
+
+	go func() {
+		defer wg.Done()
+
+		for range 100 {
+			assert.NoError(t, s.batch(func() error {
+				_, addErr := s.add(&thingStateModel{ID: "2"})
+
+				return addErr
+			}))
+		}
+	}()
+
+	wg.Wait()
 }
 
 // TestState_BatchSurvivesAPanic pins that a panicking pass still lifts the deferral and flushes.
