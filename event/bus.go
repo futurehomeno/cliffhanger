@@ -1,6 +1,7 @@
 package event
 
 import (
+	"slices"
 	"sync"
 )
 
@@ -24,7 +25,10 @@ func (b *Bus[T]) Subscribe(subID string, buffer int, filters ...func(T) bool) ch
 
 	channel := make(chan T, buffer)
 
-	b.subscriptions[subID] = append(b.subscriptions[subID], &subscription[T]{channel: channel, filters: filters})
+	// Cloned because a variadic call made with someSlice... hands over the caller's backing array,
+	// and mutating it afterwards would rewrite a live subscription's predicates from outside the
+	// lock. Nothing to allocate when there are no filters, which is the common case.
+	b.subscriptions[subID] = append(b.subscriptions[subID], &subscription[T]{channel: channel, filters: slices.Clone(filters)})
 
 	return channel
 }
@@ -45,6 +49,9 @@ func (b *Bus[T]) Unsubscribe(subID string) {
 // buffer is full has the value dropped and is reported to dropped, so that the caller can log it
 // in its own terms. A nil dropped is allowed and drops silently: it would otherwise only panic
 // once a subscriber actually fell behind, which is exactly when it must not.
+//
+// dropped runs while the bus is read locked, so it must not subscribe or unsubscribe - both take
+// the write lock and would deadlock. Report from it and act afterwards.
 func (b *Bus[T]) Publish(value T, dropped func(subID string)) {
 	if dropped == nil {
 		dropped = func(string) {}

@@ -39,3 +39,18 @@ func TestBus_PublishReportsDropsAndAppliesFilters(t *testing.T) {
 	bus.Publish(3, record)
 	assert.Equal(t, []string{"odd"}, drops, "a full subscriber must be reported once")
 }
+
+func TestBus_SubscribeDoesNotAliasTheCallersFilters(t *testing.T) {
+	t.Parallel()
+
+	bus := event.NewBus[int]()
+
+	filters := []func(int) bool{func(v int) bool { return v == 1 }}
+	sub := bus.Subscribe("test", 1, filters...)
+
+	// A variadic call made with someSlice... hands over the caller's backing array.
+	filters[0] = func(int) bool { return false }
+
+	bus.Publish(1, nil)
+	assert.Len(t, sub, 1, "a subscription must keep the predicates it was registered with")
+}
