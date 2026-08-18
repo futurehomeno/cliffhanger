@@ -114,3 +114,25 @@ func TestSetFile_AlwaysPersistsAnAbsolutePath(t *testing.T) { //nolint:parallelt
 		assert.Equal(t, "rotated.log", filepath.Base(cfg.LogFile))
 	}
 }
+
+// TestInitializeLogger_FailedFirstInitKeepsManager pins that a first initialization that cannot
+// open its log file still leaves a manager behind: Route panics on a nil one, so an application
+// that logs the error and carries on would crash loop instead of running without file logging.
+func TestInitializeLogger_FailedFirstInitKeepsManager(t *testing.T) { //nolint:paralleltest
+	saved := logManager
+	savedLevel := logrus.GetLevel()
+	t.Cleanup(func() {
+		logManager = saved
+		logrus.SetLevel(savedLevel)
+	})
+
+	logManager = nil
+
+	cfg := &config.Default{LogLevel: "info", LogFormat: "text"} // no LogFile: setLogOutput fails
+	store := config.NewDefaultStore(func() *config.Default { return cfg }, func() error { return nil })
+
+	require.Error(t, InitializeLogger(store))
+	require.NotNil(t, logManager, "a failed first initialization must not leave the manager nil")
+
+	assert.NotPanics(t, func() { Route("test") })
+}

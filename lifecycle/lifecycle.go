@@ -203,7 +203,8 @@ func (l *Lifecycle) SetConnState(connectionState State) {
 // SetConnAndAuthState sets the connection and auth states atomically and emits a single
 // auth-state event. Subscribers reacting to the auth event (e.g. the auth-loss watcher)
 // then read a consistent bundle, and the trigger cannot be evicted from their buffer by a
-// separate connection event.
+// separate connection event. No connection event is emitted, so a subscriber tracking the
+// connection must re-read State on any event instead of filtering on its type.
 func (l *Lifecycle) SetConnAndAuthState(connectionState, authState State) {
 	l.setConnAndAuthState(connectionState, authState, nil)
 }
@@ -232,7 +233,8 @@ func (l *Lifecycle) setConnAndAuthState(connectionState, authState State, params
 // auth-state event, matching SetConnAndAuthState: a subscriber reacting to auth transitions
 // (e.g. the auth-loss watcher, which filters on StateTypeAuthState) sees one consistent bundle
 // instead of up to four separate emits, any of which past the first could be dropped from its
-// buffer if it isn't draining fast enough.
+// buffer if it isn't draining fast enough. Health, config and connection produce no event of
+// their own, so a subscriber tracking them must re-read State on any event, as WaitFor does.
 func (l *Lifecycle) SetAppState(appHealth, configState, connectionState, authState State) {
 	l.lock.Lock()
 	defer l.lock.Unlock()
@@ -295,8 +297,10 @@ func (l *Lifecycle) WaitFor(subID string, stateType StateType, targetState State
 		return
 	}
 
-	for event := range ch {
-		if event.Type == stateType && event.State == targetState {
+	// Re-read rather than match the event: a bundled setter changes several states but emits one
+	// event, so the awaited state can be reached by an event of another type.
+	for range ch {
+		if l.State(stateType) == targetState {
 			return
 		}
 	}

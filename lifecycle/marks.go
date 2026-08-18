@@ -2,6 +2,7 @@ package lifecycle
 
 // The Mark* bundles target cloud adapters with authentication. Applications keeping
 // auth or connectivity at AuthStateNA/ConnStateNA should set states individually instead.
+// Each bundle emits a single auth-state event, as documented on SetAppState.
 
 // MarkNotConfigured sets the state bundle of an unconfigured application,
 // as done on uninstall, reset and logout.

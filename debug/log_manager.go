@@ -2,6 +2,7 @@ package debug
 
 import (
 	"bufio"
+	"errors"
 	"fmt"
 	"os"
 	"path/filepath"
@@ -91,11 +92,15 @@ func InitializeLogger(store Store) error {
 	// manager is torn down. On failure, restore it along with the format/level globals set above:
 	// logrus keeps pointing at a manager that is still open and still flushing, using the same
 	// settings it had before this call, rather than one this call already closed with a mix of
-	// old and new global state.
+	// old and new global state. A first initialization has nothing to restore and keeps the new
+	// manager instead of leaving the global nil, which Route panics on: an application that logs
+	// the error and carries on then runs without file logging rather than crash looping.
 	if err := logManager.setLogOutput(store.LogFile()); err != nil {
-		logManager = previous
-		logrus.SetFormatter(previousFormatter)
-		logrus.SetLevel(previousLevel)
+		if previous != nil {
+			logManager = previous
+			logrus.SetFormatter(previousFormatter)
+			logrus.SetLevel(previousLevel)
+		}
 
 		return err
 	}
@@ -331,11 +336,9 @@ func (w *bufferedWriter) Close() error {
 	w.lock.Lock()
 	defer w.lock.Unlock()
 
-	if err := w.buf.Flush(); err != nil {
-		return err
-	}
-
-	return w.file.Close()
+	// Both run: returning on a failed flush (a full disk being the likely cause) would leak the
+	// rotating file, which nothing else holds a reference to once logrus is switched away.
+	return errors.Join(w.buf.Flush(), w.file.Close())
 }
 
 func (ptr *logManagerT) setLogOutput(logFile string) error {

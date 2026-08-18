@@ -48,12 +48,25 @@ func (s *Service[C]) Persist(fn func(model C)) error {
 	return s.Save()
 }
 
-// Reset restores the configuration to defaults under lock.
+// Reset restores the configuration to defaults under lock, preserving the run-time
+// directories the application was started with.
 func (s *Service[C]) Reset() error {
 	s.defaultStore.lock.Lock()
 	defer s.defaultStore.lock.Unlock()
 
-	return s.Storage.Reset()
+	// WorkDir and ConfigDir are json:"-" and come from the command line, so the defaults file
+	// the reset reloads cannot restore them. Without this the application keeps running (the
+	// reset flow only asks for a reload) and resolves every later path against the CWD.
+	def := s.defaultStore.accessor()
+	workDir, configDir := def.WorkDir, def.ConfigDir
+
+	if err := s.Storage.Reset(); err != nil {
+		return err
+	}
+
+	def.WorkDir, def.ConfigDir = workDir, configDir
+
+	return nil
 }
 
 // Migrate runs migrations under lock and saves the model if any step was applied.

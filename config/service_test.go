@@ -1,11 +1,14 @@
 package config_test
 
 import (
+	"os"
+	"path/filepath"
 	"sync"
 	"testing"
 	"time"
 
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 
 	"github.com/futurehomeno/cliffhanger/config"
 	"github.com/futurehomeno/cliffhanger/storage"
@@ -158,4 +161,24 @@ func TestBackoffConfig_Stateful(t *testing.T) {
 	assert.Equal(t, time.Minute, fallback.Next(), "unset or unparsable config should fall back to defaults")
 	assert.Equal(t, 5*time.Minute, fallback.Next())
 	assert.Equal(t, 10*time.Minute, fallback.Next())
+}
+
+// TestService_Reset_KeepsRunTimeDirectories pins that a reset does not wipe the directories the
+// application was started with: they are json:"-", so the reloaded defaults cannot restore them,
+// and the process keeps running afterwards - it would resolve every later path against the cwd.
+func TestService_Reset_KeepsRunTimeDirectories(t *testing.T) {
+	t.Parallel()
+
+	workDir := t.TempDir()
+	require.NoError(t, os.MkdirAll(filepath.Join(workDir, "defaults"), 0o750))
+	require.NoError(t, os.WriteFile(filepath.Join(workDir, "defaults", "config.json"), []byte(`{"Name":"default"}`), 0o600))
+
+	model := &testConfig{Default: config.Default{WorkDir: workDir, ConfigDir: filepath.Join(workDir, "etc")}, Name: "user"}
+	srv := config.NewService(storage.New(model, workDir, "config.json"), func(c *testConfig) *config.Default { return &c.Default }, nil)
+
+	require.NoError(t, srv.Reset())
+
+	assert.Equal(t, "default", srv.Model().Name, "reset must reload the defaults")
+	assert.Equal(t, workDir, srv.Model().WorkDir)
+	assert.Equal(t, filepath.Join(workDir, "etc"), srv.Model().ConfigDir)
 }

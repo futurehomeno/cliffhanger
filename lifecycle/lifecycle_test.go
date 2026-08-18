@@ -348,3 +348,28 @@ func TestNew_WithStore_RestartsCountPersistsAcrossProcesses(t *testing.T) {
 		assert.Equal(t, want, bootOnce(t), "boot #%d must see counter == %d", want, want)
 	}
 }
+
+// TestWaitFor_ReturnsOnBundledStateChange pins that a waiter is released by a bundled setter,
+// which reaches its state while emitting an event of another type.
+func TestWaitFor_ReturnsOnBundledStateChange(t *testing.T) {
+	t.Parallel()
+
+	l := lifecycle.New(nil)
+
+	done := make(chan struct{})
+
+	go func() {
+		l.WaitFor("test", lifecycle.StateTypeConfigState, lifecycle.ConfigStateConfigured)
+		close(done)
+	}()
+
+	time.Sleep(50 * time.Millisecond)
+
+	l.MarkRunning()
+
+	select {
+	case <-done:
+	case <-time.After(time.Second):
+		t.Fatal("WaitFor did not return after a bundled setter reached the state")
+	}
+}

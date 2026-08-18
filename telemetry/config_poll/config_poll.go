@@ -58,7 +58,6 @@ type Config struct {
 	lock           sync.Mutex
 	timer          *time.Timer
 	stopped        bool
-	msgCh          fimpgo.MessageCh
 	stopCh         chan struct{}
 	doneCh         chan struct{}
 	subscribedCh   chan struct{}
@@ -95,27 +94,27 @@ func (ptr *Config) Start() error {
 	ptr.stopCh = make(chan struct{})
 	ptr.doneCh = make(chan struct{})
 	ptr.subscribedCh = make(chan struct{})
-	ptr.msgCh = make(fimpgo.MessageCh, 8)
+	msgCh := make(fimpgo.MessageCh, 8)
 
 	// Named per start, not per instance: Stop releases the lock before waiting for the goroutine,
 	// so a Start racing that wait would otherwise register the same name and have it torn down by
 	// the deferred unregister of the goroutine on its way out.
 	channelName := channelNamePrefix + "-" + uuid.New().String()
 
-	ptr.mqtt.RegisterChannelWithFilter(channelName, ptr.msgCh, fimpgo.FimpFilter{
+	ptr.mqtt.RegisterChannelWithFilter(channelName, msgCh, fimpgo.FimpFilter{
 		Topic:     ConfigResponseTopic,
 		Interface: EvtConfigReport,
 		Service:   "*",
 	})
 
-	go ptr.listen(channelName, ptr.stopCh, ptr.doneCh, ptr.subscribedCh)
+	go ptr.listen(channelName, ptr.stopCh, ptr.doneCh, ptr.subscribedCh, msgCh)
 
 	ptr.scheduleLocked(DefaultPollInterval)
 
 	return nil
 }
 
-func (ptr *Config) listen(channelName string, stopCh <-chan struct{}, doneCh, subscribedCh chan struct{}) {
+func (ptr *Config) listen(channelName string, stopCh <-chan struct{}, doneCh, subscribedCh chan struct{}, msgCh fimpgo.MessageCh) {
 	defer close(doneCh)
 	defer ptr.mqtt.UnregisterChannel(channelName)
 
@@ -128,7 +127,7 @@ func (ptr *Config) listen(channelName string, stopCh <-chan struct{}, doneCh, su
 		case <-stopCh:
 			return
 
-		case msg, ok := <-ptr.msgCh:
+		case msg, ok := <-msgCh:
 			if !ok {
 				return
 			}

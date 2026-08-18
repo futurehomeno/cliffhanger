@@ -156,3 +156,30 @@ func TestTransport_SchemeDowngrade(t *testing.T) {
 	assert.NoError(t, resp.Body.Close())
 	assert.Empty(t, gotAuth, "bearer must not be sent over plaintext after a scheme downgrade")
 }
+
+// A Base that synthesizes its responses - a mock, or a replay or caching layer - leaves
+// Response.Request nil, which only net/http's own transport fills in. The chain cannot be
+// verified then, so the bearer must stay off rather than crash the process.
+func TestTransport_RedirectFromSynthesizedResponse(t *testing.T) {
+	t.Parallel()
+
+	gotAuth := "unset"
+	transport := &auth.Transport{
+		Source: staticToken("token"),
+		Base: roundTripFunc(func(r *http.Request) (*http.Response, error) {
+			gotAuth = r.Header.Get("Authorization")
+
+			return &http.Response{StatusCode: http.StatusOK, Body: http.NoBody}, nil
+		}),
+	}
+
+	hop, err := http.NewRequestWithContext(context.Background(), http.MethodGet, "https://api.example.com/next", nil)
+	assert.NoError(t, err)
+
+	hop.Response = &http.Response{StatusCode: http.StatusFound} // Request left nil by the base
+
+	resp, err := transport.RoundTrip(hop)
+	assert.NoError(t, err)
+	assert.NoError(t, resp.Body.Close())
+	assert.Empty(t, gotAuth, "an unverifiable redirect chain must not get the bearer reattached")
+}
