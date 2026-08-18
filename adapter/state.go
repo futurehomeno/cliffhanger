@@ -2,9 +2,11 @@ package adapter
 
 import (
 	"encoding/json"
+	"errors"
 	"fmt"
 	"strconv"
 	"sync"
+	"sync/atomic"
 
 	"github.com/futurehomeno/cliffhanger/storage"
 )
@@ -37,6 +39,8 @@ type State interface {
 	modelByID(id string) *thingStateModel
 	// byAddress returns a thing state for a thing with a given address.
 	byAddress(address string) ThingState
+	// batch collapses every save made while fn runs into a single write.
+	batch(fn func() error) error
 }
 
 func NewState(workDir string) (State, error) {
@@ -53,7 +57,75 @@ func NewState(workDir string) (State, error) {
 
 type state struct {
 	storage.Storage[*adapterStateModel]
-	lock sync.RWMutex
+	lock     sync.RWMutex
+	deferred atomic.Bool
+	dirty    atomic.Bool
+}
+
+// Save shadows the storage one so that a batch in progress can collapse it. Every record lives in
+// the same file, so a pass touching many things rewrote and fsynced all of them once per thing.
+func (s *state) Save() error {
+	if s.deferred.Load() {
+		s.dirty.Store(true)
+
+		return nil
+	}
+
+	err := s.Storage.Save()
+	if err == nil {
+		// The whole model reaches the disk, so a retry mark left by a failed batch flush is
+		// satisfied by this write too.
+		s.dirty.Store(false)
+	}
+
+	return err
+}
+
+// batch collapses every save made while fn runs into a single write. Lifting the deferral and
+// flushing are deferred so that they also run when fn panics: the task manager recovers panics and
+// keeps the process alive, and a deferral left set would turn every later save into a silent no-op.
+// The deferral is lifted before the flush rather than after, so a concurrent save landing in
+// between writes for itself instead of being dropped.
+//
+// The flush happens even when fn fails: callers apply changes best effort per thing, so a partially
+// applied pass must still reach the disk. The trade is that the per-thing rollbacks cannot fire
+// inside a batch - a save only fails at the flush, by which point the whole pass is in memory and
+// none of it on disk. That leaves records the next boot sees as ghosts, which EnsureThings heals,
+// rather than the divergence the rollbacks guard against.
+//
+// The deferral is process wide rather than scoped to the pass, so a save made concurrently by an
+// unrelated code path is collapsed into the same flush and shares its fate.
+func (s *state) batch(fn func() error) (err error) {
+	s.deferred.Store(true)
+
+	defer func() {
+		s.deferred.Store(false)
+
+		if !s.dirty.Swap(false) {
+			return
+		}
+
+		// Locked around the write: every other save is made from inside a mutation that already
+		// holds this lock, so the flush is the only one that would marshal the model while another
+		// goroutine is still writing to it.
+		saveErr := func() error {
+			s.lock.Lock()
+			defer s.lock.Unlock()
+
+			return s.Storage.Save()
+		}()
+
+		if saveErr != nil {
+			// Left dirty so the next batch retries it. A pass whose flush failed can otherwise
+			// leave nothing to save on a retry - the things it announced are live, so the retry
+			// skips them and their checksums never reach the disk.
+			s.dirty.Store(true)
+		}
+
+		err = errors.Join(err, saveErr)
+	}()
+
+	return fn()
 }
 
 func (s *state) all() []ThingState {
