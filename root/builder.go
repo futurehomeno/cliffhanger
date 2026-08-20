@@ -82,6 +82,10 @@ func (b *Builder) WithTelemetry(t telemetry.Telemetry) *Builder {
 // WithAuthLossNotification makes the app send the provided push notification event whenever
 // authorization transitions to lost. The event name is adapter-specific, e.g. "easee_status_offline".
 func (b *Builder) WithAuthLossNotification(n notification.Notification, event *notification.Event) *Builder {
+	// Reset unconditionally so passing a nil notifier or event clears a previously configured
+	// one, as assigning both fields used to.
+	b.authLossNotify = nil
+
 	if n != nil && event != nil {
 		b.authLossNotify = func() error { return n.Event(event) }
 	}

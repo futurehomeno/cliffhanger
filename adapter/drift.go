@@ -80,10 +80,10 @@ func (a *adapter) rebuildChangedThing(seed *ThingSeed) error {
 	// a CustomAddress would be assigned a fresh one on recreation.
 	address := ts.Address()
 
-	// destroyThing reporting an error has either completed the removal (only the exclusion
-	// announcement failed) or kept the record after a failed state write; either way state.add
-	// in the recreate below overwrites it. Aborting instead would leave the device gone or
-	// ghosted until the next sync - and discard savedState with it.
+	// destroyThing reporting an error means the exclusion announcement failed, the removal
+	// itself having already been applied; state.add in the recreate below restores the record
+	// either way. Aborting instead would leave the device gone or ghosted until the next sync -
+	// and discard savedState with it.
 	if err := a.destroyThing(address); err != nil {
 		log.Warnf("[adapter] Rebuild thing %s: destroy reported errors, recreating anyway. err: %v", seed.ID, err)
 	}
