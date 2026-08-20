@@ -105,7 +105,7 @@ func (s *service) SendParameterReport(id string, force bool) (bool, error) {
 		return false, fmt.Errorf("%s: failed to get parameter ID %s: %w", s.Name(), id, err)
 	}
 
-	if !force && !s.reportingCache.ReportRequired(s.reportingStrategy, EvtParamReport, "", parameter) {
+	if !force && !s.reportingCache.ReportRequired(s.reportingStrategy, EvtParamReport, id, parameter) {
 		return false, nil
 	}
 
@@ -122,6 +122,8 @@ func (s *service) SendParameterReport(id string, force bool) (bool, error) {
 	if err = s.SendMessage(message); err != nil {
 		return false, fmt.Errorf("%s: failed to send parameter report: %w", s.Name(), err)
 	}
+
+	s.reportingCache.Reported(EvtParamReport, id, parameter)
 
 	return true, nil
 }
@@ -151,6 +153,8 @@ func (s *service) SendSupportedParamsReport(force bool) (bool, error) {
 	if err = s.SendMessage(message); err != nil {
 		return false, fmt.Errorf("%s: failed to send supported parameters report: %w", s.Name(), err)
 	}
+
+	s.reportingCache.Reported(EvtSupParamsReport, "", parameters)
 
 	return true, nil
 }
