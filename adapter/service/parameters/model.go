@@ -58,6 +58,35 @@ type ParameterSpecification struct {
 	ReadOnly     bool          `json:"read_only"`
 }
 
+// clone returns a copy owning its own options and bounds, for the same reason as Parameter.clone.
+func (s *ParameterSpecification) clone() *ParameterSpecification {
+	c := *s
+	c.Options = slices.Clone(s.Options)
+
+	if s.Min != nil {
+		m := *s.Min
+		c.Min = &m
+	}
+
+	if s.Max != nil {
+		m := *s.Max
+		c.Max = &m
+	}
+
+	return &c
+}
+
+// cloneSpecifications returns a copy of the slice and of every specification in it.
+func cloneSpecifications(specs []*ParameterSpecification) []*ParameterSpecification {
+	cloned := make([]*ParameterSpecification, len(specs))
+
+	for i, spec := range specs {
+		cloned[i] = spec.clone()
+	}
+
+	return cloned
+}
+
 // WithMin sets a minimum value.
 func (s *ParameterSpecification) WithMin(m int) *ParameterSpecification {
 	s.Min = &m
@@ -225,6 +254,16 @@ type Parameter struct {
 	ID        string          `json:"parameter_id"`
 	ValueType ValueType       `json:"value_type"`
 	Value     json.RawMessage `json:"value"`
+}
+
+// clone returns a copy owning its own value bytes. A controller is free to reuse and mutate the
+// parameter it returned, which would otherwise mutate the reporting cache's snapshot of it and
+// make a genuine change look unchanged.
+func (p *Parameter) clone() *Parameter {
+	c := *p
+	c.Value = slices.Clone(p.Value)
+
+	return &c
 }
 
 // NewIntParameter creates a new parameter of a value type: integer.

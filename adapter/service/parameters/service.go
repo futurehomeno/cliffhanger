@@ -123,7 +123,7 @@ func (s *service) SendParameterReport(id string, force bool) (bool, error) {
 		return false, fmt.Errorf("%s: failed to send parameter report: %w", s.Name(), err)
 	}
 
-	s.reportingCache.Reported(EvtParamReport, id, parameter)
+	s.reportingCache.Reported(EvtParamReport, id, parameter.clone())
 
 	return true, nil
 }
@@ -154,7 +154,7 @@ func (s *service) SendSupportedParamsReport(force bool) (bool, error) {
 		return false, fmt.Errorf("%s: failed to send supported parameters report: %w", s.Name(), err)
 	}
 
-	s.reportingCache.Reported(EvtSupParamsReport, "", parameters)
+	s.reportingCache.Reported(EvtSupParamsReport, "", cloneSpecifications(parameters))
 
 	return true, nil
 }

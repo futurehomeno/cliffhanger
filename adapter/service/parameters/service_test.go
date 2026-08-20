@@ -70,6 +70,56 @@ func TestService_SendParameterReport_IsKeyedPerParameter(t *testing.T) {
 	assert.False(t, sent, "reporting another parameter must not invalidate this one's cache entry")
 }
 
+// TestService_SendParameterReport_SurvivesControllerReuse covers a controller that hands back the
+// same *Parameter on every call and mutates it in place. Caching that pointer would let the
+// mutation rewrite the cached snapshot, so a genuine change would look unchanged and be suppressed.
+func TestService_SendParameterReport_SurvivesControllerReuse(t *testing.T) {
+	t.Parallel()
+
+	reused := parameters.NewIntParameter("brightness", 10)
+
+	controller := mockedparameters.NewController(t)
+	controller.On("GetParameter", "brightness").Return(reused, nil).Twice()
+
+	svc := newTestService(t, controller, 2)
+
+	sent, err := svc.SendParameterReport("brightness", false)
+	assert.NoError(t, err)
+	assert.True(t, sent)
+
+	mutated := parameters.NewIntParameter("brightness", 20)
+	reused.Value = mutated.Value
+
+	sent, err = svc.SendParameterReport("brightness", false)
+	assert.NoError(t, err)
+	assert.True(t, sent, "a change made in place by the controller must still be reported")
+}
+
+// TestService_SendSupportedParamsReport_SurvivesControllerReuse is the slice-shaped equivalent:
+// the controller returns the same slice and mutates a specification within it.
+func TestService_SendSupportedParamsReport_SurvivesControllerReuse(t *testing.T) {
+	t.Parallel()
+
+	reused := []*parameters.ParameterSpecification{
+		{ID: "brightness", Name: "Brightness", ValueType: parameters.ValueTypeInt, WidgetType: parameters.WidgetTypeInput},
+	}
+
+	controller := mockedparameters.NewController(t)
+	controller.On("GetParameterSpecifications").Return(reused, nil).Twice()
+
+	svc := newTestService(t, controller, 2)
+
+	sent, err := svc.SendSupportedParamsReport(false)
+	assert.NoError(t, err)
+	assert.True(t, sent)
+
+	reused[0].Name = "Brightness level"
+
+	sent, err = svc.SendSupportedParamsReport(false)
+	assert.NoError(t, err)
+	assert.True(t, sent, "a specification changed in place by the controller must still be reported")
+}
+
 func TestService_SendParameterReport_ForceBypassesCache(t *testing.T) {
 	t.Parallel()
 
