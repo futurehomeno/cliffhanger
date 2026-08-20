@@ -88,6 +88,11 @@ type storage[T any] struct {
 	mode         os.FileMode
 }
 
+// isSecret reports whether this is a secrets store, which the secret file mode identifies.
+func (s *storage[T]) isSecret() bool {
+	return s.mode == secretFileMode
+}
+
 func (s *storage[T]) fileMode() os.FileMode {
 	if s.mode == 0 {
 		return configFileMode
@@ -275,7 +280,7 @@ func (s *storage[T]) Reset() error {
 		return err
 	}
 
-	if s.mode == secretFileMode {
+	if s.isSecret() {
 		// Secrets stores have no defaults to reload from; clear the in-memory model so a reset
 		// (logout) does not keep serving stale credentials.
 		s.zeroModel()

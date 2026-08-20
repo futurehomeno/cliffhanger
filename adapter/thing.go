@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"hash/crc32"
+	"slices"
 	"strings"
 	"sync"
 	"time"
@@ -42,27 +43,12 @@ type ThingFactory interface {
 type ThingSeeds []*ThingSeed
 
 func (s ThingSeeds) Contains(id string) bool {
-	for _, seed := range s {
-		if seed.ID == id {
-			return true
-		}
-	}
-
-	return false
+	return slices.ContainsFunc(s, func(seed *ThingSeed) bool { return seed.ID == id })
 }
 
+// Without returns a copy with the seed removed; the receiver is left untouched.
 func (s ThingSeeds) Without(id string) ThingSeeds {
-	var seeds ThingSeeds
-
-	for _, seed := range s {
-		if seed.ID == id {
-			continue
-		}
-
-		seeds = append(seeds, seed)
-	}
-
-	return seeds
+	return slices.DeleteFunc(slices.Clone(s), func(seed *ThingSeed) bool { return seed.ID == id })
 }
 
 type ThingSeed struct {

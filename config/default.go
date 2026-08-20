@@ -2,7 +2,6 @@ package config
 
 import (
 	"fmt"
-	"slices"
 	"sync"
 	"time"
 
@@ -109,14 +108,7 @@ func (s *DefaultStore) Default() *Default {
 
 	snap := *s.accessor()
 	if snap.Telemetry != nil {
-		tc := *snap.Telemetry
-		if tc.Suppressed != nil {
-			e := *tc.Suppressed
-			e.Domains = slices.Clone(e.Domains)
-			e.Events = slices.Clone(e.Events)
-			tc.Suppressed = &e
-		}
-
+		tc := snap.Telemetry.Clone()
 		snap.Telemetry = &tc
 	}
 
@@ -225,14 +217,7 @@ func (s *DefaultStore) SetTelemetry(cfg *types.TelemetryConfig) error {
 	s.lock.Lock()
 	defer s.lock.Unlock()
 
-	clone := *cfg
-	if cfg.Suppressed != nil {
-		e := *cfg.Suppressed
-		e.Domains = slices.Clone(e.Domains)
-		e.Events = slices.Clone(e.Events)
-		clone.Suppressed = &e
-	}
-
+	clone := cfg.Clone()
 	s.accessor().Telemetry = &clone
 
 	return s.saveStamped()

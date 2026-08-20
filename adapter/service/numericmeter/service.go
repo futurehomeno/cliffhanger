@@ -353,9 +353,10 @@ func (s *service) normalizeUnit(unit Unit, units Units) (Unit, bool) {
 // normalizeExtendedValues checks if all values are supported and returns their normalized form.
 func (s *service) normalizeExtendedValues(values Values) (Values, error) {
 	normalizedValues := make(Values, len(values))
+	supported := s.SupportedExtendedValues()
 
 	for i, v := range values {
-		normalizedValue, ok := s.normalizeValue(v, s.SupportedExtendedValues())
+		normalizedValue, ok := s.normalizeValue(v, supported)
 		if !ok {
 			return nil, fmt.Errorf("%s: extended value %s is unsupported", s.Name(), v)
 		}

@@ -1,7 +1,8 @@
 package router
 
 import (
-	"fmt"
+	"slices"
+	"strings"
 
 	"github.com/futurehomeno/fimpgo"
 	"github.com/futurehomeno/fimpgo/fimptype"
@@ -18,72 +19,35 @@ type TopicPattern struct {
 }
 
 func (tp *TopicPattern) String() string {
+	segments := []string{
+		segment("pt", tp.PayloadType),
+		segment("mt", tp.MessageType.Str()),
+		segment("rt", tp.ResourceType.Str()),
+	}
+
 	switch tp.ResourceType {
 	case fimptype.ResourceTypeDiscovery:
-		return fmt.Sprintf("%s/%s/%s", tp.pt(), tp.mt(), tp.rt())
 	case fimptype.ResourceTypeAdapter, fimptype.ResourceTypeApp, fimptype.ResourceTypeCloud:
-		return fmt.Sprintf("%s/%s/%s/%s/%s", tp.pt(), tp.mt(), tp.rt(), tp.rn(), tp.ra())
-	case fimptype.ResourceTypeDevice, fimptype.ResourceTypeLocation:
-		fallthrough
+		segments = append(segments, segment("rn", tp.ResourceName.Str()), segment("ad", tp.ResourceAddress))
 	default:
-		return fmt.Sprintf("%s/%s/%s/%s/%s/%s/%s", tp.pt(), tp.mt(), tp.rt(), tp.rn(), tp.ra(), tp.sv(), tp.sa())
+		segments = append(segments,
+			segment("rn", tp.ResourceName.Str()),
+			segment("ad", tp.ResourceAddress),
+			segment("sv", tp.ServiceName.Str()),
+			segment("ad", tp.ServiceAddress),
+		)
 	}
+
+	return strings.Join(segments, "/")
 }
 
-func (tp *TopicPattern) pt() string {
-	if tp.PayloadType == "" {
+// segment renders one topic segment, falling back to the single-level wildcard when unset.
+func segment(prefix, value string) string {
+	if value == "" {
 		return "+"
 	}
 
-	return "pt:" + tp.PayloadType
-}
-
-func (tp *TopicPattern) mt() string {
-	if tp.MessageType == "" {
-		return "+"
-	}
-
-	return "mt:" + tp.MessageType.Str()
-}
-
-func (tp *TopicPattern) rt() string {
-	if tp.ResourceType == "" {
-		return "+"
-	}
-
-	return "rt:" + tp.ResourceType.Str()
-}
-
-func (tp *TopicPattern) rn() string {
-	if tp.ResourceName == "" {
-		return "+"
-	}
-
-	return "rn:" + tp.ResourceName.Str()
-}
-
-func (tp *TopicPattern) ra() string {
-	if tp.ResourceAddress == "" {
-		return "+"
-	}
-
-	return "ad:" + tp.ResourceAddress
-}
-
-func (tp *TopicPattern) sv() string {
-	if tp.ServiceName == "" {
-		return "+"
-	}
-
-	return "sv:" + tp.ServiceName.Str()
-}
-
-func (tp *TopicPattern) sa() string {
-	if tp.ServiceAddress == "" {
-		return "+"
-	}
-
-	return "ad:" + tp.ServiceAddress
+	return prefix + ":" + value
 }
 
 func TopicPatternAdapter(resourceName fimptype.ResourceNameT, msgType fimptype.MsgTypeT) string {
@@ -136,11 +100,5 @@ func TopicPatternRoomService(serviceName fimptype.ServiceNameT, msgType fimptype
 }
 
 func CombineTopicPatterns(patterns ...[]string) []string {
-	var combined []string
-
-	for _, p := range patterns {
-		combined = append(combined, p...)
-	}
-
-	return combined
+	return slices.Concat(patterns...)
 }

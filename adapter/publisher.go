@@ -62,17 +62,7 @@ func (p *publisher) PublishServiceMessage(service Service, message *fimpgo.FimpM
 }
 
 func (p *publisher) PublishThingMessage(thing Thing, message *fimpgo.FimpMessage) error {
-	address := &fimpgo.Address{
-		MsgType:         fimptype.MsgTypeEvt,
-		ResourceType:    fimptype.ResourceTypeAdapter,
-		ResourceName:    p.adapterName,
-		ResourceAddress: p.adapterAddress,
-	}
-
-	message.Service = fimptype.ServiceNameT(p.adapterName)
-
-	err := p.mqtt.Publish(address, message)
-	if err != nil {
+	if err := p.PublishAdapterMessage(message); err != nil {
 		return fmt.Errorf("failed to publish a thing with address %s report: %w", thing.Address(), err)
 	}
 

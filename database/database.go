@@ -257,7 +257,7 @@ func (d *database) Keys(bucket string) ([]string, error) {
 	var keys []string
 
 	err := d.db.View(func(tx *buntdb.Tx) error {
-		return tx.AscendKeys(fmt.Sprintf("%s:*", bucket), func(key, _ string) bool {
+		return tx.AscendKeys(d.key(bucket, "*"), func(key, _ string) bool {
 			keys = append(keys, key)
 
 			return true
@@ -276,24 +276,9 @@ func (d *database) Keys(bucket string) ([]string, error) {
 
 // KeysFrom gets the keys for the bucket from the provided key.
 func (d *database) KeysFrom(bucket, from string) ([]string, error) {
-	var keys []string
-
-	fromString := fmt.Sprintf("%s:%s", bucket, from)
-	toString := fmt.Sprintf("%s:%s", bucket, string([]byte{255}))
-
-	err := d.db.View(func(tx *buntdb.Tx) error {
-		return tx.AscendRange("", fromString, toString, func(key, _ string) bool {
-			keys = append(keys, key)
-
-			return true
-		})
-	})
+	keys, err := d.keysBetween(bucket, from, string([]byte{255}))
 	if err != nil {
 		return nil, fmt.Errorf("database: failed to get the keys for bucket %s from %s: %w", bucket, from, err)
-	}
-
-	for i, key := range keys {
-		keys[i] = key[len(bucket)+1:]
 	}
 
 	return keys, nil
@@ -301,20 +286,26 @@ func (d *database) KeysFrom(bucket, from string) ([]string, error) {
 
 // KeysBetween gets the keys for the bucket between the provided keys.
 func (d *database) KeysBetween(bucket, from, to string) ([]string, error) {
+	keys, err := d.keysBetween(bucket, from, to)
+	if err != nil {
+		return nil, fmt.Errorf("database: failed to get the keys for bucket %s between %s and %s: %w", bucket, from, to, err)
+	}
+
+	return keys, nil
+}
+
+func (d *database) keysBetween(bucket, from, to string) ([]string, error) {
 	var keys []string
 
-	fromString := fmt.Sprintf("%s:%s", bucket, from)
-	toString := fmt.Sprintf("%s:%s", bucket, to)
-
 	err := d.db.View(func(tx *buntdb.Tx) error {
-		return tx.AscendRange("", fromString, toString, func(key, _ string) bool {
+		return tx.AscendRange("", d.key(bucket, from), d.key(bucket, to), func(key, _ string) bool {
 			keys = append(keys, key)
 
 			return true
 		})
 	})
 	if err != nil {
-		return nil, fmt.Errorf("database: failed to get the keys for bucket %s between %s and %s: %w", bucket, from, to, err)
+		return nil, err
 	}
 
 	for i, key := range keys {

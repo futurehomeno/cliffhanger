@@ -3,6 +3,7 @@ package observer
 import (
 	"github.com/futurehomeno/cliffhanger/event"
 	"github.com/futurehomeno/cliffhanger/prime"
+	"slices"
 )
 
 const (
@@ -97,13 +98,7 @@ func WaitForComponent(component string, commands ...string) event.Filter {
 			return true
 		}
 
-		for _, command := range commands {
-			if e.Command == command {
-				return true
-			}
-		}
-
-		return false
+		return slices.Contains(commands, e.Command)
 	})
 }
 
@@ -114,12 +109,6 @@ func WaitForRefresh(component string) event.Filter {
 			return false
 		}
 
-		for _, c := range e.Components {
-			if component == c {
-				return true
-			}
-		}
-
-		return false
+		return slices.Contains(e.Components, component)
 	})
 }

@@ -1,6 +1,9 @@
 package types
 
-import "time"
+import (
+	"slices"
+	"time"
+)
 
 // SuppressedEntry holds the per-service suppression rules sent by the cloud.
 // When both Domains and Events are nil, suppress all telemetry. Otherwise,
@@ -20,8 +23,21 @@ type SuppressedEntry struct {
 //   - Suppressed != nil, both Domains and Events are nil: suppress everything.
 //   - Otherwise: suppress if the domain is in Domains OR the event is in Events.
 type TelemetryConfig struct {
-	Enabled   bool             `json:"enabled,omitempty"`
-	EnabledAt time.Time        `json:"enabled_at"`
-	Validity  time.Duration    `json:"validity,omitempty"`
+	Enabled    bool             `json:"enabled,omitempty"`
+	EnabledAt  time.Time        `json:"enabled_at"`
+	Validity   time.Duration    `json:"validity,omitempty"`
 	Suppressed *SuppressedEntry `json:"suppressed,omitempty"`
+}
+
+// Clone returns a deep copy safe to hand out: the Suppressed entry and its slices are
+// copied so a caller mutating them cannot reach the stored configuration.
+func (c TelemetryConfig) Clone() TelemetryConfig {
+	if c.Suppressed != nil {
+		e := *c.Suppressed
+		e.Domains = slices.Clone(e.Domains)
+		e.Events = slices.Clone(e.Events)
+		c.Suppressed = &e
+	}
+
+	return c
 }
