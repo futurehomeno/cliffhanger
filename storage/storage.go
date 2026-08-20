@@ -30,72 +30,52 @@ type Storage[T any] interface {
 	Model() T
 }
 
-// New creates a new storage service in accordance to Thingsplex layout. Provided model should be a pointer.
-func New[T any](model T, workDir string, name string) Storage[T] {
+// newStorage creates the storage implementation shared by all constructors. An empty
+// defaultsPath means the store has no defaults file to reset from.
+func newStorage[T any](model T, dataPath, defaultsPath string) *storage[T] {
 	return &storage[T]{
 		lock:         &sync.Mutex{},
-		dataPath:     filepath.Join(workDir, dataDirectory, name),
-		backupPath:   filepath.Join(workDir, dataDirectory, name) + backupExtension,
-		defaultsPath: filepath.Join(workDir, defaultsDirectory, name),
+		dataPath:     dataPath,
+		backupPath:   dataPath + backupExtension,
+		defaultsPath: defaultsPath,
 		model:        model,
 	}
+}
+
+// New creates a new storage service in accordance to Thingsplex layout. Provided model should be a pointer.
+func New[T any](model T, workDir string, name string) Storage[T] {
+	return newStorage(model, filepath.Join(workDir, dataDirectory, name), filepath.Join(workDir, defaultsDirectory, name))
 }
 
 // NewSecrets creates a storage service for credentials and other secrets, conventionally
 // data/secrets.json, written with 0640 permissions unlike the world-readable configuration
 // and without a defaults file.
 func NewSecrets[T any](model T, workDir string, name string) Storage[T] {
-	return &storage[T]{
-		lock:       &sync.Mutex{},
-		dataPath:   filepath.Join(workDir, dataDirectory, name),
-		backupPath: filepath.Join(workDir, dataDirectory, name) + backupExtension,
-		model:      model,
-		mode:       secretFileMode,
-		isSecret:   true,
-	}
+	s := newStorage(model, filepath.Join(workDir, dataDirectory, name), "")
+	s.mode = secretFileMode
+
+	return s
 }
 
 // NewCanonicalSecrets creates a secrets storage service following the canonical layout of core applications.
 func NewCanonicalSecrets[T any](model T, workDir string, name string) Storage[T] {
-	return &storage[T]{
-		lock:       &sync.Mutex{},
-		dataPath:   filepath.Join(workDir, name),
-		backupPath: filepath.Join(workDir, name) + backupExtension,
-		model:      model,
-		mode:       secretFileMode,
-		isSecret:   true,
-	}
+	s := newStorage(model, filepath.Join(workDir, name), "")
+	s.mode = secretFileMode
+
+	return s
 }
 
 // NewCanonical creates a new storage service allowing canonical separate paths for defaults and data. Provided model should be a pointer.
 func NewCanonical[T any](model T, workDir, defaultsDir, name string) Storage[T] {
-	return &storage[T]{
-		lock:         &sync.Mutex{},
-		dataPath:     filepath.Join(workDir, name),
-		backupPath:   filepath.Join(workDir, name) + backupExtension,
-		defaultsPath: filepath.Join(defaultsDir, name),
-		model:        model,
-	}
+	return newStorage(model, filepath.Join(workDir, name), filepath.Join(defaultsDir, name))
 }
 
 func NewState[T any](model T, workDir, name string) Storage[T] {
-	return &storage[T]{
-		lock:         &sync.Mutex{},
-		dataPath:     filepath.Join(workDir, dataDirectory, name),
-		backupPath:   filepath.Join(workDir, dataDirectory, name) + backupExtension,
-		defaultsPath: "",
-		model:        model,
-	}
+	return newStorage(model, filepath.Join(workDir, dataDirectory, name), "")
 }
 
 func NewCanonicalState[T any](model T, workDir, name string) Storage[T] {
-	return &storage[T]{
-		lock:         &sync.Mutex{},
-		dataPath:     filepath.Join(workDir, name),
-		backupPath:   filepath.Join(workDir, name) + backupExtension,
-		defaultsPath: "",
-		model:        model,
-	}
+	return newStorage(model, filepath.Join(workDir, name), "")
 }
 
 // storage is an implementation of the storage service.
@@ -106,7 +86,6 @@ type storage[T any] struct {
 	defaultsPath string
 	model        T
 	mode         os.FileMode
-	isSecret     bool
 }
 
 func (s *storage[T]) fileMode() os.FileMode {
@@ -296,7 +275,7 @@ func (s *storage[T]) Reset() error {
 		return err
 	}
 
-	if s.isSecret {
+	if s.mode == secretFileMode {
 		// Secrets stores have no defaults to reload from; clear the in-memory model so a reset
 		// (logout) does not keep serving stale credentials.
 		s.zeroModel()

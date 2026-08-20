@@ -103,7 +103,7 @@ func TestVirtualMeterManager_Add(t *testing.T) { //nolint:paralleltest
 			existingDevice:    &Device{Modes: map[string]float64{"on": 123}, CurrentMode: "on"},
 			mockedThing: mockedadapter.NewThing(t).
 				WithSendInclusionReport(true, true, true, nil).
-				WithServices(numericmeter.MeterElec, true, []adapter.Service{meterElecService}),
+				WithServiceByTopic(addr, true, meterElecService),
 			teardown:    adapterhelper.TearDownAdapter(workdir)[0],
 			expectError: false,
 		},
@@ -118,7 +118,7 @@ func TestVirtualMeterManager_Add(t *testing.T) { //nolint:paralleltest
 			existingDevice:    &Device{Modes: map[string]float64{"on": 123}},
 			mockedThing: mockedadapter.NewThing(t).
 				WithSendInclusionReport(true, true, true, nil).
-				WithServices(numericmeter.MeterElec, true, []adapter.Service{meterElecService}).
+				WithServiceByTopic(addr, true, meterElecService).
 				WithServices(outlvlswitch.OutLvlSwitch, true, []adapter.Service{levelSwitchForceReport(t, addr)}),
 			teardown:    adapterhelper.TearDownAdapter(workdir)[0],
 			expectError: false,
@@ -130,7 +130,7 @@ func TestVirtualMeterManager_Add(t *testing.T) { //nolint:paralleltest
 			mockedThing: mockedadapter.NewThing(t).
 				WithUpdate(true, nil).
 				WithSendInclusionReport(true, true, true, nil).
-				WithServices(numericmeter.MeterElec, true, []adapter.Service{}).
+				WithServiceByTopic(addr, true, nil).
 				WithServices(outlvlswitch.OutLvlSwitch, true, []adapter.Service{}),
 			teardown:    adapterhelper.TearDownAdapter(workdir)[0],
 			expectError: false,
@@ -142,7 +142,7 @@ func TestVirtualMeterManager_Add(t *testing.T) { //nolint:paralleltest
 			mockedThing: mockedadapter.NewThing(t).
 				WithUpdate(true, nil).
 				WithSendInclusionReport(true, true, true, nil).
-				WithServices(numericmeter.MeterElec, true, []adapter.Service{}).
+				WithServiceByTopic(addr, true, nil).
 				WithServices(outlvlswitch.OutLvlSwitch, true, []adapter.Service{levelSwitchForceReport(t, addr)}),
 			teardown:    adapterhelper.TearDownAdapter(workdir)[0],
 			expectError: false,

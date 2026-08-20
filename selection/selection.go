@@ -42,15 +42,7 @@ func (s Selection) Without(id string) (Selection, bool) {
 		return s, false
 	}
 
-	next := make(Selection, 0, len(s)-1)
-
-	for _, v := range s {
-		if v != id {
-			next = append(next, v)
-		}
-	}
-
-	return next, true
+	return slices.DeleteFunc(s.Clone(), func(v string) bool { return v == id }), true
 }
 
 // Devices is a configuration mixin carrying a device selection. Embed it in an application's

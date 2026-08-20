@@ -400,6 +400,12 @@ func (ptr *logManagerT) SetLevel(level string) error {
 	// reset an already-close-to-due flush back to a full interval for no reason.
 	oldInterval := ptr.flushInterval()
 
+	defer func() {
+		if ptr.flushInterval() != oldInterval {
+			ptr.restartFlusher()
+		}
+	}()
+
 	if logLevel < logrus.DebugLevel {
 		if err := ptr.store.SetLevel(logLevel.String()); err != nil {
 			return err
@@ -410,10 +416,6 @@ func (ptr *logManagerT) SetLevel(level string) error {
 		}
 
 		logrus.SetLevel(logLevel)
-
-		if ptr.flushInterval() != oldInterval {
-			ptr.restartFlusher()
-		}
 
 		logrus.Infof("[cliff] Log level updated to %s", logLevel)
 
@@ -434,10 +436,6 @@ func (ptr *logManagerT) SetLevel(level string) error {
 	}
 
 	logrus.SetLevel(logLevel)
-
-	if ptr.flushInterval() != oldInterval {
-		ptr.restartFlusher()
-	}
 
 	logrus.Infof("[cliff] Log level updated to %s, revert to info after %s", logLevel, timeout)
 

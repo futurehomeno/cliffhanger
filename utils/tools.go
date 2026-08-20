@@ -63,9 +63,11 @@ func FilterGoroutinesByKeywords(input string, keywords []string) string {
 	return strings.Join(out, "\n")
 }
 
-func PrintStackOnRecover(name string, terminate bool) {
+// PrintStackOnRecover recovers a panic, logs it with the stack under the given component
+// prefix and optionally re-panics.
+func PrintStackOnRecover(component string, terminate bool) {
 	if r := recover(); r != nil {
-		log.Errorf("[utils] Panic in %s: %v\n%s", name, r, debug.Stack())
+		log.Errorf("[%s] Panic: %v\n%s", component, r, debug.Stack())
 
 		if terminate {
 			panic(r)

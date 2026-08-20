@@ -305,10 +305,6 @@ func (o *observer) refreshRequired() bool {
 	o.lock.RLock()
 	defer o.lock.RUnlock()
 
-	return o.isRefreshRequired()
-}
-
-func (o *observer) isRefreshRequired() bool {
 	if !o.refreshed || o.lastRefresh.IsZero() {
 		return true
 	}

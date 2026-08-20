@@ -44,8 +44,7 @@ type Builder struct {
 	version               string
 	lifecycle             *lifecycle.Lifecycle
 	telemetry             telemetry.Telemetry
-	authLossNotifier      notification.Notification
-	authLossEvent         *notification.Event
+	authLossNotify        func() error
 	authLossReportEnabled func() bool
 	topicSubscriptions    []string
 	routing               []*router.Routing
@@ -83,8 +82,10 @@ func (b *Builder) WithTelemetry(t telemetry.Telemetry) *Builder {
 // WithAuthLossNotification makes the app send the provided push notification event whenever
 // authorization transitions to lost. The event name is adapter-specific, e.g. "easee_status_offline".
 func (b *Builder) WithAuthLossNotification(n notification.Notification, event *notification.Event) *Builder {
-	b.authLossNotifier = n
-	b.authLossEvent = event
+	if n != nil && event != nil {
+		b.authLossNotify = func() error { return n.Event(event) }
+	}
+
 	return b
 }
 
@@ -156,8 +157,7 @@ func (b *Builder) doBuild() App {
 		mqtt:                  b.mqtt,
 		lifecycle:             b.lifecycle,
 		telemetry:             b.telemetry,
-		authLossNotifier:      b.authLossNotifier,
-		authLossEvent:         b.authLossEvent,
+		authLossNotify:        b.authLossNotify,
 		authLossReportEnabled: b.authLossReportEnabled,
 		resourceName:          b.resourceName,
 		taskManager:           task.NewManager(b.tasks...),

@@ -1,11 +1,12 @@
 package event
 
 import (
-	"runtime/debug"
 	"time"
 
 	"github.com/google/uuid"
 	log "github.com/sirupsen/logrus"
+
+	"github.com/futurehomeno/cliffhanger/utils"
 )
 
 type Manager interface {
@@ -57,12 +58,7 @@ func (m *manager) WaitFor(timeout time.Duration, filters ...Filter) <-chan Event
 	resultChannel := make(chan Event, 1)
 
 	go func() {
-		defer func() {
-			if r := recover(); r != nil {
-				log.Errorf("[event] Panic: %v\n%s", r, debug.Stack())
-				panic(r)
-			}
-		}()
+		defer utils.PrintStackOnRecover("event", true)
 
 		timer := time.NewTimer(timeout)
 		defer timer.Stop()

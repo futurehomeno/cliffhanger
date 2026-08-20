@@ -6,6 +6,8 @@ import (
 	"sync"
 
 	log "github.com/sirupsen/logrus"
+
+	"github.com/futurehomeno/cliffhanger/utils"
 )
 
 type Handler struct {
@@ -84,12 +86,7 @@ func (l *listener) Start() error {
 func (l *listener) startHandler(h *Handler) {
 	defer l.waitGroup.Done()
 
-	defer func() {
-		if r := recover(); r != nil {
-			log.Errorf("[event] Panic: %v\n%s", r, debug.Stack())
-			panic(r)
-		}
-	}()
+	defer utils.PrintStackOnRecover("event", true)
 
 	for {
 		select {

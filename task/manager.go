@@ -7,6 +7,8 @@ import (
 	"time"
 
 	log "github.com/sirupsen/logrus"
+
+	"github.com/futurehomeno/cliffhanger/utils"
 )
 
 type Manager interface {
@@ -80,12 +82,7 @@ func (r *manager) runOnce(task *Task) {
 
 // runContinuously runs the task according to the provided interval.
 func (m *manager) runContinuously(task *Task) {
-	defer func() {
-		if r := recover(); r != nil {
-			log.Errorf("[cliff] Panic recovered: %v\n%s", r, debug.Stack())
-			panic(r)
-		}
-	}()
+	defer utils.PrintStackOnRecover("cliff", true)
 
 	ticker := time.NewTicker(task.duration)
 	defer ticker.Stop()

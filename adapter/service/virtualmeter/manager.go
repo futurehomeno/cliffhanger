@@ -129,15 +129,7 @@ func (m *manager) add(topic string, modes map[string]float64, unit string) error
 		return err
 	}
 
-	added := false
-
-	for _, existing := range thing.Services(numericmeter.MeterElec) {
-		if existing.Topic() == s.Topic() {
-			added = true
-
-			break
-		}
-	}
+	added := thing.ServiceByTopic(s.Topic()) != nil
 
 	if len(device.Modes) > 0 {
 		if _, err := m.recalculateEnergy(true, device); err != nil {

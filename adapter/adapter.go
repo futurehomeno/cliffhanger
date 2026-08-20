@@ -319,32 +319,36 @@ func (a *adapter) ensureThings(seeds ThingSeeds) error {
 	}
 
 	for _, seed := range seeds {
-		if address, ok := ghostAddresses[seed.ID]; ok {
-			seed = &ThingSeed{ID: seed.ID, Info: seed.Info, CustomAddress: address}
-		}
-
-		if err := a.createThing(seed); err != nil {
-			errs = append(errs, fmt.Errorf("failed to create thing with ID %s: %w", seed.ID, err))
-
-			continue
-		}
-
-		savedState, ok := ghostStates[seed.ID]
-		if !ok {
-			continue
-		}
-
-		newTS := a.state.byID(seed.ID)
-		if newTS == nil {
-			continue
-		}
-
-		if err := newTS.SetState(savedState); err != nil {
-			errs = append(errs, fmt.Errorf("failed to restore state for healed thing with ID %s: %w", seed.ID, err))
+		if err := a.recreateThing(seed, ghostAddresses[seed.ID], ghostStates[seed.ID]); err != nil {
+			errs = append(errs, err)
 		}
 	}
 
 	return errors.Join(errs...)
+}
+
+// recreateThing creates a thing and restores its persisted state. A non-empty address pins the
+// thing to the one it already had, which a seed without a CustomAddress would otherwise lose.
+// Assumes the adapter lock is held.
+func (a *adapter) recreateThing(seed *ThingSeed, address string, savedState json.RawMessage) error {
+	if address != "" {
+		seed = &ThingSeed{ID: seed.ID, Info: seed.Info, CustomAddress: address}
+	}
+
+	if err := a.createThing(seed); err != nil {
+		return fmt.Errorf("create thing %s (device excluded until next sync): %w", seed.ID, err)
+	}
+
+	newTS := a.state.byID(seed.ID)
+	if len(savedState) == 0 || newTS == nil {
+		return nil
+	}
+
+	if err := newTS.SetState(savedState); err != nil {
+		return fmt.Errorf("restore state for thing %s: %w", seed.ID, err)
+	}
+
+	return nil
 }
 
 func (a *adapter) CreateThing(seed *ThingSeed) error {
@@ -383,18 +387,21 @@ func (a *adapter) DestroyAllThings() error {
 	a.lock.Lock()
 	defer a.lock.Unlock()
 
-	var errs []error
+	err := a.state.batch(func() error {
+		var errs []error
 
-	for _, ts := range a.state.all() {
-		err := a.destroyThing(ts.Address())
-		if err != nil {
-			errs = append(errs, fmt.Errorf("failed to destroy thing with ID %s: %w", ts.ID(), err))
+		for _, ts := range a.state.all() {
+			if err := a.destroyThing(ts.Address()); err != nil {
+				errs = append(errs, fmt.Errorf("failed to destroy thing with ID %s: %w", ts.ID(), err))
+			}
 		}
-	}
+
+		return errors.Join(errs...)
+	})
 
 	a.things = make(map[string]Thing)
 
-	return errors.Join(errs...)
+	return err
 }
 
 func (a *adapter) SendConnectivityReport() error {
