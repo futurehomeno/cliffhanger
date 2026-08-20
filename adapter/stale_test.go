@@ -18,10 +18,17 @@ var errHubDevices = errors.New("hub unreachable")
 
 // hubDevice builds a device as the hub reports it, addressed under the provided resource name.
 func hubDevice(resourceName, address string) *prime.Device {
+	return hubDeviceForInstance(resourceName, "1", address)
+}
+
+// hubDeviceForInstance builds a device whose service topic names the given adapter instance,
+// with device.FIMP.AdapterAddress left empty - the fallback path used for technologies such as
+// zwave that don't report the instance on the device itself.
+func hubDeviceForInstance(resourceName, instance, address string) *prime.Device {
 	return &prime.Device{
 		FIMP: prime.DeviceFIMP{Address: address},
 		Services: map[fimptype.ServiceNameT]*prime.Service{
-			"thermostat": {Addr: "pt:j1/mt:evt/rt:dev/rn:" + resourceName + "/ad:1/sv:thermostat/ad:" + address},
+			"thermostat": {Addr: "pt:j1/mt:evt/rt:dev/rn:" + resourceName + "/ad:" + instance + "/sv:thermostat/ad:" + address},
 		},
 	}
 }
@@ -108,6 +115,25 @@ func TestExcludeStaleNodes_IgnoresNodesOfAnotherAdapterInstance(t *testing.T) {
 
 	device := hubDevice("mill", "2")
 	device.FIMP.AdapterAddress = "2"
+
+	c := mockedprime.NewClient(t)
+	c.On("GetDevices").Return(prime.Devices{device}, nil)
+
+	excluded, err := adapter.ExcludeStaleNodes(a, c)
+
+	assert.NoError(t, err)
+	assert.Empty(t, excluded)
+	a.AssertNotCalled(t, "DestroyThingByAddress", mock.Anything)
+}
+
+func TestExcludeStaleNodes_IgnoresNodesOfAnotherAdapterInstanceViaServiceTopic(t *testing.T) {
+	t.Parallel()
+
+	a := staleAdapter(t)
+
+	// AdapterAddress is empty, as it is for zwave devices; only the service topic names the
+	// instance, and it belongs to instance "2" while the adapter under test is instance "1".
+	device := hubDeviceForInstance("mill", "2", "2")
 
 	c := mockedprime.NewClient(t)
 	c.On("GetDevices").Return(prime.Devices{device}, nil)

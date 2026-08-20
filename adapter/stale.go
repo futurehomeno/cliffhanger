@@ -113,8 +113,8 @@ func staleAddresses(a Adapter, devices prime.Devices) []string {
 }
 
 // belongsToAdapter reports whether the hub attributes the device to this adapter. The resource
-// name is taken from a service topic rather than from device.FIMP.Adapter, which carries the
-// service name - the two differ for technologies such as zwave.
+// name and instance are taken from a service topic rather than from device.FIMP.Adapter, which
+// carries the service name - the two differ for technologies such as zwave.
 func belongsToAdapter(a Adapter, device *prime.Device) bool {
 	if device.FIMP.AdapterAddress != "" && device.FIMP.AdapterAddress != a.Address() {
 		return false
@@ -126,7 +126,8 @@ func belongsToAdapter(a Adapter, device *prime.Device) bool {
 			continue
 		}
 
-		return address.ResourceName == a.Name()
+		return address.ResourceName == a.Name() &&
+			(address.ResourceAddress == "" || address.ResourceAddress == a.Address())
 	}
 
 	return false
