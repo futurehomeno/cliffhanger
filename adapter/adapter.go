@@ -61,6 +61,8 @@ type Adapter interface {
 	SendConnectivityReport() error
 }
 
+// NewAdapter creates a new Adapter. Options configure optional behaviour, such as
+// WithStaleNodeExclusion.
 func NewAdapter(
 	mqtt *fimpgo.MqttTransport,
 	eventManager event.Manager,
