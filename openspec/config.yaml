@@ -33,7 +33,7 @@ context: |
   ## Packages
 
   - `adapter/` — domain core: adapter, thing, service, connector, publisher, state, routing, tasks,
-    seeds/sync/drift/stale. Sub-packages: `adapter/service/*` (20 FIMP services), `adapter/thing/*`
+    seeds/sync/drift/stale. Sub-packages: `adapter/service/*` (19 FIMP services), `adapter/thing/*`
     (device archetypes: light, thermostat, car charger, boiler, sensor, ...), `adapter/cache`
     (reporting strategies).
   - `app/` — FIMP app-service contract (manifest, config, auth, uninstall, diag) plus

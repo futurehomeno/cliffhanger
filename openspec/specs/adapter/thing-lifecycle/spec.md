@@ -228,6 +228,43 @@ and be excluded a second time at the wrong address.
 - **WHEN** a selected ID missing from the fetch matches another thing's address
 - **THEN** no exclusion is published, so the unrelated thing is not killed
 
+### Requirement: Stale Hub Node Sweep
+The adapter SHALL sweep hub nodes it no longer owns, clearing nodes left behind by a state store
+that was lost or restored from an older backup. `ExcludeStaleNodes` SHALL ask the hub which devices
+it attributes to this adapter and SHALL destroy every address the adapter holds no thing for,
+best-effort per address: failures SHALL be joined and the addresses that were excluded SHALL still
+be returned. Attribution SHALL be read from a service topic's resource name rather than from
+`device.FIMP.Adapter`, which carries the service name and differs for technologies such as zwave.
+Several hub devices MAY share one thing address, so addresses SHALL be deduplicated.
+
+The sweep SHALL run only from `SyncThings`, and only when the fetch, the vanished-device exclusion
+and `EnsureThings` all succeeded — that is the only moment the adapter's things are known to match
+the service's, so a node the sync is about to recreate can never be excluded first. It SHALL run at
+most once per process, SHALL run asynchronously so it cannot hold up the sync, and its failures
+SHALL be logged rather than returned, because a sweep must not break a sync. The Vinculum request
+SHALL be bounded by a timeout.
+
+The sweep SHALL be enabled by default. `WithStaleNodeExclusion` SHALL replace the predicate that
+gates it, evaluated when the sweep is due so it can be backed by a configuration setting.
+
+#### Scenario: state restored from an older backup
+- **WHEN** a sync completes without errors and the hub attributes a node to this adapter that the
+  adapter owns no thing for
+- **THEN** that address is destroyed and its exclusion announced, asynchronously
+
+#### Scenario: a device the sync is about to recreate
+- **WHEN** the device fetch or `EnsureThings` reported an error during the sync
+- **THEN** no sweep is triggered, so a node awaiting recreation is not excluded first
+
+#### Scenario: the once is consumed even when disabled
+- **WHEN** the predicate returns false the first time a sweep is due
+- **THEN** the sweep is skipped and SHALL NOT run again for the lifetime of the process, even if the
+  predicate would later return true
+
+#### Scenario: the hub cannot be reached
+- **WHEN** the Vinculum request fails or times out
+- **THEN** the error is logged and the sync that triggered the sweep is unaffected
+
 ### Requirement: Inclusion Report Deduplication
 `Thing.SendInclusionReport(false)` SHALL publish `evt.thing.inclusion_report` only when the CRC32 of
 the marshalled report differs from the checksum persisted in the thing state, and SHALL return
