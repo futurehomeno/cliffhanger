@@ -1,9 +1,10 @@
 package observer
 
 import (
+	"slices"
+
 	"github.com/futurehomeno/cliffhanger/event"
 	"github.com/futurehomeno/cliffhanger/prime"
-	"slices"
 )
 
 const (

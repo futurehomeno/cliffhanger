@@ -27,6 +27,7 @@ func (tp *TopicPattern) String() string {
 
 	switch tp.ResourceType {
 	case fimptype.ResourceTypeDiscovery:
+		// Discovery topics stop at the resource type; no resource or service segments follow.
 	case fimptype.ResourceTypeAdapter, fimptype.ResourceTypeApp, fimptype.ResourceTypeCloud:
 		segments = append(segments, segment("rn", tp.ResourceName.Str()), segment("ad", tp.ResourceAddress))
 	default:

@@ -402,21 +402,21 @@ func (a *adapter) DestroyAllThings() error {
 	a.lock.Lock()
 	defer a.lock.Unlock()
 
-	err := a.state.batch(func() error {
-		var errs []error
+	// Deliberately not wrapped in state.batch: batching shadows the Save inside state.remove,
+	// which is what restores a record whose write failed. Without that restore a failed flush
+	// drops every record from memory while the disk keeps them all, and the next boot
+	// resurrects the fleet this reset was meant to clear.
+	var errs []error
 
-		for _, ts := range a.state.all() {
-			if err := a.destroyThing(ts.Address()); err != nil {
-				errs = append(errs, fmt.Errorf("failed to destroy thing with ID %s: %w", ts.ID(), err))
-			}
+	for _, ts := range a.state.all() {
+		if err := a.destroyThing(ts.Address()); err != nil {
+			errs = append(errs, fmt.Errorf("failed to destroy thing with ID %s: %w", ts.ID(), err))
 		}
-
-		return errors.Join(errs...)
-	})
+	}
 
 	a.things = make(map[string]Thing)
 
-	return err
+	return errors.Join(errs...)
 }
 
 func (a *adapter) SendConnectivityReport() error {
