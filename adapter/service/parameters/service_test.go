@@ -136,6 +136,24 @@ func TestService_SendParameterReport_ForceBypassesCache(t *testing.T) {
 	assert.True(t, sent, "a forced report must bypass the cache")
 }
 
+func TestService_SendSupportedParamsReport_ForceBypassesCache(t *testing.T) {
+	t.Parallel()
+
+	specs := testSpecifications(t)
+
+	controller := mockedparameters.NewController(t)
+	controller.On("GetParameterSpecifications").Return(specs, nil).Twice()
+
+	svc := newTestService(t, controller, 2)
+
+	_, err := svc.SendSupportedParamsReport(true)
+	assert.NoError(t, err)
+
+	sent, err := svc.SendSupportedParamsReport(true)
+	assert.NoError(t, err)
+	assert.True(t, sent, "a forced report must bypass the cache")
+}
+
 func TestService_SendSupportedParamsReport_Deduplicates(t *testing.T) {
 	t.Parallel()
 
