@@ -1,0 +1,7 @@
+{
+  "permissions": {
+    "allow": [
+      "Edit(/.claude/skills/port_to_cliffhanger_1.3/**)"
+    ]
+  }
+}
