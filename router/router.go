@@ -164,7 +164,7 @@ func (r *router) processMessage(routing *Routing, msg *fimpgo.Message) {
 
 	err := r.mqtt.Publish(responseAddress, response.Payload)
 	if err != nil {
-		log.WithField("topic", response.Addr.Serialize()).
+		log.WithField("topic", responseAddress.Serialize()).
 			WithField("message", response.Payload).
 			Errorf("[router] Publish response. err: %v", err)
 	}

@@ -8,6 +8,8 @@ import (
 	"github.com/futurehomeno/fimpgo/fimptype"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+
+	"github.com/futurehomeno/cliffhanger/storage"
 )
 
 func TestTopologyChecksum_NilReportDoesNotPanic(t *testing.T) {
@@ -83,4 +85,35 @@ func TestRebuildChangedThing_RecreatesWhenDestroyReportsError(t *testing.T) {
 
 	require.NoError(t, newTS.State(&kept))
 	assert.Equal(t, map[string]string{"keep": "me"}, kept, "persisted state must survive the rebuild")
+}
+
+// TestRecreateThing_DestroysWhenStateRestoreFails pins that a failed SetState after createThing
+// rolls the thing back. Leaving it registered with zeroed state made the loss permanent:
+// EnsureThings skips live IDs and RebuildChangedThings only retries on topology drift.
+func TestRecreateThing_DestroysWhenStateRestoreFails(t *testing.T) {
+	t.Parallel()
+
+	failing := &failingSaveStorage{Storage: storage.NewState(&adapterStateModel{}, t.TempDir(), "adapter.json")}
+	s := &state{Storage: failing}
+
+	a := &adapter{
+		publisher: stubPublisher{},
+		state:     s,
+		factory:   groupsFactory{},
+		things:    map[string]Thing{},
+		lock:      &sync.RWMutex{},
+	}
+
+	// createThing's state.add is save #1; SetState restore is save #2 — fail only the restore.
+	failing.failOnSave = 2
+
+	err := a.recreateThing(
+		&ThingSeed{ID: "B", CustomAddress: "2", Info: groupsInfo{Groups: []string{"g1"}}},
+		"2",
+		json.RawMessage(`{"keep":"me"}`),
+	)
+
+	assert.Error(t, err)
+	assert.Nil(t, a.things["2"], "the thing must be destroyed so the next sync can retry")
+	assert.Nil(t, a.state.byID("B"), "the state record must be gone with the rolled-back thing")
 }

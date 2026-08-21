@@ -364,7 +364,9 @@ func (a *adapter) recreateThing(seed *ThingSeed, address string, savedState json
 	}
 
 	if err := newTS.SetState(savedState); err != nil {
-		return fmt.Errorf("restore state for thing %s: %w", seed.ID, err)
+		_ = a.destroyThing(newTS.Address())
+
+		return fmt.Errorf("restore state for thing %s (device excluded until next sync): %w", seed.ID, err)
 	}
 
 	return nil
