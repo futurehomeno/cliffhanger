@@ -5,6 +5,7 @@ import (
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
+	"github.com/stretchr/testify/require"
 
 	"github.com/futurehomeno/cliffhanger/adapter/service/parameters"
 	mockedadapter "github.com/futurehomeno/cliffhanger/test/mocks/adapter"
@@ -87,8 +88,12 @@ func TestService_SendParameterReport_SurvivesControllerReuse(t *testing.T) {
 	assert.NoError(t, err)
 	assert.True(t, sent)
 
+	// Overwrite the value bytes in place rather than reassigning the field: reassignment would
+	// leave a shallow struct copy holding the original slice and still look changed, so only an
+	// in-place write proves the cached snapshot owns its own bytes.
 	mutated := parameters.NewIntParameter("brightness", 20)
-	reused.Value = mutated.Value
+	require.Len(t, mutated.Value, len(reused.Value), "test needs values of equal width to overwrite in place")
+	copy(reused.Value, mutated.Value)
 
 	sent, err = svc.SendParameterReport("brightness", false)
 	assert.NoError(t, err)
@@ -100,24 +105,54 @@ func TestService_SendParameterReport_SurvivesControllerReuse(t *testing.T) {
 func TestService_SendSupportedParamsReport_SurvivesControllerReuse(t *testing.T) {
 	t.Parallel()
 
-	reused := []*parameters.ParameterSpecification{
-		{ID: "brightness", Name: "Brightness", ValueType: parameters.ValueTypeInt, WidgetType: parameters.WidgetTypeInput},
+	// Mutating a string field would prove nothing: a shallow struct copy already isolates it.
+	// Only the reference-typed fields - the options slice and the min/max pointees - distinguish
+	// a deep clone from a shallow one, so each gets its own case.
+	tests := []struct {
+		name   string
+		spec   *parameters.ParameterSpecification
+		mutate func(s *parameters.ParameterSpecification)
+	}{
+		{
+			name: "option label mutated in place",
+			spec: &parameters.ParameterSpecification{
+				ID: "mode", Name: "Mode", ValueType: parameters.ValueTypeString, WidgetType: parameters.WidgetTypeSelect,
+				Options: parameters.SelectOptions{{Label: "Eco", Value: "eco"}},
+			},
+			mutate: func(s *parameters.ParameterSpecification) { s.Options[0].Label = "Economy" },
+		},
+		{
+			name: "minimum mutated through the pointer",
+			spec: (&parameters.ParameterSpecification{
+				ID: "brightness", Name: "Brightness", ValueType: parameters.ValueTypeInt,
+				WidgetType: parameters.WidgetTypeInput,
+			}).WithMin(0),
+			mutate: func(s *parameters.ParameterSpecification) { *s.Min = 5 },
+		},
 	}
 
-	controller := mockedparameters.NewController(t)
-	controller.On("GetParameterSpecifications").Return(reused, nil).Twice()
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
 
-	svc := newTestService(t, controller, 2)
+			reused := []*parameters.ParameterSpecification{tt.spec}
 
-	sent, err := svc.SendSupportedParamsReport(false)
-	assert.NoError(t, err)
-	assert.True(t, sent)
+			controller := mockedparameters.NewController(t)
+			controller.On("GetParameterSpecifications").Return(reused, nil).Twice()
 
-	reused[0].Name = "Brightness level"
+			svc := newTestService(t, controller, 2)
 
-	sent, err = svc.SendSupportedParamsReport(false)
-	assert.NoError(t, err)
-	assert.True(t, sent, "a specification changed in place by the controller must still be reported")
+			sent, err := svc.SendSupportedParamsReport(false)
+			assert.NoError(t, err)
+			assert.True(t, sent)
+
+			tt.mutate(reused[0])
+
+			sent, err = svc.SendSupportedParamsReport(false)
+			assert.NoError(t, err)
+			assert.True(t, sent, "a specification changed in place by the controller must still be reported")
+		})
+	}
 }
 
 func TestService_SendParameterReport_ForceBypassesCache(t *testing.T) {
