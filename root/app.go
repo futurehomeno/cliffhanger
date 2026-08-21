@@ -19,7 +19,6 @@ import (
 	"github.com/futurehomeno/cliffhanger/config"
 	"github.com/futurehomeno/cliffhanger/debug"
 	"github.com/futurehomeno/cliffhanger/lifecycle"
-	"github.com/futurehomeno/cliffhanger/notification"
 	"github.com/futurehomeno/cliffhanger/router"
 	"github.com/futurehomeno/cliffhanger/task"
 	"github.com/futurehomeno/cliffhanger/telemetry"
@@ -63,8 +62,7 @@ type app struct {
 	mqtt                  *fimpgo.MqttTransport
 	lifecycle             *lifecycle.Lifecycle
 	telemetry             telemetry.Telemetry
-	authLossNotifier      notification.Notification
-	authLossEvent         *notification.Event
+	authLossNotify        func() error
 	authLossReportEnabled func() bool
 	resourceName          fimptype.ResourceNameT
 	topicSubscriptions    []string
@@ -177,6 +175,14 @@ func (a *app) doStart() (err error) {
 	// never started.
 	var undo []func()
 
+	pushUndo := func(what string, stop func() error) {
+		undo = append(undo, func() {
+			if stopErr := stop(); stopErr != nil {
+				log.Errorf("[cliff] Rollback %s err: %v", what, stopErr)
+			}
+		})
+	}
+
 	defer func() {
 		if err == nil {
 			return
@@ -207,11 +213,7 @@ func (a *app) doStart() (err error) {
 			log.Errorf("[cliff] Start telemetry err: %v", telErr)
 		}
 
-		undo = append(undo, func() {
-			if telErr := a.telemetry.Stop(); telErr != nil {
-				log.Errorf("[cliff] Rollback stop telemetry err: %v", telErr)
-			}
-		})
+		pushUndo("stop telemetry", a.telemetry.Stop)
 	}
 
 	for i, service := range a.services {
@@ -219,33 +221,21 @@ func (a *app) doStart() (err error) {
 			return fmt.Errorf("start service err: %w", err)
 		}
 
-		undo = append(undo, func() {
-			if stopErr := service.Stop(); stopErr != nil {
-				log.Errorf("[cliff] Rollback stop service[%d] err: %v", i, stopErr)
-			}
-		})
+		pushUndo(fmt.Sprintf("stop service[%d]", i), service.Stop)
 	}
 
 	if err = a.messageRouter.Start(); err != nil {
 		return fmt.Errorf("start message router err: %w", err)
 	}
 
-	undo = append(undo, func() {
-		if stopErr := a.messageRouter.Stop(); stopErr != nil {
-			log.Errorf("[cliff] Rollback stop message router err: %v", stopErr)
-		}
-	})
+	pushUndo("stop message router", a.messageRouter.Stop)
 
 	for _, topic := range config.Deduplicate(a.topicSubscriptions) {
 		if err = a.mqtt.Subscribe(topic); err != nil {
 			return fmt.Errorf("subscribe topic=%s err: %w", topic, err)
 		}
 
-		undo = append(undo, func() {
-			if unsubErr := a.mqtt.Unsubscribe(topic); unsubErr != nil {
-				log.Errorf("[cliff] Rollback unsubscribe topic=%s err: %v", topic, unsubErr)
-			}
-		})
+		pushUndo("unsubscribe topic="+topic, func() error { return a.mqtt.Unsubscribe(topic) })
 	}
 
 	// Subscribed before the task manager starts: a WhenAppIsRunning-gated task (e.g.
@@ -344,7 +334,9 @@ func nextAuthArm(armed bool, s lifecycle.State) (report, nowArmed bool) {
 // telemetry event for a lost authenticated session. reason, when set, states why
 // (e.g. "unauthorized"). All three are suppressed when auth-loss reporting is disabled.
 func (a *app) reportAuthLoss(tel telemetry.Telemetry, reason string) {
-	if !a.authLossReportingEnabled() {
+	// The gate is evaluated per loss so it can follow a runtime config flag; a nil gate
+	// reports every loss.
+	if a.authLossReportEnabled != nil && !a.authLossReportEnabled() {
 		return
 	}
 
@@ -356,17 +348,11 @@ func (a *app) reportAuthLoss(tel telemetry.Telemetry, reason string) {
 	// consumers keyed on data.cause keep matching; the value is the same loss reason.
 	telemetry.Emit(tel, telemetry.DomainAuth, telemetry.EventLoggedOut, map[string]any{"cause": reason})
 
-	if a.authLossNotifier != nil && a.authLossEvent != nil {
-		if err := a.authLossNotifier.Event(a.authLossEvent); err != nil {
+	if a.authLossNotify != nil {
+		if err := a.authLossNotify(); err != nil {
 			log.Errorf("[cliff] Send auth-loss notification err: %v, reason: %s", err, reason)
 		}
 	}
-}
-
-// authLossReportingEnabled reports whether auth-loss reporting is on. The gate is
-// evaluated per loss so it can follow a runtime config flag; a nil gate reports every loss.
-func (a *app) authLossReportingEnabled() bool {
-	return a.authLossReportEnabled == nil || a.authLossReportEnabled()
 }
 
 // stopAuthLossWatcher stops the auth loss watcher goroutine started by startAuthLossWatcher.

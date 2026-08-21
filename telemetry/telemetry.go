@@ -360,14 +360,7 @@ func (ptr *telemetryT) config() types.TelemetryConfig {
 		return types.TelemetryConfig{}
 	}
 
-	if snap.Suppressed != nil {
-		e := *snap.Suppressed
-		e.Domains = slices.Clone(e.Domains)
-		e.Events = slices.Clone(e.Events)
-		snap.Suppressed = &e
-	}
-
-	return snap
+	return snap.Clone()
 }
 
 func (ptr *telemetryT) publish(topic, domain, event string, data map[string]any) error {

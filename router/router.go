@@ -9,6 +9,8 @@ import (
 
 	"github.com/futurehomeno/fimpgo"
 	log "github.com/sirupsen/logrus"
+
+	"github.com/futurehomeno/cliffhanger/utils"
 )
 
 // DefaultChannelID is a constant defining a default channel ID used by the router.
@@ -101,12 +103,7 @@ func (r *router) Stop() error {
 func (r *router) routeMessages(messageCh fimpgo.MessageCh) {
 	defer r.wg.Done()
 
-	defer func() {
-		if rec := recover(); rec != nil {
-			log.Errorf("[router] Panic: %v\n%s", rec, debug.Stack())
-			panic(rec)
-		}
-	}()
+	defer utils.PrintStackOnRecover("router", true)
 
 	for {
 		select {

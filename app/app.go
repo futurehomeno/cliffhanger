@@ -31,7 +31,7 @@ type CheckableApp interface {
 	// Check is performed only if application is in running state.
 	Check() error
 	// CheckInterval returns the interval between Check calls.
-	// Return 0 to use DefaultCheckInterval.
+	// Return 0 to use the default interval of 30 minutes.
 	CheckInterval() time.Duration
 }
 

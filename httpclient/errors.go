@@ -31,31 +31,22 @@ func (e *TooManyRequestsError) Is(target error) bool {
 	return target == ErrTooManyRequests
 }
 
-// errorFromStatus maps an HTTP status code to a shared sentinel error.
-// It returns nil for success codes and a generic error for other failures.
-func errorFromStatus(statusCode int) error {
-	switch {
-	case statusCode < http.StatusMultipleChoices:
-		return nil
-	case statusCode == http.StatusUnauthorized || statusCode == http.StatusForbidden:
-		return ErrUnauthorized
-	case statusCode == http.StatusNotFound:
-		return ErrNotFound
-	case statusCode == http.StatusTooManyRequests:
-		return ErrTooManyRequests
-	default:
-		return fmt.Errorf("unexpected response status: %d", statusCode)
-	}
-}
-
-// ErrorFromResponse maps the response status to a shared sentinel error, carrying
-// the Retry-After delay in a TooManyRequestsError when rate limited.
+// ErrorFromResponse maps the response status to a shared sentinel error, carrying the
+// Retry-After delay in a TooManyRequestsError when rate limited. It returns nil for success
+// codes and a generic error for other failures.
 func ErrorFromResponse(resp *http.Response) error {
-	if resp.StatusCode == http.StatusTooManyRequests {
+	switch {
+	case resp.StatusCode < http.StatusMultipleChoices:
+		return nil
+	case resp.StatusCode == http.StatusUnauthorized || resp.StatusCode == http.StatusForbidden:
+		return ErrUnauthorized
+	case resp.StatusCode == http.StatusNotFound:
+		return ErrNotFound
+	case resp.StatusCode == http.StatusTooManyRequests:
 		return &TooManyRequestsError{RetryAfter: retryAfter(resp)}
+	default:
+		return fmt.Errorf("unexpected response status: %d", resp.StatusCode)
 	}
-
-	return errorFromStatus(resp.StatusCode)
 }
 
 // retryAfter returns the delay the server asks for via the Retry-After header

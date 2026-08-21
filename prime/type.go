@@ -292,13 +292,7 @@ func (d *Device) HasInterfaces(serviceName fimptype.ServiceNameT, interfaceNames
 }
 
 func (d *Device) containsInterface(interfaceName string, interfaces []string) bool {
-	for _, i := range interfaces {
-		if i == interfaceName {
-			return true
-		}
-	}
-
-	return false
+	return slices.Contains(interfaces, interfaceName)
 }
 
 func (d *Device) GetServiceProperty(serviceName fimptype.ServiceNameT, property string) any {

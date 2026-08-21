@@ -10,7 +10,7 @@ import (
 	"github.com/futurehomeno/cliffhanger/event"
 )
 
-func TestPublishConfigurationChanges(t *testing.T) {
+func TestPublishConfigurationChange(t *testing.T) {
 	t.Parallel()
 
 	manager := event.NewManager()
@@ -18,7 +18,7 @@ func TestPublishConfigurationChanges(t *testing.T) {
 
 	defer manager.Unsubscribe("test")
 
-	config.PublishConfigurationChanges(manager, "srv", "mode", "interval")
+	config.PublishConfigurationChange("srv", "interval", config.WithConfigurationChangeEvent(manager))
 
 	select {
 	case <-ch:

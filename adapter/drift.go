@@ -20,15 +20,17 @@ func (a *adapter) RebuildChangedThings(seeds ThingSeeds) error {
 	a.lock.Lock()
 	defer a.lock.Unlock()
 
-	var errs []error
+	return a.state.batch(func() error {
+		var errs []error
 
-	for _, seed := range seeds {
-		if err := a.rebuildChangedThing(seed); err != nil {
-			errs = append(errs, fmt.Errorf("rebuild %s: %w", seed.ID, err))
+		for _, seed := range seeds {
+			if err := a.rebuildChangedThing(seed); err != nil {
+				errs = append(errs, fmt.Errorf("rebuild %s: %w", seed.ID, err))
+			}
 		}
-	}
 
-	return errors.Join(errs...)
+		return errors.Join(errs...)
+	})
 }
 
 // rebuildChangedThing rebuilds a single registered thing if its service topology drifted.
@@ -74,31 +76,19 @@ func (a *adapter) rebuildChangedThing(seed *ThingSeed) error {
 		return fmt.Errorf("read state: %w", err)
 	}
 
-	// Preserve the live address so the rebuilt thing keeps its topic identity; a seed without
+	// Captured before the destroy so the rebuilt thing keeps its topic identity; a seed without
 	// a CustomAddress would be assigned a fresh one on recreation.
-	rebuildSeed := &ThingSeed{ID: seed.ID, CustomAddress: ts.Address(), Info: seed.Info}
+	address := ts.Address()
 
-	// destroyThing reporting an error has either completed the removal (only the exclusion
-	// announcement failed) or kept the record after a failed state write; either way state.add
-	// in the recreate below overwrites it. Aborting instead would leave the device gone or
-	// ghosted until the next sync - and discard savedState with it.
-	if err := a.destroyThing(ts.Address()); err != nil {
+	// destroyThing reporting an error means the exclusion announcement failed, the removal
+	// itself having already been applied; state.add in the recreate below restores the record
+	// either way. Aborting instead would leave the device gone or ghosted until the next sync -
+	// and discard savedState with it.
+	if err := a.destroyThing(address); err != nil {
 		log.Warnf("[adapter] Rebuild thing %s: destroy reported errors, recreating anyway. err: %v", seed.ID, err)
 	}
 
-	if err := a.createThing(rebuildSeed); err != nil {
-		return fmt.Errorf("recreate (device excluded until next restart): %w", err)
-	}
-
-	if len(savedState) > 0 {
-		if newTS := a.state.byID(seed.ID); newTS != nil {
-			if err := newTS.SetState(savedState); err != nil {
-				return fmt.Errorf("restore state: %w", err)
-			}
-		}
-	}
-
-	return nil
+	return a.recreateThing(seed, address, savedState)
 }
 
 // topologyChecksum hashes the inclusion report's address, groups and full service specs so a

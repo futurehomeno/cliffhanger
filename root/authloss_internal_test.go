@@ -72,11 +72,10 @@ func TestAuthLossWatcher_NotifiesOnlyOnLostAfterAuthenticated(t *testing.T) { //
 	lc := lifecycle.New(nil)
 	notifier := &fakeNotifier{}
 	a := &app{
-		mqtt:             mqtt,
-		lifecycle:        lc,
-		resourceName:     "test_app",
-		authLossNotifier: notifier,
-		authLossEvent:    &notification.Event{EventName: "test_status_offline"},
+		mqtt:           mqtt,
+		lifecycle:      lc,
+		resourceName:   "test_app",
+		authLossNotify: func() error { return notifier.Event(&notification.Event{EventName: "test_status_offline"}) },
 	}
 
 	a.startAuthLossWatcher(nil)
@@ -104,11 +103,10 @@ func TestAuthLossWatcher_ArmsFromAuthenticatedStateAtSubscribe(t *testing.T) { /
 
 	notifier := &fakeNotifier{}
 	a := &app{
-		mqtt:             mqtt,
-		lifecycle:        lc,
-		resourceName:     "test_app",
-		authLossNotifier: notifier,
-		authLossEvent:    &notification.Event{EventName: "test_status_offline"},
+		mqtt:           mqtt,
+		lifecycle:      lc,
+		resourceName:   "test_app",
+		authLossNotify: func() error { return notifier.Event(&notification.Event{EventName: "test_status_offline"}) },
 	}
 
 	a.startAuthLossWatcher(nil)
@@ -164,8 +162,7 @@ func TestReportAuthLoss_SuppressedWhenReportingDisabled(t *testing.T) { //nolint
 		mqtt:                  suite.DefaultMQTT("root_authloss_off", "", "", ""),
 		lifecycle:             lifecycle.New(nil),
 		resourceName:          "test_app",
-		authLossNotifier:      notifier,
-		authLossEvent:         &notification.Event{EventName: "test_status_offline"},
+		authLossNotify:        func() error { return notifier.Event(&notification.Event{EventName: "test_status_offline"}) },
 		authLossReportEnabled: func() bool { return false },
 	}
 

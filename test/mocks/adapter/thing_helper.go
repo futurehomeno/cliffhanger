@@ -46,6 +46,16 @@ func (t *Thing) WithServices(service fimptype.ServiceNameT, once bool, services 
 	return t
 }
 
+func (t *Thing) WithServiceByTopic(topic string, once bool, service adapter.Service) *Thing {
+	c := t.On("ServiceByTopic", topic).Return(service)
+
+	if once {
+		c.Once()
+	}
+
+	return t
+}
+
 func (t *Thing) WithUpdate(once bool, err error) *Thing {
 	c := t.On("Update", mock.Anything).Return(err)
 

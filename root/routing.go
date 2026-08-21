@@ -1,12 +1,11 @@
 package root
 
 import (
-	"runtime/debug"
-
 	"github.com/futurehomeno/fimpgo"
 	log "github.com/sirupsen/logrus"
 
 	"github.com/futurehomeno/cliffhanger/router"
+	"github.com/futurehomeno/cliffhanger/utils"
 )
 
 // Constants defining routing events and topics.
@@ -32,12 +31,7 @@ func handleFactoryReset(rootApp App) router.MessageHandler {
 			// Factory reset requires stopping the application first, which includes stopping the message router.
 			// In order to avoid a deadlock we need to run the reset in a separate goroutine, so the message router can be stopped.
 			go func() {
-				defer func() {
-					if r := recover(); r != nil {
-						log.Errorf("[cliff] Panic recovered: %v\n%s", r, debug.Stack())
-						panic(r)
-					}
-				}()
+				defer utils.PrintStackOnRecover("cliff", true)
 
 				if err := rootApp.Reset(); err != nil {
 					log.Errorf("[cliff] Factory reset err: %v", err)

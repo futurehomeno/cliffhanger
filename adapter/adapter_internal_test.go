@@ -59,6 +59,41 @@ func (f failingRemoveState) remove(string) error {
 	return errors.New("state write failed")
 }
 
+// TestDestroyAllThings_FailedSaveKeepsStateRecords pins that a reset whose state write fails
+// leaves the record in memory so the next sync retries the destroy. Wrapping the pass in
+// state.batch shadowed the Save inside state.remove - the very call whose failure restores the
+// record - so memory dropped every record while the disk kept them all, and the next boot
+// resurrected the fleet the reset was meant to clear.
+func TestDestroyAllThings_FailedSaveKeepsStateRecords(t *testing.T) {
+	t.Parallel()
+
+	failing := &failingSaveStorage{Storage: storage.NewState(&adapterStateModel{}, t.TempDir(), "adapter.json")}
+	s := &state{Storage: failing}
+
+	ts, err := s.add(&thingStateModel{ID: "A"})
+	require.NoError(t, err)
+
+	thing := NewThing(stubPublisher{}, ts, &ThingConfig{
+		InclusionReport: &fimptype.ThingInclusionReport{Address: ts.Address()},
+		Connector:       &recordingConnector{},
+	})
+
+	a := &adapter{
+		publisher: stubPublisher{},
+		state:     s,
+		things:    map[string]Thing{ts.Address(): thing},
+		lock:      &sync.RWMutex{},
+	}
+
+	failing.failSave = true
+
+	err = a.DestroyAllThings()
+
+	assert.Error(t, err, "the failed state write must surface")
+	assert.Empty(t, a.things, "the adapter must still be left empty")
+	assert.NotEmpty(t, s.all(), "the record must survive so the next sync retries the destroy")
+}
+
 // TestDestroyThing_UnregistersWhenStateRemoveFails pins that a failed state write does not skip
 // the unregister. Returning early there left the thing connected while DestroyAllThings cleared
 // the map, dropping the last reference to a live connector and leaking it for the process

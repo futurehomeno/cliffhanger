@@ -3,6 +3,7 @@ package config
 import (
 	"fmt"
 	"reflect"
+	"slices"
 	"strings"
 )
 
@@ -79,13 +80,7 @@ func Greater[T ~int | ~int8 | ~int16 | ~int32 | ~int64 | ~uint | ~uint8 | ~uint1
 
 // Contains is a helper that checks if a value is present in a slice.
 func Contains[T comparable](needle T, haystack []T) bool {
-	for _, h := range haystack {
-		if h == needle {
-			return true
-		}
-	}
-
-	return false
+	return slices.Contains(haystack, needle)
 }
 
 // Deduplicate is a helper that deduplicates a slice.

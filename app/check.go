@@ -22,7 +22,7 @@ type ConnectivityReporter interface {
 
 // CheckerConfig configures the ConnectivityChecker recheck behavior.
 type CheckerConfig struct {
-	// Interval between periodic checks. 0 uses DefaultCheckInterval.
+	// Interval between periodic checks. 0 uses the app default of 30 minutes.
 	Interval time.Duration
 	// RecheckBackoff provides delays between rechecks following failed probes.
 	RecheckBackoff backoff.Backoff
@@ -281,22 +281,18 @@ func (c *ConnectivityChecker) apply(auth, conn lifecycle.State, reason string) {
 
 			changed = true
 		}
+	} else {
+		if auth != "" && c.lc.AuthState() != auth {
+			c.lc.SetAuthState(auth)
 
-		c.report(changed)
+			changed = true
+		}
 
-		return
-	}
+		if c.lc.ConnectionState() != conn {
+			c.lc.SetConnState(conn)
 
-	if auth != "" && c.lc.AuthState() != auth {
-		c.lc.SetAuthState(auth)
-
-		changed = true
-	}
-
-	if c.lc.ConnectionState() != conn {
-		c.lc.SetConnState(conn)
-
-		changed = true
+			changed = true
+		}
 	}
 
 	c.report(changed)
