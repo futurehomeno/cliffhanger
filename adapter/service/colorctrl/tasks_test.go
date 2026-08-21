@@ -30,7 +30,7 @@ func TestTaskReporting(t *testing.T) { //nolint:paralleltest
 				),
 				Nodes: []*suite.Node{
 					{
-						Name: "One change and one error during three report cycles",
+						Name: "One change and one error during four report cycles",
 						Expectations: []*suite.Expectation{
 							suite.ExpectIntMap("pt:j1/mt:evt/rt:dev/rn:test_adapter/ad:1/sv:color_ctrl/ad:2", "evt.color.report", "color_ctrl", map[string]int{"red": 255, "green": 0, "blue": 0}).ExactlyOnce(),
 							suite.ExpectIntMap("pt:j1/mt:evt/rt:dev/rn:test_adapter/ad:1/sv:color_ctrl/ad:2", "evt.color.report", "color_ctrl", map[string]int{"red": 0, "green": 255, "blue": 0}).ExactlyOnce(),
