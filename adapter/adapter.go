@@ -296,7 +296,11 @@ func (a *adapter) ensureThings(seeds ThingSeeds) error {
 
 	for _, ts := range thingStates {
 		if !seeds.Contains(ts.ID()) {
-			addressesToRemove = append(addressesToRemove, ts.Address())
+			// Destroying before initialization drops records InitializeThings has not announced
+			// yet. A racing sync with an empty or truncated selection would wipe the fleet.
+			if a.initialized {
+				addressesToRemove = append(addressesToRemove, ts.Address())
+			}
 
 			continue
 		}

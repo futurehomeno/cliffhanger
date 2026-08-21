@@ -160,6 +160,99 @@ func TestEnsureThings_RecreatesGhostThing(t *testing.T) {
 	require.NotNil(t, a.state.byID("B"), "the record must survive the recreate")
 }
 
+// TestEnsureThings_DoesNotDestroyBeforeInitialization pins that a racing boot sync cannot drop
+// persisted records before InitializeThings has announced them. Empty and truncated selections
+// both used to destroy unseeded IDs while the live map was still empty, so init had nothing to
+// restore and the user saw devices vanish. After initialization the same selection prunes:
+// empty destroys both, truncated destroys only the missing ID.
+func TestEnsureThings_DoesNotDestroyBeforeInitialization(t *testing.T) {
+	t.Parallel()
+
+	info := json.RawMessage(`{"groups":["g1"]}`)
+
+	tests := []struct {
+		name           string
+		seeds          ThingSeeds
+		keepAAfterInit bool
+		keepBAfterInit bool
+	}{
+		{name: "empty selection", seeds: nil},
+		{name: "truncated selection missing A", seeds: ThingSeeds{{ID: "B", CustomAddress: "2", Info: groupsInfo{Groups: []string{"g1"}}}}, keepBAfterInit: true},
+	}
+
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+
+			s, err := NewState(t.TempDir())
+			require.NoError(t, err)
+
+			_, err = s.add(&thingStateModel{ID: "A", Address: "1", Info: info})
+			require.NoError(t, err)
+			_, err = s.add(&thingStateModel{ID: "B", Address: "2", Info: info})
+			require.NoError(t, err)
+
+			a := &adapter{
+				publisher: stubPublisher{},
+				state:     s,
+				factory:   groupsFactory{},
+				things:    map[string]Thing{},
+				lock:      &sync.RWMutex{},
+			}
+
+			require.NoError(t, a.EnsureThings(tc.seeds))
+			assert.NotNil(t, a.state.byID("A"), "A must survive for InitializeThings")
+			assert.NotNil(t, a.state.byID("B"), "B must survive for InitializeThings")
+			assert.Empty(t, a.things, "existing records must not be healed before initialization")
+
+			require.NoError(t, a.InitializeThings())
+			assert.NotNil(t, a.things["1"], "InitializeThings must still restore A")
+			assert.NotNil(t, a.things["2"], "InitializeThings must still restore B")
+
+			require.NoError(t, a.EnsureThings(tc.seeds))
+			assert.Equal(t, tc.keepAAfterInit, a.state.byID("A") != nil)
+			assert.Equal(t, tc.keepAAfterInit, a.things["1"] != nil)
+			assert.Equal(t, tc.keepBAfterInit, a.state.byID("B") != nil)
+			assert.Equal(t, tc.keepBAfterInit, a.things["2"] != nil)
+		})
+	}
+}
+
+// TestEnsureThings_CreatesNewSeedBeforeInitialization pins that the pre-init destroy skip does
+// not freeze presence: a seed with no prior state record is still created, so a racing sync can
+// add a newly discovered device without waiting for the next interval.
+func TestEnsureThings_CreatesNewSeedBeforeInitialization(t *testing.T) {
+	t.Parallel()
+
+	s, err := NewState(t.TempDir())
+	require.NoError(t, err)
+
+	_, err = s.add(&thingStateModel{ID: "A", Address: "1", Info: json.RawMessage(`{"groups":["g1"]}`)})
+	require.NoError(t, err)
+
+	a := &adapter{
+		publisher: stubPublisher{},
+		state:     s,
+		factory:   groupsFactory{},
+		things:    map[string]Thing{},
+		lock:      &sync.RWMutex{},
+	}
+
+	seeds := ThingSeeds{
+		{ID: "A", CustomAddress: "1", Info: groupsInfo{Groups: []string{"g1"}}},
+		{ID: "D", CustomAddress: "4", Info: groupsInfo{Groups: []string{"g1"}}},
+	}
+
+	require.NoError(t, a.EnsureThings(seeds))
+	assert.NotNil(t, a.state.byID("A"), "A must be left for InitializeThings")
+	assert.Nil(t, a.things["1"], "A must not be healed before initialization")
+	assert.NotNil(t, a.things["4"], "D has no prior record, so it is created even before initialization")
+
+	require.NoError(t, a.InitializeThings())
+	assert.NotNil(t, a.things["1"], "InitializeThings must restore A")
+	assert.NotNil(t, a.things["4"], "InitializeThings must keep the already-live D")
+}
+
 // TestEnsureThings_HealsGhostWithoutLosingAddressOrState pins that healing a ghost preserves its
 // original address and persisted state, matching rebuildChangedThing. Without that, a seed with
 // no CustomAddress (the normal case: the caller doesn't track previously-assigned addresses) got
