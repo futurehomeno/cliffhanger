@@ -194,9 +194,10 @@ prefixed modes, IT and TT grids the phase-to-phase ones.
 - **THEN** `types.PhaseModeUnknown` is returned rather than a guessed mode
 
 ### Requirement: Panic And Stack Diagnostics
-`utils.PrintStackOnRecover(name, terminate)` SHALL be usable as a deferred recover: it SHALL do
-nothing when nothing panicked, and otherwise SHALL log the panic value and the stack at error level,
-re-panicking with the original value when `terminate` is true.
+`utils.PrintStackOnRecover(component, terminate)` SHALL be usable as a deferred recover: it SHALL do
+nothing when nothing panicked, and otherwise SHALL log the panic value and the stack at error level
+under a `[component]` prefix — the argument names the component the line is attributed to, not the
+panicking function — re-panicking with the original value when `terminate` is true.
 `utils.FilterGoroutinesByKeywords(dump, keywords)` SHALL keep only those goroutine blocks of a stack
 dump in which at least one line after the `goroutine ` header matches one of the keywords, compared
 case-insensitively on word boundaries, and SHALL separate the kept blocks with a blank line while
