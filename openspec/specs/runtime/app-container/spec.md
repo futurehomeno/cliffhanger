@@ -42,6 +42,22 @@ only when at least one resetter was registered through `WithResetter`.
 - **THEN** neither the gateway event topic is subscribed nor the `evt.gateway.factory_reset` route
   is registered
 
+### Requirement: Optional Component Scoping
+Telemetry and the lifecycle are optional collaborators, so every ordering, rollback and shutdown
+requirement below that names one SHALL be read as applying only when that collaborator was
+configured. A container built without telemetry SHALL skip the telemetry step wherever it appears
+rather than failing, and one built without a lifecycle — which `Builder.Build` permits only for core
+applications — SHALL skip every app-health transition. This scoping SHALL NOT be read as making any
+other step conditional.
+
+#### Scenario: core application has no lifecycle
+- **WHEN** a core application built without a lifecycle is started and later stopped
+- **THEN** no app-health transition is attempted at any step, and the remaining ordering is unchanged
+
+#### Scenario: telemetry was never configured
+- **WHEN** an application built without `WithTelemetry` is started
+- **THEN** the telemetry step is skipped and startup proceeds to the registered services
+
 ### Requirement: Startup Ordering
 `Start` SHALL bring the container up in exactly this order: MQTT transport (with a 10 second connect
 timeout), telemetry, the registered services in registration order, the message router, the
@@ -68,8 +84,9 @@ diagnostics SHALL be flushed via `debug.FlushLogs`.
 
 #### Scenario: a service fails to start
 - **WHEN** the second registered service returns an error from `Start`
-- **THEN** the first service is stopped again, the failing one is not stopped, the router, the
-  subscriptions and the transport started earlier are torn down
+- **THEN** the first service is stopped again, the failing one is not stopped, and telemetry and the
+  transport started earlier are torn down — the router and the subscriptions, which come later in the
+  start order, were never started and are not touched
 - **AND** the lifecycle reports app health `STARTUP_ERROR`
 
 #### Scenario: task manager fails last

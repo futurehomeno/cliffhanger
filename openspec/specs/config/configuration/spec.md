@@ -228,9 +228,8 @@ When a route is built with `config.WithConfigurationChangeEvent`, the set route 
 `config` / `configuration_change` event naming the service and the setting on the supplied event
 manager, and SHALL do so only after the setter succeeded. `config.PublishConfigurationChange` SHALL
 publish the same event for hand-written routes given the same routing options, and SHALL do nothing
-when no event manager was supplied. `config.PublishConfigurationChanges` SHALL emit one event per
-named setting, and `config.WaitForConfigurationUpdate` SHALL build the event filter matching a
-single service/setting pair.
+when no event manager was supplied. `config.WaitForConfigurationUpdate` SHALL build the event filter
+matching a single service/setting pair.
 
 #### Scenario: Setter fails
 - **WHEN** a set route configured with an event manager runs a setter that returns an error

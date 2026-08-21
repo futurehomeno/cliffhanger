@@ -28,6 +28,15 @@ func WithStaleNodeExclusion(enabled func() bool) Option {
 // adapter's things are known to match the service's, so that a node the sync is about to
 // recreate can never be excluded first. Failures are logged: a sweep must not break a sync.
 func (a *adapter) excludeStaleNodesOnce() {
+	// Before initialization no thing is registered, so every hub node would look stale and the
+	// whole fleet would be excluded - state records included. EnsureThings drops every seed while
+	// uninitialized and still reports success, so a device sync racing InitializeThings at startup
+	// reaches here with an empty adapter. Checked outside the once so the sweep is only deferred,
+	// not lost: the next sync after initialization still gets it.
+	if !a.IsInitialized() {
+		return
+	}
+
 	a.staleNodesOnce.Do(func() {
 		if a.mqtt == nil || a.staleNodes == nil || !a.staleNodes() {
 			return
