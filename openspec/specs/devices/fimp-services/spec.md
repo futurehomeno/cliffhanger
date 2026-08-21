@@ -114,7 +114,7 @@ what `ReportAlways`, `ReportOnChangeOnly` and `ReportAtLeastEvery` each require,
 comparison, the never-reported-key rule and the `force` bypass — are specified once in the
 `adapter/reporting` capability and SHALL NOT be restated here. This requirement adds only what is
 specific to service packages: the cache SHALL be keyed by event name plus a sub key — unit, extended
-value name or alarm event, and the empty string when the service has a single value.
+value name, alarm event or parameter ID, and the empty string when the service has a single value.
 When `cfg.ReportingStrategy` is nil, `NewService` SHALL substitute
 the package's `DefaultReportingStrategy`, which is `cache.ReportOnChangeOnly()` for every package
 except `numericmeter` and `numericsensor` (`cache.ReportAtLeastEvery(30 * time.Minute)`).
@@ -122,8 +122,9 @@ except `numericmeter` and `numericsensor` (`cache.ReportAtLeastEvery(30 * time.M
 `cache.ReportOnChangeOnly()` for state, cable lock, max current and phase mode, and
 `DefaultSessionReportingStrategy` = `cache.ReportAtLeastEvery(30 * time.Minute)` for the current
 session report. `parameters` SHALL fix its strategy to `cache.ReportOnChangeOnly()` and accept no
-override; `devsys`, `diagnostic` and `ota` SHALL have no reporting cache and SHALL NOT deduplicate
-their reports.
+override, deduplicating `evt.param.report` under the parameter ID sub key and `evt.sup_params.report`
+under the empty one; `devsys`, `diagnostic` and `ota` SHALL have no reporting cache and SHALL NOT
+deduplicate their reports.
 
 #### Scenario: unchanged value is not republished
 - **WHEN** `SendBinaryReport(false)` is called twice with the controller returning the same value
@@ -139,12 +140,21 @@ their reports.
 A service SHALL mark a value as reported only after `SendMessage` returns without error, so that a
 failed publication is retried by the next reporting cycle rather than silently deduplicated away.
 A failure to read from the controller SHALL be returned before anything is published. Errors
-returned by `Send*Report` and by setter methods SHALL be wrapped with the service name.
+returned by `Send*Report` and by setter methods SHALL be wrapped with the service name. A service
+whose reported value is a pointer or a slice the controller owns — `parameters` and `alarm` — SHALL
+cache a copy owning its own memory rather than the controller's value itself, so a controller
+reusing and mutating what it returned cannot corrupt the cached snapshot and make a genuine change
+look unchanged.
 
 #### Scenario: publication failure leaves the cache untouched
 - **WHEN** the controller returns a new value but `SendMessage` fails
 - **THEN** `Send*Report` returns `false` and a wrapped error
 - **AND** the next non-forced call still sees the value as changed and attempts the publication again
+
+#### Scenario: controller reuses the value it returned
+- **WHEN** a `parameters` controller returns the same `*Parameter` twice, mutating its `Value`
+  between the two `SendParameterReport(id, false)` calls
+- **THEN** the second call sees a changed value and publishes `evt.param.report` again
 
 ### Requirement: Controller Call Serialisation
 Each service instance SHALL hold its own mutex and SHALL hold it for the whole of every
@@ -247,11 +257,18 @@ the service name and the supported `Unit` list as `Specification(...)` arguments
 against the advertised set and reported under its advertised spelling; an unmatched one SHALL be
 rejected. Export reporting SHALL require both an `ExportReporter` controller and a non-empty
 `sup_export_units`; extended reporting SHALL require both an `ExtendedReporter` and a non-empty
-`sup_extended_vals`; `cmd.meter.reset` SHALL require a `ResettableReporter`. Simple and export
-reports SHALL be published as float messages carrying the `unit` and `is_virtual` properties with
+`sup_extended_vals`; `cmd.meter.reset` SHALL require a `ResettableReporter`, and a service holding
+one SHALL advertise exactly one extra incoming interface for it — `cmd.meter.reset` of value type
+`null`, since the command carries no payload. Simple and export reports SHALL be published as float
+messages carrying the `unit` and `is_virtual` properties with
 storage strategy `aggregate` keyed by unit; the extended report SHALL be published as a float map
 with storage strategy `split`. An extended report SHALL be published when a report is required for
 at least one of its values, and every value in the published map SHALL then be marked as reported.
+
+#### Scenario: a resettable meter advertises its reset command
+- **WHEN** a meter service is built with a reporter implementing `ResettableReporter`
+- **THEN** the specification gains an incoming `cmd.meter.reset` interface of value type `null`
+- **AND** no export or extended interface is added by the reset capability alone
 
 #### Scenario: extended report is all-or-nothing
 - **WHEN** a periodic extended report finds one of five values changed

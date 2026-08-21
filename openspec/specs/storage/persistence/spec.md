@@ -21,8 +21,9 @@ defaults file exists:
 - `NewSecrets` and `NewCanonicalSecrets` — the same two data paths, no defaults file, and secret file
   permissions.
 
-The backup path SHALL always be the data path with the `.bak` suffix appended. Every public method
-SHALL be serialized by the storage's own mutex.
+The backup path SHALL always be the data path with the `.bak` suffix appended. `Load`, `Save` and
+`Reset` SHALL be serialized by the storage's own mutex; `Model` SHALL return the caller-owned model
+directly, without locking.
 
 #### Scenario: Thingsplex layout
 - **WHEN** `New(model, workDir, "config.json")` is saved
@@ -101,8 +102,8 @@ model according to the store kind:
   removed data but absent from the defaults do not survive. It SHALL fail before deleting anything if
   the configured defaults file is missing.
 - A secrets store SHALL zero the model, so a logout does not keep serving stale credentials.
-- A store with no defaults and no secret flag SHALL keep its in-memory model, because there is
-  nothing to reload and callers hold on to it past the reset.
+- A store with no defaults that is not a secrets store SHALL keep its in-memory model, because there
+  is nothing to reload and callers hold on to it past the reset.
 
 Zeroing SHALL clear the pointed-to struct in place rather than nil the pointer, so cached pointers are
 wiped and the model stays a valid target for a later `Load` or mutation.

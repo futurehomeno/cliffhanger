@@ -57,7 +57,10 @@ the caller's map. An empty event name SHALL be rejected as an error.
 `emit` SHALL publish nothing while the persisted config is not enabled. When a `SuppressedEntry` is
 present, an entry whose `Domains` and `Events` are both empty SHALL suppress every event for the
 app, and otherwise an event SHALL be dropped when its domain appears in `Domains` **or** its event
-name appears in `Events`. A nil `Suppressed` SHALL mean no suppression. `SetSuppressed` SHALL read
+name appears in `Events`. A nil `Suppressed` SHALL mean no suppression. Every configuration snapshot
+read for gating SHALL be deep-copied through `types.TelemetryConfig.Clone`, which copies the
+`Suppressed` entry and its `Domains` and `Events` slices, so no caller can reach the stored
+configuration through a returned entry. `SetSuppressed` SHALL read
 only the entry keyed by the adapter's own resource name: an absent key clears suppression, a present
 but empty entry suppresses everything, and a populated entry replaces the stored lists wholesale.
 

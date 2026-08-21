@@ -84,8 +84,9 @@ diagnostics SHALL be flushed via `debug.FlushLogs`.
 
 #### Scenario: a service fails to start
 - **WHEN** the second registered service returns an error from `Start`
-- **THEN** the first service is stopped again, the failing one is not stopped, the router, the
-  subscriptions and the transport started earlier are torn down
+- **THEN** the first service is stopped again, the failing one is not stopped, and telemetry and the
+  transport started earlier are torn down — the router and the subscriptions, which come later in the
+  start order, were never started and are not touched
 - **AND** the lifecycle reports app health `STARTUP_ERROR`
 
 #### Scenario: task manager fails last

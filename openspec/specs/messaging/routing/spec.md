@@ -43,6 +43,26 @@ messages — any additional router MUST be constructed with a distinct channel I
 - **WHEN** `Stop` is called on a running router
 - **THEN** the channel is unregistered from the transport first, the workers are signalled, and the call blocks until every worker goroutine has returned
 
+### Requirement: Topic Pattern Rendering
+`TopicPattern.String()` SHALL render an MQTT subscription topic out of the seven FIMP address fields,
+substituting the single-level wildcard `+` for every field left empty. A pattern whose resource type
+is `discovery` SHALL stop after the resource type, so it renders three segments; `ad`, `app` and
+`cloud` patterns SHALL end after the resource name and resource address, so they render five; every
+other resource type SHALL render all seven, including service name and service address. The helpers
+`TopicPatternAdapter`, `TopicPatternDevice`, `TopicPatternApplication`, `TopicPatternDeviceService`
+and `TopicPatternRoomService` SHALL build the common patterns with the default payload type `pt:j1` —
+the first three pinning the resource address to `1`, `TopicPatternRoomService` pinning the resource
+name to `room` — and `CombineTopicPatterns` SHALL concatenate pattern slices preserving argument
+order. The rendered strings are what an adapter passes to the root builder as topic subscriptions.
+
+#### Scenario: unset fields render as wildcards
+- **WHEN** a device pattern sets only the payload type, resource type and service name
+- **THEN** the rendered topic is `pt:j1/+/rt:dev/+/+/sv:<service>/+`
+
+#### Scenario: discovery pattern is truncated
+- **WHEN** a pattern's resource type is `discovery`
+- **THEN** the rendered topic ends at the resource type, for example `+/mt:evt/rt:discovery`
+
 ### Requirement: Concurrency And Buffer Defaults
 The router SHALL default to 5 concurrent worker goroutines and an incoming message buffer of 10.
 `WithSyncProcessing()` SHALL set concurrency to 1, guaranteeing that messages are processed one at a

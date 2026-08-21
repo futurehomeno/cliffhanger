@@ -150,7 +150,8 @@ or no live thing — presence is `EnsureThings`' job. Drift SHALL be detected by
 `topologyChecksum` — a CRC32 over the inclusion report's address, groups and full service
 specifications — of a prospective thing built at the live address against the live thing's. The
 prospective thing SHALL be built before the destroy, so a factory error costs nothing. The whole
-pass SHALL run under the adapter write lock and SHALL be best-effort per seed with errors joined.
+pass SHALL run under the adapter write lock inside a single state batch, and SHALL be best-effort
+per seed with errors joined.
 
 #### Scenario: device gains a capability
 - **WHEN** a seed's info now yields an extra service and the checksums differ
