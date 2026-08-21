@@ -73,7 +73,25 @@ func (s *ParameterSpecification) clone() *ParameterSpecification {
 		c.Max = &m
 	}
 
+	c.DefaultValue = cloneDefaultValue(s.DefaultValue)
+
 	return &c
+}
+
+// cloneDefaultValue copies the slice forms a default value can take for the int_array and
+// string_array value types, including the []any a JSON round trip produces. Every other value
+// type is a scalar the interface copy already isolates.
+func cloneDefaultValue(v any) any {
+	switch t := v.(type) {
+	case []int:
+		return slices.Clone(t)
+	case []string:
+		return slices.Clone(t)
+	case []any:
+		return slices.Clone(t)
+	default:
+		return v
+	}
 }
 
 // cloneSpecifications returns a copy of the slice and of every specification in it.

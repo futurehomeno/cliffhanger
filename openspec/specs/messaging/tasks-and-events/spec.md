@@ -58,8 +58,10 @@ observe the stop signal only between runs.
 ### Requirement: Task Panic Isolation
 A panic raised by a task handler SHALL be recovered and logged with its stack, and SHALL NOT stop the
 task's ticker, kill the manager, or affect other tasks. The recovery covers the handler only: `Start`
-reads each task's interval before any goroutine is spawned, so a nil task in the manager's list
-SHALL panic there and MUST NOT be registered.
+walks the task list in order and reads each task's interval before spawning that task's goroutine, so
+a nil task SHALL panic out of `Start` and MUST NOT be registered. Because the walk is sequential, the
+goroutines for tasks earlier in the list are already running when it panics, so a failed `Start`
+SHALL NOT be assumed to have left the manager idle.
 
 #### Scenario: handler panics on one tick
 - **WHEN** a periodic task's handler panics

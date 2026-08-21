@@ -240,10 +240,13 @@ Several hub devices MAY share one thing address, so addresses SHALL be deduplica
 
 The sweep SHALL run only from `SyncThings`, and only when the fetch, the vanished-device exclusion
 and `EnsureThings` all succeeded — that is the only moment the adapter's things are known to match
-the service's, so a node the sync is about to recreate can never be excluded first. It SHALL run at
-most once per process, SHALL run asynchronously so it cannot hold up the sync, and its failures
-SHALL be logged rather than returned, because a sweep must not break a sync. The Vinculum request
-SHALL be bounded by a timeout.
+the service's, so a node the sync is about to recreate can never be excluded first. It SHALL
+additionally require the adapter to be initialized: until then no thing is registered, so every hub
+node would be classified stale and the whole fleet excluded. That check SHALL leave the once-per-
+process budget unspent, so a sync that arrives before initialization defers the sweep rather than
+consuming it. Otherwise the sweep SHALL run at most once per process, SHALL run asynchronously so it
+cannot hold up the sync, and its failures SHALL be logged rather than returned, because a sweep must
+not break a sync. The Vinculum request SHALL be bounded by a timeout.
 
 The sweep SHALL be enabled by default. `WithStaleNodeExclusion` SHALL replace the predicate that
 gates it, evaluated when the sweep is due so it can be backed by a configuration setting.
@@ -256,6 +259,11 @@ gates it, evaluated when the sweep is due so it can be backed by a configuration
 #### Scenario: a device the sync is about to recreate
 - **WHEN** the device fetch or `EnsureThings` reported an error during the sync
 - **THEN** no sweep is triggered, so a node awaiting recreation is not excluded first
+
+#### Scenario: a sync races initialization at startup
+- **WHEN** a device sync completes before `InitializeThings` has run, so the adapter reports success
+  with no things registered
+- **THEN** no sweep is started, and the first sync after initialization still performs one
 
 #### Scenario: the once is consumed even when disabled
 - **WHEN** the predicate returns false the first time a sweep is due

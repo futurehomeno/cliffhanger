@@ -106,8 +106,8 @@ func TestService_SendSupportedParamsReport_SurvivesControllerReuse(t *testing.T)
 	t.Parallel()
 
 	// Mutating a string field would prove nothing: a shallow struct copy already isolates it.
-	// Only the reference-typed fields - the options slice and the min/max pointees - distinguish
-	// a deep clone from a shallow one, so each gets its own case.
+	// Only the reference-typed fields - the options slice, the min/max pointees and a slice-valued
+	// default - distinguish a deep clone from a shallow one, so each gets its own case.
 	tests := []struct {
 		name   string
 		spec   *parameters.ParameterSpecification
@@ -128,6 +128,31 @@ func TestService_SendSupportedParamsReport_SurvivesControllerReuse(t *testing.T)
 				WidgetType: parameters.WidgetTypeInput,
 			}).WithMin(0),
 			mutate: func(s *parameters.ParameterSpecification) { *s.Min = 5 },
+		},
+		{
+			name: "maximum mutated through the pointer",
+			spec: (&parameters.ParameterSpecification{
+				ID: "brightness", Name: "Brightness", ValueType: parameters.ValueTypeInt,
+				WidgetType: parameters.WidgetTypeInput,
+			}).WithMax(100),
+			mutate: func(s *parameters.ParameterSpecification) { *s.Max = 90 },
+		},
+		{
+			name: "slice default value mutated in place",
+			spec: &parameters.ParameterSpecification{
+				ID: "levels", Name: "Levels", ValueType: parameters.ValueTypeIntArray,
+				WidgetType:   parameters.WidgetTypeMultiSelect,
+				Options:      parameters.SelectOptions{{Label: "Low", Value: 1}, {Label: "High", Value: 2}},
+				DefaultValue: []int{1},
+			},
+			mutate: func(s *parameters.ParameterSpecification) {
+				values, ok := s.DefaultValue.([]int)
+				if !ok {
+					t.Fatalf("default value is %T, want []int", s.DefaultValue)
+				}
+
+				values[0] = 2
+			},
 		},
 	}
 
