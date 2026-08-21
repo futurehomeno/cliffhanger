@@ -28,5 +28,5 @@ func TestService_SupportedProperties(t *testing.T) {
 	svc := colorctrl.NewService(mockedadapter.NewServicePublisher(t), cfg)
 
 	assert.Equal(t, []string{"red", "green", "blue"}, svc.SupportedComponents())
-	assert.Empty(t, svc.SupportedDurations())
+	assert.Equal(t, map[string]int{"default": 500}, svc.Specification().Props[colorctrl.PropertySupportedDurations])
 }
