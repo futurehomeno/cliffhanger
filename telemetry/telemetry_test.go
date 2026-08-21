@@ -15,6 +15,7 @@ import (
 	cliffstorage "github.com/futurehomeno/cliffhanger/storage"
 	"github.com/futurehomeno/cliffhanger/task"
 	"github.com/futurehomeno/cliffhanger/telemetry"
+	"github.com/futurehomeno/cliffhanger/telemetry/config_poll"
 	"github.com/futurehomeno/cliffhanger/telemetry/types"
 	"github.com/futurehomeno/cliffhanger/test/suite"
 )
@@ -43,14 +44,12 @@ func newStore() *inMemoryStore {
 func stopTel(t *testing.T, tel telemetry.Telemetry) {
 	t.Helper()
 	t.Cleanup(func() {
-		if stop, ok := tel.(interface{ Stop() }); ok {
-			stop.Stop()
-		}
+		_ = tel.Stop()
 	})
 }
 
 func TestNew_NilMQTT_Errors(t *testing.T) { //nolint:paralleltest
-	_, err := telemetry.New(nil, "src", newStore().DefaultStore)
+	_, err := telemetry.New(nil, "src", newStore().DefaultStore, "")
 	require.Error(t, err)
 }
 
@@ -59,7 +58,7 @@ func TestNew_EmptySource_Errors(t *testing.T) { //nolint:paralleltest
 	require.NoError(t, mqtt.Start(2*time.Second))
 	t.Cleanup(mqtt.Stop)
 
-	_, err := telemetry.New(mqtt, "", newStore().DefaultStore)
+	_, err := telemetry.New(mqtt, "", newStore().DefaultStore, "")
 	require.Error(t, err)
 }
 
@@ -68,7 +67,7 @@ func TestNew_NilStore_Errors(t *testing.T) { //nolint:paralleltest
 	require.NoError(t, mqtt.Start(2*time.Second))
 	t.Cleanup(mqtt.Stop)
 
-	_, err := telemetry.New(mqtt, "src", nil)
+	_, err := telemetry.New(mqtt, "src", nil, "")
 	require.Error(t, err)
 }
 
@@ -80,7 +79,7 @@ func TestNew_SeedsTelemetryBlock(t *testing.T) { //nolint:paralleltest
 	store := newStore()
 	assert.Nil(t, store.model.Telemetry, "no telemetry block before New")
 
-	tel, err := telemetry.New(mqtt, "src", store.DefaultStore)
+	tel, err := telemetry.New(mqtt, "src", store.DefaultStore, "")
 	require.NoError(t, err)
 	stopTel(t, tel)
 
@@ -96,7 +95,7 @@ func TestEnable_TogglesAndPersists(t *testing.T) { //nolint:paralleltest
 
 	store := newStore()
 
-	tel, err := telemetry.New(mqtt, "src", store.DefaultStore)
+	tel, err := telemetry.New(mqtt, "src", store.DefaultStore, "")
 	require.NoError(t, err)
 	stopTel(t, tel)
 
@@ -117,7 +116,7 @@ func TestEnable_RepeatedTrue_ExtendsValidityWindow(t *testing.T) { //nolint:para
 
 	store := newStore()
 
-	tel, err := telemetry.New(mqtt, "src", store.DefaultStore)
+	tel, err := telemetry.New(mqtt, "src", store.DefaultStore, "")
 	require.NoError(t, err)
 	stopTel(t, tel)
 
@@ -139,7 +138,7 @@ func TestSetValidity_RejectsNonPositive(t *testing.T) { //nolint:paralleltest
 	require.NoError(t, mqtt.Start(2*time.Second))
 	t.Cleanup(mqtt.Stop)
 
-	tel, err := telemetry.New(mqtt, "src", newStore().DefaultStore)
+	tel, err := telemetry.New(mqtt, "src", newStore().DefaultStore, "")
 	require.NoError(t, err)
 	stopTel(t, tel)
 
@@ -154,7 +153,7 @@ func TestSetValidity_PersistsAndReturned(t *testing.T) { //nolint:paralleltest
 
 	store := newStore()
 
-	tel, err := telemetry.New(mqtt, "src", store.DefaultStore)
+	tel, err := telemetry.New(mqtt, "src", store.DefaultStore, "")
 	require.NoError(t, err)
 	stopTel(t, tel)
 
@@ -173,7 +172,7 @@ func TestSuppressed_PersistsAndClones(t *testing.T) { //nolint:paralleltest
 
 	store := newStore()
 
-	tel, err := telemetry.New(mqtt, "src", store.DefaultStore)
+	tel, err := telemetry.New(mqtt, "src", store.DefaultStore, "")
 	require.NoError(t, err)
 	stopTel(t, tel)
 
@@ -210,7 +209,7 @@ func TestSuppressed_NoSuppression_ReturnsEmptyMap(t *testing.T) { //nolint:paral
 
 	store := newStore()
 
-	tel, err := telemetry.New(mqtt, "src", store.DefaultStore)
+	tel, err := telemetry.New(mqtt, "src", store.DefaultStore, "")
 	require.NoError(t, err)
 	stopTel(t, tel)
 
@@ -227,7 +226,7 @@ func TestServiceName_DerivedFromSource(t *testing.T) { //nolint:paralleltest
 	require.NoError(t, mqtt.Start(2*time.Second))
 	t.Cleanup(mqtt.Stop)
 
-	tel, err := telemetry.New(mqtt, "my-app", newStore().DefaultStore)
+	tel, err := telemetry.New(mqtt, "my-app", newStore().DefaultStore, "")
 	require.NoError(t, err)
 	stopTel(t, tel)
 
@@ -241,7 +240,7 @@ func TestSaveError_PropagatesToCaller(t *testing.T) { //nolint:paralleltest
 
 	store := newStore()
 
-	tel, err := telemetry.New(mqtt, "src", store.DefaultStore)
+	tel, err := telemetry.New(mqtt, "src", store.DefaultStore, "")
 	require.NoError(t, err)
 	stopTel(t, tel)
 
@@ -272,7 +271,7 @@ func TestEmit_Disabled_IsDropped(t *testing.T) { //nolint:paralleltest
 	store := newStore()
 	store.model.Telemetry = &types.TelemetryConfig{Enabled: false}
 
-	tel, err := telemetry.New(mqtt, "src", store.DefaultStore)
+	tel, err := telemetry.New(mqtt, "src", store.DefaultStore, "")
 	require.NoError(t, err)
 	stopTel(t, tel)
 
@@ -294,7 +293,7 @@ func TestEmit_SuppressedDomain_IsDropped(t *testing.T) { //nolint:paralleltest
 		Suppressed: &types.SuppressedEntry{Domains: []string{"weather"}},
 	}
 
-	tel, err := telemetry.New(mqtt, "src", store.DefaultStore)
+	tel, err := telemetry.New(mqtt, "src", store.DefaultStore, "")
 	require.NoError(t, err)
 	stopTel(t, tel)
 
@@ -316,7 +315,7 @@ func TestEmit_SuppressedEvent_IsDropped(t *testing.T) { //nolint:paralleltest
 		Suppressed: &types.SuppressedEntry{Events: []string{"temperature"}},
 	}
 
-	tel, err := telemetry.New(mqtt, "src", store.DefaultStore)
+	tel, err := telemetry.New(mqtt, "src", store.DefaultStore, "")
 	require.NoError(t, err)
 	stopTel(t, tel)
 
@@ -333,7 +332,7 @@ func TestEmit_EmptySuppressedEntry_DropsAll(t *testing.T) { //nolint:paralleltes
 	store := newStore()
 	store.model.Telemetry = &types.TelemetryConfig{Enabled: true, EnabledAt: time.Now(), Validity: time.Hour}
 
-	tel, err := telemetry.New(mqtt, "src", store.DefaultStore)
+	tel, err := telemetry.New(mqtt, "src", store.DefaultStore, "")
 	require.NoError(t, err)
 	stopTel(t, tel)
 
@@ -404,7 +403,7 @@ func TestEmit_NilSuppressed_EmitsNormally(t *testing.T) { //nolint:paralleltest
 		// Suppressed nil = no suppression
 	}
 
-	tel, err := telemetry.New(mqtt, "src", store.DefaultStore)
+	tel, err := telemetry.New(mqtt, "src", store.DefaultStore, "")
 	require.NoError(t, err)
 	stopTel(t, tel)
 
@@ -438,7 +437,7 @@ func TestEmit_DomainSuppressedThenUnsuppressed_ResumesEmitting(t *testing.T) { /
 		Suppressed: &types.SuppressedEntry{Domains: []string{"weather"}},
 	}
 
-	tel, err := telemetry.New(mqtt, "src", store.DefaultStore)
+	tel, err := telemetry.New(mqtt, "src", store.DefaultStore, "")
 	require.NoError(t, err)
 	stopTel(t, tel)
 
@@ -475,7 +474,7 @@ func TestEmit_EnableDisableEnable_TogglesPublishing(t *testing.T) { //nolint:par
 	store := newStore()
 	store.model.Telemetry = &types.TelemetryConfig{Enabled: true, EnabledAt: time.Now(), Validity: time.Hour}
 
-	tel, err := telemetry.New(mqtt, "src", store.DefaultStore)
+	tel, err := telemetry.New(mqtt, "src", store.DefaultStore, "")
 	require.NoError(t, err)
 	stopTel(t, tel)
 
@@ -527,7 +526,7 @@ func TestEmit_SuppressedEvent_OtherEventsInSameDomainEmit(t *testing.T) { //noli
 		Suppressed: &types.SuppressedEntry{Events: []string{"temperature"}},
 	}
 
-	tel, err := telemetry.New(mqtt, "src", store.DefaultStore)
+	tel, err := telemetry.New(mqtt, "src", store.DefaultStore, "")
 	require.NoError(t, err)
 	stopTel(t, tel)
 
@@ -572,7 +571,7 @@ func TestEmitOnChange_ThrottlesWithinInterval(t *testing.T) { //nolint:parallelt
 	store := newStore()
 	store.model.Telemetry = &types.TelemetryConfig{Enabled: true, EnabledAt: time.Now(), Validity: time.Hour}
 
-	tel, err := telemetry.New(mqtt, "src", store.DefaultStore)
+	tel, err := telemetry.New(mqtt, "src", store.DefaultStore, "")
 	require.NoError(t, err)
 	stopTel(t, tel)
 
@@ -609,7 +608,7 @@ func TestEmitOnChange_AllowsAfterInterval(t *testing.T) { //nolint:paralleltest
 	store := newStore()
 	store.model.Telemetry = &types.TelemetryConfig{Enabled: true, EnabledAt: time.Now(), Validity: time.Hour}
 
-	tel, err := telemetry.New(mqtt, "src", store.DefaultStore)
+	tel, err := telemetry.New(mqtt, "src", store.DefaultStore, "")
 	require.NoError(t, err)
 	stopTel(t, tel)
 
@@ -647,7 +646,7 @@ func TestSetEvtTopic_OverrideAndDefault(t *testing.T) { //nolint:paralleltest
 	require.NoError(t, mqtt.Start(2*time.Second))
 	t.Cleanup(mqtt.Stop)
 
-	tel, err := telemetry.New(mqtt, "src", newStore().DefaultStore)
+	tel, err := telemetry.New(mqtt, "src", newStore().DefaultStore, "")
 	require.NoError(t, err)
 	stopTel(t, tel)
 
@@ -663,7 +662,7 @@ func TestEmit_Enabled_Publishes(t *testing.T) { //nolint:paralleltest
 	store := newStore()
 	store.model.Telemetry = &types.TelemetryConfig{Enabled: true, EnabledAt: time.Now(), Validity: time.Hour}
 
-	tel, err := telemetry.New(mqtt, "src", store.DefaultStore)
+	tel, err := telemetry.New(mqtt, "src", store.DefaultStore, "")
 	require.NoError(t, err)
 	stopTel(t, tel)
 
@@ -680,6 +679,72 @@ func TestEmit_Enabled_Publishes(t *testing.T) { //nolint:paralleltest
 	close(got)
 }
 
+func TestEmit_StampsVersionIntoData(t *testing.T) { //nolint:paralleltest
+	mqtt := suite.DefaultMQTT("cliff_test_emit_version", "", "", "")
+	require.NoError(t, mqtt.Start(2*time.Second))
+	t.Cleanup(mqtt.Stop)
+
+	store := newStore()
+	store.model.Telemetry = &types.TelemetryConfig{Enabled: true, EnabledAt: time.Now(), Validity: time.Hour}
+
+	tel, err := telemetry.New(mqtt, "src", store.DefaultStore, "1.2.3")
+	require.NoError(t, err)
+	stopTel(t, tel)
+
+	customTopic := "pt:j1/mt:evt/rt:app/rn:version_test/ad:1"
+	tel.SetEvtTopic(customTopic)
+	require.NoError(t, mqtt.Subscribe(customTopic))
+
+	ch := make(fimpgo.MessageCh, 4)
+	mqtt.RegisterChannel("version_ch", ch)
+	t.Cleanup(func() { mqtt.UnregisterChannel("version_ch") })
+
+	telemetry.Emit(tel, "auth", "logged_out", map[string]any{"cause": "transition"})
+
+	select {
+	case m := <-ch:
+		var ev telemetry.Event
+		require.NoError(t, m.Payload.GetObjectValue(&ev))
+		assert.Equal(t, "1.2.3", ev.Data["version"], "version stamped into every event's data")
+		assert.Equal(t, "transition", ev.Data["cause"], "caller data preserved")
+	case <-time.After(2 * time.Second):
+		t.Fatal("expected telemetry message not received")
+	}
+}
+
+func TestEmit_EmptyVersion_NoVersionKey(t *testing.T) { //nolint:paralleltest
+	mqtt := suite.DefaultMQTT("cliff_test_emit_no_version", "", "", "")
+	require.NoError(t, mqtt.Start(2*time.Second))
+	t.Cleanup(mqtt.Stop)
+
+	store := newStore()
+	store.model.Telemetry = &types.TelemetryConfig{Enabled: true, EnabledAt: time.Now(), Validity: time.Hour}
+
+	tel, err := telemetry.New(mqtt, "src", store.DefaultStore, "")
+	require.NoError(t, err)
+	stopTel(t, tel)
+
+	customTopic := "pt:j1/mt:evt/rt:app/rn:no_version_test/ad:1"
+	tel.SetEvtTopic(customTopic)
+	require.NoError(t, mqtt.Subscribe(customTopic))
+
+	ch := make(fimpgo.MessageCh, 4)
+	mqtt.RegisterChannel("no_version_ch", ch)
+	t.Cleanup(func() { mqtt.UnregisterChannel("no_version_ch") })
+
+	telemetry.Emit(tel, "auth", "logged_out", map[string]any{"cause": "x"})
+
+	select {
+	case m := <-ch:
+		var ev telemetry.Event
+		require.NoError(t, m.Payload.GetObjectValue(&ev))
+		_, ok := ev.Data["version"]
+		assert.False(t, ok, "no version key when version is empty")
+	case <-time.After(2 * time.Second):
+		t.Fatal("expected telemetry message not received")
+	}
+}
+
 func TestEnable_TinyValidity_TimerDisables(t *testing.T) { //nolint:paralleltest
 	mqtt := suite.DefaultMQTT("cliff_test_tiny_validity", "", "", "")
 	require.NoError(t, mqtt.Start(2*time.Second))
@@ -688,7 +753,7 @@ func TestEnable_TinyValidity_TimerDisables(t *testing.T) { //nolint:paralleltest
 	store := newStore()
 	store.model.Telemetry = &types.TelemetryConfig{Enabled: true, EnabledAt: time.Now(), Validity: 50 * time.Millisecond}
 
-	tel, err := telemetry.New(mqtt, "src", store.DefaultStore)
+	tel, err := telemetry.New(mqtt, "src", store.DefaultStore, "")
 	require.NoError(t, err)
 	stopTel(t, tel)
 
@@ -712,7 +777,7 @@ func TestSetValidity_BelowElapsed_DisablesImmediately(t *testing.T) { //nolint:p
 		Validity:  24 * time.Hour,
 	}
 
-	tel, err := telemetry.New(mqtt, "src", store.DefaultStore)
+	tel, err := telemetry.New(mqtt, "src", store.DefaultStore, "")
 	require.NoError(t, err)
 	stopTel(t, tel)
 
@@ -732,7 +797,7 @@ func TestResumeValidityWindow_ExpiredBeforeStartup_DisablesAtBoot(t *testing.T) 
 		Validity:  time.Hour,
 	}
 
-	tel, err := telemetry.New(mqtt, "src", store.DefaultStore)
+	tel, err := telemetry.New(mqtt, "src", store.DefaultStore, "")
 	require.NoError(t, err)
 	stopTel(t, tel)
 
@@ -751,7 +816,7 @@ func TestResumeValidityWindow_ClockSkew_NormalizesToNow(t *testing.T) { //nolint
 		Validity:  time.Hour,
 	}
 
-	tel, err := telemetry.New(mqtt, "src", store.DefaultStore)
+	tel, err := telemetry.New(mqtt, "src", store.DefaultStore, "")
 	require.NoError(t, err)
 	stopTel(t, tel)
 
@@ -769,7 +834,7 @@ func TestRouting_EnabledRoundTrip(t *testing.T) { //nolint:paralleltest
 				Setup: suite.BaseSetup(func(t *testing.T, mqtt *fimpgo.MqttTransport) ([]*router.Routing, []*task.Task, []suite.Mock) {
 					t.Helper()
 
-					tel, err := telemetry.New(mqtt, "tel_test", store.DefaultStore)
+					tel, err := telemetry.New(mqtt, "tel_test", store.DefaultStore, "")
 					require.NoError(t, err)
 					stopTel(t, tel)
 
@@ -813,7 +878,7 @@ func TestRouting_ValidityRoundTrip(t *testing.T) { //nolint:paralleltest
 				Setup: suite.BaseSetup(func(t *testing.T, mqtt *fimpgo.MqttTransport) ([]*router.Routing, []*task.Task, []suite.Mock) {
 					t.Helper()
 
-					tel, err := telemetry.New(mqtt, "tel_validity", store.DefaultStore)
+					tel, err := telemetry.New(mqtt, "tel_validity", store.DefaultStore, "")
 					require.NoError(t, err)
 					stopTel(t, tel)
 
@@ -855,7 +920,7 @@ func TestRouting_SuppressedGet(t *testing.T) { //nolint:paralleltest
 				Setup: suite.BaseSetup(func(t *testing.T, mqtt *fimpgo.MqttTransport) ([]*router.Routing, []*task.Task, []suite.Mock) {
 					t.Helper()
 
-					tel, err := telemetry.New(mqtt, "tel_supp_get", store.DefaultStore)
+					tel, err := telemetry.New(mqtt, "tel_supp_get", store.DefaultStore, "")
 					require.NoError(t, err)
 					stopTel(t, tel)
 
@@ -866,7 +931,7 @@ func TestRouting_SuppressedGet(t *testing.T) { //nolint:paralleltest
 						Command: suite.NullMessage("pt:j1/mt:cmd/rt:app/rn:test/ad:1", "cmd.config.get_telemetry_suppressed", "tel_supp_get"),
 						Expectations: []*suite.Expectation{
 							suite.ExpectObject("pt:j1/mt:evt/rt:app/rn:test/ad:1", "evt.config.telemetry_suppressed_report", "tel_supp_get",
-							map[string]types.SuppressedEntry{"tel_supp_get": {Domains: []string{"alpha"}, Events: []string{"beta.x"}}}),
+								map[string]types.SuppressedEntry{"tel_supp_get": {Domains: []string{"alpha"}, Events: []string{"beta.x"}}}),
 						},
 					},
 					{
@@ -902,7 +967,7 @@ func TestRouting_SetTelemetry_PersistsToStore(t *testing.T) { //nolint:parallelt
 				Setup: suite.BaseSetup(func(t *testing.T, mqtt *fimpgo.MqttTransport) ([]*router.Routing, []*task.Task, []suite.Mock) {
 					t.Helper()
 
-					tel, err := telemetry.New(mqtt, "tel_persist", store.DefaultStore)
+					tel, err := telemetry.New(mqtt, "tel_persist", store.DefaultStore, "")
 					require.NoError(t, err)
 					stopTel(t, tel)
 
@@ -993,7 +1058,7 @@ func TestRouting_SetTelemetry_UpdatesConfiguredAt(t *testing.T) { //nolint:paral
 				Setup: suite.BaseSetup(func(t *testing.T, mqtt *fimpgo.MqttTransport) ([]*router.Routing, []*task.Task, []suite.Mock) {
 					t.Helper()
 
-					tel, err := telemetry.New(mqtt, "tel_cfg_at", store)
+					tel, err := telemetry.New(mqtt, "tel_cfg_at", store, "")
 					require.NoError(t, err)
 					stopTel(t, tel)
 
@@ -1005,7 +1070,7 @@ func TestRouting_SetTelemetry_UpdatesConfiguredAt(t *testing.T) { //nolint:paral
 						InitCallbacks: []suite.Callback{
 							func(t *testing.T) {
 								t.Helper()
-								configuredAtBefore = parseConfiguredAt(t, cfg.ConfiguredAt)
+								configuredAtBefore = parseConfiguredAt(t, store.Default().ConfiguredAt)
 							},
 						},
 						Expectations: []*suite.Expectation{
@@ -1015,7 +1080,7 @@ func TestRouting_SetTelemetry_UpdatesConfiguredAt(t *testing.T) { //nolint:paral
 							func(t *testing.T) {
 								t.Helper()
 								require.Eventually(t, func() bool {
-									return parseConfiguredAt(t, cfg.ConfiguredAt).After(configuredAtBefore)
+									return parseConfiguredAt(t, store.Default().ConfiguredAt).After(configuredAtBefore)
 								}, time.Second, 10*time.Millisecond, "ConfiguredAt must be stamped on save")
 							},
 						},
@@ -1053,7 +1118,7 @@ func setupTelChannel(t *testing.T, name string) (telemetry.Telemetry, fimpgo.Mes
 	store := newStore()
 	store.model.Telemetry = &types.TelemetryConfig{Enabled: true, EnabledAt: time.Now(), Validity: time.Hour}
 
-	tel, err := telemetry.New(mqtt, "src", store.DefaultStore)
+	tel, err := telemetry.New(mqtt, "src", store.DefaultStore, "")
 	require.NoError(t, err)
 	stopTel(t, tel)
 
@@ -1271,4 +1336,75 @@ func TestResetEventCounters_Scope_MatchesAcrossNumericTypes(t *testing.T) { //no
 
 	telemetry.EmitIfMore(tel, "d", "e", 2, false, data, 0) // count = 1 again (was cleared)
 	assertNotPublished(t, ch, "reset must match across numeric types via JSON semantics")
+}
+
+// TestNew_DoesNotStartPolling pins that constructing telemetry no longer starts the cloud config
+// poll. It used to be started in the constructor with no way to stop it through the interface, so
+// its goroutine, timers and subscription outlived the application that owned them.
+func TestNew_DoesNotStartPolling(t *testing.T) { //nolint:paralleltest
+	mqtt := suite.DefaultMQTT("cliff_tel_no_autostart", "", "", "")
+	require.NoError(t, mqtt.Start(2*time.Second))
+	t.Cleanup(mqtt.Stop)
+
+	requests := make(chan struct{}, 1)
+	msgCh := make(fimpgo.MessageCh, 8)
+
+	mqtt.RegisterChannel("tel-no-autostart", msgCh)
+	t.Cleanup(func() {
+		// UnregisterChannel only drops the registration, it never closes the channel, so the
+		// ranging goroutine below would block on it for the rest of the suite. Safe to close
+		// once unregistered: fimpgo holds its registration lock across the send.
+		mqtt.UnregisterChannel("tel-no-autostart")
+		close(msgCh)
+	})
+	require.NoError(t, mqtt.Subscribe(config_poll.ConfigRequestTopic))
+
+	go func() {
+		for range msgCh {
+			select {
+			case requests <- struct{}{}:
+			default:
+			}
+		}
+	}()
+
+	tel, err := telemetry.New(mqtt, "tel_no_autostart", newStore().DefaultStore, "")
+	require.NoError(t, err)
+
+	select {
+	case <-requests:
+		t.Fatal("the constructor must not poll for configuration")
+	case <-time.After(500 * time.Millisecond):
+	}
+
+	require.NoError(t, tel.Start())
+	require.NoError(t, tel.Stop())
+	require.NoError(t, tel.Stop(), "stopping twice must be safe")
+}
+
+// TestStartAfterStop_RearmsValidityTimer pins that stopping telemetry and starting it again inside
+// one process restores the validity window. Stop tears the timer down and it used to be armed only
+// by the constructor, so after a stop/start cycle telemetry stayed enabled past its validity until
+// a cloud config report happened to re-enable it.
+func TestStartAfterStop_RearmsValidityTimer(t *testing.T) { //nolint:paralleltest
+	mqtt := suite.DefaultMQTT("cliff_tel_restart_validity", "", "", "")
+	require.NoError(t, mqtt.Start(2*time.Second))
+	t.Cleanup(mqtt.Stop)
+
+	store := newStore()
+	store.model.Telemetry = &types.TelemetryConfig{Enabled: true, EnabledAt: time.Now(), Validity: time.Hour}
+
+	tel, err := telemetry.New(mqtt, "src", store.DefaultStore, "")
+	require.NoError(t, err)
+	t.Cleanup(func() { _ = tel.Stop() })
+
+	require.NoError(t, tel.Start())
+	require.NoError(t, tel.Stop())
+	require.True(t, tel.IsEnabled(), "stopping must not disable telemetry by itself")
+
+	// The window has run out while telemetry was stopped, so the restart must notice.
+	store.model.Telemetry.EnabledAt = time.Now().Add(-2 * time.Hour)
+
+	require.NoError(t, tel.Start())
+	assert.False(t, tel.IsEnabled(), "a restart must re-evaluate and expire the validity window")
 }

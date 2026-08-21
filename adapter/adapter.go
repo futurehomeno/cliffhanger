@@ -2,11 +2,13 @@ package adapter
 
 import (
 	"encoding/json"
+	"errors"
 	"fmt"
 	"sync"
 
 	"github.com/futurehomeno/fimpgo"
 	"github.com/futurehomeno/fimpgo/fimptype"
+	log "github.com/sirupsen/logrus"
 
 	"github.com/futurehomeno/cliffhanger/event"
 )
@@ -41,11 +43,17 @@ type Adapter interface {
 	InitializeThings() error
 	// EnsureThings creates and destroys things based on provided map of IDs and custom information objects.
 	EnsureThings(seeds ThingSeeds) error
+	// RebuildChangedThings rebuilds any already-registered thing whose seed would produce a
+	// different service topology than the live thing, so an in-place update picks up new
+	// capabilities. Seeds for unregistered IDs are ignored; use EnsureThings for presence.
+	RebuildChangedThings(seeds ThingSeeds) error
 	// CreateThing creates thing and adds it to the adapter.
 	CreateThing(seed *ThingSeed) error
-	// DestroyThingByID destroys thing and removes it from the adapter.
+	// DestroyThingByID destroys thing and removes it from the adapter. An unknown ID is a no-op:
+	// there is no address to announce an exclusion for.
 	DestroyThingByID(id string) error
-	// DestroyThingByAddress destroys thing and removes it from the adapter.
+	// DestroyThingByAddress destroys thing and removes it from the adapter. An unregistered
+	// address still emits the exclusion, clearing a stale hub node the state never knew about.
 	DestroyThingByAddress(address string) error
 	// DestroyAllThings destroys all things and removes them from the adapter.
 	DestroyAllThings() error
@@ -53,34 +61,49 @@ type Adapter interface {
 	SendConnectivityReport() error
 }
 
+// NewAdapter creates a new Adapter. Options configure optional behaviour, such as
+// WithStaleNodeExclusion.
 func NewAdapter(
 	mqtt *fimpgo.MqttTransport,
 	eventManager event.Manager,
 	factory ThingFactory,
 	state State,
 	resourceName fimptype.ResourceNameT, resourceAddress string,
+	options ...Option,
 ) Adapter {
-	return &adapter{
-		name:      resourceName,
-		address:   resourceAddress,
-		things:    make(map[string]Thing),
-		factory:   factory,
-		state:     state,
-		publisher: NewPublisher(mqtt, eventManager, resourceName, resourceAddress),
-		lock:      &sync.RWMutex{},
+	a := &adapter{
+		name:       resourceName,
+		address:    resourceAddress,
+		things:     make(map[string]Thing),
+		factory:    factory,
+		state:      state,
+		mqtt:       mqtt,
+		publisher:  NewPublisher(mqtt, eventManager, resourceName, resourceAddress),
+		lock:       &sync.RWMutex{},
+		staleNodes: func() bool { return true },
 	}
+
+	for _, option := range options {
+		option(a)
+	}
+
+	return a
 }
 
 type adapter struct {
 	publisher Publisher
 	state     State
 	factory   ThingFactory
+	mqtt      *fimpgo.MqttTransport
 
 	name        fimptype.ResourceNameT
 	address     string
 	things      map[string]Thing
 	initialized bool
 	lock        *sync.RWMutex
+
+	staleNodes     func() bool
+	staleNodesOnce sync.Once
 }
 
 func (a *adapter) Name() fimptype.ResourceNameT {
@@ -212,24 +235,8 @@ func (a *adapter) InitializeThings() error {
 		return nil
 	}
 
-	var things []Thing
-
-	for _, ts := range a.state.all() {
-		t, err := a.factory.Create(a, a.publisher, ts)
-		if err != nil {
-			return fmt.Errorf("failed to create thing with address %s: %w", ts.Address(), err)
-		}
-
-		_, err = t.SendInclusionReport(false)
-		if err != nil {
-			return fmt.Errorf("failed to send inclusion report for thing with address %s: %w", ts.Address(), err)
-		}
-
-		things = append(things, t)
-	}
-
-	for _, t := range things {
-		a.registerThing(t)
+	if err := a.state.batch(a.initializeThings); err != nil {
+		return err
 	}
 
 	a.initialized = true
@@ -237,37 +244,129 @@ func (a *adapter) InitializeThings() error {
 	return nil
 }
 
+func (a *adapter) initializeThings() error {
+	for _, ts := range a.state.all() {
+		// A thing can already be live: the router runs before the initialization task, so an
+		// inbound command can have created one. Rebuilding it would replace a connected instance
+		// with a duplicate and announce it a second time.
+		if _, live := a.things[ts.Address()]; live {
+			continue
+		}
+
+		t, err := a.factory.Create(a, a.publisher, ts)
+		if err != nil {
+			return fmt.Errorf("failed to create thing with address %s: %w", ts.Address(), err)
+		}
+
+		// Announced before being registered, so a failed report leaves nothing behind for the live
+		// check above to skip on the next attempt - otherwise the thing would count as done while
+		// the hub never heard about it.
+		if _, err = t.SendInclusionReport(false); err != nil {
+			return fmt.Errorf("failed to send inclusion report for thing with address %s: %w", ts.Address(), err)
+		}
+
+		// Registered as we go: collecting them all first meant a failure halfway through left the
+		// adapter with no registered things at all, yet with inclusion reports already published
+		// for the ones that did get built.
+		a.registerThing(t)
+	}
+
+	return nil
+}
+
 // EnsureThings creates and destroys things based on provided map of IDs and custom information objects.
+// Best-effort per device: failures are joined, so a non-nil error means partially applied.
 func (a *adapter) EnsureThings(seeds ThingSeeds) error {
 	a.lock.Lock()
 	defer a.lock.Unlock()
 
+	return a.state.batch(func() error { return a.ensureThings(seeds) })
+}
+
+func (a *adapter) ensureThings(seeds ThingSeeds) error {
 	var addressesToRemove []string
+
+	// Ghost records keep the address and persisted state they had before healing, mirroring
+	// rebuildChangedThing: otherwise createThing below would assign a fresh address (for a
+	// seed without a CustomAddress) and start with no state, silently discarding both.
+	ghostAddresses := make(map[string]string)
+	ghostStates := make(map[string]json.RawMessage)
 
 	thingStates := a.state.all()
 
 	for _, ts := range thingStates {
 		if !seeds.Contains(ts.ID()) {
-			addressesToRemove = append(addressesToRemove, ts.Address())
+			// Destroying before initialization drops records InitializeThings has not announced
+			// yet. A racing sync with an empty or truncated selection would wipe the fleet.
+			if a.initialized {
+				addressesToRemove = append(addressesToRemove, ts.Address())
+			}
 
 			continue
 		}
 
-		seeds = seeds.Without(ts.ID())
+		_, live := a.things[ts.Address()]
+
+		// A record with no live thing is a ghost left by a partly failed destroy or rebuild.
+		// Keeping its seed lets the pass below recreate it: state.add overwrites the record and
+		// the inclusion report re-announces the device. Skipped before initialization, when
+		// every thing is unregistered and healing would recreate the whole fleet.
+		if live || !a.initialized {
+			seeds = seeds.Without(ts.ID())
+
+			continue
+		}
+
+		ghostAddresses[ts.ID()] = ts.Address()
+
+		var savedState json.RawMessage
+
+		if err := ts.State(&savedState); err != nil {
+			log.Warnf("[adapter] Read state for thing %s. err: %v", ts.ID(), err)
+		} else if len(savedState) > 0 {
+			ghostStates[ts.ID()] = savedState
+		}
 	}
+
+	var errs []error
 
 	for _, address := range addressesToRemove {
 		err := a.destroyThing(address)
 		if err != nil {
-			return fmt.Errorf("failed to destroy thing with address %s: %w", address, err)
+			errs = append(errs, fmt.Errorf("failed to destroy thing with address %s: %w", address, err))
 		}
 	}
 
 	for _, seed := range seeds {
-		err := a.createThing(seed)
-		if err != nil {
-			return fmt.Errorf("failed to create thing with ID %s: %w", seed.ID, err)
+		if err := a.recreateThing(seed, ghostAddresses[seed.ID], ghostStates[seed.ID]); err != nil {
+			errs = append(errs, err)
 		}
+	}
+
+	return errors.Join(errs...)
+}
+
+// recreateThing creates a thing and restores its persisted state. A non-empty address pins the
+// thing to the one it already had, which a seed without a CustomAddress would otherwise lose.
+// Assumes the adapter lock is held.
+func (a *adapter) recreateThing(seed *ThingSeed, address string, savedState json.RawMessage) error {
+	if address != "" {
+		seed = &ThingSeed{ID: seed.ID, Info: seed.Info, CustomAddress: address}
+	}
+
+	if err := a.createThing(seed); err != nil {
+		return fmt.Errorf("create thing %s (device excluded until next sync): %w", seed.ID, err)
+	}
+
+	newTS := a.state.byID(seed.ID)
+	if len(savedState) == 0 || newTS == nil {
+		return nil
+	}
+
+	if err := newTS.SetState(savedState); err != nil {
+		_ = a.destroyThing(newTS.Address())
+
+		return fmt.Errorf("restore state for thing %s (device excluded until next sync): %w", seed.ID, err)
 	}
 
 	return nil
@@ -303,20 +402,27 @@ func (a *adapter) DestroyThingByAddress(address string) error {
 	return a.destroyThing(address)
 }
 
+// DestroyAllThings destroys all things and removes them from the adapter. Best-effort per
+// device: the adapter is always left empty, never half-reset.
 func (a *adapter) DestroyAllThings() error {
 	a.lock.Lock()
 	defer a.lock.Unlock()
 
+	// Deliberately not wrapped in state.batch: batching shadows the Save inside state.remove,
+	// which is what restores a record whose write failed. Without that restore a failed flush
+	// drops every record from memory while the disk keeps them all, and the next boot
+	// resurrects the fleet this reset was meant to clear.
+	var errs []error
+
 	for _, ts := range a.state.all() {
-		err := a.destroyThing(ts.Address())
-		if err != nil {
-			return fmt.Errorf("failed to destroy thing with ID %s: %w", ts.ID(), err)
+		if err := a.destroyThing(ts.Address()); err != nil {
+			errs = append(errs, fmt.Errorf("failed to destroy thing with ID %s: %w", ts.ID(), err))
 		}
 	}
 
 	a.things = make(map[string]Thing)
 
-	return nil
+	return errors.Join(errs...)
 }
 
 func (a *adapter) SendConnectivityReport() error {
@@ -340,12 +446,18 @@ func (a *adapter) SendConnectivityReport() error {
 
 // registerThing registers thing in the adapter but does not send an inclusion report for it.
 func (a *adapter) registerThing(t Thing) {
+	// A displaced instance is disconnected rather than just dropped from the map, which would leak
+	// whatever its connector holds open with the adapter no longer holding a reference to it.
+	if old, ok := a.things[t.Address()]; ok && old != t {
+		old.Disconnect()
+	}
+
 	a.things[t.Address()] = t
 
 	t.Connect()
 }
 
-// registerThing registers thing in the adapter but does not send an inclusion report for it.
+// unregisterThing removes a thing from the adapter and disconnects it.
 func (a *adapter) unregisterThing(t Thing) {
 	delete(a.things, t.Address())
 
@@ -353,11 +465,36 @@ func (a *adapter) unregisterThing(t Thing) {
 }
 
 // createThing utilizes factory to create a thing, persists it in the state and adds to the adapter.
-func (a *adapter) createThing(seed *ThingSeed) error {
+func (a *adapter) createThing(seed *ThingSeed) (err error) {
+	// createThingState overwrites an existing record, so a failed heal of a ghost would drop
+	// the address and state the retry is supposed to preserve. Captured before the overwrite,
+	// restored instead of removed on rollback.
+	previous := a.state.modelByID(seed.ID)
+
 	ts, err := a.createThingState(seed)
 	if err != nil {
 		return fmt.Errorf("failed to create state for thing with ID %s: %w", seed.ID, err)
 	}
+
+	// Roll the state record back on failure: a record with no live thing is a ghost that
+	// EnsureThings skips until its heal recreates it, leaving the device missing meanwhile.
+	defer func() {
+		if err == nil {
+			return
+		}
+
+		var rollbackErr error
+
+		if previous != nil {
+			_, rollbackErr = a.state.add(previous)
+		} else {
+			rollbackErr = a.state.remove(seed.ID)
+		}
+
+		if rollbackErr != nil {
+			log.Warnf("[adapter] Roll back state for thing %s. err: %v", seed.ID, rollbackErr)
+		}
+	}()
 
 	t, err := a.factory.Create(a, a.publisher, ts)
 	if err != nil {
@@ -376,19 +513,9 @@ func (a *adapter) createThing(seed *ThingSeed) error {
 
 // createThingState creates new state of a thing and acquires a new address for it.
 func (a *adapter) createThingState(seed *ThingSeed) (ThingState, error) {
-	var err error
-
-	address := seed.CustomAddress
-	if address == "" {
-		address, err = a.state.acquireAddress()
-		if err != nil {
-			return nil, fmt.Errorf("failed to accquire a new address for thing with ID %s: %w", seed.ID, err)
-		}
-	}
-
 	model := &thingStateModel{
 		ID:      seed.ID,
-		Address: address,
+		Address: seed.CustomAddress,
 	}
 
 	if seed.Info != nil {
@@ -408,14 +535,17 @@ func (a *adapter) createThingState(seed *ThingSeed) (ThingState, error) {
 	return ts, nil
 }
 
+// destroyThing is best-effort across all three steps: a failed state write must not skip the
+// unregister, or the thing keeps its connector open while the adapter drops the last reference
+// to it. A failed state write keeps the record, so the next sync retries the destroy - or, if
+// the device got selected again, recreates a live thing over the ghost record.
 func (a *adapter) destroyThing(address string) error {
-	var err error
+	var errs []error
 
 	ts := a.state.byAddress(address)
 	if ts != nil {
-		err = a.state.remove(ts.ID())
-		if err != nil {
-			return fmt.Errorf("failed to remove state for thing with ID %s: %w", ts.ID(), err)
+		if err := a.state.remove(ts.ID()); err != nil {
+			errs = append(errs, fmt.Errorf("failed to remove state for thing with ID %s: %w", ts.ID(), err))
 		}
 	}
 
@@ -424,12 +554,11 @@ func (a *adapter) destroyThing(address string) error {
 		a.unregisterThing(t)
 	}
 
-	err = a.sendExclusionReport(address)
-	if err != nil {
-		return fmt.Errorf("failed to send exclusion report for thing with address %s: %w", address, err)
+	if err := a.sendExclusionReport(address); err != nil {
+		errs = append(errs, fmt.Errorf("failed to send exclusion report for thing with address %s: %w", address, err))
 	}
 
-	return nil
+	return errors.Join(errs...)
 }
 
 func (a *adapter) sendExclusionReport(address string) error {

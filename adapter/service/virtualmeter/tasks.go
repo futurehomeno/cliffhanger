@@ -40,7 +40,7 @@ func handleReporting(serviceRegistry adapter.ServiceRegistry) func() {
 			}
 
 			if _, err := vmeter.SendModesReport(false); err != nil {
-				log.WithError(err).Errorf("task(vms): failed to send reporting interval")
+				log.Errorf("[cliff] Send modes report. err: %v", err)
 			}
 		}
 	}
@@ -57,7 +57,7 @@ func handleStatePolling(sr adapter.ServiceRegistry) func() {
 
 			_, err := levelSwitch.SendLevelReport(false)
 			if err != nil {
-				log.WithError(err).Errorf("task(vms): failed to get level switch level")
+				log.Errorf("[cliff] Send level report. err: %v", err)
 			}
 		}
 	}
@@ -66,21 +66,22 @@ func handleStatePolling(sr adapter.ServiceRegistry) func() {
 func handleGarbageCleaning(sr adapter.ServiceRegistry, mr Manager) func() {
 	m, ok := mr.(*manager)
 	if !ok {
-		log.Errorf("task(vms): failed to cast manager to *manager during garbage cleaning")
+		log.Errorf("[cliff] Manager cast failed")
 
 		return func() {}
 	}
 
 	return func() {
-		for _, s := range sr.Services(VirtualMeterElec) {
-			vmeter, ok := s.(Service)
-			if !ok {
-				continue
-			}
+		liveTopics := make(map[string]struct{})
 
-			if err := m.deleteDeviceEntry(vmeter.Topic()); err != nil {
-				log.WithError(err).Errorf("task(vms): failed to clean garbage")
+		for _, s := range sr.Services(VirtualMeterElec) {
+			if vmeter, ok := s.(Service); ok {
+				liveTopics[vmeter.Topic()] = struct{}{}
 			}
+		}
+
+		if err := m.cleanOrphanedDevices(liveTopics); err != nil {
+			log.Errorf("[cliff] Clean orphaned devices. err: %v", err)
 		}
 	}
 }

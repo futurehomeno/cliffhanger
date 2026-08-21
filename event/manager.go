@@ -1,15 +1,19 @@
 package event
 
 import (
-	"runtime/debug"
-	"sync"
 	"time"
 
 	"github.com/google/uuid"
 	log "github.com/sirupsen/logrus"
+
+	"github.com/futurehomeno/cliffhanger/utils"
 )
 
 type Manager interface {
+	// Subscribe registers a new subscription under the given ID and returns its channel.
+	// Subscribers sharing an ID each get their own channel, buffer and filters rather than
+	// silently inheriting the first one's - but Unsubscribe closes every channel registered under
+	// that ID, so an ID is only safe to share between subscribers with the same lifetime.
 	Subscribe(subID string, buffer int, filters ...Filter) chan Event
 	Unsubscribe(subID string)
 	Publish(event Event)
@@ -18,67 +22,33 @@ type Manager interface {
 
 func NewManager() Manager {
 	return &manager{
-		lock:          &sync.RWMutex{},
-		subscriptions: make(map[string]*subscription),
-		waitBuffer:    10,
+		bus:        NewBus[Event](),
+		waitBuffer: 10,
 	}
 }
 
 type manager struct {
-	lock          *sync.RWMutex
-	subscriptions map[string]*subscription
-	waitBuffer    int
+	bus        *Bus[Event]
+	waitBuffer int
 }
 
 func (m *manager) Publish(event Event) {
-	m.lock.RLock()
-	defer m.lock.RUnlock()
-
-	for _, s := range m.subscriptions {
-		// Filter event out if it doesn't match the filter.
-		if !s.filter(event) {
-			continue
-		}
-
-		select {
-		case s.channel <- event:
-			continue
-		default:
-			log.Warnf("[cliff] Event subscriber ID=%s busy, event domain=%s class=%s dropped", s.id, event.Domain(), event.Class())
-		}
-	}
+	m.bus.Publish(event, func(subID string) {
+		log.Warnf("[event] Subscriber %s busy, dropped domain=%s class=%s", subID, event.Domain(), event.Class())
+	})
 }
 
 func (m *manager) Subscribe(subID string, buffer int, filters ...Filter) chan Event {
-	m.lock.Lock()
-	defer m.lock.Unlock()
-
-	// Returning already existing subscription channel if it exists.
-	if _, ok := m.subscriptions[subID]; ok {
-		return m.subscriptions[subID].channel
+	predicates := make([]func(Event) bool, len(filters))
+	for i, f := range filters {
+		predicates[i] = f.Filter
 	}
 
-	subCh := make(chan Event, buffer)
-
-	m.subscriptions[subID] = &subscription{
-		id:      subID,
-		channel: subCh,
-		filters: filters,
-	}
-
-	return subCh
+	return m.bus.Subscribe(subID, buffer, predicates...)
 }
 
 func (m *manager) Unsubscribe(subID string) {
-	m.lock.Lock()
-	defer m.lock.Unlock()
-
-	if _, ok := m.subscriptions[subID]; !ok {
-		return
-	}
-
-	close(m.subscriptions[subID].channel)
-	delete(m.subscriptions, subID)
+	m.bus.Unsubscribe(subID)
 }
 
 // WaitFor returns a channel that returns the waited for event or nil on timeout.
@@ -88,13 +58,7 @@ func (m *manager) WaitFor(timeout time.Duration, filters ...Filter) <-chan Event
 	resultChannel := make(chan Event, 1)
 
 	go func() {
-		defer func() {
-			if r := recover(); r != nil {
-				log.Error(string(debug.Stack()))
-				log.Error(r)
-				panic(r)
-			}
-		}()
+		defer utils.PrintStackOnRecover("event", true)
 
 		timer := time.NewTimer(timeout)
 		defer timer.Stop()
@@ -115,20 +79,4 @@ func (m *manager) WaitFor(timeout time.Duration, filters ...Filter) <-chan Event
 	}()
 
 	return resultChannel
-}
-
-type subscription struct {
-	id      string
-	channel chan Event
-	filters []Filter
-}
-
-func (s *subscription) filter(event Event) bool {
-	for _, f := range s.filters {
-		if !f.Filter(event) {
-			return false
-		}
-	}
-
-	return true
 }

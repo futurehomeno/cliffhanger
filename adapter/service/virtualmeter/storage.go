@@ -22,6 +22,9 @@ type (
 		LastTimeUpdated   time.Time          `json:"lastTimeUpdated"`
 		Unit              string             `json:"unit"`
 		Active            bool               `json:"active"`
+		// OrphanedSince is when the garbage collector first saw this entry without a live virtual
+		// meter service. Stored so the grace period keeps ageing across restarts.
+		OrphanedSince *time.Time `json:"orphanedSince,omitempty"`
 	}
 
 	Storage struct {
@@ -79,6 +82,19 @@ func (s *Storage) DeleteDevice(addr string) error {
 	}
 
 	return nil
+}
+
+// Addresses returns the addresses of all stored devices.
+func (s *Storage) Addresses() ([]string, error) {
+	s.lock.RLock()
+	defer s.lock.RUnlock()
+
+	addresses, err := s.db.Keys(keyDevice)
+	if err != nil {
+		return nil, fmt.Errorf("storage: failed to list device addresses: %w", err)
+	}
+
+	return addresses, nil
 }
 
 func (s *Storage) Device(addr string) (*Device, error) {

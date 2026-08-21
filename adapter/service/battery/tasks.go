@@ -31,13 +31,13 @@ func handleReporting(serviceRegistry adapter.ServiceRegistry) func() {
 
 			_, err := battery.SendBatteryLevelReport(false)
 			if err != nil {
-				log.WithError(err).Errorf("failed to send battery level report")
+				log.Errorf("[battery] Send battery level report. err: %v", err)
 			}
 
 			for _, event := range battery.SupportedEvents() {
 				_, err = battery.SendBatteryAlarmReport(event, false)
 				if err != nil {
-					log.WithError(err).Errorf("failed to send battery alarm report for event: %s", event)
+					log.Errorf("[battery] Send battery alarm report. event: %s err: %v", event, err)
 				}
 			}
 		}

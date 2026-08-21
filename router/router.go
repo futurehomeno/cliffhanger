@@ -9,6 +9,8 @@ import (
 
 	"github.com/futurehomeno/fimpgo"
 	log "github.com/sirupsen/logrus"
+
+	"github.com/futurehomeno/cliffhanger/utils"
 )
 
 // DefaultChannelID is a constant defining a default channel ID used by the router.
@@ -101,13 +103,7 @@ func (r *router) Stop() error {
 func (r *router) routeMessages(messageCh fimpgo.MessageCh) {
 	defer r.wg.Done()
 
-	defer func() {
-		if rec := recover(); rec != nil {
-			log.Error(string(debug.Stack()))
-			log.Error(rec)
-			panic(rec)
-		}
-	}()
+	defer utils.PrintStackOnRecover("router", true)
 
 	for {
 		select {
@@ -135,9 +131,8 @@ func (r *router) processMessage(routing *Routing, msg *fimpgo.Message) {
 
 	startTime := time.Now()
 
-	if routing.handler == nil ||
-		reflect.ValueOf(routing.handler).IsNil() {
-		log.Errorf("[cliff] No handler for msg topic=%v", msg.Topic)
+	if isNilHandler(routing.handler) {
+		log.Errorf("[router] No handler for topic %s", msg.Topic)
 		return
 	}
 
@@ -169,10 +164,25 @@ func (r *router) processMessage(routing *Routing, msg *fimpgo.Message) {
 
 	err := r.mqtt.Publish(responseAddress, response.Payload)
 	if err != nil {
-		log.WithError(err).
-			WithField("topic", response.Addr.Serialize()).
+		log.WithField("topic", responseAddress.Serialize()).
 			WithField("message", response.Payload).
-			Error("failed to publish response")
+			Errorf("[router] Publish response. err: %v", err)
+	}
+}
+
+// isNilHandler reports whether a handler is missing. reflect.Value.IsNil panics for kinds that
+// cannot be nil, so a handler implemented on a value receiver - perfectly legal for the interface -
+// used to panic here and have every one of its messages dropped by the recover above.
+func isNilHandler(handler MessageHandler) bool {
+	if handler == nil {
+		return true
+	}
+
+	switch v := reflect.ValueOf(handler); v.Kind() {
+	case reflect.Chan, reflect.Func, reflect.Interface, reflect.Map, reflect.Pointer, reflect.Slice:
+		return v.IsNil()
+	default:
+		return false
 	}
 }
 
@@ -181,7 +191,7 @@ func (r *router) handleProcessingPanic(message *fimpgo.Message, panicErr any) {
 		WithField("service", message.Payload.Service).
 		WithField("type", message.Payload.Interface).
 		WithField("stack", string(debug.Stack())).
-		Errorf("message router: panic occurred while processing message: %+v", panicErr)
+		Errorf("[router] Panic while processing message. err: %+v", panicErr)
 
 	if r.cfg.panicCallback != nil {
 		r.cfg.panicCallback(message, panicErr)
@@ -202,10 +212,9 @@ func (r *router) getResponseAddress(message, response *fimpgo.Message) *fimpgo.A
 	if message.Payload.ResponseToTopic != "" {
 		responseAddress, err = fimpgo.NewAddressFromString(message.Payload.ResponseToTopic)
 		if err != nil {
-			log.WithError(err).
-				WithField("topic", message.Addr.Serialize()).
+			log.WithField("topic", message.Addr.Serialize()).
 				WithField("message", message).
-				Error("failed to parse respond to topic address")
+				Errorf("[router] Parse response topic address. err: %v", err)
 
 			return nil
 		}

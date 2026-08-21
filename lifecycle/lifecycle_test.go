@@ -138,6 +138,60 @@ func TestSetAuthState_EmitsEvent(t *testing.T) {
 	assert.Equal(t, lifecycle.AuthStateAuthenticated, event.State)
 }
 
+func TestSetConnAndAuthState_EmitsSingleAuthEventWithBothStatesApplied(t *testing.T) {
+	t.Parallel()
+
+	l := lifecycle.New(nil)
+	l.SetAuthState(lifecycle.AuthStateAuthenticated)
+	l.SetConnState(lifecycle.ConnStateConnected)
+
+	ch := l.Subscribe("test", 5)
+
+	l.SetConnAndAuthState(lifecycle.ConnStateDisconnected, lifecycle.AuthStateLost)
+
+	event := <-ch
+	assert.Equal(t, lifecycle.StateTypeAuthState, event.Type, "a single auth event carries the transition")
+	assert.Equal(t, lifecycle.AuthStateLost, event.State)
+	assert.Equal(t, lifecycle.ConnStateDisconnected, l.ConnectionState(),
+		"both states are applied before the event, so an observer sees a consistent bundle")
+	assert.Equal(t, lifecycle.AuthStateLost, l.AuthState())
+
+	assert.Empty(t, ch, "no separate connection event competes for the subscriber buffer")
+}
+
+func TestSetConnAndAuthStateReason_EmitsAuthEventWithReason(t *testing.T) {
+	t.Parallel()
+
+	l := lifecycle.New(nil)
+	l.SetAuthState(lifecycle.AuthStateAuthenticated)
+	l.SetConnState(lifecycle.ConnStateConnected)
+
+	ch := l.Subscribe("test", 5)
+
+	l.SetConnAndAuthStateReason(lifecycle.ConnStateDisconnected, lifecycle.AuthStateLost, "unauthorized")
+
+	event := <-ch
+	assert.Equal(t, lifecycle.StateTypeAuthState, event.Type)
+	assert.Equal(t, lifecycle.AuthStateLost, event.State)
+	assert.Equal(t, "unauthorized", event.Params["reason"], "the reason rides the auth event")
+	assert.Equal(t, lifecycle.ConnStateDisconnected, l.ConnectionState())
+	assert.Equal(t, lifecycle.AuthStateLost, l.AuthState())
+}
+
+func TestSetConnAndAuthState_NoEventWhenBothStatesUnchanged(t *testing.T) {
+	t.Parallel()
+
+	l := lifecycle.New(nil)
+	l.SetConnState(lifecycle.ConnStateDisconnected)
+	l.SetAuthState(lifecycle.AuthStateLost)
+
+	ch := l.Subscribe("test", 5)
+
+	l.SetConnAndAuthState(lifecycle.ConnStateDisconnected, lifecycle.AuthStateLost)
+
+	assert.Empty(t, ch, "no event is emitted when neither state changes")
+}
+
 func TestSetConnectionState_EmitsEvent(t *testing.T) {
 	t.Parallel()
 
@@ -153,7 +207,10 @@ func TestSetConnectionState_EmitsEvent(t *testing.T) {
 	assert.Equal(t, lifecycle.ConnStateConnected, event.State)
 }
 
-func TestSubscribe_ReturnsExistingChannel(t *testing.T) {
+// TestSubscribe_GivesEachSubscriberItsOwnChannel pins that a shared subscription ID no longer
+// hands the second subscriber the first one's channel, which split events unpredictably between
+// two listeners that each believed they were getting the full stream.
+func TestSubscribe_GivesEachSubscriberItsOwnChannel(t *testing.T) {
 	t.Parallel()
 
 	l := lifecycle.New(nil)
@@ -161,7 +218,12 @@ func TestSubscribe_ReturnsExistingChannel(t *testing.T) {
 	ch1 := l.Subscribe("sub", 1)
 	ch2 := l.Subscribe("sub", 1)
 
-	assert.Equal(t, ch1, ch2)
+	require.NotEqual(t, ch1, ch2)
+
+	l.SetConnState(lifecycle.ConnStateConnected)
+
+	require.Eventually(t, func() bool { return len(ch1) == 1 && len(ch2) == 1 }, time.Second, 10*time.Millisecond,
+		"both subscribers must receive the event")
 }
 
 func TestUnsubscribe_StopsEvents(t *testing.T) {
@@ -284,5 +346,30 @@ func TestNew_WithStore_RestartsCountPersistsAcrossProcesses(t *testing.T) {
 
 	for want := 1; want <= 3; want++ {
 		assert.Equal(t, want, bootOnce(t), "boot #%d must see counter == %d", want, want)
+	}
+}
+
+// TestWaitFor_ReturnsOnBundledStateChange pins that a waiter is released by a bundled setter,
+// which reaches its state while emitting an event of another type.
+func TestWaitFor_ReturnsOnBundledStateChange(t *testing.T) {
+	t.Parallel()
+
+	l := lifecycle.New(nil)
+
+	done := make(chan struct{})
+
+	go func() {
+		l.WaitFor("test", lifecycle.StateTypeConfigState, lifecycle.ConfigStateConfigured)
+		close(done)
+	}()
+
+	time.Sleep(50 * time.Millisecond)
+
+	l.MarkRunning()
+
+	select {
+	case <-done:
+	case <-time.After(time.Second):
+		t.Fatal("WaitFor did not return after a bundled setter reached the state")
 	}
 }

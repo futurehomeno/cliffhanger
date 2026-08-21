@@ -69,7 +69,7 @@ func NewDatabase(workdir string, options ...Option) (Database, error) {
 
 // prepareDatabase prepares the database for use.
 func prepareDatabase(workdir, filename string) (*buntdb.DB, error) {
-	err := os.MkdirAll(workdir, 0o774) //nolint:gosec
+	err := os.MkdirAll(workdir, 0o755) //nolint:gosec
 	if err != nil {
 		return nil, fmt.Errorf("database: failed to create work directory: %w", err)
 	}
@@ -128,16 +128,18 @@ func recoverData(workdir, filename string) error {
 		return fmt.Errorf("database: failed to open temporary database: %w", err)
 	}
 
-	_ = tempDB.Load(bytes.NewReader(corruptedData))
+	if err := tempDB.Load(bytes.NewReader(corruptedData)); err != nil {
+		log.Warnf("[db] Load corrupted data err: %v", err)
+	}
 
-	f, err := os.OpenFile(path.Join(workdir, filename+".db.recovered"), os.O_CREATE|os.O_RDWR, 0o666) //nolint:gosec
+	f, err := os.OpenFile(path.Join(workdir, filename+".db.recovered"), os.O_CREATE|os.O_RDWR|os.O_TRUNC, 0o644) //nolint:gosec
 	if err != nil {
 		return fmt.Errorf("database: failed to create recovered data file: %w", err)
 	}
 
 	defer func() {
 		if err := f.Close(); err != nil {
-			log.Errorf("close err: %v", err)
+			log.Errorf("[db] Close err: %v", err)
 		}
 	}()
 
@@ -255,7 +257,7 @@ func (d *database) Keys(bucket string) ([]string, error) {
 	var keys []string
 
 	err := d.db.View(func(tx *buntdb.Tx) error {
-		return tx.AscendKeys(fmt.Sprintf("%s:*", bucket), func(key, _ string) bool {
+		return tx.AscendKeys(d.key(bucket, "*"), func(key, _ string) bool {
 			keys = append(keys, key)
 
 			return true
@@ -274,24 +276,9 @@ func (d *database) Keys(bucket string) ([]string, error) {
 
 // KeysFrom gets the keys for the bucket from the provided key.
 func (d *database) KeysFrom(bucket, from string) ([]string, error) {
-	var keys []string
-
-	fromString := fmt.Sprintf("%s:%s", bucket, from)
-	toString := fmt.Sprintf("%s:%s", bucket, string([]byte{255}))
-
-	err := d.db.View(func(tx *buntdb.Tx) error {
-		return tx.AscendRange("", fromString, toString, func(key, _ string) bool {
-			keys = append(keys, key)
-
-			return true
-		})
-	})
+	keys, err := d.keysBetween(bucket, from, string([]byte{255}))
 	if err != nil {
 		return nil, fmt.Errorf("database: failed to get the keys for bucket %s from %s: %w", bucket, from, err)
-	}
-
-	for i, key := range keys {
-		keys[i] = key[len(bucket)+1:]
 	}
 
 	return keys, nil
@@ -299,20 +286,26 @@ func (d *database) KeysFrom(bucket, from string) ([]string, error) {
 
 // KeysBetween gets the keys for the bucket between the provided keys.
 func (d *database) KeysBetween(bucket, from, to string) ([]string, error) {
+	keys, err := d.keysBetween(bucket, from, to)
+	if err != nil {
+		return nil, fmt.Errorf("database: failed to get the keys for bucket %s between %s and %s: %w", bucket, from, to, err)
+	}
+
+	return keys, nil
+}
+
+func (d *database) keysBetween(bucket, from, to string) ([]string, error) {
 	var keys []string
 
-	fromString := fmt.Sprintf("%s:%s", bucket, from)
-	toString := fmt.Sprintf("%s:%s", bucket, to)
-
 	err := d.db.View(func(tx *buntdb.Tx) error {
-		return tx.AscendRange("", fromString, toString, func(key, _ string) bool {
+		return tx.AscendRange("", d.key(bucket, from), d.key(bucket, to), func(key, _ string) bool {
 			keys = append(keys, key)
 
 			return true
 		})
 	})
 	if err != nil {
-		return nil, fmt.Errorf("database: failed to get the keys for bucket %s between %s and %s: %w", bucket, from, to, err)
+		return nil, err
 	}
 
 	for i, key := range keys {

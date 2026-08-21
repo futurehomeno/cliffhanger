@@ -153,8 +153,10 @@ func (m *messageHandler) handleReply(requestMessage *fimpgo.Message, reply *fimp
 
 // handleError handles message processing error.
 func (m *messageHandler) handleError(requestMessage *fimpgo.Message, err error) *fimpgo.Message {
-	log.WithError(err).WithField("topic", requestMessage.Topic).WithField("service", requestMessage.Payload.Service).
-		WithField("type", requestMessage.Payload.Interface).Error("Process incoming msg")
+	log.WithField("topic", requestMessage.Topic).
+		WithField("service", requestMessage.Payload.Service).
+		WithField("type", requestMessage.Payload.Interface).
+		Errorf("[router] Process message. err: %v", err)
 
 	if m.silentErrors {
 		return nil

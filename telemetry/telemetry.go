@@ -23,6 +23,10 @@ import (
 const defaultTelemetryValidity = 30 * 24 * time.Hour
 
 type Telemetry interface {
+	// Start begins polling the cloud for telemetry configuration.
+	Start() error
+	// Stop ends the configuration poll and the validity window timer.
+	Stop() error
 	emit(domain, event string, data map[string]any) error
 	emitOnChange(domain, event string, data map[string]any, interval time.Duration) error
 	emitIfMore(domain, event string, threshold int, reset bool, data map[string]any, interval time.Duration) error
@@ -43,7 +47,7 @@ func Emit(tel Telemetry, domain, event string, data map[string]any) {
 	}
 
 	if err := tel.emit(domain, event, data); err != nil {
-		log.WithError(err).Warnf("[cliff] Emit event= %q", event)
+		log.Warnf("[cliff] Emit event=%q. err: %v", event, err)
 	}
 }
 
@@ -53,7 +57,7 @@ func EmitOnChange(tel Telemetry, domain, event string, data map[string]any, inte
 	}
 
 	if err := tel.emitOnChange(domain, event, data, interval); err != nil {
-		log.WithError(err).Warnf("[cliff] EmitOnChange event=%q", event)
+		log.Warnf("[cliff] EmitOnChange event=%q. err: %v", event, err)
 	}
 }
 
@@ -63,7 +67,7 @@ func EmitIfMore(tel Telemetry, domain, event string, threshold int, reset bool, 
 	}
 
 	if err := tel.emitIfMore(domain, event, threshold, reset, data, interval); err != nil {
-		log.WithError(err).Warnf("[cliff] EmitIfMore event=%q", event)
+		log.Warnf("[cliff] EmitIfMore event=%q. err: %v", event, err)
 	}
 }
 
@@ -78,7 +82,7 @@ func ResetEventCounters(tel Telemetry, domain, event string, scope map[string]an
 	}
 
 	if err := tel.resetEventCounters(domain, event, scope); err != nil {
-		log.WithError(err).Warnf("[cliff] ResetEventCounters event=%q", event)
+		log.Warnf("[cliff] ResetEventCounters event=%q. err: %v", event, err)
 	}
 }
 
@@ -99,18 +103,16 @@ func RecoverAndEmit(tel Telemetry, name string, terminate bool) {
 		return
 	}
 
-	log.Errorf("[cliff] Panic in %s:\n%s", name, string(debug.Stack()))
+	log.Errorf("[cliff] Panic in %s: %v\n%s", name, r, debug.Stack())
 
 	Emit(tel, DomainPanic, name, map[string]any{"terminate": terminate})
 
 	if terminate {
 		panic(r)
 	}
-
-	log.Error(r)
 }
 
-func New(mqtt *fimpgo.MqttTransport, sourceRn fimptype.ResourceNameT, store *config.DefaultStore) (Telemetry, error) {
+func New(mqtt *fimpgo.MqttTransport, sourceRn fimptype.ResourceNameT, store *config.DefaultStore, version string) (Telemetry, error) {
 	if mqtt == nil {
 		return nil, errors.New("telemetry: mqtt transport is nil")
 	}
@@ -133,6 +135,7 @@ func New(mqtt *fimpgo.MqttTransport, sourceRn fimptype.ResourceNameT, store *con
 		mqtt:     mqtt,
 		sourceRn: sourceRn,
 		store:    store,
+		version:  version,
 		topic:    telemetryReportEvtTopic,
 	}
 
@@ -140,14 +143,7 @@ func New(mqtt *fimpgo.MqttTransport, sourceRn fimptype.ResourceNameT, store *con
 		return nil, err
 	}
 
-	cp := config_poll.New(mqtt, t.sourceRn, t.applyConfigFromCloud)
-	if err := cp.Start(); err != nil {
-		t.stopValidityTimer()
-
-		return nil, err
-	}
-
-	t.pullCfg = cp
+	t.pullCfg = config_poll.New(mqtt, t.sourceRn, t.applyConfigFromCloud)
 
 	return t, nil
 }
@@ -156,6 +152,7 @@ type telemetryT struct {
 	mqtt     *fimpgo.MqttTransport
 	sourceRn fimptype.ResourceNameT
 	store    *config.DefaultStore
+	version  string
 
 	lock           sync.Mutex
 	topic          string
@@ -172,12 +169,32 @@ type ifMoreState struct {
 	data  map[string]any
 }
 
-func (ptr *telemetryT) Stop() {
+// Start begins polling the cloud for telemetry configuration. Kept out of the constructor so that
+// the goroutine, timers and MQTT subscription it owns are tied to the application lifecycle rather
+// than to the lifetime of the process.
+func (ptr *telemetryT) Start() error {
+	// Re-armed on every start, not only in the constructor: Stop tears the timer down, so without
+	// this a stop/start cycle in one process left telemetry enabled past its validity window until
+	// a cloud config report happened to re-enable it.
+	if err := ptr.resumeValidityWindow(); err != nil {
+		return err
+	}
+
+	if ptr.pullCfg == nil {
+		return nil
+	}
+
+	return ptr.pullCfg.Start()
+}
+
+func (ptr *telemetryT) Stop() error {
 	if ptr.pullCfg != nil {
 		ptr.pullCfg.Stop()
 	}
 
 	ptr.stopValidityTimer()
+
+	return nil
 }
 
 func (ptr *telemetryT) ServiceName() fimptype.ServiceNameT {
@@ -338,22 +355,24 @@ func (ptr *telemetryT) config() types.TelemetryConfig {
 
 	snap, err := ptr.store.Telemetry()
 	if err != nil {
+		log.Warnf("[cliff] Read telemetry config, use defaults. err: %v", err)
+
 		return types.TelemetryConfig{}
 	}
 
-	if snap.Suppressed != nil {
-		e := *snap.Suppressed
-		e.Domains = slices.Clone(e.Domains)
-		e.Events = slices.Clone(e.Events)
-		snap.Suppressed = &e
-	}
-
-	return snap
+	return snap.Clone()
 }
 
 func (ptr *telemetryT) publish(topic, domain, event string, data map[string]any) error {
 	if event == "" {
 		return errors.New("telemetry: event name is required")
+	}
+
+	if ptr.version != "" {
+		d := make(map[string]any, len(data)+1)
+		maps.Copy(d, data)
+		d["version"] = ptr.version
+		data = d
 	}
 
 	msg := fimpgo.NewObjectMessage(telemetryInterface, fimptype.ServiceNameT(ptr.sourceRn), &Event{
@@ -509,6 +528,11 @@ func (ptr *telemetryT) resumeValidityWindow() error {
 	ptr.lock.Lock()
 	defer ptr.lock.Unlock()
 
+	// Start() resumes the window as well as the constructor, so without this the second call would
+	// arm a timer over the top of the first and leave it running until it expired. Stop-then-start,
+	// like SetValidity and Enable.
+	ptr.stopTimerLocked()
+
 	next := ptr.config()
 	if !next.Enabled {
 		return nil
@@ -537,7 +561,7 @@ func (ptr *telemetryT) resumeValidityWindow() error {
 
 	if dirty {
 		if err := ptr.store.SetTelemetry(&next); err != nil {
-			log.WithError(err).Errorf("[cliff] Telemetry: persist resume")
+			log.Errorf("[cliff] Telemetry persist resume. err: %v", err)
 		}
 	}
 
@@ -585,7 +609,7 @@ func (ptr *telemetryT) disableLocked(reason string) {
 	next.EnabledAt = time.Time{}
 
 	if err := ptr.store.SetTelemetry(&next); err != nil {
-		log.WithError(err).Errorf("[cliff] Telemetry: persist disable")
+		log.Errorf("[cliff] Telemetry persist disable. err: %v", err)
 	}
 
 	log.Infof("[cliff] Telemetry disabled: %s", reason)
@@ -593,10 +617,10 @@ func (ptr *telemetryT) disableLocked(reason string) {
 
 func (ptr *telemetryT) applyConfigFromCloud(enabled bool, suppressed map[string]types.SuppressedEntry) {
 	if err := ptr.Enable(enabled); err != nil {
-		log.Errorf("[cliff] Telemetry enable=%v err: %v", enabled, err)
+		log.Errorf("[cliff] Enable telemetry=%v. err: %v", enabled, err)
 	}
 
 	if err := ptr.SetSuppressed(suppressed); err != nil {
-		log.Errorf("[cliff] Telemetry set suppressed err: %v", err)
+		log.Errorf("[cliff] Set telemetry suppressed. err: %v", err)
 	}
 }

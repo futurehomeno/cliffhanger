@@ -20,19 +20,19 @@ func TaskReporting(serviceRegistry adapter.ServiceRegistry, frequency time.Durat
 func handleReporting(serviceRegistry adapter.ServiceRegistry) func() {
 	return func() {
 		for _, s := range serviceRegistry.Services(FanCtrl) {
-			colorCtrl, ok := s.(Service)
+			fanCtrl, ok := s.(Service)
 			if !ok {
-				log.Warnf("handleReporting cast to Service err exp=%T", s)
+				log.Warnf("[fanctrl] Service cast failed. got: %T", s)
 				continue
 			}
 
-			if adapter.ShouldSkipServiceTask(serviceRegistry, colorCtrl) {
+			if adapter.ShouldSkipServiceTask(serviceRegistry, fanCtrl) {
 				continue
 			}
 
-			_, err := colorCtrl.SendModeReport(false)
+			_, err := fanCtrl.SendModeReport(false)
 			if err != nil {
-				log.WithError(err).Errorf("failed to send color report")
+				log.Errorf("[fanctrl] Send mode report. err: %v", err)
 			}
 		}
 	}

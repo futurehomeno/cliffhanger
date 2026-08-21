@@ -2,6 +2,9 @@ package observer_test
 
 import (
 	"encoding/json"
+	"errors"
+	"sync"
+	"sync/atomic"
 	"testing"
 	"time"
 
@@ -10,6 +13,7 @@ import (
 	"github.com/sirupsen/logrus"
 	"github.com/sirupsen/logrus/hooks/test"
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 
 	"github.com/futurehomeno/cliffhanger/event"
 	"github.com/futurehomeno/cliffhanger/prime"
@@ -790,4 +794,161 @@ func assertNoPanicLogs(t *testing.T, hook *test.Hook) {
 	for _, entry := range hook.AllEntries() {
 		assert.NotContains(t, entry.Message, "panic")
 	}
+}
+
+// TestObserver_ConcurrentGettersDoNotSerializeOnOneFetch pins that readers do not queue behind a
+// slow request to vinculum. The getters used to take the write lock and make the request under it,
+// so one stalled call blocked every other reader and the whole notification stream for its
+// duration; they also made one request each rather than sharing one.
+func TestObserver_ConcurrentGettersDoNotSerializeOnOneFetch(t *testing.T) {
+	t.Parallel()
+
+	client := &slowClient{}
+
+	o, err := observer.New(client, event.NewManager(), time.Hour, prime.ComponentDevice)
+	require.NoError(t, err)
+
+	const readers = 8
+
+	var wg sync.WaitGroup
+
+	wg.Add(readers)
+
+	start := time.Now()
+
+	for range readers {
+		go func() {
+			defer wg.Done()
+
+			devices, err := o.GetDevices()
+			assert.NoError(t, err)
+			assert.Len(t, devices, 1)
+		}()
+	}
+
+	wg.Wait()
+
+	assert.Equal(t, int32(1), client.calls.Load(), "concurrent stale readers must share one refresh")
+	assert.Less(t, time.Since(start), 1500*time.Millisecond, "readers must not serialize behind one another")
+}
+
+// slowClient stands in for a vinculum that answers slowly. Only GetComponents is ever called.
+type slowClient struct {
+	prime.Client
+
+	calls atomic.Int32
+}
+
+func (c *slowClient) GetComponents(...string) (*prime.ComponentSet, error) {
+	c.calls.Add(1)
+
+	time.Sleep(200 * time.Millisecond)
+
+	return &prime.ComponentSet{Devices: prime.Devices{{ID: 1}}}, nil
+}
+
+// blockingClient blocks its second GetComponents until released, so a notification can be applied
+// while a refresh is in flight.
+type blockingClient struct {
+	prime.Client
+
+	calls   atomic.Int32
+	entered chan struct{}
+	release chan struct{}
+}
+
+func (c *blockingClient) GetComponents(...string) (*prime.ComponentSet, error) {
+	if c.calls.Add(1) == 2 {
+		c.entered <- struct{}{}
+		<-c.release
+	}
+
+	return &prime.ComponentSet{Devices: prime.Devices{{ID: 1}}}, nil
+}
+
+// TestObserver_RefreshKeepsUpdatesArrivingDuringFetch pins that a notification applied while the
+// refresh is fetching survives. The fetch runs outside the lock, so installing its snapshot
+// unconditionally would silently undo every update that landed in the meantime - the snapshot was
+// requested before them.
+func TestObserver_RefreshKeepsUpdatesArrivingDuringFetch(t *testing.T) {
+	t.Parallel()
+
+	client := &blockingClient{entered: make(chan struct{}), release: make(chan struct{})}
+
+	o, err := observer.New(client, event.NewManager(), time.Hour, prime.ComponentDevice)
+	require.NoError(t, err)
+
+	// Seeds the cache so the notification below has a set to apply to.
+	require.NoError(t, o.Refresh(true))
+
+	done := make(chan error, 1)
+
+	go func() { done <- o.Refresh(true) }()
+
+	<-client.entered
+
+	require.NoError(t, o.Update(&prime.Notify{
+		Cmd:       prime.CmdAdd,
+		Component: prime.ComponentDevice,
+		ParamRaw:  json.RawMessage(`{"id":2}`),
+	}))
+
+	close(client.release)
+	require.NoError(t, <-done)
+
+	devices, err := o.GetDevices()
+	require.NoError(t, err)
+	assert.Len(t, devices, 2, "the device added during the fetch must not be discarded")
+}
+
+// failingClient stands in for an unreachable vinculum, answering slowly as a timing out request
+// would.
+type failingClient struct {
+	prime.Client
+
+	calls atomic.Int32
+}
+
+func (c *failingClient) GetComponents(...string) (*prime.ComponentSet, error) {
+	c.calls.Add(1)
+
+	time.Sleep(200 * time.Millisecond)
+
+	return nil, errors.New("vinculum is down")
+}
+
+// TestObserver_ConcurrentGettersShareAFailedRefresh pins that a failed fetch is shared with the
+// readers waiting behind it, the same way a successful one is. Without it every waiter would find
+// the cache still stale and issue its own blocking retry, so an outage cost one request and one
+// timeout per reader. Readers arriving afterwards must still retry.
+func TestObserver_ConcurrentGettersShareAFailedRefresh(t *testing.T) {
+	t.Parallel()
+
+	client := &failingClient{}
+
+	o, err := observer.New(client, event.NewManager(), time.Hour, prime.ComponentDevice)
+	require.NoError(t, err)
+
+	const readers = 8
+
+	var wg sync.WaitGroup
+
+	wg.Add(readers)
+
+	for range readers {
+		go func() {
+			defer wg.Done()
+
+			_, err := o.GetDevices()
+			assert.Error(t, err)
+		}()
+	}
+
+	wg.Wait()
+
+	assert.Equal(t, int32(1), client.calls.Load(), "concurrent stale readers must share one failed refresh")
+
+	_, err = o.GetDevices()
+	require.Error(t, err)
+	assert.Equal(t, int32(2), client.calls.Load(), "a reader arriving after the failure must retry")
 }

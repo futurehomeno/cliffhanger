@@ -6,6 +6,8 @@ import (
 	"sync"
 
 	log "github.com/sirupsen/logrus"
+
+	"github.com/futurehomeno/cliffhanger/utils"
 )
 
 type Handler struct {
@@ -73,7 +75,7 @@ func (l *listener) Start() error {
 
 		h.eventCh = l.manager.Subscribe(h.subID, h.buffer, h.filters...)
 
-		log.Infof("[cliff] Listen for evts subsID=%s", h.subID)
+		log.Infof("[event] Listen for events sub=%s", h.subID)
 
 		go l.startHandler(h)
 	}
@@ -84,13 +86,7 @@ func (l *listener) Start() error {
 func (l *listener) startHandler(h *Handler) {
 	defer l.waitGroup.Done()
 
-	defer func() {
-		if r := recover(); r != nil {
-			log.Error(string(debug.Stack()))
-			log.Error(r)
-			panic(r)
-		}
-	}()
+	defer utils.PrintStackOnRecover("event", true)
 
 	for {
 		select {
@@ -114,7 +110,7 @@ func (l *listener) doProcess(processor Processor, event Event) {
 			log.WithField("stack", string(debug.Stack())).
 				WithField("domain", event.Domain()).
 				WithField("class", event.Class()).
-				Errorf("event listener: panic occurred while processing the event: %+v", r)
+				Errorf("[event] Panic while processing event. err: %+v", r)
 		}
 	}()
 

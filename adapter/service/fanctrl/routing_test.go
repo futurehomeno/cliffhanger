@@ -6,6 +6,9 @@ import (
 
 	"github.com/futurehomeno/fimpgo"
 	"github.com/futurehomeno/fimpgo/fimptype"
+	"github.com/sirupsen/logrus/hooks/test"
+	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/mock"
 
 	"github.com/futurehomeno/cliffhanger/adapter"
 	"github.com/futurehomeno/cliffhanger/adapter/service/fanctrl"
@@ -98,6 +101,28 @@ func TestRouteService(t *testing.T) { //nolint:paralleltest
 				},
 			},
 			{
+				Name:     "mode outside sup_modes is still reported",
+				TearDown: adapterhelper.TearDownAdapter("../../testdata/adapter/test_adapter"),
+				Setup: routeService(mockedfanctrl.NewController(t).
+					MockGetMode("turbo", nil, true),
+				),
+				Nodes: []*cliffSuite.Node{
+					{
+						Name: "Cmd mode get report",
+						Command: cliffSuite.NewMessageBuilder().
+							NullMessage(
+								"pt:j1/mt:cmd/rt:dev/rn:test_adapter/ad:1/sv:fan_ctrl/ad:2",
+								"cmd.mode.get_report",
+								"fan_ctrl",
+							).
+							Build(),
+						Expectations: []*cliffSuite.Expectation{
+							cliffSuite.ExpectString("pt:j1/mt:evt/rt:dev/rn:test_adapter/ad:1/sv:fan_ctrl/ad:2", "evt.mode.report", "fan_ctrl", "turbo"),
+						},
+					},
+				},
+			},
+			{
 				Name:     "broken get mode in controller",
 				TearDown: adapterhelper.TearDownAdapter("../../testdata/adapter/test_adapter"),
 				Setup: routeService(mockedfanctrl.NewController(t).
@@ -119,6 +144,48 @@ func TestRouteService(t *testing.T) { //nolint:paralleltest
 	}
 
 	s.Run(t)
+}
+
+func TestSpecification(t *testing.T) {
+	t.Parallel()
+
+	want := map[string]fimptype.ValueTypeT{
+		fanctrl.CmdModeSet:       fimptype.VTypeString,
+		fanctrl.EvtModeReport:    fimptype.VTypeString,
+		fanctrl.CmdModeGetReport: fimptype.VTypeNull,
+		router.EvtErrorReport:    fimptype.VTypeString,
+	}
+
+	got := make(map[string]fimptype.ValueTypeT)
+
+	for _, intf := range fanctrl.Specification("test_adapter", "1", "2", nil, []string{"normal"}).Interfaces {
+		got[intf.MsgType] = intf.ValueType
+	}
+
+	assert.Equal(t, want, got)
+}
+
+func TestSendModeReportLogsOutOfSpecModeOnlyWhenPublished(t *testing.T) { //nolint:paralleltest
+	hook := test.NewGlobal()
+	defer hook.Reset()
+
+	publisher := mockedadapter.NewServicePublisher(t)
+	publisher.EXPECT().PublishServiceMessage(mock.Anything, mock.Anything).Return(nil).Once()
+
+	s := fanctrl.NewService(publisher, &fanctrl.Config{
+		Specification: fanctrl.Specification("test_adapter", "1", "2", nil, []string{"normal"}),
+		Controller:    mockedfanctrl.NewController(t).MockGetMode("turbo", nil, false),
+	})
+
+	sent, err := s.SendModeReport(false)
+	assert.NoError(t, err)
+	assert.True(t, sent)
+	assert.Len(t, hook.Entries, 1)
+
+	sent, err = s.SendModeReport(false)
+	assert.NoError(t, err)
+	assert.False(t, sent)
+	assert.Len(t, hook.Entries, 1)
 }
 
 func routeService(controller *mockedfanctrl.Controller) cliffSuite.BaseSetup {

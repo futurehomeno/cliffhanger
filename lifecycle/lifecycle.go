@@ -4,9 +4,11 @@ import (
 	"sync"
 	"time"
 
+	"github.com/google/uuid"
 	log "github.com/sirupsen/logrus"
 
 	"github.com/futurehomeno/cliffhanger/config"
+	"github.com/futurehomeno/cliffhanger/event"
 )
 
 const (
@@ -61,27 +63,25 @@ type SystemEvent struct {
 type SystemEventChannel chan SystemEvent
 
 type Lifecycle struct {
-	lock               *sync.RWMutex
-	systemEventBusLock *sync.RWMutex
-	systemEventBus     map[string]SystemEventChannel
-	appHealth          State
-	connectionState    State
-	authState          State
-	configState        State
-	startTime          time.Time
-	restartsCount      int
+	lock            *sync.RWMutex
+	systemEventBus  *event.Bus[SystemEvent]
+	appHealth       State
+	connectionState State
+	authState       State
+	configState     State
+	startTime       time.Time
+	restartsCount   int
 }
 
 func New(store *config.DefaultStore) *Lifecycle {
 	l := &Lifecycle{
-		systemEventBus:     make(map[string]SystemEventChannel),
-		lock:               &sync.RWMutex{},
-		systemEventBusLock: &sync.RWMutex{},
-		appHealth:          AppHealthStarting,
-		authState:          AuthStateNA,
-		configState:        ConfigStateNotConfigured,
-		connectionState:    ConnStateNA,
-		startTime:          time.Now(),
+		systemEventBus:  event.NewBus[SystemEvent](),
+		lock:            &sync.RWMutex{},
+		appHealth:       AppHealthStarting,
+		authState:       AuthStateNA,
+		configState:     ConfigStateNotConfigured,
+		connectionState: ConnStateNA,
+		startTime:       time.Now(),
 	}
 
 	if store != nil {
@@ -200,6 +200,58 @@ func (l *Lifecycle) SetConnState(connectionState State) {
 	l.emitStateChangeEvent(StateTypeConnState, connectionState, nil)
 }
 
+// SetConnAndAuthState sets the connection and auth states atomically and emits a single
+// auth-state event. Subscribers reacting to the auth event (e.g. the auth-loss watcher)
+// then read a consistent bundle, and the trigger cannot be evicted from their buffer by a
+// separate connection event. No connection event is emitted, so a subscriber tracking the
+// connection must re-read State on any event instead of filtering on its type.
+func (l *Lifecycle) SetConnAndAuthState(connectionState, authState State) {
+	l.setConnAndAuthState(connectionState, authState, nil)
+}
+
+// SetConnAndAuthStateReason is SetConnAndAuthState that attaches a reason to the
+// emitted auth event so the auth-loss watcher can report why the session was lost.
+func (l *Lifecycle) SetConnAndAuthStateReason(connectionState, authState State, reason string) {
+	l.setConnAndAuthState(connectionState, authState, map[string]string{"reason": reason})
+}
+
+func (l *Lifecycle) setConnAndAuthState(connectionState, authState State, params map[string]string) {
+	l.lock.Lock()
+	defer l.lock.Unlock()
+
+	if connectionState == l.connectionState && authState == l.authState {
+		return
+	}
+
+	l.connectionState = connectionState
+	l.authState = authState
+
+	l.emitStateChangeEvent(StateTypeAuthState, authState, params)
+}
+
+// SetAppState sets app health, config, connection and auth state atomically and emits a single
+// auth-state event, matching SetConnAndAuthState: a subscriber reacting to auth transitions
+// (e.g. the auth-loss watcher, which filters on StateTypeAuthState) sees one consistent bundle
+// instead of up to four separate emits, any of which past the first could be dropped from its
+// buffer if it isn't draining fast enough. Health, config and connection produce no event of
+// their own, so a subscriber tracking them must re-read State on any event, as WaitFor does.
+func (l *Lifecycle) SetAppState(appHealth, configState, connectionState, authState State) {
+	l.lock.Lock()
+	defer l.lock.Unlock()
+
+	if appHealth == l.appHealth && configState == l.configState &&
+		connectionState == l.connectionState && authState == l.authState {
+		return
+	}
+
+	l.appHealth = appHealth
+	l.configState = configState
+	l.connectionState = connectionState
+	l.authState = authState
+
+	l.emitStateChangeEvent(StateTypeAuthState, authState, nil)
+}
+
 func (l *Lifecycle) AppHealth() State {
 	l.lock.RLock()
 	defer l.lock.RUnlock()
@@ -220,58 +272,42 @@ func (l *Lifecycle) SetAppHealth(appState State, params map[string]string) {
 	l.emitStateChangeEvent(StateTypeAppHealth, appState, params)
 }
 
+// Subscribe registers a new subscription under the given ID and returns its channel. Unsubscribe
+// closes every channel registered under that ID, so an ID is only safe to share between
+// subscribers with the same lifetime.
 func (l *Lifecycle) Subscribe(subID string, bufSize int) SystemEventChannel {
-	l.systemEventBusLock.Lock()
-	defer l.systemEventBusLock.Unlock()
-
-	// Returning already existing subscription channel if it exists.
-	if _, ok := l.systemEventBus[subID]; ok {
-		return l.systemEventBus[subID]
-	}
-
-	msgChan := make(SystemEventChannel, bufSize)
-
-	l.systemEventBus[subID] = msgChan
-
-	return msgChan
+	return l.systemEventBus.Subscribe(subID, bufSize)
 }
 
 func (l *Lifecycle) Unsubscribe(subID string) {
-	l.systemEventBusLock.Lock()
-	defer l.systemEventBusLock.Unlock()
-
-	if _, ok := l.systemEventBus[subID]; !ok {
-		return
-	}
-
-	close(l.systemEventBus[subID])
-	delete(l.systemEventBus, subID)
+	l.systemEventBus.Unsubscribe(subID)
 }
 
+// WaitFor blocks until the given state type reaches the target state.
 func (l *Lifecycle) WaitFor(subID string, stateType StateType, targetState State) {
+	// Subscribed before the state is read: the other order misses a transition landing between the
+	// two and then blocks forever waiting for an event that was already delivered to nobody. The ID
+	// is made unique so that concurrent waiters cannot close each other's channel.
+	subID = subID + "-" + uuid.New().String()
+
+	ch := l.Subscribe(subID, 5)
+	defer l.Unsubscribe(subID)
+
 	if l.State(stateType) == targetState {
 		return
 	}
 
-	ch := l.Subscribe(subID, 5)
-
-	for event := range ch {
-		if event.Type == stateType && event.State == targetState {
-			l.Unsubscribe(subID)
+	// Re-read rather than match the event: a bundled setter changes several states but emits one
+	// event, so the awaited state can be reached by an event of another type.
+	for range ch {
+		if l.State(stateType) == targetState {
 			return
 		}
 	}
 }
 
 func (l *Lifecycle) emitStateChangeEvent(stateType StateType, currentState State, params map[string]string) {
-	l.systemEventBusLock.RLock()
-	defer l.systemEventBusLock.RUnlock()
-
-	for i, ch := range l.systemEventBus {
-		select {
-		case ch <- SystemEvent{Type: stateType, State: currentState, Params: params}:
-		default:
-			log.Warnf("[cliff] State event channel=%s busy drop event %s/%s", i, stateType, currentState)
-		}
-	}
+	l.systemEventBus.Publish(SystemEvent{Type: stateType, State: currentState, Params: params}, func(subID string) {
+		log.Warnf("[cliff] State event channel=%s busy drop event %s/%s", subID, stateType, currentState)
+	})
 }

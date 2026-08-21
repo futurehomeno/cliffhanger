@@ -8,6 +8,7 @@ import (
 
 	"github.com/futurehomeno/fimpgo"
 	"github.com/futurehomeno/fimpgo/fimptype"
+	"github.com/google/uuid"
 	log "github.com/sirupsen/logrus"
 
 	"github.com/futurehomeno/cliffhanger/backoff"
@@ -33,7 +34,7 @@ const (
 	AdditionalRandomPollIntervalRange = 30 * time.Minute
 	MaxPollInterval                   = 24 * time.Hour
 
-	channelName = "telemetry-config-poll"
+	channelNamePrefix = "telemetry-config-poll"
 )
 
 func subscribeBackoff() backoff.Stateful {
@@ -57,8 +58,8 @@ type Config struct {
 	lock           sync.Mutex
 	timer          *time.Timer
 	stopped        bool
-	msgCh          fimpgo.MessageCh
 	stopCh         chan struct{}
+	doneCh         chan struct{}
 	subscribedCh   chan struct{}
 	lastReceivedAt time.Time
 }
@@ -91,27 +92,33 @@ func (ptr *Config) Start() error {
 
 	ptr.stopped = false
 	ptr.stopCh = make(chan struct{})
+	ptr.doneCh = make(chan struct{})
 	ptr.subscribedCh = make(chan struct{})
-	ptr.msgCh = make(fimpgo.MessageCh, 8)
-	stopCh := ptr.stopCh
+	msgCh := make(fimpgo.MessageCh, 8)
 
-	ptr.mqtt.RegisterChannelWithFilter(channelName, ptr.msgCh, fimpgo.FimpFilter{
+	// Named per start, not per instance: Stop releases the lock before waiting for the goroutine,
+	// so a Start racing that wait would otherwise register the same name and have it torn down by
+	// the deferred unregister of the goroutine on its way out.
+	channelName := channelNamePrefix + "-" + uuid.New().String()
+
+	ptr.mqtt.RegisterChannelWithFilter(channelName, msgCh, fimpgo.FimpFilter{
 		Topic:     ConfigResponseTopic,
 		Interface: EvtConfigReport,
 		Service:   "*",
 	})
 
-	go ptr.listen(stopCh)
+	go ptr.listen(channelName, ptr.stopCh, ptr.doneCh, ptr.subscribedCh, msgCh)
 
 	ptr.scheduleLocked(DefaultPollInterval)
 
 	return nil
 }
 
-func (ptr *Config) listen(stopCh <-chan struct{}) {
+func (ptr *Config) listen(channelName string, stopCh <-chan struct{}, doneCh, subscribedCh chan struct{}, msgCh fimpgo.MessageCh) {
+	defer close(doneCh)
 	defer ptr.mqtt.UnregisterChannel(channelName)
 
-	if !ptr.ensureSubscribed(stopCh) {
+	if !ptr.ensureSubscribed(stopCh, subscribedCh) {
 		return
 	}
 
@@ -120,7 +127,7 @@ func (ptr *Config) listen(stopCh <-chan struct{}) {
 		case <-stopCh:
 			return
 
-		case msg, ok := <-ptr.msgCh:
+		case msg, ok := <-msgCh:
 			if !ok {
 				return
 			}
@@ -143,7 +150,7 @@ func (ptr *Config) listen(stopCh <-chan struct{}) {
 	}
 }
 
-func (ptr *Config) ensureSubscribed(stopCh <-chan struct{}) bool {
+func (ptr *Config) ensureSubscribed(stopCh <-chan struct{}, subscribedCh chan struct{}) bool {
 	bo := subscribeBackoff()
 
 	for {
@@ -154,13 +161,13 @@ func (ptr *Config) ensureSubscribed(stopCh <-chan struct{}) bool {
 		}
 
 		if err := ptr.mqtt.Subscribe(ConfigResponseTopic); err != nil {
-			log.Warnf("[cliff] Telemetry config subscribe err: %v", err)
+			log.Warnf("[cliff] Subscribe telemetry config. err: %v", err)
 
 			continue
 		}
 
-		close(ptr.subscribedCh)
-		log.Debug("[cliff] Telemetry config poll subscribed")
+		close(subscribedCh)
+		log.Debug("[cliff] Telemetry config subscribed")
 
 		return true
 	}
@@ -169,7 +176,7 @@ func (ptr *Config) ensureSubscribed(stopCh <-chan struct{}) bool {
 func (ptr *Config) handleConfigReport(payload *fimpgo.FimpMessage) {
 	var cfg configResponseT
 	if err := payload.GetObjectValue(&cfg); err != nil {
-		log.Warnf("[cliff] Telemetry config config parse err: %v", err)
+		log.Warnf("[cliff] Parse telemetry config. err: %v", err)
 
 		return
 	}
@@ -197,7 +204,7 @@ func (ptr *Config) nextUpdate(at string) time.Duration {
 
 	t, err := time.Parse(time.RFC3339, at)
 	if err != nil {
-		log.Warnf("[cliff] Parse next_update %q err: %v", at, err)
+		log.Warnf("[cliff] Parse next_update %q. err: %v", at, err)
 		return ptr.fallbackPoll + jitter
 	}
 
@@ -210,7 +217,6 @@ func (ptr *Config) nextUpdate(at string) time.Duration {
 
 func (ptr *Config) Stop() {
 	ptr.lock.Lock()
-	defer ptr.lock.Unlock()
 
 	ptr.stopped = true
 
@@ -224,7 +230,19 @@ func (ptr *Config) Stop() {
 		ptr.timer = nil
 	}
 
-	log.Info("[cliff] Telemetry config poll stopped")
+	doneCh := ptr.doneCh
+	ptr.doneCh = nil
+
+	ptr.lock.Unlock()
+
+	// Waited for outside the lock, which the goroutine itself takes: a Start following this one
+	// would otherwise have its channel registration torn down by the deferred unregister of the
+	// goroutine still on its way out.
+	if doneCh != nil {
+		<-doneCh
+	}
+
+	log.Info("[cliff] Telemetry config stopped")
 }
 
 func (ptr *Config) scheduleLocked(delay time.Duration) {
@@ -264,7 +282,7 @@ func (ptr *Config) sendGetConfigCmd() {
 	msg.ResponseToTopic = ConfigResponseTopic
 
 	if err := ptr.mqtt.PublishToTopic(ptr.requestTopic, msg); err != nil {
-		log.WithError(err).Warnf("[cliff] Telemetry config poll: send request failed, retrying in %s", ptr.fallbackPoll)
+		log.Warnf("[cliff] Send config request, retry in %s. err: %v", ptr.fallbackPoll, err)
 	}
 
 	// Always schedule a fallback retry; handleConfigReport reschedules sooner

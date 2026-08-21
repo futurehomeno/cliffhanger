@@ -2,9 +2,11 @@ package adapter
 
 import (
 	"encoding/json"
+	"errors"
 	"fmt"
 	"strconv"
 	"sync"
+	"sync/atomic"
 
 	"github.com/futurehomeno/cliffhanger/storage"
 )
@@ -25,18 +27,20 @@ type thingStateModel struct {
 
 // State is an interface representing a persistent state of the adapter and its things.
 type State interface {
-	// acquireAddress increments address index and returns its current value.
-	acquireAddress() (string, error)
 	// all returns all persisted thing states.
 	all() []ThingState
-	// add persists a new thing state.
+	// add persists a new thing state, assigning it a new address when the model carries none.
 	add(model *thingStateModel) (ThingState, error)
 	// remove deletes a thing state at a given ID.
 	remove(id string) error
 	// byID returns a thing state for a thing with a given ID.
 	byID(id string) ThingState
+	// modelByID returns the raw record of a thing with a given ID, or nil when there is none.
+	modelByID(id string) *thingStateModel
 	// byAddress returns a thing state for a thing with a given address.
 	byAddress(address string) ThingState
+	// batch collapses every save made while fn runs into a single write.
+	batch(fn func() error) error
 }
 
 func NewState(workDir string) (State, error) {
@@ -53,21 +57,75 @@ func NewState(workDir string) (State, error) {
 
 type state struct {
 	storage.Storage[*adapterStateModel]
-	lock sync.RWMutex
+	lock     sync.RWMutex
+	deferred atomic.Bool
+	dirty    atomic.Bool
 }
 
-// acquireAddress increments address index and returns its current value.
-func (s *state) acquireAddress() (string, error) {
-	s.lock.Lock()
-	defer s.lock.Unlock()
+// Save shadows the storage one so that a batch in progress can collapse it. Every record lives in
+// the same file, so a pass touching many things rewrote and fsynced all of them once per thing.
+func (s *state) Save() error {
+	if s.deferred.Load() {
+		s.dirty.Store(true)
 
-	s.Model().AddressIndex++
-
-	if err := s.Save(); err != nil {
-		return "", fmt.Errorf("state: failed to persist address index: %w", err)
+		return nil
 	}
 
-	return strconv.Itoa(s.Model().AddressIndex), nil
+	err := s.Storage.Save()
+	if err == nil {
+		// The whole model reaches the disk, so a retry mark left by a failed batch flush is
+		// satisfied by this write too.
+		s.dirty.Store(false)
+	}
+
+	return err
+}
+
+// batch collapses every save made while fn runs into a single write. Lifting the deferral and
+// flushing are deferred so that they also run when fn panics: the task manager recovers panics and
+// keeps the process alive, and a deferral left set would turn every later save into a silent no-op.
+// The deferral is lifted before the flush rather than after, so a concurrent save landing in
+// between writes for itself instead of being dropped.
+//
+// The flush happens even when fn fails: callers apply changes best effort per thing, so a partially
+// applied pass must still reach the disk. The trade is that the per-thing rollbacks cannot fire
+// inside a batch - a save only fails at the flush, by which point the whole pass is in memory and
+// none of it on disk. That leaves records the next boot sees as ghosts, which EnsureThings heals,
+// rather than the divergence the rollbacks guard against.
+//
+// The deferral is process wide rather than scoped to the pass, so a save made concurrently by an
+// unrelated code path is collapsed into the same flush and shares its fate.
+func (s *state) batch(fn func() error) (err error) {
+	s.deferred.Store(true)
+
+	defer func() {
+		s.deferred.Store(false)
+
+		if !s.dirty.Swap(false) {
+			return
+		}
+
+		// Locked around the write: every other save is made from inside a mutation that already
+		// holds this lock, so the flush is the only one that would marshal the model while another
+		// goroutine is still writing to it.
+		saveErr := func() error {
+			s.lock.Lock()
+			defer s.lock.Unlock()
+
+			return s.Storage.Save()
+		}()
+
+		if saveErr != nil {
+			// Left dirty so the next batch retries it. A pass whose flush failed can otherwise
+			// leave nothing to save on a retry - the things it announced are live, so the retry
+			// skips them and their checksums never reach the disk.
+			s.dirty.Store(true)
+		}
+
+		err = errors.Join(err, saveErr)
+	}()
+
+	return fn()
 }
 
 func (s *state) all() []ThingState {
@@ -91,22 +149,61 @@ func (s *state) add(model *thingStateModel) (ThingState, error) {
 		s.Model().Things = make(map[string]*thingStateModel)
 	}
 
+	// Assigning the address here rather than through a separate acquireAddress keeps creating a
+	// thing to a single state write instead of two full rewrites of adapter.json.
+	index := s.Model().AddressIndex
+
+	if model.Address == "" {
+		s.Model().AddressIndex++
+		model.Address = strconv.Itoa(s.Model().AddressIndex)
+	}
+
+	old, ok := s.Model().Things[model.ID]
+
 	s.Model().Things[model.ID] = model
 
 	if err := s.Save(); err != nil {
+		// Restore on a failed write, mirroring remove: the disk still holds the old record, so
+		// leaving the unpersisted one in memory would diverge the two until a restart.
+		s.Model().AddressIndex = index
+
+		if ok {
+			s.Model().Things[model.ID] = old
+		} else {
+			delete(s.Model().Things, model.ID)
+		}
+
 		return nil, fmt.Errorf("state: failed to persist state of a thing with ID %s: %w", model.ID, err)
 	}
 
 	return newThingState(s, model), nil
 }
 
+// modelByID returns the record itself, not a copy: add replaces the map entry rather than
+// mutating it, so a caller can hand the old record straight back to add to undo an overwrite.
+func (s *state) modelByID(id string) *thingStateModel {
+	s.lock.RLock()
+	defer s.lock.RUnlock()
+
+	return s.Model().Things[id]
+}
+
 func (s *state) remove(id string) error {
 	s.lock.Lock()
 	defer s.lock.Unlock()
 
+	old, ok := s.Model().Things[id]
+
 	delete(s.Model().Things, id)
 
 	if err := s.Save(); err != nil {
+		// Restore on a failed write: the disk still holds the record, so keeping it in memory
+		// lets the next sync retry the destroy instead of resurrecting the thing only after
+		// a restart.
+		if ok {
+			s.Model().Things[id] = old
+		}
+
 		return fmt.Errorf("state: failed to remove state of a thing with ID %s: %w", id, err)
 	}
 
@@ -193,7 +290,7 @@ func (s *thingState) Info(model any) error {
 
 	err := json.Unmarshal(s.model.Info, model)
 	if err != nil {
-		return fmt.Errorf("thing state: failed to unmarshal info of a thing with ID %s into a provided model: %w", s.ID(), err)
+		return fmt.Errorf("thing state: failed to unmarshal info of a thing with ID %s into a provided model: %w", s.model.ID, err)
 	}
 
 	return nil
@@ -209,7 +306,7 @@ func (s *thingState) State(model any) error {
 
 	err := json.Unmarshal(s.model.State, model)
 	if err != nil {
-		return fmt.Errorf("thing state: failed to unmarshal state of a thing with ID %s into a provided model: %w", s.ID(), err)
+		return fmt.Errorf("thing state: failed to unmarshal state of a thing with ID %s into a provided model: %w", s.model.ID, err)
 	}
 
 	return nil
@@ -221,14 +318,14 @@ func (s *thingState) SetState(model any) error {
 
 	b, err := json.Marshal(model)
 	if err != nil {
-		return fmt.Errorf("thing state: failed to marshal state of a thing with ID %s from a provided model: %w", s.ID(), err)
+		return fmt.Errorf("thing state: failed to marshal state of a thing with ID %s from a provided model: %w", s.model.ID, err)
 	}
 
 	s.model.State = b
 
 	err = s.state.Save()
 	if err != nil {
-		return fmt.Errorf("thing state: failed to persist state of a thing with ID %s: %w", s.ID(), err)
+		return fmt.Errorf("thing state: failed to persist state of a thing with ID %s: %w", s.model.ID, err)
 	}
 
 	return nil
@@ -245,11 +342,21 @@ func (s *thingState) SetInclusionChecksum(checksum uint32) error {
 	s.state.lock.Lock()
 	defer s.state.lock.Unlock()
 
+	if s.model.InclusionChecksum == checksum {
+		return nil
+	}
+
+	// Restored on a failed write, mirroring add and remove: the skip above is keyed on the
+	// in-memory value, so leaving it set would make every retry of the same checksum a no-op and
+	// the disk would never catch up until the report changed again.
+	previous := s.model.InclusionChecksum
 	s.model.InclusionChecksum = checksum
 
 	err := s.state.Save()
 	if err != nil {
-		return fmt.Errorf("thing state: failed to persist inclusion checksum of a thing with ID %s: %w", s.ID(), err)
+		s.model.InclusionChecksum = previous
+
+		return fmt.Errorf("thing state: failed to persist inclusion checksum of a thing with ID %s: %w", s.model.ID, err)
 	}
 
 	return nil

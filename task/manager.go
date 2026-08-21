@@ -7,6 +7,8 @@ import (
 	"time"
 
 	log "github.com/sirupsen/logrus"
+
+	"github.com/futurehomeno/cliffhanger/utils"
 )
 
 type Manager interface {
@@ -80,13 +82,7 @@ func (r *manager) runOnce(task *Task) {
 
 // runContinuously runs the task according to the provided interval.
 func (m *manager) runContinuously(task *Task) {
-	defer func() {
-		if r := recover(); r != nil {
-			log.Error(string(debug.Stack()))
-			log.Error(r)
-			panic(r)
-		}
-	}()
+	defer utils.PrintStackOnRecover("cliff", true)
 
 	ticker := time.NewTicker(task.duration)
 	defer ticker.Stop()
@@ -109,8 +105,7 @@ func (m *manager) runContinuously(task *Task) {
 func run(task *Task) {
 	defer func() {
 		if r := recover(); r != nil {
-			log.WithField("stack", string(debug.Stack())).
-				Errorf("task manager: panic occurred while running a task: %+v", r)
+			log.Errorf("[cliff] Panic running task: %+v\n%s", r, debug.Stack())
 		}
 	}()
 

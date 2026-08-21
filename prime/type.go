@@ -3,6 +3,7 @@ package prime
 import (
 	"encoding/json"
 	"fmt"
+	"slices"
 	"sort"
 	"strconv"
 	"strings"
@@ -123,10 +124,10 @@ func (d Devices) FilterByIDs(id ...int) Devices {
 	var devices Devices
 
 	for _, device := range d {
-		for _, i := range id {
-			if device.ID == i {
-				devices = append(devices, device)
-			}
+		// One append per device rather than one per matching id: a repeated id used to return the
+		// same device more than once, so a caller acting per result acted on it twice.
+		if slices.Contains(id, device.ID) {
+			devices = append(devices, device)
 		}
 	}
 
@@ -291,13 +292,7 @@ func (d *Device) HasInterfaces(serviceName fimptype.ServiceNameT, interfaceNames
 }
 
 func (d *Device) containsInterface(interfaceName string, interfaces []string) bool {
-	for _, i := range interfaces {
-		if i == interfaceName {
-			return true
-		}
-	}
-
-	return false
+	return slices.Contains(interfaces, interfaceName)
 }
 
 func (d *Device) GetServiceProperty(serviceName fimptype.ServiceNameT, property string) any {

@@ -31,13 +31,13 @@ var (
 func NewHandlers(mr Manager, handlersBufferSize int) []*event.Handler {
 	m, ok := mr.(*manager)
 	if !ok {
-		log.Errorf("listener: failed to cast manager to *manager during handler creation")
+		log.Errorf("[cliff] Manager cast failed")
 
 		return nil
 	}
 
 	return []*event.Handler{
-		event.NewHandler(&levelEventProcessor{processor{manager: m}}, "virtual_meter_level", handlersBufferSize, outlvlswitch.WaitForLevelEvent()),
+		event.NewHandler(&levelEventProcessor{processor{manager: m}}, "virtual_meter_level", handlersBufferSize, outlvlswitch.WaitForLevelEvent(), adapter.WaitForChange()),
 		event.NewHandler(&connectivityEventProcessor{processor{manager: m}}, "virtual_meter_connectivity", handlersBufferSize, adapter.WaitForConnectivityEvent()),
 	}
 }
@@ -58,20 +58,20 @@ func (p *levelEventProcessor) Process(e event.Event) {
 
 	vmsAddr, err := p.manager.vmsAddressFromTopic(levelEvent.Address())
 	if err != nil {
-		log.WithError(err).Errorf("listener: failed to get virtual meter address by topic %s", levelEvent.Address())
+		log.Errorf("[cliff] Find vms address. topic: %s err: %v", levelEvent.Address(), err)
 
 		return
 	}
 
 	level, err := p.manager.normalizeOutLvlSwitchLevel(levelEvent.Level, levelEvent.Address())
 	if err != nil {
-		log.WithError(err).Errorf("listener: failed to normalize level %v", levelEvent.Level)
+		log.Errorf("[cliff] Normalize level. level: %v err: %v", levelEvent.Level, err)
 
 		return
 	}
 
 	if err := p.manager.update(vmsAddr, mode, level); err != nil {
-		log.WithError(err).Errorf("listener: failed to update virtual meter with mode %s and level %v", mode, levelEvent.Level)
+		log.Errorf("[cliff] Update vm. mode: %s level: %v err: %v", mode, levelEvent.Level, err)
 	}
 }
 
@@ -87,6 +87,6 @@ func (p *connectivityEventProcessor) Process(e event.Event) {
 	active := connectivityEvent.Connectivity.ConnStatus != adapter.ConnStatusDown
 
 	if err := p.manager.updateDeviceActivity(connectivityEvent.Address(), active); err != nil {
-		log.WithError(err).Errorf("listener: failed to update virtual meter with active %v", active)
+		log.Errorf("[cliff] Update vm activity. active: %v err: %v", active, err)
 	}
 }

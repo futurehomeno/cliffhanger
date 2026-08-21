@@ -3,6 +3,7 @@ package parameters
 import (
 	"encoding/json"
 	"fmt"
+	"slices"
 )
 
 // ValueType represents a value type.
@@ -30,13 +31,7 @@ func AllowedValueTypes() []ValueType {
 
 // IsValueTypeAllowed checks if a value type is allowed.
 func IsValueTypeAllowed(t ValueType) bool {
-	for _, allowed := range AllowedValueTypes() {
-		if t == allowed {
-			return true
-		}
-	}
-
-	return false
+	return slices.Contains(AllowedValueTypes(), t)
 }
 
 // WidgetType represents a widget type.
@@ -61,6 +56,53 @@ type ParameterSpecification struct {
 	Max          *int          `json:"max,omitempty"`
 	DefaultValue any           `json:"default_value"`
 	ReadOnly     bool          `json:"read_only"`
+}
+
+// clone returns a copy owning its own options and bounds, for the same reason as Parameter.clone.
+func (s *ParameterSpecification) clone() *ParameterSpecification {
+	c := *s
+	c.Options = slices.Clone(s.Options)
+
+	if s.Min != nil {
+		m := *s.Min
+		c.Min = &m
+	}
+
+	if s.Max != nil {
+		m := *s.Max
+		c.Max = &m
+	}
+
+	c.DefaultValue = cloneDefaultValue(s.DefaultValue)
+
+	return &c
+}
+
+// cloneDefaultValue copies the slice forms a default value can take for the int_array and
+// string_array value types, including the []any a JSON round trip produces. Every other value
+// type is a scalar the interface copy already isolates.
+func cloneDefaultValue(v any) any {
+	switch t := v.(type) {
+	case []int:
+		return slices.Clone(t)
+	case []string:
+		return slices.Clone(t)
+	case []any:
+		return slices.Clone(t)
+	default:
+		return v
+	}
+}
+
+// cloneSpecifications returns a copy of the slice and of every specification in it.
+func cloneSpecifications(specs []*ParameterSpecification) []*ParameterSpecification {
+	cloned := make([]*ParameterSpecification, len(specs))
+
+	for i, spec := range specs {
+		cloned[i] = spec.clone()
+	}
+
+	return cloned
 }
 
 // WithMin sets a minimum value.
@@ -122,7 +164,7 @@ func (s *ParameterSpecification) validateSelect(p *Parameter) error {
 			return err
 		}
 
-		if !contains(s.Options.IntValues(), v) {
+		if !slices.Contains(s.Options.IntValues(), v) {
 			return fmt.Errorf("parameter value '%d' is not allowed", v)
 		}
 	case ValueTypeString:
@@ -131,7 +173,7 @@ func (s *ParameterSpecification) validateSelect(p *Parameter) error {
 			return err
 		}
 
-		if !contains[string](s.Options.StringValues(), v) {
+		if !slices.Contains(s.Options.StringValues(), v) {
 			return fmt.Errorf("parameter value '%s' is not allowed", v)
 		}
 	}
@@ -230,6 +272,16 @@ type Parameter struct {
 	ID        string          `json:"parameter_id"`
 	ValueType ValueType       `json:"value_type"`
 	Value     json.RawMessage `json:"value"`
+}
+
+// clone returns a copy owning its own value bytes. A controller is free to reuse and mutate the
+// parameter it returned, which would otherwise mutate the reporting cache's snapshot of it and
+// make a genuine change look unchanged.
+func (p *Parameter) clone() *Parameter {
+	c := *p
+	c.Value = slices.Clone(p.Value)
+
+	return &c
 }
 
 // NewIntParameter creates a new parameter of a value type: integer.
@@ -393,21 +445,10 @@ func (p *Parameter) valueMatchesValueType() bool {
 	return err == nil
 }
 
-// contains checks if the slice contains provided value.
-func contains[T comparable](s []T, v T) bool {
-	for _, e := range s {
-		if e == v {
-			return true
-		}
-	}
-
-	return false
-}
-
 // includes checks if the first slice includes the second slice.
 func includes[T comparable](s1 []T, s2 []T) bool {
 	for _, v := range s2 {
-		if !contains(s1, v) {
+		if !slices.Contains(s1, v) {
 			return false
 		}
 	}

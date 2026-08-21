@@ -1,0 +1,109 @@
+schema: spec-driven
+
+context: |
+  # cliffhanger
+
+  A Go micro-framework and toolkit for Futurehome **edge adapters** — the processes running on the
+  Futurehome hub that integrate a third-party device cloud (Easee, Mill, Sensibo, Zaptec, Hue, ...)
+  into the hub over the FIMP protocol on MQTT.
+
+  This repository is a **library**, not a runnable service. Its consumers are the
+  `edge-<vendor>-adapter` repositories. Breaking an exported API here breaks every adapter, so
+  proposals must state their compatibility impact.
+
+  - Module: `github.com/futurehomeno/cliffhanger`, Go 1.26, current tag `v1.3.4`
+  - Core dependency: `github.com/futurehomeno/fimpgo v1.17.1` (FIMP protocol + MQTT transport)
+  - `go.mod` retracts `v1.19.0` (bad release pushed by mistake)
+
+  ## Domain model
+
+  Phrase specs against this containment chain:
+
+      root.App           process container: MQTT, router, tasks, services, resetters
+       |- app.App        manifest, configuration, auth, uninstall, diagnostics, health checking
+           |- adapter.Adapter        the device fleet for one FIMP resource (rn:<name>)
+               |- adapter.Thing      one device = one hub node = one inclusion report
+                   |- adapter.Service    one FIMP service (chargepoint, meter_elec, ...)
+                   |   |- Controller / Reporter   the adapter author's device-specific code
+                   |- adapter.Connector           connection management + connectivity/ping
+
+  A **ThingSeed** declares a device that should exist; `EnsureThings` reconciles presence and
+  `RebuildChangedThings` reconciles service topology.
+
+  ## Packages
+
+  - `adapter/` — domain core: adapter, thing, service, connector, publisher, state, routing, tasks,
+    seeds/sync/drift/stale. Sub-packages: `adapter/service/*` (19 FIMP services), `adapter/thing/*`
+    (device archetypes: light, thermostat, car charger, boiler, sensor, ...), `adapter/cache`
+    (reporting strategies).
+  - `app/` — FIMP app-service contract (manifest, config, auth, uninstall, diag) plus
+    `ConnectivityChecker` and the reset/logout/authorize flows.
+  - `auth/` — OAuth2 credentials with single-flight proactive refresh, backoff, bearer transport.
+  - `bootstrap/`, `root/` — process bootstrap, the app container, start/stop ordering with rollback.
+  - `router/` — FIMP routing: a `Routing` is one handler plus N voters; `task/` — periodic work with
+    lifecycle-aware voters; `event/` — in-process typed event bus (separate from MQTT).
+  - `lifecycle/` — the four-axis app state machine (health / config / auth / connectivity) with
+    atomic multi-state bundles.
+  - `config/` — generic `config.Service[C]`; `storage/` — JSON files with defaults + backup;
+    `database/` — buntdb KV; `security/` — AES.
+  - `httpclient/` — the error contract everything keys on: `ErrUnauthorized`, `ErrTooManyRequests`.
+  - `prime/` — client for the hub's Vinculum API (+ `prime/observer` cached projection);
+    `hub/` — hub facts and token.
+  - `selection/` — the user-chosen subset of a vendor account's devices;
+    `manifest/` — the app manifest rendered by the Futurehome UI.
+  - `backoff/`, `stream/` (long-lived connection supervisor), `monitor/`, `notification/`,
+    `discovery/`, `debug/` (log control + diagnostics), `telemetry/`, `types/`, `utils/`,
+    `test/` (suite framework + generated mocks).
+
+  ## Conventions
+
+  - Tests live in `<pkg>_test` packages (the `testpackage` linter is on). Use `*_internal_test.go`
+    only where package-private access is genuinely required.
+  - Mocks are generated, never hand-edited: `make generate-mocks` (mockery, output `test/mocks/`,
+    packages named `mockedadapter`, `mockedprime`, ...). Hand-written `test/mocks/*_helper.go`
+    survives regeneration.
+  - Tests need a real MQTT broker on port **11883** and run serially (`-p 1`).
+  - `ThingFactory.Create` must be side-effect-free and must not call back into the adapter — it is
+    invoked speculatively by `RebuildChangedThings` while the adapter write lock is held.
+  - Optional device capabilities are expressed as extra interfaces a service type-asserts (e.g.
+    chargepoint's `AdjustableMaxCurrentController`), which drives `Supports*()` and the emitted
+    spec props. Add capabilities that way, not with boolean config flags.
+  - Comments only where the *why* is non-obvious. Prefer removing and simplifying over adding.
+
+  ## Commands
+
+  - `make test` — `go test -p 1 -covermode=atomic ./...`
+  - `make lint` — `golangci-lint run` (v2 config in `.golangci.yml`, line length 260)
+  - `make generate-mocks`
+  - Before any commit: `go build ./...` and `go vet ./...` must pass.
+
+  ## Where the design rationale lives
+
+  The framework's invariants are documented in the checked-in porting skills — read these before
+  proposing changes to framework primitives:
+
+  - `.claude/skills/port_to_cliffhanger_1.3/references/upgrade-to-1.3.md` — section 1 maps each new
+    primitive to what it replaces; section 12 is "Invariants — do not re-break these".
+  - `.claude/skills/port_to_cliffhanger_1.2/references/porting-manual.md` — the base architecture.
+
+  Doc comments in `adapter/adapter.go`, `adapter/sync.go`, `adapter/state.go` (`batch`) and
+  `app/check.go` are the de-facto spec for the trickiest concurrency and reporting invariants.
+
+rules:
+  proposal:
+    - State the impact on downstream edge adapters — new API, changed behaviour, or breaking change.
+
+# Per-artifact rules (optional)
+# Add custom rules for specific artifacts.
+# Example:
+#   rules:
+#     tasks:
+#       - Break tasks into chunks of max 2 hours
+
+# Per-operation guidance (optional)
+# Add advisory guidance for how apply and archive work should be conducted.
+# Example:
+#   operations:
+#     apply:
+#       guidance:
+#         - Keep test summaries concise

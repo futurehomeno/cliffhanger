@@ -8,7 +8,7 @@ generate-mocks:
 	$(call generate_mocks,"adapter","Adapter|Thing|Connector|Service")
 	$(call generate_mocks,"manifest","Loader")
 	$(call generate_mocks,"storage","Storage")
-	$(call generate_mocks,"prime","SyncClient")
+	$(call generate_mocks,"prime","SyncClient|Client")
 	$(call generate_mocks,"root","Service|Resetter")
 	$(call generate_mocks,"database","Database")
 	$(call generate_mocks,"telemetry","Telemetry")

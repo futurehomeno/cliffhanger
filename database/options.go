@@ -14,6 +14,9 @@ func newConfig() *config {
 func (c *config) withDefaults() *config {
 	c.filename = "data"
 	c.compactionSize = 2 * 1024 * 1024
+	// Left at 0 the shrink condition degenerates to "the file grew at all", rewriting the whole
+	// database on the next background tick after any write. 100 is buntdb's own default.
+	c.compactionPercentage = 100
 
 	return c
 }

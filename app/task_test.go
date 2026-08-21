@@ -22,6 +22,7 @@ type stubCheckableApp struct {
 func (s *stubCheckableApp) GetManifest() (*manifest.Manifest, error) { return nil, nil }
 func (s *stubCheckableApp) Configure(any) error                      { return nil }
 func (s *stubCheckableApp) Uninstall() error                         { return nil }
+func (s *stubCheckableApp) ErrorsReport() ([]string, error)          { return nil, nil }
 func (s *stubCheckableApp) CheckInterval() time.Duration             { return s.checkInterval }
 func (s *stubCheckableApp) Check() error {
 	s.calls++

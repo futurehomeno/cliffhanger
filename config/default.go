@@ -2,7 +2,6 @@ package config
 
 import (
 	"fmt"
-	"slices"
 	"sync"
 	"time"
 
@@ -29,6 +28,7 @@ type Default struct {
 	LogLevel           string                 `json:"log_level"`
 	LogFormat          string                 `json:"log_format"`
 	LogRevertTimeout   time.Duration          `json:"log_revert_timeout,omitempty"`
+	LogFlushInterval   time.Duration          `json:"log_flush_interval,omitempty"`
 	LogRevertAt        time.Time              `json:"log_revert_at"`
 	RestartsCount      int                    `json:"restarts_count,omitempty"`
 	Telemetry          *types.TelemetryConfig `json:"telemetry,omitempty"`
@@ -108,14 +108,7 @@ func (s *DefaultStore) Default() *Default {
 
 	snap := *s.accessor()
 	if snap.Telemetry != nil {
-		tc := *snap.Telemetry
-		if tc.Suppressed != nil {
-			e := *tc.Suppressed
-			e.Domains = slices.Clone(e.Domains)
-			e.Events = slices.Clone(e.Events)
-			tc.Suppressed = &e
-		}
-
+		tc := snap.Telemetry.Clone()
 		snap.Telemetry = &tc
 	}
 
@@ -186,6 +179,13 @@ func (s *DefaultStore) SetLogRevertTimeout(d time.Duration) error {
 	return s.saveStamped()
 }
 
+func (s *DefaultStore) LogFlushInterval() time.Duration {
+	s.lock.RLock()
+	defer s.lock.RUnlock()
+
+	return s.accessor().LogFlushInterval
+}
+
 func (s *DefaultStore) LogRevertAt() time.Time {
 	s.lock.RLock()
 	defer s.lock.RUnlock()
@@ -217,14 +217,7 @@ func (s *DefaultStore) SetTelemetry(cfg *types.TelemetryConfig) error {
 	s.lock.Lock()
 	defer s.lock.Unlock()
 
-	clone := *cfg
-	if cfg.Suppressed != nil {
-		e := *cfg.Suppressed
-		e.Domains = slices.Clone(e.Domains)
-		e.Events = slices.Clone(e.Events)
-		clone.Suppressed = &e
-	}
-
+	clone := cfg.Clone()
 	s.accessor().Telemetry = &clone
 
 	return s.saveStamped()

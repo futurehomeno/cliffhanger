@@ -3,6 +3,7 @@ package debug_test
 import (
 	"os"
 	"path/filepath"
+	"strings"
 	"sync"
 	"sync/atomic"
 	"testing"
@@ -137,6 +138,192 @@ func TestInitializeLogger_EmptyLogFile_Errors(t *testing.T) { //nolint:parallelt
 	require.Error(t, err)
 }
 
+func TestInitializeLogger_UnwritableLogFile_Errors(t *testing.T) { //nolint:paralleltest
+	if os.Geteuid() == 0 {
+		t.Skip("root bypasses the permission bits this test relies on")
+	}
+
+	logFile := filepath.Join(t.TempDir(), "app.log")
+	require.NoError(t, os.WriteFile(logFile, nil, 0o400))
+
+	cfg := &config.Default{
+		LogLevel:  "info",
+		LogFormat: "text",
+		LogFile:   logFile,
+	}
+	store := config.NewDefaultStore(
+		func() *config.Default { return cfg },
+		func() error { return nil },
+	)
+
+	err := debug.InitializeLogger(store)
+	require.Error(t, err, "a log file that cannot be written must be rejected before the first buffered flush")
+}
+
+func TestLogBuffering_HoldsInfoUntilErrorOrExplicitFlush(t *testing.T) { //nolint:paralleltest
+	_, logFile := initLogger(t, "info", "text")
+
+	read := func() string {
+		b, err := os.ReadFile(logFile) //nolint:gosec
+		require.NoError(t, err)
+
+		return string(b)
+	}
+
+	logrus.Info("buffered-info-line")
+	assert.NotContains(t, read(), "buffered-info-line", "info level should stay in RAM")
+
+	logrus.Error("urgent-error-line")
+
+	got := read()
+	assert.Contains(t, got, "urgent-error-line", "error level should reach the file immediately")
+	assert.Contains(t, got, "buffered-info-line", "an error flush should carry preceding lines with it")
+
+	logrus.Info("second-info-line")
+	assert.NotContains(t, read(), "second-info-line")
+
+	debug.FlushLogs()
+	assert.Contains(t, read(), "second-info-line", "explicit flush should drain the buffer")
+}
+
+// TestInitializeLogger_ReinitializationFlushesPreviousBuffer pins that re-calling
+// InitializeLogger - which discards the previous logManager - does not drop log lines still
+// sitting in the old manager's RAM buffer.
+func TestInitializeLogger_ReinitializationFlushesPreviousBuffer(t *testing.T) { //nolint:paralleltest
+	_, firstFile := initLogger(t, "info", "text")
+
+	logrus.Info("line-buffered-before-reinit")
+
+	b, err := os.ReadFile(firstFile) //nolint:gosec
+	require.NoError(t, err)
+	require.NotContains(t, string(b), "line-buffered-before-reinit", "should still be buffered, not yet flushed")
+
+	initLogger(t, "info", "text") // second InitializeLogger call, pointing at a new temp file
+
+	b, err = os.ReadFile(firstFile) //nolint:gosec
+	require.NoError(t, err)
+	assert.Contains(t, string(b), "line-buffered-before-reinit",
+		"reinitializing must flush the previous manager's buffer, not drop it")
+}
+
+// TestInitializeLogger_FailedReinitLeavesPreviousManagerUsable pins that a failed
+// InitializeLogger call (bad new log file) leaves the previous, still-good manager live and
+// wired into logrus, rather than one this call had already torn down before validating the
+// replacement.
+func TestInitializeLogger_FailedReinitLeavesPreviousManagerUsable(t *testing.T) { //nolint:paralleltest
+	_, logFile := initLogger(t, "info", "text")
+
+	logrus.Info("line-before-failed-reinit")
+
+	badCfg := &config.Default{LogLevel: "info", LogFormat: "text", LogFile: ""}
+	badStore := config.NewDefaultStore(
+		func() *config.Default { return badCfg },
+		func() error { return nil },
+	)
+
+	require.Error(t, debug.InitializeLogger(badStore), "empty log file must fail setLogOutput")
+
+	logrus.Info("line-after-failed-reinit")
+	debug.FlushLogs()
+
+	b, err := os.ReadFile(logFile) //nolint:gosec
+	require.NoError(t, err)
+	assert.Contains(t, string(b), "line-before-failed-reinit")
+	assert.Contains(t, string(b), "line-after-failed-reinit",
+		"a failed reinit must not leave the previous manager torn down and unusable")
+}
+
+// TestInitializeLogger_FailedReinitRestoresFormatterAndLevel pins that a failed reinit rolls
+// back the format/level globals it mutated before validating the new output, not just the
+// logManager pointer - otherwise a failed attempt could leave the process on a mix of the old
+// manager and the new (unvalidated) format/level.
+func TestInitializeLogger_FailedReinitRestoresFormatterAndLevel(t *testing.T) { //nolint:paralleltest
+	initLogger(t, "warning", "json")
+
+	require.Equal(t, logrus.WarnLevel, logrus.GetLevel())
+
+	badCfg := &config.Default{LogLevel: "debug", LogFormat: "budzik", LogFile: ""}
+	badStore := config.NewDefaultStore(
+		func() *config.Default { return badCfg },
+		func() error { return nil },
+	)
+
+	require.Error(t, debug.InitializeLogger(badStore), "empty log file must fail setLogOutput")
+
+	assert.Equal(t, logrus.WarnLevel, logrus.GetLevel(),
+		"a failed reinit must not leave the process on the new (unvalidated) level")
+
+	unwrapper, ok := logrus.StandardLogger().Formatter.(interface{ Unwrap() logrus.Formatter })
+	require.True(t, ok)
+	assert.IsType(t, &logrus.JSONFormatter{}, unwrapper.Unwrap(),
+		"a failed reinit must not leave the process on the new (unvalidated) formatter")
+}
+
+// TestLogBuffering_DebugLevelFlushesNearRealTime verifies that enabling
+// debug/trace shortens the periodic flush so a human tailing the log file
+// sees lines within a couple of seconds, not the long info-level interval.
+func TestLogBuffering_DebugLevelFlushesNearRealTime(t *testing.T) { //nolint:paralleltest
+	_, logFile := initLogger(t, "debug", "text")
+
+	read := func() string {
+		b, err := os.ReadFile(logFile) //nolint:gosec
+		require.NoError(t, err)
+
+		return string(b)
+	}
+
+	logrus.Info("debug-mode-info-line")
+	assert.NotContains(t, read(), "debug-mode-info-line", "still buffered immediately after logging")
+
+	require.Eventually(t, func() bool {
+		return strings.Contains(read(), "debug-mode-info-line")
+	}, 3*time.Second, 100*time.Millisecond, "debug level should flush near real time")
+}
+
+// TestLogBuffering_DebugLevelSelfExpiresAfterRevertDeadline verifies that the fast debug-level
+// flush cadence stops on its own once the revert deadline elapses, rather than only on the next
+// unrelated SetLevel/SetFile call - otherwise a hub left running for weeks after someone enabled
+// debug (and forgot) would keep paying the fast-flush eMMC cost indefinitely.
+func TestLogBuffering_DebugLevelSelfExpiresAfterRevertDeadline(t *testing.T) { //nolint:paralleltest
+	dir := t.TempDir()
+	logFile := filepath.Join(dir, "app.log")
+
+	cfg := &config.Default{
+		LogLevel:    "debug",
+		LogFormat:   "text",
+		LogFile:     logFile,
+		LogRevertAt: time.Now().Add(300 * time.Millisecond),
+	}
+	store := config.NewDefaultStore(
+		func() *config.Default { return cfg },
+		func() error { return nil },
+	)
+
+	saved := logrus.GetLevel()
+	t.Cleanup(func() { logrus.SetLevel(saved) })
+
+	require.NoError(t, debug.InitializeLogger(store))
+
+	read := func() string {
+		b, err := os.ReadFile(logFile) //nolint:gosec
+		require.NoError(t, err)
+
+		return string(b)
+	}
+
+	// Past the 300ms deadline, and past the flusher's first 2s tick, so the self-correction
+	// check (run inside that tick) has already switched the ticker to the slow interval.
+	time.Sleep(2500 * time.Millisecond)
+
+	logrus.Info("line-after-deadline-elapsed")
+	require.Never(t, func() bool {
+		return strings.Contains(read(), "line-after-deadline-elapsed")
+	}, 2*time.Second, 200*time.Millisecond, "must no longer be flushing every 2s once the deadline has elapsed")
+
+	debug.FlushLogs()
+	assert.Contains(t, read(), "line-after-deadline-elapsed", "the line must still reach disk eventually")
+}
+
 func TestInitializeLogger_AppliesEachFormat(t *testing.T) { //nolint:paralleltest
 	cases := []struct {
 		format string
@@ -153,7 +340,11 @@ func TestInitializeLogger_AppliesEachFormat(t *testing.T) { //nolint:paralleltes
 			initLogger(t, "info", tc.format)
 
 			got := logrus.StandardLogger().Formatter
-			assert.NotNil(t, got)
+			require.NotNil(t, got)
+
+			unwrapper, ok := got.(interface{ Unwrap() logrus.Formatter })
+			require.True(t, ok, "formatter should be wrapped for error-level flushing")
+			got = unwrapper.Unwrap()
 
 			switch tc.format {
 			case "json":
@@ -258,22 +449,14 @@ func TestRouting_FormatGetSet_RoundTrips(t *testing.T) { //nolint:paralleltest
 }
 
 func TestRouting_FileGetSet_RoundTrips(t *testing.T) { //nolint:paralleltest
-	// SetFile rejects anything that isn't a plain file name, so chdir into
-	// a real directory and pass bare names. Using testdata/ keeps the
-	// generated log files inspectable on failure; cleanup removes them
-	// after the test.
-	require.NoError(t, os.MkdirAll("testdata", 0o750))
-	t.Chdir("testdata")
-
-	startFile := "start.log"
+	// SetFile rejects anything that isn't a plain file name and resolves it against the directory
+	// of the current log file, so the starting path is what decides where both files land.
+	dir := t.TempDir()
+	startFile := filepath.Join(dir, "start.log")
 	newFile := "rotated.log"
 
 	savedOut := logrus.StandardLogger().Out
-	t.Cleanup(func() {
-		logrus.SetOutput(savedOut)
-		_ = os.Remove(startFile)
-		_ = os.Remove(newFile)
-	})
+	t.Cleanup(func() { logrus.SetOutput(savedOut) })
 
 	s := &suite.Suite{
 		Cases: []*suite.Case{
@@ -453,15 +636,9 @@ func TestSetLevel_InfoOrHigher_ClearsRevert(t *testing.T) { //nolint:paralleltes
 // command goes through *DefaultStore.Save(), so changes survive a restart.
 // The existing routing roundtrip tests only cover in-memory state.
 func TestRouting_SetLog_PersistsToStore(t *testing.T) { //nolint:paralleltest
-	require.NoError(t, os.MkdirAll("testdata", 0o750))
-	t.Chdir("testdata")
+	dir := t.TempDir()
 
-	t.Cleanup(func() {
-		_ = os.Remove("app.log")
-		_ = os.Remove("rotated.log")
-	})
-
-	cfg := &config.Default{LogLevel: "info", LogFormat: "text", LogFile: "app.log"}
+	cfg := &config.Default{LogLevel: "info", LogFormat: "text", LogFile: filepath.Join(dir, "app.log")}
 
 	var saves atomic.Int32
 
@@ -574,6 +751,10 @@ func TestRouting_SetLog_PersistsToStore(t *testing.T) { //nolint:paralleltest
 	}
 
 	s.Run(t)
+
+	assert.Equal(t, filepath.Join(dir, "rotated.log"), cfg.LogFile,
+		"set_file must keep the log in its directory, not resolve it against the working directory")
+	assert.FileExists(t, filepath.Join(dir, "rotated.log"))
 }
 
 func TestInitializeLogger_ConcurrentSettersAreRaceFree(t *testing.T) { //nolint:paralleltest

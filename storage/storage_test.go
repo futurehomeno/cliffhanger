@@ -18,6 +18,7 @@ import (
 const (
 	backupExtension = ".bak"
 	configFileName  = "config.json"
+	secretsFileName = "secrets.json"
 )
 
 type testConfig struct {
@@ -203,6 +204,43 @@ func TestStorage_Reset(t *testing.T) { //nolint:paralleltest
 	assert.True(t, os.IsNotExist(err))
 }
 
+func TestStorage_ResetReplacesRatherThanMergesDefaults(t *testing.T) { //nolint:paralleltest
+	p := "../testdata/storage/reset_partial_defaults/"
+
+	require.NoError(t, os.MkdirAll(path.Join(p, "data"), 0o755)) //nolint:gosec
+	t.Cleanup(func() { _ = os.RemoveAll(path.Join(p, "data")) })
+
+	configData := []byte(`{"SettingA": "A","SettingB": "B","SettingC": "C"}`)
+	require.NoError(t, os.WriteFile(path.Join(p, "data", configFileName), configData, 0o644)) //nolint:gosec
+
+	store := storage.New(&testConfig{}, p, configFileName)
+
+	require.NoError(t, store.Load())
+	require.NoError(t, store.Reset())
+
+	// The defaults file only declares SettingA. Unmarshalling it over the live model would leave
+	// SettingB and SettingC behind, and the next Save would write the supposedly reset values back.
+	assert.Equal(t, &testConfig{SettingA: "X"}, store.Model())
+}
+
+func TestStorage_LoadFallsBackToBackupWhenDataFileIsMissing(t *testing.T) { //nolint:paralleltest
+	workDir := t.TempDir()
+
+	store := storage.NewCanonicalState(&testConfig{SettingA: "A"}, workDir, configFileName)
+	require.NoError(t, store.Save())
+
+	store.Model().SettingA = "B"
+	require.NoError(t, store.Save())
+
+	// save() renames the data file to the backup before rewriting it; a crash in that window leaves
+	// only the backup, which a state store with no defaults must still recover from.
+	require.NoError(t, os.Remove(path.Join(workDir, configFileName)))
+
+	reloaded := storage.NewCanonicalState(&testConfig{}, workDir, configFileName)
+	require.NoError(t, reloaded.Load())
+	assert.Equal(t, "A", reloaded.Model().SettingA)
+}
+
 func TestStorage_RoundTrip_WithEmbeddedDefault(t *testing.T) { //nolint:paralleltest
 	p := "../testdata/storage/empty_dir/"
 
@@ -340,4 +378,28 @@ func TestStorage_DefaultStoreFromStorage_PersistsThroughStorage(t *testing.T) { 
 	assert.True(t, reloaded.Telemetry.Enabled)
 	assert.Equal(t, time.Hour, reloaded.Telemetry.Validity)
 	assert.Equal(t, cfg.ConfiguredAt, reloaded.ConfiguredAt)
+}
+
+func TestStorage_SaveTightensPermissionsOfAPreExistingSecretsBackup(t *testing.T) { //nolint:paralleltest
+	workDir := t.TempDir()
+	secretsPath := path.Join(workDir, secretsFileName)
+
+	// A secrets file left world-readable by an older revision. makeBackup renames it rather than
+	// copying it through writeFile, so without an explicit chmod the backup would keep 0644 and
+	// expose the previous credentials until the next save happened to replace it.
+	require.NoError(t, os.WriteFile(secretsPath, []byte(`{"SettingA":"old"}`), 0o644)) //nolint:gosec
+
+	store := storage.NewCanonicalSecrets(&testConfig{}, workDir, secretsFileName)
+	require.NoError(t, store.Load())
+
+	store.Model().SettingA = "new"
+	require.NoError(t, store.Save())
+
+	backup, err := os.Stat(secretsPath + backupExtension)
+	require.NoError(t, err)
+	assert.Equal(t, os.FileMode(0o640), backup.Mode().Perm(), "the backup must not stay world-readable")
+
+	data, err := os.Stat(secretsPath)
+	require.NoError(t, err)
+	assert.Equal(t, os.FileMode(0o640), data.Mode().Perm())
 }

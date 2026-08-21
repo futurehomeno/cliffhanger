@@ -1,8 +1,9 @@
 package config
 
 import (
-	"github.com/futurehomeno/cliffhanger/event"
 	"github.com/futurehomeno/fimpgo/fimptype"
+
+	"github.com/futurehomeno/cliffhanger/event"
 )
 
 const (

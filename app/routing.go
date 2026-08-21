@@ -65,6 +65,7 @@ func RouteApp[C any](
 		RouteCmdAppGetManifest(serviceName, appLifecycle, configStorage, app),
 		RouteCmdConfigExtendedSet(serviceName, appLifecycle, configFactory, app, locker),
 		RouteCmdAppUninstall(serviceName, appLifecycle, app, locker, excludeAllThings),
+		RouteCmdAppDiagGetReport(serviceName, appLifecycle, app),
 	}
 
 	resettable, ok := app.(ResettableApp)
@@ -74,11 +75,7 @@ func RouteApp[C any](
 
 	logginable, ok := app.(LogginableApp)
 	if ok {
-		routing = append(
-			routing,
-			RouteCmdAuthLogin(serviceName, appLifecycle, locker, logginable),
-			RouteCmdAuthLogout(serviceName, appLifecycle, locker, logginable),
-		)
+		routing = append(routing, RouteCmdAuthLogin(serviceName, appLifecycle, locker, logginable))
 	}
 
 	authorizable, ok := app.(AuthorizableApp)
@@ -87,16 +84,15 @@ func RouteApp[C any](
 			appLifecycle.SetAuthState(lifecycle.AuthStateNotAuthenticated)
 		}
 
-		routing = append(
-			routing,
-			RouteCmdAuthSetTokens(serviceName, appLifecycle, locker, authorizable),
-			RouteCmdAuthLogout(serviceName, appLifecycle, locker, authorizable),
-		)
+		routing = append(routing, RouteCmdAuthSetTokens(serviceName, appLifecycle, locker, authorizable))
 	}
 
-	logProvider, ok := app.(LogProvider)
+	// Registered once regardless of which of the two interfaces the app implements: the router
+	// dispatches to every matching routing, so an app supporting both would log out twice and
+	// publish two contradictory status reports for a single command.
+	logoutable, ok := app.(LogoutableApp)
 	if ok {
-		routing = append(routing, RouteCmdAppDiagGetReport(serviceName, appLifecycle, logProvider))
+		routing = append(routing, RouteCmdAuthLogout(serviceName, appLifecycle, locker, logoutable))
 	}
 
 	return routing
@@ -271,7 +267,7 @@ func HandleCmdAppUninstall(
 		router.MessageProcessorFn(func(message *fimpgo.Message) (*fimpgo.FimpMessage, error) {
 			if excludeAllThings != nil {
 				if err := excludeAllThings(); err != nil {
-					log.Errorf("Exclude all things err: %v", err)
+					log.Errorf("[app] Exclude all things err: %v", err)
 				}
 			}
 
@@ -294,8 +290,7 @@ func RouteCmdAppReset(
 	action := func(_ string) *manifest.ButtonActionResponse {
 		err := app.Reset()
 		if err != nil {
-			log.WithError(err).
-				Error("failed to reset the application")
+			log.Errorf("[app] Reset app err: %v", err)
 
 			return &manifest.ButtonActionResponse{
 				Operation:       CmdAppReset,
@@ -415,11 +410,10 @@ func makeConfigurationReply(
 	}
 
 	if err != nil {
-		log.WithError(err).
-			WithField("topic", message.Topic).
+		log.WithField("topic", message.Topic).
 			WithField("service", message.Payload.Service).
 			WithField("type", message.Payload.Interface).
-			Error("failed to configure the application")
+			Errorf("[app] Configure app err: %v", err)
 
 		configReport.OpStatus = OperationStatusError
 		configReport.OpError = fmt.Sprintf("configure the app err: %s", err)
@@ -469,31 +463,49 @@ func HandleCmdAuthLogin(
 			report := &AuthenticationReport{}
 
 			if err = app.Login(credentials); err != nil {
-				log.Errorf("Login err: %v", err)
+				log.Errorf("[app] Login err: %v", err)
 
 				report.ErrorText = "failed to login"
 			}
 
-			report.Status = string(appLifecycle.AuthState())
-
-			// Compatibility hack for FHX which implemented login flow not in accordance with the specification.
-			if err != nil || appLifecycle.AuthState() != lifecycle.AuthStateAuthenticated {
+			// Compatibility hack for FHX which implemented login flow not in accordance with the
+			// specification. Restricted to outcomes that actually failed: an app whose login starts
+			// an asynchronous second step is not authenticated yet, and reporting that as an error
+			// would fail a flow that is still running.
+			if err != nil || failedAuthStates[appLifecycle.AuthState()] {
 				report.Errors = "failed to login"
 			}
 
-			msg := fimpgo.NewMessage(
-				EvtAuthStatusReport,
-				serviceName,
-				fimptype.VTypeObject,
-				report,
-				nil,
-				nil,
-				message.Payload,
-			)
-
-			return msg, nil
+			return authStatusReport(serviceName, appLifecycle, message, report), nil
 		}),
 		router.WithExternalLock(locker))
+}
+
+// failedAuthStates are the terminal auth states that mean the attempt did not succeed.
+var failedAuthStates = map[lifecycle.State]bool{
+	lifecycle.AuthStateNotAuthenticated: true,
+	lifecycle.AuthStateError:            true,
+	lifecycle.AuthStateLost:             true,
+}
+
+// authStatusReport builds the status report reply shared by the authentication handlers.
+func authStatusReport(
+	serviceName fimptype.ServiceNameT,
+	appLifecycle *lifecycle.Lifecycle,
+	message *fimpgo.Message,
+	report *AuthenticationReport,
+) *fimpgo.FimpMessage {
+	report.Status = string(appLifecycle.AuthState())
+
+	return fimpgo.NewMessage(
+		EvtAuthStatusReport,
+		serviceName,
+		fimptype.VTypeObject,
+		report,
+		nil,
+		nil,
+		message.Payload,
+	)
 }
 
 func RouteCmdAuthSetTokens(
@@ -527,24 +539,12 @@ func HandleCmdAuthSetTokens(
 			report := &AuthenticationReport{}
 
 			if err = app.Authorize(credentials); err != nil {
-				log.Errorf("Authorize err: %v", err)
+				log.Errorf("[app] Authorize err: %v", err)
 
 				report.ErrorText = "failed to authorize"
 			}
 
-			report.Status = string(appLifecycle.AuthState())
-
-			msg := fimpgo.NewMessage(
-				EvtAuthStatusReport,
-				serviceName,
-				fimptype.VTypeObject,
-				report,
-				nil,
-				nil,
-				message.Payload,
-			)
-
-			return msg, nil
+			return authStatusReport(serviceName, appLifecycle, message, report), nil
 		}),
 		router.WithExternalLock(locker))
 }
@@ -573,24 +573,12 @@ func HandleCmdAuthLogout(
 			report := &AuthenticationReport{}
 
 			if err := app.Logout(); err != nil {
-				log.Errorf("Logout err: %v", err)
+				log.Errorf("[app] Logout err: %v", err)
 
 				report.ErrorText = "failed to logout"
 			}
 
-			report.Status = string(appLifecycle.AuthState())
-
-			msg := fimpgo.NewMessage(
-				EvtAuthStatusReport,
-				serviceName,
-				fimptype.VTypeObject,
-				report,
-				nil,
-				nil,
-				message.Payload,
-			)
-
-			return msg, nil
+			return authStatusReport(serviceName, appLifecycle, message, report), nil
 		}),
 		router.WithExternalLock(locker))
 }

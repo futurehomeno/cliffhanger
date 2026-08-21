@@ -1,0 +1,97 @@
+package event
+
+import (
+	"slices"
+	"sync"
+)
+
+// Bus is the subscriber registry behind both the event manager and the application lifecycle.
+// Subscribers sharing an ID each get their own channel, buffer and filters rather than silently
+// inheriting the first one's - but Unsubscribe closes every channel registered under that ID, so
+// an ID is only safe to share between subscribers with the same lifetime.
+type Bus[T any] struct {
+	lock          sync.RWMutex
+	subscriptions map[string][]*subscription[T]
+}
+
+func NewBus[T any]() *Bus[T] {
+	return &Bus[T]{subscriptions: make(map[string][]*subscription[T])}
+}
+
+// Subscribe registers a new subscription under the given ID and returns its channel.
+//
+// A filter runs while the bus is read locked, under the same constraint as Publish's drop
+// callback: it must not subscribe or unsubscribe, both of which take the write lock and would
+// deadlock. A nil filter is ignored.
+func (b *Bus[T]) Subscribe(subID string, buffer int, filters ...func(T) bool) chan T {
+	b.lock.Lock()
+	defer b.lock.Unlock()
+
+	channel := make(chan T, buffer)
+
+	// Cloned because a variadic call made with someSlice... hands over the caller's backing array,
+	// and mutating it afterwards would rewrite a live subscription's predicates from outside the
+	// lock. Nothing to allocate when there are no filters, which is the common case.
+	b.subscriptions[subID] = append(b.subscriptions[subID], &subscription[T]{channel: channel, filters: slices.Clone(filters)})
+
+	return channel
+}
+
+// Unsubscribe closes and drops every subscription registered under the given ID.
+func (b *Bus[T]) Unsubscribe(subID string) {
+	b.lock.Lock()
+	defer b.lock.Unlock()
+
+	for _, s := range b.subscriptions[subID] {
+		close(s.channel)
+	}
+
+	delete(b.subscriptions, subID)
+}
+
+// Publish delivers a value to every matching subscriber without blocking. A subscriber whose
+// buffer is full has the value dropped and is reported to dropped, so that the caller can log it
+// in its own terms. A nil dropped is allowed and drops silently: it would otherwise only panic
+// once a subscriber actually fell behind, which is exactly when it must not.
+//
+// dropped runs while the bus is read locked, so it must not subscribe or unsubscribe - both take
+// the write lock and would deadlock. Report from it and act afterwards.
+func (b *Bus[T]) Publish(value T, dropped func(subID string)) {
+	if dropped == nil {
+		dropped = func(string) {}
+	}
+
+	b.lock.RLock()
+	defer b.lock.RUnlock()
+
+	for subID, subscriptions := range b.subscriptions {
+		for _, s := range subscriptions {
+			if !s.matches(value) {
+				continue
+			}
+
+			select {
+			case s.channel <- value:
+			default:
+				dropped(subID)
+			}
+		}
+	}
+}
+
+type subscription[T any] struct {
+	channel chan T
+	filters []func(T) bool
+}
+
+func (s *subscription[T]) matches(value T) bool {
+	for _, f := range s.filters {
+		// A nil predicate is skipped rather than called: it would otherwise panic on the first
+		// publish that reached this subscription, long after the Subscribe that accepted it.
+		if f != nil && !f(value) {
+			return false
+		}
+	}
+
+	return true
+}

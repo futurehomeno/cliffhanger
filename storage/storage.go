@@ -6,6 +6,7 @@ import (
 	"os"
 	"path"
 	"path/filepath"
+	"reflect"
 	"sync"
 
 	log "github.com/sirupsen/logrus"
@@ -16,6 +17,9 @@ const (
 	dataDirectory     = "data"
 	defaultsDirectory = "defaults"
 	backupExtension   = ".bak"
+
+	configFileMode os.FileMode = 0o644
+	secretFileMode os.FileMode = 0o640
 )
 
 // Storage is an interface representing a service responsible for loading JSON configuration from provided location.
@@ -26,46 +30,52 @@ type Storage[T any] interface {
 	Model() T
 }
 
-// New creates a new storage service in accordance to Thingsplex layout. Provided model should be a pointer.
-func New[T any](model T, workDir string, name string) Storage[T] {
+// newStorage creates the storage implementation shared by all constructors. An empty
+// defaultsPath means the store has no defaults file to reset from.
+func newStorage[T any](model T, dataPath, defaultsPath string) *storage[T] {
 	return &storage[T]{
 		lock:         &sync.Mutex{},
-		dataPath:     filepath.Join(workDir, dataDirectory, name),
-		backupPath:   filepath.Join(workDir, dataDirectory, name) + backupExtension,
-		defaultsPath: filepath.Join(workDir, defaultsDirectory, name),
+		dataPath:     dataPath,
+		backupPath:   dataPath + backupExtension,
+		defaultsPath: defaultsPath,
 		model:        model,
 	}
+}
+
+// New creates a new storage service in accordance to Thingsplex layout. Provided model should be a pointer.
+func New[T any](model T, workDir string, name string) Storage[T] {
+	return newStorage(model, filepath.Join(workDir, dataDirectory, name), filepath.Join(workDir, defaultsDirectory, name))
+}
+
+// NewSecrets creates a storage service for credentials and other secrets, conventionally
+// data/secrets.json, written with 0640 permissions unlike the world-readable configuration
+// and without a defaults file.
+func NewSecrets[T any](model T, workDir string, name string) Storage[T] {
+	s := newStorage(model, filepath.Join(workDir, dataDirectory, name), "")
+	s.mode = secretFileMode
+
+	return s
+}
+
+// NewCanonicalSecrets creates a secrets storage service following the canonical layout of core applications.
+func NewCanonicalSecrets[T any](model T, workDir string, name string) Storage[T] {
+	s := newStorage(model, filepath.Join(workDir, name), "")
+	s.mode = secretFileMode
+
+	return s
 }
 
 // NewCanonical creates a new storage service allowing canonical separate paths for defaults and data. Provided model should be a pointer.
 func NewCanonical[T any](model T, workDir, defaultsDir, name string) Storage[T] {
-	return &storage[T]{
-		lock:         &sync.Mutex{},
-		dataPath:     filepath.Join(workDir, name),
-		backupPath:   filepath.Join(workDir, name) + backupExtension,
-		defaultsPath: filepath.Join(defaultsDir, name),
-		model:        model,
-	}
+	return newStorage(model, filepath.Join(workDir, name), filepath.Join(defaultsDir, name))
 }
 
 func NewState[T any](model T, workDir, name string) Storage[T] {
-	return &storage[T]{
-		lock:         &sync.Mutex{},
-		dataPath:     filepath.Join(workDir, dataDirectory, name),
-		backupPath:   filepath.Join(workDir, dataDirectory, name) + backupExtension,
-		defaultsPath: "",
-		model:        model,
-	}
+	return newStorage(model, filepath.Join(workDir, dataDirectory, name), "")
 }
 
 func NewCanonicalState[T any](model T, workDir, name string) Storage[T] {
-	return &storage[T]{
-		lock:         &sync.Mutex{},
-		dataPath:     filepath.Join(workDir, name),
-		backupPath:   filepath.Join(workDir, name) + backupExtension,
-		defaultsPath: "",
-		model:        model,
-	}
+	return newStorage(model, filepath.Join(workDir, name), "")
 }
 
 // storage is an implementation of the storage service.
@@ -75,6 +85,20 @@ type storage[T any] struct {
 	backupPath   string
 	defaultsPath string
 	model        T
+	mode         os.FileMode
+}
+
+// isSecret reports whether this is a secrets store, which the secret file mode identifies.
+func (s *storage[T]) isSecret() bool {
+	return s.mode == secretFileMode
+}
+
+func (s *storage[T]) fileMode() os.FileMode {
+	if s.mode == 0 {
+		return configFileMode
+	}
+
+	return s.mode
 }
 
 func (s *storage[T]) Model() T {
@@ -88,6 +112,15 @@ func (s *storage[T]) Load() error {
 	dataExists, err := s.fileExists(s.dataPath)
 	if err != nil {
 		return err
+	}
+
+	if !dataExists {
+		// A crash between the backup rename and the rewrite that follows it in save() leaves only
+		// the backup behind; loadData() picks it up, but only if we get that far.
+		dataExists, err = s.fileExists(s.backupPath)
+		if err != nil {
+			return err
+		}
 	}
 
 	var defaultsExists bool
@@ -132,7 +165,7 @@ func (s *storage[T]) load(defaultsExists, dataExists bool) error {
 			return err
 		}
 
-		log.WithError(err).Errorf("storage: failed to read the configuration file at path %s, falling back to defaults", s.dataPath)
+		log.Errorf("[storage] Read %s, fall back to defaults. err: %v", s.dataPath, err)
 	}
 
 	return nil
@@ -154,12 +187,11 @@ func (s *storage[T]) loadData() error {
 		return err
 	}
 
-	err = s.loadFile(s.backupPath)
-	if err != nil {
-		return err
+	if backupErr := s.loadFile(s.backupPath); backupErr != nil {
+		return backupErr
 	}
 
-	log.WithError(err).Errorf("storage: failed to read the configuration file at path %s, falling back to last backup", s.dataPath)
+	log.Errorf("[storage] Read %s, fall back to backup. err: %v", s.dataPath, err)
 
 	return nil
 }
@@ -173,19 +205,19 @@ func (s *storage[T]) Save() error {
 }
 
 func (s *storage[T]) save() error {
-	err := os.MkdirAll(path.Dir(s.dataPath), 0774) //nolint:gofumpt,gosec
+	err := os.MkdirAll(path.Dir(s.dataPath), 0o755) //nolint:gosec
 	if err != nil {
 		return fmt.Errorf("storage: cannot create a configuration directory at path %s: %w", path.Dir(s.dataPath), err)
-	}
-
-	err = s.makeBackup()
-	if err != nil {
-		return fmt.Errorf("storage: failed to make a configuration backup: %w", err)
 	}
 
 	body, err := json.MarshalIndent(s.model, "", "\t")
 	if err != nil {
 		return fmt.Errorf("storage: cannot marshal a configuration file at path %s: %w", s.dataPath, err)
+	}
+
+	err = s.makeBackup()
+	if err != nil {
+		return fmt.Errorf("storage: failed to make a configuration backup: %w", err)
 	}
 
 	err = s.writeFile(s.dataPath, body)
@@ -206,19 +238,25 @@ func (s *storage[T]) makeBackup() error {
 		return nil
 	}
 
-	body, err := os.ReadFile(s.dataPath)
-	if err != nil {
-		return err
+	// Rename rather than copy: a copy costs a second full write and fsync of the whole file on every
+	// Save. loadData() falls back to the backup, which covers a crash between the rename and the
+	// rewrite that follows it.
+	if err := os.Rename(s.dataPath, s.backupPath); err != nil {
+		return fmt.Errorf("storage: failed to move the configuration file at path %s to a backup: %w", s.dataPath, err)
 	}
 
-	err = s.writeFile(s.backupPath, body)
-	if err != nil {
-		return err
+	// The rename carries the old file's mode over, which writeFile used to correct on the way in.
+	// A secrets file that pre-dated the 0640 mode would otherwise leave its credentials in a
+	// world-readable .bak until the next save renamed a tightened file over it.
+	if err := os.Chmod(s.backupPath, s.fileMode()); err != nil {
+		return fmt.Errorf("storage: failed to set permissions of the backup file at path %s: %w", s.backupPath, err)
 	}
 
 	return nil
 }
 
+// Reset drops the stored data and reloads the defaults file. Fields the defaults cannot carry,
+// json:"-" ones in particular, are left zeroed for the caller to restore.
 func (s *storage[T]) Reset() error {
 	s.lock.Lock()
 	defer s.lock.Unlock()
@@ -242,11 +280,40 @@ func (s *storage[T]) Reset() error {
 		return err
 	}
 
+	if s.isSecret() {
+		// Secrets stores have no defaults to reload from; clear the in-memory model so a reset
+		// (logout) does not keep serving stale credentials.
+		s.zeroModel()
+
+		return nil
+	}
+
+	// A no-defaults state store (adapter.json, config caches) keeps its model: there is nothing to
+	// reload and callers hold on to it past the reset.
 	if s.defaultsPath == "" {
 		return nil
 	}
 
+	// Zero before reloading: loadFile unmarshals into the existing model, so fields and map entries
+	// absent from the defaults would survive the reset and be written back by the next Save().
+	s.zeroModel()
+
 	return s.load(true, false)
+}
+
+// zeroModel clears the in-memory model. Zeroes the pointed-to struct in place rather than nilling
+// the reference: that wipes the fields any cached pointer still holds and keeps s.model a valid
+// (non-nil) target for a later Load().
+func (s *storage[T]) zeroModel() {
+	if v := reflect.ValueOf(s.model); v.Kind() == reflect.Pointer && !v.IsNil() {
+		v.Elem().Set(reflect.Zero(v.Elem().Type()))
+
+		return
+	}
+
+	var zero T
+
+	s.model = zero
 }
 
 func (s *storage[T]) fileExists(path string) (bool, error) {
@@ -291,7 +358,7 @@ func (s *storage[T]) loadFile(path string) error {
 }
 
 func (s *storage[T]) writeFile(path string, data []byte) (err error) {
-	file, err := os.OpenFile(path, os.O_WRONLY|os.O_CREATE|os.O_TRUNC, 0664) //nolint:gofumpt,gosec
+	file, err := os.OpenFile(path, os.O_WRONLY|os.O_CREATE|os.O_TRUNC, s.fileMode()) //nolint:gosec
 	if err != nil {
 		return err
 	}
@@ -306,6 +373,11 @@ func (s *storage[T]) writeFile(path string, data []byte) (err error) {
 
 		err = closeErr
 	}()
+
+	// Enforce permissions also on files created before this mode was configured, regardless of umask.
+	if err = file.Chmod(s.fileMode()); err != nil {
+		return err
+	}
 
 	if _, err = file.Write(data); err != nil {
 		return

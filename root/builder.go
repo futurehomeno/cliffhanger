@@ -12,6 +12,7 @@ import (
 	"github.com/futurehomeno/cliffhanger/bootstrap"
 	"github.com/futurehomeno/cliffhanger/discovery"
 	"github.com/futurehomeno/cliffhanger/lifecycle"
+	"github.com/futurehomeno/cliffhanger/notification"
 
 	"github.com/futurehomeno/cliffhanger/router"
 	"github.com/futurehomeno/cliffhanger/task"
@@ -34,21 +35,23 @@ func newBuilder(edge bool) *Builder {
 
 // Builder is a root app builder that helps to set up and run root application on a hub.
 type Builder struct {
-	edge               bool
-	mqtt               *fimpgo.MqttTransport
-	resourceName       fimptype.ResourceNameT
-	resourceType       fimptype.ResourceTypeT
-	packageName        string
-	instanceID         string
-	version            string
-	lifecycle          *lifecycle.Lifecycle
-	telemetry          telemetry.Telemetry
-	topicSubscriptions []string
-	routing            []*router.Routing
-	routerOptions      []router.Option
-	tasks              []*task.Task
-	services           []Service
-	resetters          []Resetter
+	edge                  bool
+	mqtt                  *fimpgo.MqttTransport
+	resourceName          fimptype.ResourceNameT
+	resourceType          fimptype.ResourceTypeT
+	packageName           string
+	instanceID            string
+	version               string
+	lifecycle             *lifecycle.Lifecycle
+	telemetry             telemetry.Telemetry
+	authLossNotify        func() error
+	authLossReportEnabled func() bool
+	topicSubscriptions    []string
+	routing               []*router.Routing
+	routerOptions         []router.Option
+	tasks                 []*task.Task
+	services              []Service
+	resetters             []Resetter
 }
 
 func (b *Builder) WithMQTT(mqtt *fimpgo.MqttTransport) *Builder {
@@ -73,6 +76,28 @@ func (b *Builder) WithLifecycle(l *lifecycle.Lifecycle) *Builder {
 
 func (b *Builder) WithTelemetry(t telemetry.Telemetry) *Builder {
 	b.telemetry = t
+	return b
+}
+
+// WithAuthLossNotification makes the app send the provided push notification event whenever
+// authorization transitions to lost. The event name is adapter-specific, e.g. "easee_status_offline".
+func (b *Builder) WithAuthLossNotification(n notification.Notification, event *notification.Event) *Builder {
+	// Reset unconditionally so passing a nil notifier or event clears a previously configured
+	// one, as assigning both fields used to.
+	b.authLossNotify = nil
+
+	if n != nil && event != nil {
+		b.authLossNotify = func() error { return n.Event(event) }
+	}
+
+	return b
+}
+
+// WithAuthLossReporting gates whether the app reports authorization loss (push
+// notification, FIMP app-state report and telemetry). enabled is evaluated at each
+// loss, so it can follow a runtime config flag. A nil enabled reports every loss.
+func (b *Builder) WithAuthLossReporting(enabled func() bool) *Builder {
+	b.authLossReportEnabled = enabled
 	return b
 }
 
@@ -118,13 +143,13 @@ func logBootstrapDirs() {
 	if workDir, err := filepath.Abs(bootstrap.GetWorkingDirectory()); err != nil {
 		log.Warnf("[cliff] Resolve working dir=%s err: %v", bootstrap.GetWorkingDirectory(), err)
 	} else {
-		log.Infof("Working dir=%s", workDir)
+		log.Infof("[cliff] Working dir=%s", workDir)
 	}
 
 	if cfgDir, err := filepath.Abs(bootstrap.GetConfigurationDirectory()); err != nil {
 		log.Warnf("[cliff] Resolve config dir=%s err: %v", bootstrap.GetConfigurationDirectory(), err)
 	} else {
-		log.Infof("Config dir=%s", cfgDir)
+		log.Infof("[cliff] Config dir=%s", cfgDir)
 	}
 }
 
@@ -133,13 +158,15 @@ func (b *Builder) doBuild() App {
 		lock:  &sync.Mutex{},
 		errCh: make(chan error),
 
-		mqtt:         b.mqtt,
-		lifecycle:    b.lifecycle,
-		telemetry:    b.telemetry,
-		resourceName: b.resourceName,
-		taskManager:  task.NewManager(b.tasks...),
-		services:     b.services,
-		resetters:    b.resetters,
+		mqtt:                  b.mqtt,
+		lifecycle:             b.lifecycle,
+		telemetry:             b.telemetry,
+		authLossNotify:        b.authLossNotify,
+		authLossReportEnabled: b.authLossReportEnabled,
+		resourceName:          b.resourceName,
+		taskManager:           task.NewManager(b.tasks...),
+		services:              b.services,
+		resetters:             b.resetters,
 	}
 
 	b.prepareRouting(rootApp)

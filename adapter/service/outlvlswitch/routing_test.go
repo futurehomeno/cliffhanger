@@ -128,7 +128,9 @@ func TestRouteService(t *testing.T) { //nolint:paralleltest
 					mockedoutlvlswitch.NewMockedOutSwitchLvl(
 						mockedoutlvlswitch.NewController(t).
 							MockSetLevelSwitchBinaryState(true, fmt.Errorf("some error"), false).
-							MockSetLevelSwitchLevel(1, 0, fmt.Errorf("error"), false),
+							MockSetLevelSwitchLevel(1, 0, fmt.Errorf("error"), false).
+							MockSetLevelSwitchLevel(99, 0, fmt.Errorf("error"), false).
+							MockSetLevelSwitchLevel(0, 0, fmt.Errorf("error"), false),
 						mockedoutlvlswitch.NewLevelTransitionController(t).
 							MockStartLevelTransition("up", outlvlswitch.LevelTransitionParams{}, fmt.Errorf("error")).
 							MockStopLevelTransition(fmt.Errorf("some error")),
@@ -229,6 +231,22 @@ func TestRouteService(t *testing.T) { //nolint:paralleltest
 							IntMessage("pt:j1/mt:cmd/rt:dev/rn:test_adapter/ad:1/sv:out_lvl_switch/ad:2", "cmd.lvl.set", "out_lvl_switch", 1).
 							AddProperty("duration", "invalid").
 							Build(),
+						Expectations: []*suite.Expectation{
+							suite.ExpectError("pt:j1/mt:evt/rt:dev/rn:test_adapter/ad:1/sv:out_lvl_switch/ad:2", "out_lvl_switch"),
+						},
+					},
+					{
+						// The controller mock only accepts the clamped value, so it is what asserts
+						// that an out of range level is bounded rather than rejected or forwarded.
+						Name:    "Set level. Above the supported range.",
+						Command: suite.IntMessage("pt:j1/mt:cmd/rt:dev/rn:test_adapter/ad:1/sv:out_lvl_switch/ad:2", "cmd.lvl.set", "out_lvl_switch", 500),
+						Expectations: []*suite.Expectation{
+							suite.ExpectError("pt:j1/mt:evt/rt:dev/rn:test_adapter/ad:1/sv:out_lvl_switch/ad:2", "out_lvl_switch"),
+						},
+					},
+					{
+						Name:    "Set level. Below the supported range.",
+						Command: suite.IntMessage("pt:j1/mt:cmd/rt:dev/rn:test_adapter/ad:1/sv:out_lvl_switch/ad:2", "cmd.lvl.set", "out_lvl_switch", -1),
 						Expectations: []*suite.Expectation{
 							suite.ExpectError("pt:j1/mt:evt/rt:dev/rn:test_adapter/ad:1/sv:out_lvl_switch/ad:2", "out_lvl_switch"),
 						},

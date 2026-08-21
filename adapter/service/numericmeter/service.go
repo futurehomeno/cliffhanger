@@ -3,7 +3,6 @@ package numericmeter
 import (
 	"fmt"
 	"strconv"
-	"strings"
 	"sync"
 	"time"
 
@@ -12,6 +11,7 @@ import (
 
 	"github.com/futurehomeno/cliffhanger/adapter"
 	"github.com/futurehomeno/cliffhanger/adapter/cache"
+	"github.com/futurehomeno/cliffhanger/utils"
 )
 
 // DefaultReportingStrategy is the default reporting strategy used by the service for periodic reports.
@@ -347,21 +347,16 @@ func (s *service) resettableReporter() (ResettableReporter, error) {
 
 // normalizeUnit checks if unit is supported and returns its normalized form.
 func (s *service) normalizeUnit(unit Unit, units Units) (Unit, bool) {
-	for _, u := range units {
-		if strings.EqualFold(unit.String(), u.String()) {
-			return u, true
-		}
-	}
-
-	return "", false
+	return utils.Normalize(unit, units)
 }
 
 // normalizeExtendedValues checks if all values are supported and returns their normalized form.
 func (s *service) normalizeExtendedValues(values Values) (Values, error) {
 	normalizedValues := make(Values, len(values))
+	supported := s.SupportedExtendedValues()
 
 	for i, v := range values {
-		normalizedValue, ok := s.normalizeValue(v, s.SupportedExtendedValues())
+		normalizedValue, ok := s.normalizeValue(v, supported)
 		if !ok {
 			return nil, fmt.Errorf("%s: extended value %s is unsupported", s.Name(), v)
 		}
@@ -374,13 +369,7 @@ func (s *service) normalizeExtendedValues(values Values) (Values, error) {
 
 // normalizeUnit checks if unit is supported and returns its normalized form.
 func (s *service) normalizeValue(value Value, values Values) (Value, bool) {
-	for _, u := range values {
-		if strings.EqualFold(value.String(), u.String()) {
-			return u, true
-		}
-	}
-
-	return "", false
+	return utils.Normalize(value, values)
 }
 
 // isReportRequired checks if a report is required for any of the given values.

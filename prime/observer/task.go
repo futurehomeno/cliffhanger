@@ -25,7 +25,7 @@ func HandleRefreshing(observer Observer, forceRefresh bool) func() {
 	return func() {
 		err := observer.Refresh(forceRefresh)
 		if err != nil {
-			log.WithError(err).Errorf("observer: failed to refresh")
+			log.Errorf("[observer] Refresh. err: %v", err)
 		}
 	}
 }
