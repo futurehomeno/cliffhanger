@@ -228,6 +228,33 @@ func TestRouteService(t *testing.T) { //nolint:paralleltest
 				},
 			},
 			{
+				Name:     "successful setpoint set - per-mode range overrides global range",
+				TearDown: adapterhelper.TearDownAdapter("../../testdata/adapter/test_adapter"),
+				Setup: routeService(
+					mockedwaterheater.NewController(t).
+						MockSetWaterHeaterSetpoint("eco", 45, "C", nil, true).
+						MockWaterHeaterSetpointReport("eco", 45, "C", nil, true),
+					testModes, testSetpoints, testStates, testRange,
+					map[string]waterheater.Range{"eco": {Min: 30, Max: 50}}, testStep,
+				),
+				Nodes: []*suite.Node{
+					{
+						Name:    "set setpoint within per-mode range",
+						Command: suite.ObjectMessage("pt:j1/mt:cmd/rt:dev/rn:test_adapter/ad:1/sv:water_heater/ad:2", "cmd.setpoint.set", "water_heater", waterheater.NewSetpoint("eco", 45, "C")),
+						Expectations: []*suite.Expectation{
+							suite.ExpectObject("pt:j1/mt:evt/rt:dev/rn:test_adapter/ad:1/sv:water_heater/ad:2", "evt.setpoint.report", "water_heater", waterheater.NewSetpoint("eco", 45, "C")),
+						},
+					},
+					{
+						Name:    "set setpoint outside per-mode range but inside global range",
+						Command: suite.ObjectMessage("pt:j1/mt:cmd/rt:dev/rn:test_adapter/ad:1/sv:water_heater/ad:2", "cmd.setpoint.set", "water_heater", waterheater.NewSetpoint("eco", 60, "C")),
+						Expectations: []*suite.Expectation{
+							suite.ExpectError("pt:j1/mt:evt/rt:dev/rn:test_adapter/ad:1/sv:water_heater/ad:2", "water_heater"),
+						},
+					},
+				},
+			},
+			{
 				Name:     "malformed payloads",
 				TearDown: adapterhelper.TearDownAdapter("../../testdata/adapter/test_adapter"),
 				Setup: routeService(
