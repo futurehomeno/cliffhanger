@@ -163,19 +163,21 @@ func TestEnsureThings_RecreatesGhostThing(t *testing.T) {
 // TestEnsureThings_DoesNotDestroyBeforeInitialization pins that a racing boot sync cannot drop
 // persisted records before InitializeThings has announced them. Empty and truncated selections
 // both used to destroy unseeded IDs while the live map was still empty, so init had nothing to
-// restore and the user saw devices vanish. After initialization the same empty selection still
-// destroys, which is the intended prune.
+// restore and the user saw devices vanish. After initialization the same selection prunes:
+// empty destroys both, truncated destroys only the missing ID.
 func TestEnsureThings_DoesNotDestroyBeforeInitialization(t *testing.T) {
 	t.Parallel()
 
 	info := json.RawMessage(`{"groups":["g1"]}`)
 
 	tests := []struct {
-		name  string
-		seeds ThingSeeds
+		name           string
+		seeds          ThingSeeds
+		keepAAfterInit bool
+		keepBAfterInit bool
 	}{
 		{name: "empty selection", seeds: nil},
-		{name: "truncated selection missing A", seeds: ThingSeeds{{ID: "B", CustomAddress: "2", Info: groupsInfo{Groups: []string{"g1"}}}}},
+		{name: "truncated selection missing A", seeds: ThingSeeds{{ID: "B", CustomAddress: "2", Info: groupsInfo{Groups: []string{"g1"}}}}, keepBAfterInit: true},
 	}
 
 	for _, tc := range tests {
@@ -207,10 +209,11 @@ func TestEnsureThings_DoesNotDestroyBeforeInitialization(t *testing.T) {
 			assert.NotNil(t, a.things["1"], "InitializeThings must still restore A")
 			assert.NotNil(t, a.things["2"], "InitializeThings must still restore B")
 
-			require.NoError(t, a.EnsureThings(nil))
-			assert.Nil(t, a.state.byID("A"), "after initialization an empty selection still destroys")
-			assert.Nil(t, a.state.byID("B"))
-			assert.Empty(t, a.things)
+			require.NoError(t, a.EnsureThings(tc.seeds))
+			assert.Equal(t, tc.keepAAfterInit, a.state.byID("A") != nil)
+			assert.Equal(t, tc.keepAAfterInit, a.things["1"] != nil)
+			assert.Equal(t, tc.keepBAfterInit, a.state.byID("B") != nil)
+			assert.Equal(t, tc.keepBAfterInit, a.things["2"] != nil)
 		})
 	}
 }
