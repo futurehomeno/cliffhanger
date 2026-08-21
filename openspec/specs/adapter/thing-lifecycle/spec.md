@@ -108,9 +108,11 @@ next attempt. The adapter SHALL be marked initialized only after the whole pass 
 `EnsureThings` SHALL make the set of things match the supplied seeds: every state record whose ID
 is absent from the seeds is destroyed, and every seed with no state record is created. Seeds whose
 ID already has a live thing SHALL be dropped without being touched — presence reconciliation never
-re-announces or rebuilds a healthy thing. The whole pass SHALL run under the adapter write lock
-inside a single state batch, and SHALL be best-effort per device with failures joined, so a non-nil
-error means the pass was partially applied.
+re-announces or rebuilds a healthy thing. Destruction SHALL be skipped while the adapter is not yet
+initialized, so a device sync racing `InitializeThings` cannot drop persisted records before they
+have been announced; seeds whose IDs have no stored state SHALL still be created. The whole pass
+SHALL run under the adapter write lock inside a single state batch, and SHALL be best-effort per
+device with failures joined, so a non-nil error means the pass was partially applied.
 
 #### Scenario: seed with no record
 - **WHEN** `EnsureThings` receives a seed whose ID has no stored state
@@ -118,8 +120,13 @@ error means the pass was partially applied.
   and a forced inclusion report is published
 
 #### Scenario: record with no seed
-- **WHEN** a stored thing's ID is absent from the seeds
+- **WHEN** a stored thing's ID is absent from the seeds on an initialized adapter
 - **THEN** that thing is destroyed and an exclusion report is published for its address
+
+#### Scenario: record with no seed before initialization
+- **WHEN** `EnsureThings` runs while `IsInitialized` is false and a stored thing's ID is absent from
+  the seeds — including when the seed set is empty
+- **THEN** that record is left for `InitializeThings` and no exclusion is published
 
 #### Scenario: one device fails
 - **WHEN** creating one seed's thing fails
@@ -142,6 +149,8 @@ initialized, where every record legitimately has no live thing.
 #### Scenario: before initialization
 - **WHEN** `EnsureThings` runs while `IsInitialized` is false
 - **THEN** existing records are left for `InitializeThings` and no fleet-wide recreation happens
+- **AND** unseeded records are not destroyed
+- **AND** seeds whose IDs have no stored state are still created
 
 ### Requirement: Topology Drift Rebuild
 `RebuildChangedThings` SHALL rebuild every already-registered thing whose seed would produce a
@@ -189,17 +198,23 @@ with the IDs it excluded. If the fetch fails nothing SHALL be mutated and the er
 returned, so a network glitch can never wipe live things. A successful fetch SHALL be treated as
 complete: every selected device absent from it is destroyed, including when the response is empty —
 adapters must therefore make their client return an error rather than a truncated or empty slice on
-a non-2xx, a rate limit or an unparsable body. `SyncThings` SHALL NOT be atomic: it takes and
-releases the adapter lock per operation, so adapters that also handle `cmd.thing.delete` or
-configuration writes must serialise those against it with a shared `router.MessageHandlerLocker`.
+a non-2xx, a rate limit or an unparsable body. Until the adapter is initialized that destroy is
+deferred by `EnsureThings`, so a racing boot sync cannot wipe records `InitializeThings` has not
+announced yet. `SyncThings` SHALL NOT be atomic: it takes and releases the adapter lock per
+operation, so adapters that also handle `cmd.thing.delete` or configuration writes must serialise
+those against it with a shared `router.MessageHandlerLocker`.
 
 #### Scenario: fetch fails
 - **WHEN** the fetch function returns an error
 - **THEN** no thing is created or destroyed and the error is returned with nil seeds
 
 #### Scenario: empty response
-- **WHEN** the fetch succeeds and returns no devices
+- **WHEN** the fetch succeeds and returns no devices on an initialized adapter
 - **THEN** every existing thing is destroyed
+
+#### Scenario: empty response before initialization
+- **WHEN** the fetch succeeds and returns no devices while `IsInitialized` is false
+- **THEN** persisted records are left for `InitializeThings`
 
 #### Scenario: seeds are reusable
 - **WHEN** `SyncThings` completes, with or without per-device errors
