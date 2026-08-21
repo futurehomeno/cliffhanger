@@ -18,7 +18,8 @@ const staleNodeTimeout = 10 * time.Second
 type Option func(*adapter)
 
 // WithStaleNodeExclusion overrides the stale node sweep, which is enabled by default. The
-// predicate is evaluated when the sweep is due, so it can be backed by a configuration setting.
+// predicate is evaluated on every successful sync; the sweep itself still runs at most once
+// per process, so a runtime configuration flag can enable it after an earlier sync skipped it.
 func WithStaleNodeExclusion(enabled func() bool) Option {
 	return func(a *adapter) { a.staleNodes = enabled }
 }
@@ -37,11 +38,13 @@ func (a *adapter) excludeStaleNodesOnce() {
 		return
 	}
 
-	a.staleNodesOnce.Do(func() {
-		if a.mqtt == nil || a.staleNodes == nil || !a.staleNodes() {
-			return
-		}
+	// Predicate is checked on every sync so a runtime toggle can still enable the sweep after
+	// an earlier sync ran while it was off; only the sweep itself is once-per-process.
+	if a.mqtt == nil || a.staleNodes == nil || !a.staleNodes() {
+		return
+	}
 
+	a.staleNodesOnce.Do(func() {
 		// Asking the hub is a round trip over MQTT: a sweep must never hold up the sync it
 		// is triggered from, nor block it for the full timeout when nothing answers.
 		go a.excludeStaleNodes()

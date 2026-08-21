@@ -36,5 +36,27 @@ func TestExcludeStaleNodesOnce_SkipsBeforeInitialization(t *testing.T) {
 	assert.Equal(t, 1, predicateCalls, "the deferred sweep must still be available after initialization")
 
 	a.excludeStaleNodesOnce()
-	assert.Equal(t, 1, predicateCalls, "the sweep must remain once per process")
+	assert.Equal(t, 2, predicateCalls, "a false predicate must not consume the once; later syncs re-check")
+}
+
+// TestExcludeStaleNodesOnce_FalsePredicateDoesNotConsumeOnce pins the runtime-toggle fix: a sync
+// that runs while the sweep is disabled must leave sync.Once free so a later sync can still
+// enable it. Probing the once with Do avoids launching the MQTT sweep itself.
+func TestExcludeStaleNodesOnce_FalsePredicateDoesNotConsumeOnce(t *testing.T) {
+	t.Parallel()
+
+	a := &adapter{
+		lock:        &sync.RWMutex{},
+		things:      map[string]Thing{},
+		initialized: true,
+		mqtt:        &fimpgo.MqttTransport{},
+		staleNodes:  func() bool { return false },
+	}
+
+	a.excludeStaleNodesOnce()
+	a.excludeStaleNodesOnce()
+
+	available := false
+	a.staleNodesOnce.Do(func() { available = true })
+	assert.True(t, available, "disabling the sweep must not permanently spend the once")
 }

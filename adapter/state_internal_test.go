@@ -43,8 +43,9 @@ func TestThingState_ErrorBranchesDoNotDeadlock(t *testing.T) {
 type failingSaveStorage struct {
 	storage.Storage[*adapterStateModel]
 
-	failSave bool
-	saves    int
+	failSave   bool
+	failOnSave int // 1-based save attempt that fails; 0 disables
+	saves      int
 }
 
 func (f *failingSaveStorage) Save() error {
@@ -53,6 +54,10 @@ func (f *failingSaveStorage) Save() error {
 	}
 
 	f.saves++
+
+	if f.failOnSave > 0 && f.saves == f.failOnSave {
+		return errors.New("disk full")
+	}
 
 	return f.Storage.Save()
 }
