@@ -80,12 +80,13 @@ func requiredInterfaces() []fimptype.Interface {
 	}
 }
 
+// resetInterfaces returns interfaces supported by the reset capable service.
 func resetInterfaces() []fimptype.Interface {
 	return []fimptype.Interface{
 		{
 			Type:      fimptype.TypeIn,
-			MsgType:   CmdMeterExportGetReport,
-			ValueType: fimptype.VTypeString,
+			MsgType:   CmdMeterReset,
+			ValueType: fimptype.VTypeNull,
 			Version:   "1",
 		},
 	}

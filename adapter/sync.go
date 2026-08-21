@@ -55,6 +55,12 @@ func SyncThings[T any](
 		errs = append(errs, err)
 	}
 
+	// Only once the whole reconciliation succeeded are the things known to match the fetched
+	// list, which is what makes a hub node the adapter owns nothing for provably stale.
+	if impl, ok := a.(*adapter); ok && len(errs) == 0 {
+		impl.excludeStaleNodesOnce()
+	}
+
 	return seeds, excludedIDs, errors.Join(errs...)
 }
 

@@ -61,34 +61,49 @@ type Adapter interface {
 	SendConnectivityReport() error
 }
 
+// NewAdapter creates a new Adapter. Options configure optional behaviour, such as
+// WithStaleNodeExclusion.
 func NewAdapter(
 	mqtt *fimpgo.MqttTransport,
 	eventManager event.Manager,
 	factory ThingFactory,
 	state State,
 	resourceName fimptype.ResourceNameT, resourceAddress string,
+	options ...Option,
 ) Adapter {
-	return &adapter{
-		name:      resourceName,
-		address:   resourceAddress,
-		things:    make(map[string]Thing),
-		factory:   factory,
-		state:     state,
-		publisher: NewPublisher(mqtt, eventManager, resourceName, resourceAddress),
-		lock:      &sync.RWMutex{},
+	a := &adapter{
+		name:       resourceName,
+		address:    resourceAddress,
+		things:     make(map[string]Thing),
+		factory:    factory,
+		state:      state,
+		mqtt:       mqtt,
+		publisher:  NewPublisher(mqtt, eventManager, resourceName, resourceAddress),
+		lock:       &sync.RWMutex{},
+		staleNodes: func() bool { return true },
 	}
+
+	for _, option := range options {
+		option(a)
+	}
+
+	return a
 }
 
 type adapter struct {
 	publisher Publisher
 	state     State
 	factory   ThingFactory
+	mqtt      *fimpgo.MqttTransport
 
 	name        fimptype.ResourceNameT
 	address     string
 	things      map[string]Thing
 	initialized bool
 	lock        *sync.RWMutex
+
+	staleNodes     func() bool
+	staleNodesOnce sync.Once
 }
 
 func (a *adapter) Name() fimptype.ResourceNameT {
