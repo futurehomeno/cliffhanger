@@ -137,7 +137,9 @@ func (a *app) Run() error {
 		<-signals
 		s := strings.Builder{}
 		if err := pprof.Lookup("goroutine").WriteTo(&s, 2); err == nil {
-			log.Warnf("[cliff] Goroutine dump:\n%s", utils.FilterGoroutinesByKeywords(s.String(), []string{"mutex", "semaphore", "panic", "lock"}))
+			if dump := utils.FilterGoroutinesByKeywords(s.String(), []string{"mutex", "semaphore", "panic", "lock"}); dump != "" {
+				log.Warnf("[cliff] Goroutine dump:\n%s", dump)
+			}
 		}
 
 		err = a.Stop()
