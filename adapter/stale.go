@@ -44,17 +44,25 @@ func (a *adapter) excludeStaleNodesOnce() {
 		return
 	}
 
-	a.staleNodesOnce.Do(func() {
-		// Asking the hub is a round trip over MQTT: a sweep must never hold up the sync it
-		// is triggered from, nor block it for the full timeout when nothing answers.
-		go a.excludeStaleNodes()
-	})
+	// Claimed rather than done once: a sweep whose hub fetch fails releases the claim so the
+	// next successful sync retries it, while the claim still keeps two sweeps from overlapping.
+	if !a.staleNodesSwept.CompareAndSwap(false, true) {
+		return
+	}
+
+	// Asking the hub is a round trip over MQTT: a sweep must never hold up the sync it
+	// is triggered from, nor block it for the full timeout when nothing answers.
+	go a.excludeStaleNodes()
 }
 
 func (a *adapter) excludeStaleNodes() {
 	excluded, err := ExcludeStaleNodes(a, prime.NewClient(fimpgo.NewSyncClient(a.mqtt), a.name, staleNodeTimeout))
 	if err != nil {
 		log.Errorf("[adapter] Exclude stale hub nodes. err: %v", err)
+
+		// The hub never answered, so nothing was swept: let a later sync try again rather than
+		// spending the single attempt on a timeout.
+		a.staleNodesSwept.Store(false)
 	}
 
 	for _, address := range excluded {

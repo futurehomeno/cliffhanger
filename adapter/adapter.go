@@ -5,6 +5,7 @@ import (
 	"errors"
 	"fmt"
 	"sync"
+	"sync/atomic"
 
 	"github.com/futurehomeno/fimpgo"
 	"github.com/futurehomeno/fimpgo/fimptype"
@@ -102,8 +103,8 @@ type adapter struct {
 	initialized bool
 	lock        *sync.RWMutex
 
-	staleNodes     func() bool
-	staleNodesOnce sync.Once
+	staleNodes      func() bool
+	staleNodesSwept atomic.Bool
 }
 
 func (a *adapter) Name() fimptype.ResourceNameT {
