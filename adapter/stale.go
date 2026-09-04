@@ -14,6 +14,11 @@ import (
 // staleNodeTimeout bounds the Vinculum request, which runs inline in a device sync.
 const staleNodeTimeout = 10 * time.Second
 
+// ErrStaleNodeFetch reports that the hub never answered, so no node was examined and the
+// sweep is worth retrying. A per-node exclusion failure does not wrap it: those nodes were
+// reached, and re-running the whole sweep would repeat the work that already succeeded.
+var ErrStaleNodeFetch = errors.New("adapter: fetch hub devices")
+
 // Option configures an adapter at construction time.
 type Option func(*adapter)
 
@@ -60,9 +65,12 @@ func (a *adapter) excludeStaleNodes() {
 	if err != nil {
 		log.Errorf("[adapter] Exclude stale hub nodes. err: %v", err)
 
-		// The hub never answered, so nothing was swept: let a later sync try again rather than
-		// spending the single attempt on a timeout.
-		a.staleNodesSwept.Store(false)
+		// Only a failed hub fetch means nothing was swept: let a later sync try again rather
+		// than spending the single attempt on a timeout. A partial exclusion failure keeps the
+		// claim, so the nodes that were excluded are not swept again on every later sync.
+		if errors.Is(err, ErrStaleNodeFetch) {
+			a.staleNodesSwept.Store(false)
+		}
 	}
 
 	for _, address := range excluded {
@@ -81,7 +89,7 @@ func (a *adapter) excludeStaleNodes() {
 func ExcludeStaleNodes(a Adapter, client prime.Client) ([]string, error) {
 	devices, err := client.GetDevices()
 	if err != nil {
-		return nil, fmt.Errorf("adapter: fetch hub devices: %w", err)
+		return nil, fmt.Errorf("%w: %w", ErrStaleNodeFetch, err)
 	}
 
 	var (

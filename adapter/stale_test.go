@@ -88,6 +88,7 @@ func TestExcludeStaleNodes_FetchFailureExcludesNothing(t *testing.T) {
 	excluded, err := adapter.ExcludeStaleNodes(a, c)
 
 	assert.ErrorIs(t, err, errHubDevices)
+	assert.ErrorIs(t, err, adapter.ErrStaleNodeFetch, "the sweep claim is released on this error alone")
 	assert.Empty(t, excluded)
 	a.AssertNotCalled(t, "DestroyThingByAddress", mock.Anything)
 }
@@ -105,6 +106,8 @@ func TestExcludeStaleNodes_ReportsFailuresAndKeepsGoing(t *testing.T) {
 	excluded, err := adapter.ExcludeStaleNodes(a, c)
 
 	assert.Error(t, err)
+	assert.NotErrorIs(t, err, adapter.ErrStaleNodeFetch,
+		"a partial failure must keep the claim, or every later sync re-excludes the nodes that worked")
 	assert.Equal(t, []string{"2"}, excluded)
 }
 

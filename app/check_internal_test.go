@@ -1,6 +1,7 @@
 package app
 
 import (
+	"sync/atomic"
 	"testing"
 	"time"
 
@@ -16,10 +17,12 @@ import (
 func TestSchedule_AfterCancelDoesNotResume(t *testing.T) {
 	t.Parallel()
 
-	var probes int
+	// Atomic because the probe would run on the timer goroutine in the buggy case, racing
+	// this goroutine's read below.
+	var probes atomic.Int64
 
 	c := NewConnectivityChecker(
-		func() error { probes++; return nil },
+		func() error { probes.Add(1); return nil },
 		lifecycle.New(nil),
 		nil,
 		CheckerConfig{},
@@ -31,6 +34,6 @@ func TestSchedule_AfterCancelDoesNotResume(t *testing.T) {
 
 	time.Sleep(100 * time.Millisecond)
 
-	assert.Zero(t, probes, "a recheck scheduled after Cancel must not probe")
+	assert.Zero(t, probes.Load(), "a recheck scheduled after Cancel must not probe")
 	assert.True(t, c.stale(), "a recheck must not clear the cancelled flag")
 }
