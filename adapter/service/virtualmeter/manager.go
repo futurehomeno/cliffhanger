@@ -170,7 +170,9 @@ func (m *manager) add(topic string, modes map[string]float64, unit string) error
 		// device's next real state change. A forced report always carries hasChanged=true,
 		// so it passes the filter and seeds them immediately.
 		for _, ls := range thing.Services(outlvlswitch.OutLvlSwitch) {
-			if levelSwitch, ok := ls.(outlvlswitch.Service); ok && ls.Topic() == topic {
+			// Matched on the service address alone: topic carries the virtual meter's own
+			// sv: segment, so comparing whole topics would never find the level switch.
+			if levelSwitch, ok := ls.(outlvlswitch.Service); ok && sameServiceAddress(ls.Topic(), topic) {
 				if _, err := levelSwitch.SendLevelReport(true); err != nil {
 					log.Warnf("[cliff] Force initial level report. topic: %s err: %v", topic, err)
 				}
@@ -515,6 +517,22 @@ func (m *manager) vmsAddressFromTopic(topic string) (string, error) {
 	}
 
 	return "", fmt.Errorf("manager: no vms service found using topic: %s", topic)
+}
+
+// sameServiceAddress reports whether two service topics address the same device channel,
+// ignoring the sv: segment that differs between a device's services.
+func sameServiceAddress(a, b string) bool {
+	aAddr, err := fimpgo.NewAddressFromString(a)
+	if err != nil {
+		return false
+	}
+
+	bAddr, err := fimpgo.NewAddressFromString(b)
+	if err != nil {
+		return false
+	}
+
+	return aAddr.ServiceAddress == bAddr.ServiceAddress
 }
 
 func (m *manager) normalizeOutLvlSwitchLevel(level int, serviceAddr string) (float64, error) {
