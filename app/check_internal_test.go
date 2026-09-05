@@ -37,3 +37,26 @@ func TestSchedule_AfterCancelDoesNotResume(t *testing.T) {
 	assert.Zero(t, probes.Load(), "a recheck scheduled after Cancel must not probe")
 	assert.True(t, c.stale(), "a recheck must not clear the cancelled flag")
 }
+
+// The recheck timer snapshots the cancelled flag, unlocks, then probes. A Cancel landing in
+// that gap must still stop the probe: the result would be discarded either way, but the call
+// itself must not reach the third-party API after a logout or reset.
+func TestCheck_CancelBetweenSnapshotAndProbeDoesNotProbe(t *testing.T) {
+	t.Parallel()
+
+	var probes atomic.Int64
+
+	c := NewConnectivityChecker(
+		func() error { probes.Add(1); return nil },
+		lifecycle.New(nil),
+		nil,
+		CheckerConfig{},
+	)
+
+	// Exactly the state the race leaves behind: the caller already read cancelled as false and
+	// released the lock, and Cancel commits before check() runs.
+	c.Cancel()
+	c.check()
+
+	assert.Zero(t, probes.Load(), "check must re-read the cancelled flag before probing")
+}

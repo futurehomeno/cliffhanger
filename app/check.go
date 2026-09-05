@@ -160,6 +160,13 @@ func (c *ConnectivityChecker) authorized() bool {
 // check performs the probe and applies its outcome; the caller must hold checkMu
 // and have cleared the cancelled flag while committing to this probe.
 func (c *ConnectivityChecker) check() {
+	// Re-read rather than trust the caller's snapshot: the recheck timer drops the lock before
+	// getting here, so a Cancel landing in that gap would otherwise still reach the third-party
+	// API after a logout or reset.
+	if c.stale() {
+		return
+	}
+
 	err := c.probe()
 
 	// A Cancel during the probe (logout or reset) makes its result stale, so it is discarded.
