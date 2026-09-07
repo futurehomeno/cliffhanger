@@ -74,12 +74,24 @@ The package SHALL provide voters reading the application lifecycle state:
 `WhenAppEncounteredStartupError` and `WhenAppEncounteredError` SHALL compare `APP_HEALTH` against
 `STARTING`, `NOT_CONFIGURED`, `RUNNING`, `TERMINATING`, `STARTUP_ERROR` and `ERROR` respectively;
 `WhenAppIsConnected` and `WhenAppIsDisconnected` SHALL compare `CONN_STATE` against `CONNECTED` and
-`DISCONNECTED`. `WhenNot` SHALL invert any voter. Each voter SHALL read the current state at vote
-time.
+`DISCONNECTED`; `WhenAppIsAuthenticated` and `WhenAppIsNotAuthenticated` SHALL compare `AUTH_STATE`
+against `AUTHENTICATED` and `NOT_AUTHENTICATED`. A voter comparing one axis SHALL ignore the other
+three, so guarding vendor-cloud work against both loss of authorization and loss of connectivity
+requires combining the auth and connectivity voters on the same task. Each voter SHALL read the
+current state at vote time.
 
 #### Scenario: polling only while running
 - **WHEN** a task guarded by `WhenAppIsRunning` ticks while app health is `NOT_CONFIGURED`
 - **THEN** the handler is skipped, and it resumes on the first tick after health becomes `RUNNING`
+
+#### Scenario: polling stops when authorization is lost
+- **WHEN** a task guarded by `WhenAppIsAuthenticated` ticks while `AUTH_STATE` is `LOST`
+- **THEN** the handler is skipped, so no request is made against the vendor cloud with credentials it has already rejected
+- **AND** it resumes on the first tick after a successful login sets `AUTH_STATE` to `AUTHENTICATED`
+
+#### Scenario: neither auth voter accepts an intermediate state
+- **WHEN** `AUTH_STATE` is `IN_PROGRESS`, `ERROR`, `LOST` or `NA`
+- **THEN** both `WhenAppIsAuthenticated` and `WhenAppIsNotAuthenticated` return false
 
 ### Requirement: In-Process Event Bus Scope
 The event bus SHALL deliver values only between components inside the adapter process. It SHALL NOT
