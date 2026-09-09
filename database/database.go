@@ -74,7 +74,18 @@ func prepareDatabase(workdir, filename string) (*buntdb.DB, error) {
 		return nil, fmt.Errorf("database: failed to create work directory: %w", err)
 	}
 
-	db, err := buntdb.Open(path.Join(workdir, filename+dbExtension))
+	dbPath := path.Join(workdir, filename+dbExtension)
+	recoveredPath := path.Join(workdir, filename+".db.recovered")
+
+	if _, err := os.Stat(dbPath); errors.Is(err, os.ErrNotExist) {
+		if _, err := os.Stat(recoveredPath); err == nil {
+			if err := os.Rename(recoveredPath, dbPath); err != nil {
+				return nil, fmt.Errorf("database: failed to restore recovered data file: %w", err)
+			}
+		}
+	}
+
+	db, err := buntdb.Open(dbPath)
 	if err != nil {
 		if errors.Is(err, buntdb.ErrInvalid) || errors.Is(err, io.ErrUnexpectedEOF) {
 			return recoverDatabase(workdir, filename)

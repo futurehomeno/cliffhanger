@@ -574,6 +574,10 @@ func (m *manager) createVirtualServicesForThing(t adapter.Thing, group string) (
 
 		switch s.(type) {
 		case outlvlswitch.Service:
+			if m.ad == nil {
+				return nil, nil
+			}
+
 			return Specification(
 					m.ad.Name(),
 					m.ad.Address(),

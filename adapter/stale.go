@@ -154,8 +154,10 @@ func belongsToAdapter(a Adapter, device *prime.Device) bool {
 			continue
 		}
 
-		return address.ResourceName == a.Name() &&
-			(address.ResourceAddress == "" || address.ResourceAddress == a.Address())
+		if address.ResourceName == a.Name() &&
+			(address.ResourceAddress == "" || address.ResourceAddress == a.Address()) {
+			return true
+		}
 	}
 
 	return false
