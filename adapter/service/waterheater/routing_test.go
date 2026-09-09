@@ -47,7 +47,7 @@ func TestRouteService(t *testing.T) { //nolint:paralleltest
 						Command: suite.StringMessage("pt:j1/mt:cmd/rt:dev/rn:test_adapter/ad:1/sv:water_heater/ad:2", "cmd.mode.set", "water_heater", "heat"),
 						Expectations: []*suite.Expectation{
 							suite.ExpectString("pt:j1/mt:evt/rt:dev/rn:test_adapter/ad:1/sv:water_heater/ad:2", "evt.mode.report", "water_heater", "heat"),
-							suite.ExpectObject("pt:j1/mt:evt/rt:dev/rn:test_adapter/ad:1/sv:water_heater/ad:2", "evt.setpoint.report", "water_heater", waterheater.NewSetpoint("heat", 65.5, "C")),
+							suite.ExpectStringMap("pt:j1/mt:evt/rt:dev/rn:test_adapter/ad:1/sv:water_heater/ad:2", "evt.setpoint.report", "water_heater", waterheater.NewSetpoint("heat", 65.5, "C").StringMap()),
 						},
 					},
 				},
@@ -102,9 +102,9 @@ func TestRouteService(t *testing.T) { //nolint:paralleltest
 				Nodes: []*suite.Node{
 					{
 						Name:    "set setpoint",
-						Command: suite.ObjectMessage("pt:j1/mt:cmd/rt:dev/rn:test_adapter/ad:1/sv:water_heater/ad:2", "cmd.setpoint.set", "water_heater", waterheater.NewSetpoint("heat", 65, "C")),
+						Command: suite.StringMapMessage("pt:j1/mt:cmd/rt:dev/rn:test_adapter/ad:1/sv:water_heater/ad:2", "cmd.setpoint.set", "water_heater", waterheater.NewSetpoint("heat", 65, "C").StringMap()),
 						Expectations: []*suite.Expectation{
-							suite.ExpectObject("pt:j1/mt:evt/rt:dev/rn:test_adapter/ad:1/sv:water_heater/ad:2", "evt.setpoint.report", "water_heater", waterheater.NewSetpoint("heat", 65, "C")),
+							suite.ExpectStringMap("pt:j1/mt:evt/rt:dev/rn:test_adapter/ad:1/sv:water_heater/ad:2", "evt.setpoint.report", "water_heater", waterheater.NewSetpoint("heat", 65, "C").StringMap()),
 						},
 					},
 				},
@@ -119,7 +119,7 @@ func TestRouteService(t *testing.T) { //nolint:paralleltest
 				Nodes: []*suite.Node{
 					{
 						Name:    "set setpoint",
-						Command: suite.ObjectMessage("pt:j1/mt:cmd/rt:dev/rn:test_adapter/ad:1/sv:water_heater/ad:2", "cmd.setpoint.set", "water_heater", waterheater.NewSetpoint("heat", 999, "C")),
+						Command: suite.StringMapMessage("pt:j1/mt:cmd/rt:dev/rn:test_adapter/ad:1/sv:water_heater/ad:2", "cmd.setpoint.set", "water_heater", waterheater.NewSetpoint("heat", 999, "C").StringMap()),
 						Expectations: []*suite.Expectation{
 							suite.ExpectError("pt:j1/mt:evt/rt:dev/rn:test_adapter/ad:1/sv:water_heater/ad:2", "water_heater"),
 						},
@@ -136,7 +136,7 @@ func TestRouteService(t *testing.T) { //nolint:paralleltest
 				Nodes: []*suite.Node{
 					{
 						Name:    "set setpoint",
-						Command: suite.ObjectMessage("pt:j1/mt:cmd/rt:dev/rn:test_adapter/ad:1/sv:water_heater/ad:2", "cmd.setpoint.set", "water_heater", waterheater.NewSetpoint("dummy", 50, "C")),
+						Command: suite.StringMapMessage("pt:j1/mt:cmd/rt:dev/rn:test_adapter/ad:1/sv:water_heater/ad:2", "cmd.setpoint.set", "water_heater", waterheater.NewSetpoint("dummy", 50, "C").StringMap()),
 						Expectations: []*suite.Expectation{
 							suite.ExpectError("pt:j1/mt:evt/rt:dev/rn:test_adapter/ad:1/sv:water_heater/ad:2", "water_heater"),
 						},
@@ -183,7 +183,7 @@ func TestRouteService(t *testing.T) { //nolint:paralleltest
 						Name:    "get setpoint report",
 						Command: suite.StringMessage("pt:j1/mt:cmd/rt:dev/rn:test_adapter/ad:1/sv:water_heater/ad:2", "cmd.setpoint.get_report", "water_heater", "heat"),
 						Expectations: []*suite.Expectation{
-							suite.ExpectObject("pt:j1/mt:evt/rt:dev/rn:test_adapter/ad:1/sv:water_heater/ad:2", "evt.setpoint.report", "water_heater", waterheater.NewSetpoint("heat", 45, "C")),
+							suite.ExpectStringMap("pt:j1/mt:evt/rt:dev/rn:test_adapter/ad:1/sv:water_heater/ad:2", "evt.setpoint.report", "water_heater", waterheater.NewSetpoint("heat", 45, "C").StringMap()),
 						},
 					},
 					{
@@ -241,14 +241,14 @@ func TestRouteService(t *testing.T) { //nolint:paralleltest
 				Nodes: []*suite.Node{
 					{
 						Name:    "set setpoint within per-mode range",
-						Command: suite.ObjectMessage("pt:j1/mt:cmd/rt:dev/rn:test_adapter/ad:1/sv:water_heater/ad:2", "cmd.setpoint.set", "water_heater", waterheater.NewSetpoint("eco", 45, "C")),
+						Command: suite.StringMapMessage("pt:j1/mt:cmd/rt:dev/rn:test_adapter/ad:1/sv:water_heater/ad:2", "cmd.setpoint.set", "water_heater", waterheater.NewSetpoint("eco", 45, "C").StringMap()),
 						Expectations: []*suite.Expectation{
-							suite.ExpectObject("pt:j1/mt:evt/rt:dev/rn:test_adapter/ad:1/sv:water_heater/ad:2", "evt.setpoint.report", "water_heater", waterheater.NewSetpoint("eco", 45, "C")),
+							suite.ExpectStringMap("pt:j1/mt:evt/rt:dev/rn:test_adapter/ad:1/sv:water_heater/ad:2", "evt.setpoint.report", "water_heater", waterheater.NewSetpoint("eco", 45, "C").StringMap()),
 						},
 					},
 					{
 						Name:    "set setpoint outside per-mode range but inside global range",
-						Command: suite.ObjectMessage("pt:j1/mt:cmd/rt:dev/rn:test_adapter/ad:1/sv:water_heater/ad:2", "cmd.setpoint.set", "water_heater", waterheater.NewSetpoint("eco", 60, "C")),
+						Command: suite.StringMapMessage("pt:j1/mt:cmd/rt:dev/rn:test_adapter/ad:1/sv:water_heater/ad:2", "cmd.setpoint.set", "water_heater", waterheater.NewSetpoint("eco", 60, "C").StringMap()),
 						Expectations: []*suite.Expectation{
 							suite.ExpectError("pt:j1/mt:evt/rt:dev/rn:test_adapter/ad:1/sv:water_heater/ad:2", "water_heater"),
 						},
@@ -303,7 +303,7 @@ func TestRouteService(t *testing.T) { //nolint:paralleltest
 					},
 					{
 						Name:    "non-existent thing on setting setpoint",
-						Command: suite.ObjectMessage("pt:j1/mt:cmd/rt:dev/rn:test_adapter/ad:1/sv:water_heater/ad:3", "cmd.setpoint.set", "water_heater", waterheater.NewSetpoint("heat", 50, "C")),
+						Command: suite.StringMapMessage("pt:j1/mt:cmd/rt:dev/rn:test_adapter/ad:1/sv:water_heater/ad:3", "cmd.setpoint.set", "water_heater", waterheater.NewSetpoint("heat", 50, "C").StringMap()),
 						Expectations: []*suite.Expectation{
 							suite.ExpectError("pt:j1/mt:evt/rt:dev/rn:test_adapter/ad:1/sv:water_heater/ad:3", "water_heater"),
 						},

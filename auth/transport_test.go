@@ -47,6 +47,13 @@ func TestTransport(t *testing.T) {
 	assert.NoError(t, err)
 	assert.NoError(t, resp.Body.Close())
 	assert.Equal(t, 1, unauthorized)
+
+	status = http.StatusForbidden
+
+	resp, err = client.Do(req)
+	assert.NoError(t, err)
+	assert.NoError(t, resp.Body.Close())
+	assert.Equal(t, 2, unauthorized)
 }
 
 func TestTransport_Redirects(t *testing.T) {

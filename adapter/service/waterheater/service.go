@@ -3,6 +3,7 @@ package waterheater
 import (
 	"fmt"
 	"math"
+	"strconv"
 	"sync"
 
 	"github.com/futurehomeno/fimpgo"
@@ -146,7 +147,7 @@ func (s *service) SetSetpoint(mode string, value float64, unit string) error {
 		return fmt.Errorf("%s: setpoint mode is unsupported: %s", s.Name(), mode)
 	}
 
-	normalizedValue, err := s.normalizeValue(mode, value)
+	normalizedValue, err := s.normalizeValue(normalizedMode, value)
 	if err != nil {
 		return fmt.Errorf("%s: setpoint value is incorrect: %w", s.Name(), err)
 	}
@@ -215,10 +216,10 @@ func (s *service) SendSetpointReport(mode string, force bool) (bool, error) {
 		return false, nil
 	}
 
-	message := fimpgo.NewObjectMessage(
+	message := fimpgo.NewStrMapMessage(
 		EvtSetpointReport,
 		s.Name(),
-		NewSetpoint(normalizedMode, value, unit),
+		NewSetpoint(normalizedMode, value, unit).StringMap(),
 		nil,
 		nil,
 		nil,
@@ -357,4 +358,40 @@ func NewSetpoint(mode string, temp float64, unit string) *Setpoint {
 		Temperature: temp,
 		Unit:        unit,
 	}
+}
+
+func (s *Setpoint) StringMap() map[string]string {
+	return map[string]string{
+		"type": s.Type,
+		"temp": strconv.FormatFloat(s.Temperature, 'f', 1, 64),
+		"unit": s.Unit,
+	}
+}
+
+func SetpointFromStringMap(input map[string]string) (*Setpoint, error) {
+	t, ok := input["type"]
+	if !ok {
+		return nil, fmt.Errorf("setpoint: missing `type` field in a string map")
+	}
+
+	unit, ok := input["unit"]
+	if !ok {
+		return nil, fmt.Errorf("setpoint: missing `unit` field in a string map")
+	}
+
+	tempStr, ok := input["temp"]
+	if !ok {
+		return nil, fmt.Errorf("setpoint: missing `temp` field in a string map")
+	}
+
+	temp, err := strconv.ParseFloat(tempStr, 64)
+	if err != nil {
+		return nil, fmt.Errorf("setpoint: cannot parse `temp` field %s: %w", tempStr, err)
+	}
+
+	return &Setpoint{
+		Type:        t,
+		Temperature: temp,
+		Unit:        unit,
+	}, nil
 }
