@@ -1,8 +1,13 @@
 package scenectrl_test
 
 import (
+	"fmt"
 	"testing"
 	"time"
+
+	"github.com/futurehomeno/cliffhanger/adapter"
+	logtest "github.com/sirupsen/logrus/hooks/test"
+	"github.com/stretchr/testify/assert"
 
 	"github.com/futurehomeno/fimpgo"
 
@@ -56,5 +61,40 @@ func taskSceneCtrl(
 		_, tasks, mocks := setupService(t, mqtt, controller, supportedScenes, interval)
 
 		return nil, tasks, mocks
+	}
+}
+
+func TestTaskReportingSkipsNotReported(t *testing.T) { //nolint:paralleltest
+	hook := logtest.NewGlobal()
+	defer hook.Reset()
+
+	s := &suite.Suite{
+		Cases: []*suite.Case{
+			{
+				Name:     "Scene not reported yet",
+				TearDown: adapterhelper.TearDownAdapter("../../testdata/adapter/test_adapter"),
+				Setup: taskSceneCtrl(
+					mockedscenectrl.NewController(t).
+						MockSceneCtrlSceneReport(scenectrl.SceneReport{}, fmt.Errorf("no button event: %w", adapter.ErrNotReported), false),
+					[]string{"scene1", "scene2"},
+					50*time.Millisecond,
+				),
+				Nodes: []*suite.Node{
+					{
+						Name:    "No report is sent",
+						Timeout: 300 * time.Millisecond,
+						Expectations: []*suite.Expectation{
+							suite.ExpectString("pt:j1/mt:evt/rt:dev/rn:test_adapter/ad:1/sv:scene_ctrl/ad:2", "evt.scene.report", "scene_ctrl", "").Never(),
+						},
+					},
+				},
+			},
+		},
+	}
+
+	s.Run(t)
+
+	for _, e := range hook.AllEntries() {
+		assert.NotContains(t, e.Message, "[scenectrl]", "a state not reported yet is skipped without logging")
 	}
 }

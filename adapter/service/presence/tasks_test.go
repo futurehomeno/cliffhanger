@@ -1,8 +1,13 @@
 package presence_test
 
 import (
+	"fmt"
 	"testing"
 	"time"
+
+	"github.com/futurehomeno/cliffhanger/adapter"
+	logtest "github.com/sirupsen/logrus/hooks/test"
+	"github.com/stretchr/testify/assert"
 
 	"github.com/futurehomeno/fimpgo"
 
@@ -54,5 +59,38 @@ func taskPresence(controller presence.Controller, interval time.Duration) suite.
 		_, tasks, mocks := setupService(t, mqtt, controller, interval)
 
 		return nil, tasks, mocks
+	}
+}
+
+func TestTaskReportingSkipsNotReported(t *testing.T) { //nolint:paralleltest
+	hook := logtest.NewGlobal()
+	defer hook.Reset()
+
+	s := &suite.Suite{
+		Cases: []*suite.Case{
+			{
+				Name:     "Presence not reported yet",
+				TearDown: adapterhelper.TearDownAdapter("../../testdata/adapter/test_adapter"),
+				Setup: taskPresence(
+					mockedpresence.NewController(t).MockSensorPresenceReport(false, fmt.Errorf("no state: %w", adapter.ErrNotReported), false),
+					50*time.Millisecond,
+				),
+				Nodes: []*suite.Node{
+					{
+						Name:    "No report is sent",
+						Timeout: 300 * time.Millisecond,
+						Expectations: []*suite.Expectation{
+							suite.ExpectBool("pt:j1/mt:evt/rt:dev/rn:test_adapter/ad:1/sv:sensor_presence/ad:2", "evt.presence.report", "sensor_presence", false).Never(),
+						},
+					},
+				},
+			},
+		},
+	}
+
+	s.Run(t)
+
+	for _, e := range hook.AllEntries() {
+		assert.NotContains(t, e.Message, "[presence]", "a state not reported yet is skipped without logging")
 	}
 }

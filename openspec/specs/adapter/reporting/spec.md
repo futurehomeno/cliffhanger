@@ -7,9 +7,7 @@ and connectivity reports are the only way the hub learns that a device went unre
 these reports are published on every boot and on every polling cycle, the capability also defines
 the deduplication rules — a persisted inclusion checksum and an in-memory reporting cache — that
 keep an idle adapter silent on the bus.
-
 ## Requirements
-
 ### Requirement: Inclusion Report Publication
 A thing SHALL publish its inclusion report as an `evt.thing.inclusion_report` object message on the
 adapter topic (`PublishAdapterMessage`), not on any per-service topic. After a successful publish
@@ -199,3 +197,17 @@ the next call refreshes.
 #### Scenario: Interval offset
 - **WHEN** a refresher is created with `WithDefaultIntervalOffset`
 - **THEN** its effective interval is 95% of the requested one, the default offset being 0.05
+
+### Requirement: Reporting Tasks Skip A State Not Reported Yet
+A controller SHALL return an error wrapping `adapter.ErrNotReported` when the device has not reported
+the requested state yet. The presence, numericsensor and scenectrl periodic reporting tasks SHALL
+skip such an error without logging it and SHALL keep logging every other error.
+
+#### Scenario: state not reported yet
+- **WHEN** a reporting task's controller returns an error wrapping `adapter.ErrNotReported`
+- **THEN** no report is sent and nothing is logged
+
+#### Scenario: other failure
+- **WHEN** a reporting task's controller returns any other error
+- **THEN** the task logs it as before
+

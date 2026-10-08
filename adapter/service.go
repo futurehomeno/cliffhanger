@@ -1,11 +1,17 @@
 package adapter
 
 import (
+	"errors"
+
 	"github.com/futurehomeno/fimpgo"
 	"github.com/futurehomeno/fimpgo/fimptype"
 
 	"github.com/futurehomeno/cliffhanger/task"
 )
+
+// ErrNotReported marks a state the device has not reported yet, so there is nothing to send.
+// The presence, numericsensor and scenectrl reporting tasks skip it without logging an error.
+var ErrNotReported = errors.New("state not reported yet")
 
 // Service is an interface representing a FIMP service.
 type Service interface {

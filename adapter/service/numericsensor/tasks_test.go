@@ -1,8 +1,12 @@
 package numericsensor_test
 
 import (
+	"fmt"
 	"testing"
 	"time"
+
+	logtest "github.com/sirupsen/logrus/hooks/test"
+	"github.com/stretchr/testify/assert"
 
 	"github.com/futurehomeno/fimpgo"
 	"github.com/futurehomeno/fimpgo/fimptype"
@@ -79,5 +83,42 @@ func taskSensor(reporter *mockednumericsensor.Reporter, interval time.Duration) 
 		ad := adapterhelper.PrepareSeededAdapter(t, "../../testdata/adapter/test_adapter", mqtt, factory, adapter.ThingSeeds{seed})
 
 		return nil, []*task.Task{numericsensor.TaskReporting(ad, interval)}, nil
+	}
+}
+
+func TestTaskReportingSkipsNotReported(t *testing.T) { //nolint:paralleltest
+	hook := logtest.NewGlobal()
+	defer hook.Reset()
+
+	notReported := fmt.Errorf("no state: %w", adapter.ErrNotReported)
+
+	s := &cliffSuite.Suite{
+		Cases: []*cliffSuite.Case{
+			{
+				Name:     "sensor not reported yet",
+				TearDown: adapterhelper.TearDownAdapter("../../testdata/adapter/test_adapter"),
+				Setup: taskSensor(
+					mockednumericsensor.NewReporter(t).
+						MockNumericSensorReport(numericsensor.UnitC, 0, notReported, false).
+						MockNumericSensorReport(numericsensor.UnitF, 0, notReported, false),
+					50*time.Millisecond,
+				),
+				Nodes: []*cliffSuite.Node{
+					{
+						Name:    "no report is sent",
+						Timeout: 300 * time.Millisecond,
+						Expectations: []*cliffSuite.Expectation{
+							cliffSuite.ExpectFloat(sensorEvtTopic, numericsensor.EvtSensorReport, sensorService, 0).Never(),
+						},
+					},
+				},
+			},
+		},
+	}
+
+	s.Run(t)
+
+	for _, e := range hook.AllEntries() {
+		assert.NotContains(t, e.Message, "[numericsensor]", "a state not reported yet is skipped without logging")
 	}
 }
