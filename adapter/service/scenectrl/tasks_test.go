@@ -2,15 +2,16 @@ package scenectrl_test
 
 import (
 	"fmt"
+	"strings"
 	"testing"
 	"time"
 
-	"github.com/futurehomeno/cliffhanger/adapter"
+	"github.com/futurehomeno/fimpgo"
+	log "github.com/sirupsen/logrus"
 	logtest "github.com/sirupsen/logrus/hooks/test"
 	"github.com/stretchr/testify/assert"
 
-	"github.com/futurehomeno/fimpgo"
-
+	"github.com/futurehomeno/cliffhanger/adapter"
 	"github.com/futurehomeno/cliffhanger/adapter/service/scenectrl"
 	"github.com/futurehomeno/cliffhanger/router"
 	"github.com/futurehomeno/cliffhanger/task"
@@ -65,8 +66,10 @@ func taskSceneCtrl(
 }
 
 func TestTaskReportingSkipsNotReported(t *testing.T) { //nolint:paralleltest
+	old := log.StandardLogger().ReplaceHooks(make(log.LevelHooks))
+	defer log.StandardLogger().ReplaceHooks(old)
+
 	hook := logtest.NewGlobal()
-	defer hook.Reset()
 
 	s := &suite.Suite{
 		Cases: []*suite.Case{
@@ -75,6 +78,7 @@ func TestTaskReportingSkipsNotReported(t *testing.T) { //nolint:paralleltest
 				TearDown: adapterhelper.TearDownAdapter("../../testdata/adapter/test_adapter"),
 				Setup: taskSceneCtrl(
 					mockedscenectrl.NewController(t).
+						MockSceneCtrlSceneReport(scenectrl.SceneReport{}, errTest, true).
 						MockSceneCtrlSceneReport(scenectrl.SceneReport{}, fmt.Errorf("no button event: %w", adapter.ErrNotReported), false),
 					[]string{"scene1", "scene2"},
 					50*time.Millisecond,
@@ -84,7 +88,7 @@ func TestTaskReportingSkipsNotReported(t *testing.T) { //nolint:paralleltest
 						Name:    "No report is sent",
 						Timeout: 300 * time.Millisecond,
 						Expectations: []*suite.Expectation{
-							suite.ExpectString("pt:j1/mt:evt/rt:dev/rn:test_adapter/ad:1/sv:scene_ctrl/ad:2", "evt.scene.report", "scene_ctrl", "").Never(),
+							suite.ExpectMessage("pt:j1/mt:evt/rt:dev/rn:test_adapter/ad:1/sv:scene_ctrl/ad:2", "evt.scene.report", "scene_ctrl").Never(),
 						},
 					},
 				},
@@ -94,7 +98,13 @@ func TestTaskReportingSkipsNotReported(t *testing.T) { //nolint:paralleltest
 
 	s.Run(t)
 
+	logged := 0
+
 	for _, e := range hook.AllEntries() {
-		assert.NotContains(t, e.Message, "[scenectrl]", "a state not reported yet is skipped without logging")
+		if strings.Contains(e.Message, "[scenectrl]") {
+			logged++
+		}
 	}
+
+	assert.Equal(t, 1, logged, "only the other error is logged, never the state not reported yet")
 }

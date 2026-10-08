@@ -1,15 +1,17 @@
 package numericsensor_test
 
 import (
+	"errors"
 	"fmt"
+	"strings"
 	"testing"
 	"time"
 
-	logtest "github.com/sirupsen/logrus/hooks/test"
-	"github.com/stretchr/testify/assert"
-
 	"github.com/futurehomeno/fimpgo"
 	"github.com/futurehomeno/fimpgo/fimptype"
+	log "github.com/sirupsen/logrus"
+	logtest "github.com/sirupsen/logrus/hooks/test"
+	"github.com/stretchr/testify/assert"
 
 	"github.com/futurehomeno/cliffhanger/adapter"
 	"github.com/futurehomeno/cliffhanger/adapter/service/numericsensor"
@@ -87,8 +89,10 @@ func taskSensor(reporter *mockednumericsensor.Reporter, interval time.Duration) 
 }
 
 func TestTaskReportingSkipsNotReported(t *testing.T) { //nolint:paralleltest
+	old := log.StandardLogger().ReplaceHooks(make(log.LevelHooks))
+	defer log.StandardLogger().ReplaceHooks(old)
+
 	hook := logtest.NewGlobal()
-	defer hook.Reset()
 
 	notReported := fmt.Errorf("no state: %w", adapter.ErrNotReported)
 
@@ -99,6 +103,7 @@ func TestTaskReportingSkipsNotReported(t *testing.T) { //nolint:paralleltest
 				TearDown: adapterhelper.TearDownAdapter("../../testdata/adapter/test_adapter"),
 				Setup: taskSensor(
 					mockednumericsensor.NewReporter(t).
+						MockNumericSensorReport(numericsensor.UnitC, 0, errors.New("other"), true).
 						MockNumericSensorReport(numericsensor.UnitC, 0, notReported, false).
 						MockNumericSensorReport(numericsensor.UnitF, 0, notReported, false),
 					50*time.Millisecond,
@@ -108,7 +113,7 @@ func TestTaskReportingSkipsNotReported(t *testing.T) { //nolint:paralleltest
 						Name:    "no report is sent",
 						Timeout: 300 * time.Millisecond,
 						Expectations: []*cliffSuite.Expectation{
-							cliffSuite.ExpectFloat(sensorEvtTopic, numericsensor.EvtSensorReport, sensorService, 0).Never(),
+							cliffSuite.ExpectMessage(sensorEvtTopic, numericsensor.EvtSensorReport, sensorService).Never(),
 						},
 					},
 				},
@@ -118,7 +123,13 @@ func TestTaskReportingSkipsNotReported(t *testing.T) { //nolint:paralleltest
 
 	s.Run(t)
 
+	logged := 0
+
 	for _, e := range hook.AllEntries() {
-		assert.NotContains(t, e.Message, "[numericsensor]", "a state not reported yet is skipped without logging")
+		if strings.Contains(e.Message, "[numericsensor]") {
+			logged++
+		}
 	}
+
+	assert.Equal(t, 1, logged, "only the other error is logged, never the state not reported yet")
 }

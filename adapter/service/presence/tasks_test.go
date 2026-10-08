@@ -2,15 +2,16 @@ package presence_test
 
 import (
 	"fmt"
+	"strings"
 	"testing"
 	"time"
 
-	"github.com/futurehomeno/cliffhanger/adapter"
+	"github.com/futurehomeno/fimpgo"
+	log "github.com/sirupsen/logrus"
 	logtest "github.com/sirupsen/logrus/hooks/test"
 	"github.com/stretchr/testify/assert"
 
-	"github.com/futurehomeno/fimpgo"
-
+	"github.com/futurehomeno/cliffhanger/adapter"
 	"github.com/futurehomeno/cliffhanger/adapter/service/presence"
 	"github.com/futurehomeno/cliffhanger/router"
 	"github.com/futurehomeno/cliffhanger/task"
@@ -63,8 +64,10 @@ func taskPresence(controller presence.Controller, interval time.Duration) suite.
 }
 
 func TestTaskReportingSkipsNotReported(t *testing.T) { //nolint:paralleltest
+	old := log.StandardLogger().ReplaceHooks(make(log.LevelHooks))
+	defer log.StandardLogger().ReplaceHooks(old)
+
 	hook := logtest.NewGlobal()
-	defer hook.Reset()
 
 	s := &suite.Suite{
 		Cases: []*suite.Case{
@@ -72,7 +75,9 @@ func TestTaskReportingSkipsNotReported(t *testing.T) { //nolint:paralleltest
 				Name:     "Presence not reported yet",
 				TearDown: adapterhelper.TearDownAdapter("../../testdata/adapter/test_adapter"),
 				Setup: taskPresence(
-					mockedpresence.NewController(t).MockSensorPresenceReport(false, fmt.Errorf("no state: %w", adapter.ErrNotReported), false),
+					mockedpresence.NewController(t).
+						MockSensorPresenceReport(false, errTest, true).
+						MockSensorPresenceReport(false, fmt.Errorf("no state: %w", adapter.ErrNotReported), false),
 					50*time.Millisecond,
 				),
 				Nodes: []*suite.Node{
@@ -80,7 +85,7 @@ func TestTaskReportingSkipsNotReported(t *testing.T) { //nolint:paralleltest
 						Name:    "No report is sent",
 						Timeout: 300 * time.Millisecond,
 						Expectations: []*suite.Expectation{
-							suite.ExpectBool("pt:j1/mt:evt/rt:dev/rn:test_adapter/ad:1/sv:sensor_presence/ad:2", "evt.presence.report", "sensor_presence", false).Never(),
+							suite.ExpectMessage("pt:j1/mt:evt/rt:dev/rn:test_adapter/ad:1/sv:sensor_presence/ad:2", "evt.presence.report", "sensor_presence").Never(),
 						},
 					},
 				},
@@ -90,7 +95,13 @@ func TestTaskReportingSkipsNotReported(t *testing.T) { //nolint:paralleltest
 
 	s.Run(t)
 
+	logged := 0
+
 	for _, e := range hook.AllEntries() {
-		assert.NotContains(t, e.Message, "[presence]", "a state not reported yet is skipped without logging")
+		if strings.Contains(e.Message, "[presence]") {
+			logged++
+		}
 	}
+
+	assert.Equal(t, 1, logged, "only the other error is logged, never the state not reported yet")
 }
