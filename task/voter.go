@@ -80,3 +80,17 @@ func WhenAppIsDisconnected(l *lifecycle.Lifecycle) Voter {
 		return l.ConnectionState() == lifecycle.ConnStateDisconnected
 	})
 }
+
+// WhenAppIsAuthenticated is a task voter allowing a task to run only if relevant state is met.
+func WhenAppIsAuthenticated(l *lifecycle.Lifecycle) Voter {
+	return VoterFn(func() bool {
+		return l.AuthState() == lifecycle.AuthStateAuthenticated
+	})
+}
+
+// WhenAppIsNotAuthenticated is a task voter allowing a task to run only if relevant state is met.
+func WhenAppIsNotAuthenticated(l *lifecycle.Lifecycle) Voter {
+	return VoterFn(func() bool {
+		return l.AuthState() == lifecycle.AuthStateNotAuthenticated
+	})
+}

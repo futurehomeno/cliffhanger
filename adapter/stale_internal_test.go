@@ -40,8 +40,8 @@ func TestExcludeStaleNodesOnce_SkipsBeforeInitialization(t *testing.T) {
 }
 
 // TestExcludeStaleNodesOnce_FalsePredicateDoesNotConsumeOnce pins the runtime-toggle fix: a sync
-// that runs while the sweep is disabled must leave sync.Once free so a later sync can still
-// enable it. Probing the once with Do avoids launching the MQTT sweep itself.
+// that runs while the sweep is disabled must leave the sweep claim free so a later sync can still
+// enable it.
 func TestExcludeStaleNodesOnce_FalsePredicateDoesNotConsumeOnce(t *testing.T) {
 	t.Parallel()
 
@@ -56,7 +56,23 @@ func TestExcludeStaleNodesOnce_FalsePredicateDoesNotConsumeOnce(t *testing.T) {
 	a.excludeStaleNodesOnce()
 	a.excludeStaleNodesOnce()
 
-	available := false
-	a.staleNodesOnce.Do(func() { available = true })
-	assert.True(t, available, "disabling the sweep must not permanently spend the once")
+	assert.False(t, a.staleNodesSwept.Load(), "disabling the sweep must not permanently spend the claim")
+}
+
+// TestExcludeStaleNodes_FailedFetchReleasesClaim pins that a hub fetch failure leaves the sweep
+// retryable: the claim exists to stop overlapping sweeps, not to spend the single attempt on a
+// Vinculum timeout and leave stale nodes behind until the process restarts.
+func TestExcludeStaleNodes_FailedFetchReleasesClaim(t *testing.T) {
+	t.Parallel()
+
+	a := &adapter{
+		lock:        &sync.RWMutex{},
+		things:      map[string]Thing{},
+		initialized: true,
+	}
+
+	a.staleNodesSwept.Store(true)
+	a.excludeStaleNodes()
+
+	assert.False(t, a.staleNodesSwept.Load(), "a failed hub fetch must leave the sweep retryable")
 }

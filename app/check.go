@@ -160,6 +160,13 @@ func (c *ConnectivityChecker) authorized() bool {
 // check performs the probe and applies its outcome; the caller must hold checkMu
 // and have cleared the cancelled flag while committing to this probe.
 func (c *ConnectivityChecker) check() {
+	// Re-read rather than trust the caller's snapshot: the recheck timer drops the lock before
+	// getting here, so a Cancel landing in that gap would otherwise still reach the third-party
+	// API after a logout or reset.
+	if c.stale() {
+		return
+	}
+
 	err := c.probe()
 
 	// A Cancel during the probe (logout or reset) makes its result stale, so it is discarded.
@@ -318,6 +325,12 @@ func (c *ConnectivityChecker) schedule(delay time.Duration) {
 		return
 	}
 
+	// A Cancel that landed after this probe passed stale() found no timer to stop, so arming one
+	// here would resume a checker that logout or reset has torn down. Only CheckNow resumes it.
+	if c.cancelled {
+		return
+	}
+
 	log.Infof("[app] Check failed, retrying in %s", delay)
 
 	// The callback compares timer identity to detect a Cancel that raced its firing.
@@ -336,10 +349,14 @@ func (c *ConnectivityChecker) schedule(delay time.Duration) {
 			return
 		}
 		c.timer = nil
-		// Cleared in the same critical section that commits this recheck, so a Cancel
-		// racing the firing timer is either seen here or discarded later via stale().
-		c.cancelled = false
+		// A Cancel racing the firing timer is discarded later via stale(). The flag is not
+		// cleared here: this recheck must not resume a checker that Cancel tore down.
+		cancelled := c.cancelled
 		c.mu.Unlock()
+
+		if cancelled {
+			return
+		}
 
 		c.check()
 	})
