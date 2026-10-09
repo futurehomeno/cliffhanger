@@ -124,6 +124,33 @@ func TestApp_Run(t *testing.T) { //nolint:paralleltest
 	}
 }
 
+func TestApp_WaitAfterRestartIgnoresPreviousStopResult(t *testing.T) { //nolint:paralleltest
+	service := mockedroot.NewService(t).MockStart(nil)
+	service.On("Stop").Return(errors.New("first stop")).Once()
+	service.On("Stop").Return(nil).Once()
+
+	app, err := root.NewEdgeAppBuilder().
+		WithMQTT(suite.DefaultMQTT("root_app_restart", "", "", "")).
+		WithLifecycle(lifecycle.New(nil)).
+		WithServiceDiscovery("test_app", discovery.ResourceTypeApp, "test_app", "1", "1.0.0").
+		WithServices(service).
+		Build()
+	require.NoError(t, err)
+
+	require.NoError(t, app.Start())
+	require.Error(t, app.Stop())
+	require.NoError(t, app.Start())
+
+	go func() {
+		time.Sleep(100 * time.Millisecond)
+
+		_ = app.Stop()
+	}()
+
+	assert.NoError(t, app.Wait())
+	service.AssertExpectations(t)
+}
+
 // TestApp_Run_AuthLossWatcherSubscribesBeforeFirstTaskProbe guards against a startup race:
 // the auth-loss watcher must subscribe before the task manager starts, so a
 // WhenAppIsRunning-gated task cannot fire and lose auth before the watcher can observe it.

@@ -161,6 +161,12 @@ func (a *app) doStart() (err error) {
 		return nil
 	}
 
+	// A stop result buffered with no Wait() pending belongs to the previous run.
+	select {
+	case <-a.errCh:
+	default:
+	}
+
 	log.Info("[cliff] Start app")
 
 	logBootstrapDirs()

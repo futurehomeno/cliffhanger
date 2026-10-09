@@ -7,7 +7,6 @@ import (
 
 	"github.com/futurehomeno/fimpgo"
 	"github.com/futurehomeno/fimpgo/fimptype"
-	log "github.com/sirupsen/logrus"
 
 	"github.com/futurehomeno/cliffhanger/adapter"
 	"github.com/futurehomeno/cliffhanger/adapter/cache"
@@ -60,12 +59,7 @@ func NewService(
 		cfg.ReportingStrategy = cache.ReportOnChangeOnly()
 	}
 
-	mr, ok := cfg.Manager.(*manager)
-	if !ok {
-		log.Errorf("[cliff] Manager cast failed")
-
-		return nil
-	}
+	mr := cfg.Manager.(*manager) //nolint:forcetypeassert
 
 	s := &service{
 		Service:           adapter.NewService(publisher, cfg.Specification),
