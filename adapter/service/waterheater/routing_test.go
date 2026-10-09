@@ -278,6 +278,20 @@ func TestRouteService(t *testing.T) { //nolint:paralleltest
 						},
 					},
 					{
+						Name:    "NaN temperature on setting setpoint",
+						Command: suite.StringMapMessage("pt:j1/mt:cmd/rt:dev/rn:test_adapter/ad:1/sv:water_heater/ad:2", "cmd.setpoint.set", "water_heater", map[string]string{"type": "heat", "temp": "NaN", "unit": "C"}),
+						Expectations: []*suite.Expectation{
+							suite.ExpectError("pt:j1/mt:evt/rt:dev/rn:test_adapter/ad:1/sv:water_heater/ad:2", "water_heater"),
+						},
+					},
+					{
+						Name:    "Inf temperature on setting setpoint",
+						Command: suite.StringMapMessage("pt:j1/mt:cmd/rt:dev/rn:test_adapter/ad:1/sv:water_heater/ad:2", "cmd.setpoint.set", "water_heater", map[string]string{"type": "heat", "temp": "+Inf", "unit": "C"}),
+						Expectations: []*suite.Expectation{
+							suite.ExpectError("pt:j1/mt:evt/rt:dev/rn:test_adapter/ad:1/sv:water_heater/ad:2", "water_heater"),
+						},
+					},
+					{
 						Name:    "non-string value on getting setpoint report",
 						Command: suite.BoolMessage("pt:j1/mt:cmd/rt:dev/rn:test_adapter/ad:1/sv:water_heater/ad:2", "cmd.setpoint.get_report", "water_heater", true),
 						Expectations: []*suite.Expectation{

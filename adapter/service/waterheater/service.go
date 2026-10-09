@@ -389,6 +389,10 @@ func SetpointFromStringMap(input map[string]string) (*Setpoint, error) {
 		return nil, fmt.Errorf("setpoint: cannot parse `temp` field %s: %w", tempStr, err)
 	}
 
+	if math.IsNaN(temp) || math.IsInf(temp, 0) {
+		return nil, fmt.Errorf("setpoint: invalid `temp` field %s", tempStr)
+	}
+
 	return &Setpoint{
 		Type:        t,
 		Temperature: temp,
