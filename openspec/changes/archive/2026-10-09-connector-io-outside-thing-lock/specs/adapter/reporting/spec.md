@@ -20,3 +20,7 @@ calls.
 - **WHEN** `SendConnectivityReport` is waiting on `Connectivity()` and another connectivity report,
   connectivity read or ping starts on the same thing
 - **THEN** the second call reaches the connector only after the first report has been published
+
+#### Scenario: A connector call panics
+- **WHEN** `Ping()` or `Connectivity()` panics and the caller recovers
+- **THEN** later connector calls on the thing still run

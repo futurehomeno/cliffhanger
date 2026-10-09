@@ -128,3 +128,27 @@ func TestThing_ConnectorCallsSerialized(t *testing.T) {
 		})
 	}
 }
+
+type panickingConnector struct{}
+
+func (panickingConnector) Connectivity() *ConnectivityDetails { return &ConnectivityDetails{} }
+func (panickingConnector) Ping() *PingDetails                 { panic("ping failed") }
+
+// The router recovers a handler's panic, so a connector call that panics must not leave the
+// thing's connector lock held for every later report.
+func TestThing_PingPanicReleasesConnectorLock(t *testing.T) {
+	t.Parallel()
+
+	th := NewThing(stubPublisher{}, nil, &ThingConfig{
+		InclusionReport: &fimptype.ThingInclusionReport{Address: "1"},
+		Connector:       panickingConnector{},
+	})
+
+	func() {
+		defer func() { _ = recover() }()
+
+		_ = th.SendPingReport()
+	}()
+
+	waitFor(t, runAsync(func() { th.ConnectivityReport() }), "a report after the panicking ping")
+}

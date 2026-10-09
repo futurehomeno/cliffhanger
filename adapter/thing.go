@@ -276,12 +276,7 @@ func (t *thing) SendConnectivityReport(force bool) (bool, error) {
 }
 
 func (t *thing) SendPingReport() error {
-	t.connectorLock.Lock()
-	ts := time.Now()
-	pingDetails := t.connector.Ping()
-	t.connectorLock.Unlock()
-
-	delay := int(time.Since(ts).Truncate(time.Millisecond) / time.Millisecond)
+	delay, pingDetails := t.ping()
 
 	report := &PingReport{
 		Address:     t.Address(),
@@ -304,6 +299,16 @@ func (t *thing) SendPingReport() error {
 	}
 
 	return nil
+}
+
+func (t *thing) ping() (int, *PingDetails) {
+	t.connectorLock.Lock()
+	defer t.connectorLock.Unlock()
+
+	ts := time.Now()
+	pingDetails := t.connector.Ping()
+
+	return int(time.Since(ts).Truncate(time.Millisecond) / time.Millisecond), pingDetails
 }
 
 // If the thing is already connected, this method does nothing.
