@@ -217,19 +217,19 @@ func (t *thing) SendInclusionReport(force bool) (bool, error) {
 	return true, nil
 }
 
+// The connector is called without the lock: it may wait on a device or a cloud, and holding the
+// lock across that stalls every other caller on the thing.
 func (t *thing) ConnectivityReport() *ConnectivityReport {
-	t.lock.Lock()
-	defer t.lock.Unlock()
-
 	connectivityDetails := t.connector.Connectivity()
+	inclusionReport := t.InclusionReport()
 
 	report := &ConnectivityReport{
-		Address:             t.Address(),
-		Hash:                t.inclusionReport.ProductHash,
-		Alias:               t.inclusionReport.ProductName,
-		PowerSource:         t.inclusionReport.PowerSource,
-		WakeupInterval:      t.inclusionReport.WakeUpInterval,
-		CommTechnology:      t.inclusionReport.CommTechnology,
+		Address:             inclusionReport.Address,
+		Hash:                inclusionReport.ProductHash,
+		Alias:               inclusionReport.ProductName,
+		PowerSource:         inclusionReport.PowerSource,
+		WakeupInterval:      inclusionReport.WakeUpInterval,
+		CommTechnology:      inclusionReport.CommTechnology,
 		ConnectivityDetails: connectivityDetails,
 	}
 
@@ -271,9 +271,6 @@ func (t *thing) SendConnectivityReport(force bool) (bool, error) {
 }
 
 func (t *thing) SendPingReport() error {
-	t.lock.RLock()
-	defer t.lock.RUnlock()
-
 	ts := time.Now()
 
 	pingDetails := t.connector.Ping()

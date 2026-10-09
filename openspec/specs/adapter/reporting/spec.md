@@ -7,9 +7,7 @@ and connectivity reports are the only way the hub learns that a device went unre
 these reports are published on every boot and on every polling cycle, the capability also defines
 the deduplication rules — a persisted inclusion checksum and an in-memory reporting cache — that
 keep an idle adapter silent on the bus.
-
 ## Requirements
-
 ### Requirement: Inclusion Report Publication
 A thing SHALL publish its inclusion report as an `evt.thing.inclusion_report` object message on the
 adapter topic (`PublishAdapterMessage`), not on any per-service topic. After a successful publish
@@ -199,3 +197,17 @@ the next call refreshes.
 #### Scenario: Interval offset
 - **WHEN** a refresher is created with `WithDefaultIntervalOffset`
 - **THEN** its effective interval is 95% of the requested one, the default offset being 0.05
+
+### Requirement: Connector Calls Outside The Thing Lock
+A thing SHALL call its connector's `Connectivity()` and `Ping()` without holding the thing's lock,
+because a connector may wait on a device or a cloud and the lock would stall every other caller on
+the thing for that long.
+
+#### Scenario: Connectivity is slow
+- **WHEN** `Connectivity()` is blocked inside `ConnectivityReport` or `SendConnectivityReport`
+- **THEN** `Update` and other calls that lock the thing still complete
+
+#### Scenario: Ping is slow
+- **WHEN** `Ping()` is blocked inside `SendPingReport`
+- **THEN** `Update` and other calls that lock the thing still complete
+
