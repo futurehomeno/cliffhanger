@@ -1,7 +1,6 @@
 package battery_test
 
 import (
-	"errors"
 	"fmt"
 	"strings"
 	"testing"
@@ -74,9 +73,9 @@ func TestTaskReportingSkipsNotReported(t *testing.T) { //nolint:paralleltest
 				TearDown: adapterhelper.TearDownAdapter("../../testdata/adapter/test_adapter"),
 				Setup: taskBattery(
 					mockedbattery.NewReporter(t).
-						MockBatteryLevelReport(0, errors.New("other"), true).
+						MockBatteryLevelReport(0, errTest, true).
 						MockBatteryLevelReport(0, notReported, false).
-						MockBatteryAlarmReport(nil, battery.AlarmEventLowBattery, errors.New("other"), true).
+						MockBatteryAlarmReport(nil, battery.AlarmEventLowBattery, errTest, true).
 						MockBatteryAlarmReport(nil, battery.AlarmEventLowBattery, notReported, false),
 					50*time.Millisecond,
 				),

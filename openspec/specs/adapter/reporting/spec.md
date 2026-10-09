@@ -7,7 +7,9 @@ and connectivity reports are the only way the hub learns that a device went unre
 these reports are published on every boot and on every polling cycle, the capability also defines
 the deduplication rules — a persisted inclusion checksum and an in-memory reporting cache — that
 keep an idle adapter silent on the bus.
+
 ## Requirements
+
 ### Requirement: Inclusion Report Publication
 A thing SHALL publish its inclusion report as an `evt.thing.inclusion_report` object message on the
 adapter topic (`PublishAdapterMessage`), not on any per-service topic. After a successful publish
@@ -207,11 +209,6 @@ SHALL skip such an error without logging it and SHALL keep logging every other e
 - **WHEN** a reporting task's controller returns an error wrapping `adapter.ErrNotReported`
 - **THEN** no report is sent and nothing is logged
 
-#### Scenario: battery level not reported yet
-- **WHEN** a battery controller returns an error wrapping `adapter.ErrNotReported` for the level or the alarm
-- **THEN** no battery report is sent and nothing is logged
-
 #### Scenario: other failure
 - **WHEN** a reporting task's controller returns any other error
 - **THEN** the task logs it as before
-

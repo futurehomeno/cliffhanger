@@ -10,7 +10,7 @@ import (
 )
 
 // ErrNotReported marks a state the device has not reported yet, so there is nothing to send.
-// The presence, numericsensor, scenectrl and battery reporting tasks skip it without logging an error.
+// Periodic reporting tasks skip it without logging an error.
 var ErrNotReported = errors.New("state not reported yet")
 
 // Service is an interface representing a FIMP service.
