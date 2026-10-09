@@ -7,9 +7,12 @@ concurrent ping - queued behind that I/O. A shutdown landing in that window prin
 goroutine in the SIGTERM goroutine dump, which reads like a deadlock.
 
 ## What Changes
-- `ConnectivityReport` calls the connector without the lock and reads the inclusion report under
-  the read lock.
+- `ConnectivityReport` calls the connector without the thing lock.
 - `SendPingReport` calls the connector and publishes without the lock.
+- A per-thing connector lock keeps connector calls one at a time and covers
+  `SendConnectivityReport` from reading to publishing, so reports stay in order and connectors
+  written for the old locking are never called concurrently. `SendConnectivityReport` no longer
+  takes the thing lock at all.
 
 ## Impact
 - Specs: `adapter/reporting` gains a requirement that connector calls run outside the thing lock.

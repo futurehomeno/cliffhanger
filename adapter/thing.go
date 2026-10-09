@@ -126,6 +126,9 @@ type thing struct {
 	inclusionReport               *fimptype.ThingInclusionReport
 	services                      map[string]Service
 	lock                          *sync.RWMutex
+	// connectorLock, not lock, guards connector calls and the reporting cache: a slow device or cloud
+	// must not stall the thing, yet a stale connectivity report must never follow a fresher one.
+	connectorLock sync.Mutex
 }
 
 func (t *thing) Address() string {
@@ -217,20 +220,22 @@ func (t *thing) SendInclusionReport(force bool) (bool, error) {
 	return true, nil
 }
 
-// The connector is called without the lock: it may wait on a device or a cloud, and holding the
-// lock across that stalls every other caller on the thing.
 func (t *thing) ConnectivityReport() *ConnectivityReport {
-	connectivityDetails := t.connector.Connectivity()
-	inclusionReport := t.InclusionReport()
+	t.connectorLock.Lock()
+	defer t.connectorLock.Unlock()
 
+	return t.connectivityReport()
+}
+
+func (t *thing) connectivityReport() *ConnectivityReport {
 	report := &ConnectivityReport{
-		Address:             inclusionReport.Address,
-		Hash:                inclusionReport.ProductHash,
-		Alias:               inclusionReport.ProductName,
-		PowerSource:         inclusionReport.PowerSource,
-		WakeupInterval:      inclusionReport.WakeUpInterval,
-		CommTechnology:      inclusionReport.CommTechnology,
-		ConnectivityDetails: connectivityDetails,
+		Address:             t.Address(),
+		Hash:                t.inclusionReport.ProductHash,
+		Alias:               t.inclusionReport.ProductName,
+		PowerSource:         t.inclusionReport.PowerSource,
+		WakeupInterval:      t.inclusionReport.WakeUpInterval,
+		CommTechnology:      t.inclusionReport.CommTechnology,
+		ConnectivityDetails: t.connector.Connectivity(),
 	}
 
 	report.sanitize()
@@ -240,10 +245,10 @@ func (t *thing) ConnectivityReport() *ConnectivityReport {
 
 // If force is true, report is sent even if it did not change from previously sent one.
 func (t *thing) SendConnectivityReport(force bool) (bool, error) {
-	report := t.ConnectivityReport()
+	t.connectorLock.Lock()
+	defer t.connectorLock.Unlock()
 
-	t.lock.Lock()
-	defer t.lock.Unlock()
+	report := t.connectivityReport()
 
 	t.publisher.PublishThingEvent(newConnectivityEvent(t, report.ConnectivityDetails))
 
@@ -271,9 +276,10 @@ func (t *thing) SendConnectivityReport(force bool) (bool, error) {
 }
 
 func (t *thing) SendPingReport() error {
+	t.connectorLock.Lock()
 	ts := time.Now()
-
 	pingDetails := t.connector.Ping()
+	t.connectorLock.Unlock()
 
 	delay := int(time.Since(ts).Truncate(time.Millisecond) / time.Millisecond)
 
