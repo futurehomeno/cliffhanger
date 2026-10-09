@@ -165,6 +165,10 @@ func (s *service) SendBatteryAlarmReport(event string, force bool) (bool, error)
 		return false, nil
 	}
 
+	normalized := *alarm
+	normalized.Event = normalizedEvent
+	alarm = &normalized
+
 	if !force && !s.reportingCache.ReportRequired(s.reportingStrategy, EvtAlarmReport, alarm.Event, alarm) {
 		return false, nil
 	}

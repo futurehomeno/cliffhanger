@@ -101,11 +101,14 @@ func HandleCmdSetpointSet(adapter adapter.ServiceRegistry) router.MessageHandler
 				return nil, fmt.Errorf("incorrect service found under the provided address: %s", message.Addr.ServiceAddress)
 			}
 
-			setpoint := &Setpoint{}
-
-			err := message.Payload.GetObjectValue(setpoint)
+			value, err := message.Payload.GetStrMapValue()
 			if err != nil {
-				return nil, fmt.Errorf("provided setpoint object has an incorrect format: %w", err)
+				return nil, fmt.Errorf("provided setpoint string map has an incorrect format: %w", err)
+			}
+
+			setpoint, err := SetpointFromStringMap(value)
+			if err != nil {
+				return nil, fmt.Errorf("provided setpoint string map has an incorrect format: %w", err)
 			}
 
 			err = waterHeater.SetSetpoint(setpoint.Type, setpoint.Temperature, setpoint.Unit)

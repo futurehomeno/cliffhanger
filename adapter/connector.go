@@ -85,6 +85,10 @@ type ConnectivityReport struct {
 }
 
 func (c *ConnectivityReport) sanitize() {
+	if c.ConnectivityDetails == nil {
+		c.ConnectivityDetails = &ConnectivityDetails{}
+	}
+
 	if c.ConnQuality == "" {
 		c.ConnQuality = ConnQualityUndefined
 	}

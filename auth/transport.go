@@ -43,7 +43,8 @@ func (t *Transport) RoundTrip(req *http.Request) (*http.Response, error) {
 	req = &clone
 
 	resp, err := base.RoundTrip(req)
-	if err == nil && resp.StatusCode == http.StatusUnauthorized && t.OnUnauthorized != nil {
+	if err == nil && t.OnUnauthorized != nil &&
+		(resp.StatusCode == http.StatusUnauthorized || resp.StatusCode == http.StatusForbidden) {
 		t.OnUnauthorized()
 	}
 

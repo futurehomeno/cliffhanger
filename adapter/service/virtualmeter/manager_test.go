@@ -819,7 +819,6 @@ func TestManager_RegisterDevice(t *testing.T) { //nolint:paralleltest
 	cases := []struct {
 		name        string
 		thing       adapter.Thing
-		adapter     adapter.Adapter
 		deviceKey   string
 		device      *Device
 		expectError bool
@@ -829,7 +828,6 @@ func TestManager_RegisterDevice(t *testing.T) { //nolint:paralleltest
 			thing: mockedadapter.NewThing(t).
 				WithInclusionReported(&fimptype.ThingInclusionReport{Address: addr, Groups: []string{"ch1"}}, true).
 				WithServices("", true, []adapter.Service{}),
-			adapter:     mockedadapter.NewAdapter(t),
 			expectError: false,
 		},
 		{
@@ -860,11 +858,6 @@ func TestManager_RegisterDevice(t *testing.T) { //nolint:paralleltest
 					},
 				}).
 				WithServices("", true, []adapter.Service{outLvlSwitchServiceFullAddr}),
-			adapter: mockedadapter.NewAdapter(t).
-				WithName("test", true).
-				WithName("test", true).
-				WithAddress(addr, true).
-				WithAddress(addr, true),
 			expectError: false,
 		},
 		{
@@ -874,11 +867,6 @@ func TestManager_RegisterDevice(t *testing.T) { //nolint:paralleltest
 				WithServices(VirtualMeterElec, true, []adapter.Service{}).
 				WithServices("", true, []adapter.Service{outLvlSwitchServiceFullAddr}).
 				WithUpdate(true, errors.New("some")),
-			adapter: mockedadapter.NewAdapter(t).
-				WithName("test", true).
-				WithName("test", true).
-				WithAddress(addr, true).
-				WithAddress(addr, true),
 			expectError: true,
 		},
 		{
@@ -889,11 +877,6 @@ func TestManager_RegisterDevice(t *testing.T) { //nolint:paralleltest
 				WithServices("", true, []adapter.Service{outLvlSwitchServiceFullAddr}).
 				WithUpdate(true, nil).
 				WithUpdate(true, nil),
-			adapter: mockedadapter.NewAdapter(t).
-				WithName("test", true).
-				WithName("test", true).
-				WithAddress(addr, true).
-				WithAddress(addr, true),
 			deviceKey: "/rt:dev/rn:test/ad:test/sv:virtual_meter_elec/ad:test_ch1",
 			device: &Device{
 				Modes: map[string]float64{ModeOn: 123},
@@ -907,11 +890,6 @@ func TestManager_RegisterDevice(t *testing.T) { //nolint:paralleltest
 				WithServices(VirtualMeterElec, true, []adapter.Service{}).
 				WithServices("", true, []adapter.Service{outLvlSwitchServiceFullAddr}).
 				WithUpdate(true, nil),
-			adapter: mockedadapter.NewAdapter(t).
-				WithName("test", true).
-				WithName("test", true).
-				WithAddress(addr, true).
-				WithAddress(addr, true),
 			deviceKey: "/rt:dev/rn:test/ad:test/sv:virtual_meter_elec/ad:test_ch1",
 			device: &Device{
 				Modes: nil,
@@ -930,8 +908,6 @@ func TestManager_RegisterDevice(t *testing.T) { //nolint:paralleltest
 
 			mr := NewManager(db, time.Second, time.Hour)
 			m := mr.(*manager) //nolint:forcetypeassert
-			m.ad = c.adapter
-
 			m.virtualServices = make(map[string]adapter.Service)
 
 			// pre-creating the state of the device represented by services.

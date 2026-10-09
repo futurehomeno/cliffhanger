@@ -161,6 +161,12 @@ func (a *app) doStart() (err error) {
 		return nil
 	}
 
+	// A stop result buffered with no Wait() pending belongs to the previous run.
+	select {
+	case <-a.errCh:
+	default:
+	}
+
 	log.Info("[cliff] Start app")
 
 	logBootstrapDirs()
@@ -299,6 +305,7 @@ func (a *app) startAuthLossWatcher(tel telemetry.Telemetry) {
 				report, armed = nextAuthArm(armed, event.State)
 				if report {
 					a.reportAuthLoss(tel, event.Params["reason"])
+					armed = a.lifecycle.AuthState() == lifecycle.AuthStateAuthenticated
 				}
 
 			case <-a.authWatcherStopCh:
