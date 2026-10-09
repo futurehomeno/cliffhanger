@@ -574,13 +574,9 @@ func (m *manager) createVirtualServicesForThing(t adapter.Thing, group string) (
 
 		switch s.(type) {
 		case outlvlswitch.Service:
-			if m.ad == nil {
-				return nil, nil
-			}
-
 			return Specification(
-					m.ad.Name(),
-					m.ad.Address(),
+					addr.ResourceName,
+					addr.ResourceAddress,
 					addr.ServiceAddress,
 					[]string{group},
 					[]numericmeter.Unit{numericmeter.UnitW},
@@ -588,8 +584,8 @@ func (m *manager) createVirtualServicesForThing(t adapter.Thing, group string) (
 				),
 				numericmeter.Specification(
 					numericmeter.MeterElec,
-					m.ad.Name(),
-					m.ad.Address(),
+					addr.ResourceName,
+					addr.ResourceAddress,
 					addr.ServiceAddress,
 					[]string{group},
 					[]numericmeter.Unit{numericmeter.UnitW, numericmeter.UnitKWh},
