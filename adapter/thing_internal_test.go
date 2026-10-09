@@ -1,6 +1,7 @@
 package adapter
 
 import (
+	"sync/atomic"
 	"testing"
 	"time"
 
@@ -129,26 +130,48 @@ func TestThing_ConnectorCallsSerialized(t *testing.T) {
 	}
 }
 
-type panickingConnector struct{}
+// panickingConnector panics on its first call only, so a later call shows whether the lock was released.
+type panickingConnector struct{ panicked atomic.Bool }
 
-func (panickingConnector) Connectivity() *ConnectivityDetails { return &ConnectivityDetails{} }
-func (panickingConnector) Ping() *PingDetails                 { panic("ping failed") }
+func (c *panickingConnector) Connectivity() *ConnectivityDetails {
+	c.panicOnce()
+
+	return &ConnectivityDetails{}
+}
+
+func (c *panickingConnector) Ping() *PingDetails {
+	c.panicOnce()
+
+	return &PingDetails{}
+}
+
+func (c *panickingConnector) panicOnce() {
+	if !c.panicked.Swap(true) {
+		panic("connector failed")
+	}
+}
 
 // The router recovers a handler's panic, so a connector call that panics must not leave the
 // thing's connector lock held for every later report.
-func TestThing_PingPanicReleasesConnectorLock(t *testing.T) {
+func TestThing_ConnectorPanicReleasesConnectorLock(t *testing.T) {
 	t.Parallel()
 
-	th := NewThing(stubPublisher{}, nil, &ThingConfig{
-		InclusionReport: &fimptype.ThingInclusionReport{Address: "1"},
-		Connector:       panickingConnector{},
-	})
+	for name, call := range connectorCalls {
+		t.Run(name, func(t *testing.T) {
+			t.Parallel()
 
-	func() {
-		defer func() { _ = recover() }()
+			th := NewThing(stubPublisher{}, nil, &ThingConfig{
+				InclusionReport: &fimptype.ThingInclusionReport{Address: "1"},
+				Connector:       &panickingConnector{},
+			})
 
-		_ = th.SendPingReport()
-	}()
+			func() {
+				defer func() { _ = recover() }()
 
-	waitFor(t, runAsync(func() { th.ConnectivityReport() }), "a report after the panicking ping")
+				call(th)
+			}()
+
+			waitFor(t, runAsync(func() { th.ConnectivityReport() }), "a report after the panicking call")
+		})
+	}
 }
