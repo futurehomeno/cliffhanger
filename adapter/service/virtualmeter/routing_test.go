@@ -200,7 +200,15 @@ func routeService(duration, recalculatingPeriod time.Duration) suite.BaseSetup {
 	return func(t *testing.T, mqtt *fimpgo.MqttTransport) ([]*router.Routing, []*task.Task, []suite.Mock) {
 		t.Helper()
 
-		return setupService(t, mqtt, duration, recalculatingPeriod)
+		return setupService(t, mqtt, duration, recalculatingPeriod, adapter.ConnStatusUp)
+	}
+}
+
+func routeServiceWithStatus(duration time.Duration, status adapter.ConnStatusT) suite.BaseSetup {
+	return func(t *testing.T, mqtt *fimpgo.MqttTransport) ([]*router.Routing, []*task.Task, []suite.Mock) {
+		t.Helper()
+
+		return setupService(t, mqtt, duration, time.Second, status)
 	}
 }
 
@@ -209,6 +217,7 @@ func setupService(
 	mqtt *fimpgo.MqttTransport,
 	duration time.Duration,
 	recalculatingPeriod time.Duration,
+	status adapter.ConnStatusT,
 ) ([]*router.Routing, []*task.Task, []suite.Mock) {
 	t.Helper()
 
@@ -218,7 +227,12 @@ func setupService(
 			Address: "2",
 			Groups:  []string{"ch1"},
 		},
-		Connector: mockedadapter.NewConnector(t),
+		Connector: mockedadapter.NewConnector(t).MockConnectivity(&adapter.ConnectivityDetails{ConnStatus: status}, false),
+	}
+
+	controller := mockedoutlvlswitch.NewController(t)
+	if levelReport := controller.On("LevelSwitchLevelReport").Return(1, nil); status == adapter.ConnStatusDown {
+		levelReport.Maybe()
 	}
 
 	db, err := database.NewDatabase(workdir)
@@ -241,8 +255,7 @@ func setupService(
 			publisher,
 			&outlvlswitch.Config{
 				Specification: outLvlSwitchSpec,
-				Controller: mockedoutlvlswitch.NewController(t).
-					MockLevelSwitchLevelReport(1, nil, false),
+				Controller:    controller,
 			},
 		)
 

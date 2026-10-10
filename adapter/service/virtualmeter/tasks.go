@@ -51,7 +51,7 @@ func handleStatePolling(sr adapter.ServiceRegistry) func() {
 	return func() {
 		for _, s := range sr.Services(outlvlswitch.OutLvlSwitch) {
 			levelSwitch, ok := s.(outlvlswitch.Service)
-			if !ok {
+			if !ok || adapter.ShouldSkipServiceTask(sr, levelSwitch) {
 				continue
 			}
 
