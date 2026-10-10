@@ -158,3 +158,18 @@ func (m *refreshMock) mockRefresh(want any, err error, once bool) *refreshMock {
 
 	return m
 }
+
+func TestRefresher_BackoffWrapsLastError(t *testing.T) {
+	t.Parallel()
+
+	cause := errors.New("myuplink: 503")
+	refresher := cache.NewRefresher(newRefreshMock().mockRefresh(nil, cause, true).refresh, time.Minute, cache.WithDefaultBackoff())
+
+	_, err := refresher.Refresh()
+	assert.ErrorIs(t, err, cause)
+
+	_, err = refresher.Refresh()
+	assert.ErrorIs(t, err, cache.ErrBackoff)
+	assert.ErrorIs(t, err, cause)
+	assert.ErrorContains(t, err, "refresher: backoff is in effect: last error: myuplink: 503")
+}

@@ -103,7 +103,7 @@ func (s *service) SendSensorReport(unit string, force bool) (bool, error) {
 		return false, fmt.Errorf("%s: unit is unsupported: %s", s.Name(), unit)
 	}
 
-	value, err := s.sensor.NumericSensorReport(unit)
+	value, err := s.sensor.NumericSensorReport(normalizedUnit)
 	if err != nil {
 		return false, fmt.Errorf("%s: failed to retrieve sensor report: %w", s.Name(), err)
 	}
