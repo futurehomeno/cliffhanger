@@ -159,7 +159,7 @@ func (c *ConnectivityChecker) authorized() bool {
 
 // check performs the probe and applies its outcome; the caller must hold checkMu.
 func (c *ConnectivityChecker) check() {
-	// The recheck timer drops the lock before getting here, so a Cancel landing in that gap would
+	// The recheck timer releases c.mu before getting here, so a Cancel landing in that gap would
 	// otherwise still reach the third-party API after a logout or reset.
 	if c.stale() {
 		return
