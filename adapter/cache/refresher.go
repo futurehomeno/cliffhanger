@@ -17,7 +17,8 @@ const (
 	defaultFinalBackoff     = 5 * time.Minute
 )
 
-// ErrBackoff is matched by the error a refresher returns while backoff is in effect.
+// ErrBackoff is matched by the error a refresher returns while backoff is in effect. That error also
+// wraps the last refresh error, so check ErrBackoff first to tell a replayed cause from a fresh failure.
 var ErrBackoff = errors.New("refresher: backoff is in effect")
 
 type Refresh[T any] func() (T, error)
@@ -163,6 +164,7 @@ func (r *refresher[T]) Refresh() (T, error) {
 	r.lastRefresh = time.Now()
 	r.failureCount = 0
 	r.lastFailure = time.Time{}
+	r.lastErr = nil
 
 	return r.value, nil
 }

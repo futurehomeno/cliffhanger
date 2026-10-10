@@ -171,5 +171,5 @@ func TestRefresher_BackoffWrapsLastError(t *testing.T) {
 	_, err = refresher.Refresh()
 	assert.ErrorIs(t, err, cache.ErrBackoff)
 	assert.ErrorIs(t, err, cause)
-	assert.ErrorContains(t, err, "refresher: backoff is in effect")
+	assert.ErrorContains(t, err, "refresher: backoff is in effect: last error: myuplink: 503")
 }
