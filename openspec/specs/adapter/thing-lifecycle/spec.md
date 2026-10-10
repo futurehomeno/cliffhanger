@@ -7,9 +7,7 @@ seed-driven presence reconciliation (`EnsureThings`), service-topology drift rep
 (`RebuildChangedThings`), the generic `SyncThings` flow, and the announcement of inclusion and
 exclusion reports to the hub. Every adapter in the fleet depends on these invariants, so a
 violation shows up as duplicated, ghosted or silently stale hub nodes.
-
 ## Requirements
-
 ### Requirement: Thing Factory Contract
 `ThingFactory.Create` SHALL be side-effect-free beyond the `Thing` it returns, and SHALL NOT call
 back into the `Adapter` it is handed. `RebuildChangedThings` invokes it speculatively on a
@@ -338,3 +336,12 @@ to the same service.
 #### Scenario: topic lookup from an inbound message
 - **WHEN** `ServiceByTopic` is given the full MQTT topic of an inbound command
 - **THEN** the prefix ahead of `/rt:dev/rn:` is cut and the matching service is returned
+
+### Requirement: Stale Sweep Claims Only Wholly Owned Devices
+The stale sweep SHALL treat a hub device as this adapter's only when every service whose topic names
+a resource name names this adapter, and the instance, when present, is this adapter's.
+
+#### Scenario: a device mixing services of two adapters
+- **WHEN** a hub device has one service on this adapter's resource name and another on a different one
+- **THEN** the sweep does not exclude it
+

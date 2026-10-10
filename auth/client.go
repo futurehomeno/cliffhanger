@@ -162,7 +162,7 @@ func (c *proxyClient) requestToken(r *http.Request) (*OAuth2TokenResponse, error
 	}
 
 	if tokenResponse.AccessToken == "" {
-		return nil, errors.New("proxy proxyClient: empty access token")
+		return nil, fmt.Errorf("proxy proxyClient: empty access token: %w", httpclient.ErrUnauthorized)
 	}
 
 	return tokenResponse, nil

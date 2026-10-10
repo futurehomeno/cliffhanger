@@ -8,9 +8,7 @@ four-file contract (`service.go`, `specification.go`, `routing.go`, `tasks.go`),
 author learns one shape and reuses it across all 19 packages. This capability defines that shared
 contract — specification building, reporting deduplication, routing and periodic tasks — plus the
 behaviour specific to the service families that deviate from it.
-
 ## Requirements
-
 ### Requirement: Service Package Structure
 Every service package SHALL expose, at minimum, a `Controller` or `Reporter` interface for the
 adapter author to implement, a `Service` interface embedding `adapter.Service`, a `Config` struct
@@ -365,3 +363,17 @@ represented. The package SHALL define the fault event names shared with the zigb
 #### Scenario: reporter spelling is normalised
 - **WHEN** the reporter returns a report whose `Event` differs in case from the advertised event
 - **THEN** the published payload and the cache key both use the advertised spelling
+
+### Requirement: Setpoint String Map Validation
+`thermostat.SetpointFromStringMap` SHALL reject a `temp` that parses to NaN or ±Inf. The water heater
+SHALL use the same setpoint type and helpers. Its setpoint report cache SHALL be keyed by the
+normalized mode.
+
+#### Scenario: NaN setpoint on a thermostat
+- **WHEN** `cmd.setpoint.set` carries `temp` "NaN"
+- **THEN** the command is rejected and the controller is not called
+
+#### Scenario: setpoint mode sent in another case
+- **WHEN** a water heater setpoint is set with type "HEAT" and the periodic task then reports "heat" unchanged
+- **THEN** no second report is published
+

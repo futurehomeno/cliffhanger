@@ -62,3 +62,23 @@ func TestProxyClient_RateLimitedExchangeIsNotRetried(t *testing.T) {
 	assert.ErrorIs(t, err, httpclient.ErrTooManyRequests)
 	assert.Equal(t, 1, requests, "a rate-limited exchange must not be retried locally")
 }
+
+func TestProxyClient_EmptyAccessTokenIsARejection(t *testing.T) {
+	t.Parallel()
+
+	requests := 0
+
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		requests++
+
+		_, err := w.Write([]byte(`{"error":"invalid_grant"}`))
+		assert.NoError(t, err)
+	}))
+	defer srv.Close()
+
+	client := auth.NewProxyClient(&auth.ProxyClientConfig{URL: srv.URL, Retry: 2, RetryDelay: time.Millisecond})
+
+	_, err := client.ExchangeRefreshToken("refresh")
+	assert.ErrorIs(t, err, httpclient.ErrUnauthorized)
+	assert.Equal(t, 1, requests, "an empty access token must not be retried locally")
+}

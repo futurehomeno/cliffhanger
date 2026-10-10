@@ -3,7 +3,6 @@ package waterheater
 import (
 	"fmt"
 	"math"
-	"strconv"
 	"sync"
 
 	"github.com/futurehomeno/fimpgo"
@@ -11,6 +10,7 @@ import (
 
 	"github.com/futurehomeno/cliffhanger/adapter"
 	"github.com/futurehomeno/cliffhanger/adapter/cache"
+	"github.com/futurehomeno/cliffhanger/adapter/service/thermostat"
 	"github.com/futurehomeno/cliffhanger/utils"
 )
 
@@ -212,7 +212,7 @@ func (s *service) SendSetpointReport(mode string, force bool) (bool, error) {
 		return false, fmt.Errorf("%s: failed to retrieve setpoint report for mode %s: %w", s.Name(), normalizedMode, err)
 	}
 
-	if !force && !s.reportingCache.ReportRequired(s.reportingStrategy, EvtSetpointReport, mode, value) {
+	if !force && !s.reportingCache.ReportRequired(s.reportingStrategy, EvtSetpointReport, normalizedMode, value) {
 		return false, nil
 	}
 
@@ -230,7 +230,7 @@ func (s *service) SendSetpointReport(mode string, force bool) (bool, error) {
 		return false, fmt.Errorf("%s: failed to send state report: %w", s.Name(), err)
 	}
 
-	s.reportingCache.Reported(EvtSetpointReport, mode, value)
+	s.reportingCache.Reported(EvtSetpointReport, normalizedMode, value)
 
 	return true, nil
 }
@@ -344,58 +344,10 @@ func (s *service) supportedRange(mode string) *Range {
 	return nil
 }
 
-// Setpoint is an object representing a water heater setpoint.
-type Setpoint struct {
-	Type        string  `json:"type"`
-	Temperature float64 `json:"temp"`
-	Unit        string  `json:"unit"`
-}
+// Setpoint is a water heater setpoint; it shares the thermostat's str_map wire format.
+type Setpoint = thermostat.Setpoint
 
-// NewSetpoint create a new setpoint object.
-func NewSetpoint(mode string, temp float64, unit string) *Setpoint {
-	return &Setpoint{
-		Type:        mode,
-		Temperature: temp,
-		Unit:        unit,
-	}
-}
-
-func (s *Setpoint) StringMap() map[string]string {
-	return map[string]string{
-		"type": s.Type,
-		"temp": strconv.FormatFloat(s.Temperature, 'f', 1, 64),
-		"unit": s.Unit,
-	}
-}
-
-func SetpointFromStringMap(input map[string]string) (*Setpoint, error) {
-	t, ok := input["type"]
-	if !ok {
-		return nil, fmt.Errorf("setpoint: missing `type` field in a string map")
-	}
-
-	unit, ok := input["unit"]
-	if !ok {
-		return nil, fmt.Errorf("setpoint: missing `unit` field in a string map")
-	}
-
-	tempStr, ok := input["temp"]
-	if !ok {
-		return nil, fmt.Errorf("setpoint: missing `temp` field in a string map")
-	}
-
-	temp, err := strconv.ParseFloat(tempStr, 64)
-	if err != nil {
-		return nil, fmt.Errorf("setpoint: cannot parse `temp` field %s: %w", tempStr, err)
-	}
-
-	if math.IsNaN(temp) || math.IsInf(temp, 0) {
-		return nil, fmt.Errorf("setpoint: invalid `temp` field %s", tempStr)
-	}
-
-	return &Setpoint{
-		Type:        t,
-		Temperature: temp,
-		Unit:        unit,
-	}, nil
-}
+var (
+	NewSetpoint           = thermostat.NewSetpoint
+	SetpointFromStringMap = thermostat.SetpointFromStringMap
+)
