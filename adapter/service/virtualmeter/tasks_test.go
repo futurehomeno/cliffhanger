@@ -18,7 +18,7 @@ func TestTaskReporting(t *testing.T) {
 			{
 				Name:     "",
 				TearDown: adapterhelper.TearDownAdapter(workdir),
-				Setup:    routeService(time.Millisecond*50, time.Second),
+				Setup:    routeService(time.Millisecond*50, adapter.ConnStatusUp),
 				Nodes: []*suite.Node{
 					{
 						Name: "should report empty modes when nothing set",
@@ -122,7 +122,7 @@ func TestTaskStatePolling_SkipsThingDown(t *testing.T) { //nolint:paralleltest
 			{
 				Name:     "level switch of a thing that is down is not polled",
 				TearDown: adapterhelper.TearDownAdapter(workdir),
-				Setup:    routeServiceWithStatus(time.Millisecond*50, adapter.ConnStatusDown),
+				Setup:    routeService(time.Millisecond*50, adapter.ConnStatusDown),
 				Nodes: []*suite.Node{
 					{
 						Name:    "modes are still reported, the level is not",
