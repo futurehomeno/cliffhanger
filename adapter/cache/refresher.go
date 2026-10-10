@@ -1,6 +1,7 @@
 package cache
 
 import (
+	"errors"
 	"fmt"
 	"sync"
 	"time"
@@ -15,6 +16,9 @@ const (
 	defaultRepeatedBackoff  = 1 * time.Minute
 	defaultFinalBackoff     = 5 * time.Minute
 )
+
+// ErrBackoff is matched by the error a refresher returns while backoff is in effect.
+var ErrBackoff = errors.New("refresher: backoff is in effect")
 
 type Refresh[T any] func() (T, error)
 
@@ -114,6 +118,7 @@ type refresher[T any] struct {
 	value        T
 	lastRefresh  time.Time
 	lastFailure  time.Time
+	lastErr      error
 	failureCount int
 
 	refresh Refresh[T]
@@ -140,12 +145,13 @@ func (r *refresher[T]) Refresh() (T, error) {
 	if r.shouldBackoff() {
 		var def T
 
-		return def, fmt.Errorf("refresher: backoff is in effect")
+		return def, fmt.Errorf("%w: last error: %w", ErrBackoff, r.lastErr)
 	}
 
 	val, err := r.refresh()
 	if err != nil {
 		r.lastFailure = time.Now()
+		r.lastErr = err
 		r.failureCount++
 
 		var def T
