@@ -207,8 +207,10 @@ caller without sending the request. `Base` SHALL default to `http.DefaultTranspo
 SHALL be dropped for the remainder of a redirect chain as soon as any hop changed host or
 downgraded from `https` to plaintext, and a hop the transport cannot verify — one whose
 `Response.Request` or its URL is nil, as produced by a synthesizing `Base` — SHALL count as
-stripped. When the response status is 401 and `OnUnauthorized` is set, the callback SHALL be
-invoked.
+stripped. A stripped hop SHALL be forwarded to `Base` unchanged, without asking the `TokenSource`
+for a token and without invoking `OnUnauthorized`. When a bearer-carrying request gets a 401 or 403
+response and `OnUnauthorized` is set, the callback SHALL be invoked; a round-trip error SHALL NOT
+invoke it.
 
 #### Scenario: Redirect to another host
 - **WHEN** a request is the result of a redirect from a different host
@@ -221,6 +223,10 @@ invoked.
 #### Scenario: No token available
 - **WHEN** `TokenSource.AccessToken` returns an error
 - **THEN** `RoundTrip` returns that error and performs no HTTP request
+
+#### Scenario: Forbidden response
+- **WHEN** a request carrying the bearer is answered with 403
+- **THEN** `OnUnauthorized` is invoked exactly as for a 401
 
 ### Requirement: JWT Expiry Inspection
 `auth.TokenExpirationDate` SHALL parse a JWT without verifying its signature and return the `exp`
@@ -242,4 +248,15 @@ SHALL return an error and a zero time.
 #### Scenario: proxy answers 200 without a token
 - **WHEN** a refresh exchange returns 200 with an empty `access_token`
 - **THEN** an error matching `httpclient.ErrUnauthorized` is returned after a single attempt
+
+### Requirement: Successful Exchange Ends A Rejection Streak
+A successful `ExchangeRefreshToken` SHALL clear any open rejection streak, whether or not the new
+credentials could be persisted afterwards, so a later rejection starts a fresh `UnauthorizedGrace`
+window instead of inheriting the elapsed time of the refuted one.
+
+#### Scenario: Rejection, success, rejection
+- **WHEN** a refresh is rejected inside the grace window, the next refresh succeeds and a later
+  refresh is rejected again after the original grace would have elapsed
+- **THEN** the later rejection is still inside a fresh grace window and authorization loss is not
+  concluded
 

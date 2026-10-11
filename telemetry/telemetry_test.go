@@ -1133,14 +1133,17 @@ func setupTelChannel(t *testing.T, name string) (telemetry.Telemetry, fimpgo.Mes
 	return tel, ch
 }
 
-func assertPublished(t *testing.T, ch fimpgo.MessageCh, msg string) {
+func assertPublished(t *testing.T, ch fimpgo.MessageCh, msg string) *fimpgo.Message {
 	t.Helper()
 
 	select {
-	case <-ch:
+	case m := <-ch:
+		return m
 	case <-time.After(2 * time.Second):
 		t.Fatal(msg)
 	}
+
+	return nil
 }
 
 func assertNotPublished(t *testing.T, ch fimpgo.MessageCh, msg string) {
@@ -1407,4 +1410,116 @@ func TestStartAfterStop_RearmsValidityTimer(t *testing.T) { //nolint:paralleltes
 
 	require.NoError(t, tel.Start())
 	assert.False(t, tel.IsEnabled(), "a restart must re-evaluate and expire the validity window")
+}
+
+func readEvent(t *testing.T, ch fimpgo.MessageCh) telemetry.Event {
+	t.Helper()
+
+	var ev telemetry.Event
+	require.NoError(t, assertPublished(t, ch, "expected telemetry message not received").Payload.GetObjectValue(&ev))
+
+	return ev
+}
+
+func TestEmitRebootMilestone_OnlyPositiveMultiplesOf500(t *testing.T) { //nolint:paralleltest
+	tel, ch := setupTelChannel(t, "reboot_milestone")
+
+	for _, count := range []int{0, -500, 1, 499, 501} {
+		telemetry.EmitRebootMilestone(tel, count)
+	}
+
+	assertNotPublished(t, ch, "non-milestone boots must not publish")
+
+	telemetry.EmitRebootMilestone(tel, 1000)
+
+	ev := readEvent(t, ch)
+	assert.Equal(t, telemetry.DomainReboot, ev.Domain)
+	assert.Equal(t, telemetry.EventRebootMilestone, ev.Event)
+	assert.InDelta(t, 1000, ev.Data["count"], 0)
+}
+
+func TestRecoverAndEmit_NonFatalPanicIsReportedAndSwallowed(t *testing.T) { //nolint:paralleltest
+	tel, ch := setupTelChannel(t, "recover_nonfatal")
+
+	assert.NotPanics(t, func() {
+		defer telemetry.RecoverAndEmit(tel, "poller", false)
+
+		panic("boom")
+	})
+
+	ev := readEvent(t, ch)
+	assert.Equal(t, telemetry.DomainPanic, ev.Domain)
+	assert.Equal(t, "poller", ev.Event)
+	assert.Equal(t, false, ev.Data["terminate"])
+
+	assert.NotPanics(t, func() {
+		defer telemetry.RecoverAndEmit(tel, "quiet", false)
+	})
+	assertNotPublished(t, ch, "nothing must be emitted without a panic")
+}
+
+func TestRecoverAndEmit_FatalPanicIsReportedAndRepanics(t *testing.T) { //nolint:paralleltest
+	tel, ch := setupTelChannel(t, "recover_fatal")
+
+	assert.PanicsWithValue(t, "boom", func() {
+		defer telemetry.RecoverAndEmit(tel, "worker", true)
+
+		panic("boom")
+	})
+
+	ev := readEvent(t, ch)
+	assert.Equal(t, "worker", ev.Event)
+	assert.Equal(t, true, ev.Data["terminate"])
+}
+
+func TestRecoverAndEmit_NilTelemetryStillRecovers(t *testing.T) { //nolint:paralleltest
+	assert.NotPanics(t, func() {
+		defer telemetry.RecoverAndEmit(nil, "poller", false)
+
+		panic("boom")
+	})
+}
+
+func TestCloudConfigReport_IsAppliedToEnablementAndSuppression(t *testing.T) { //nolint:paralleltest
+	mqtt := suite.DefaultMQTT("cliff_tel_cloud_report", "", "", "")
+	require.NoError(t, mqtt.Start(2*time.Second))
+	t.Cleanup(mqtt.Stop)
+
+	store := newStore()
+	store.model.Telemetry = &types.TelemetryConfig{Enabled: true, EnabledAt: time.Now().Add(-20 * 24 * time.Hour), Validity: 30 * 24 * time.Hour}
+
+	tel, err := telemetry.New(mqtt, "src", store.DefaultStore, "")
+	require.NoError(t, err)
+	stopTel(t, tel)
+	require.NoError(t, tel.Start())
+
+	report := fimpgo.NewObjectMessage(config_poll.EvtConfigReport, "telemetry", map[string]any{
+		"enabled":    true,
+		"suppressed": map[string]types.SuppressedEntry{"src": {Domains: []string{"auth"}}, "other": {}},
+	}, nil, nil, nil)
+
+	// The poller subscribes to the broadcast topic a few seconds after Start, so keep publishing.
+	require.Eventually(t, func() bool {
+		_ = mqtt.PublishToTopic(config_poll.ConfigResponseTopic, report)
+
+		cfg, err := store.Telemetry()
+
+		return err == nil && cfg.Suppressed != nil
+	}, 10*time.Second, 500*time.Millisecond)
+
+	cfg, err := store.Telemetry()
+	require.NoError(t, err)
+	assert.True(t, cfg.Enabled)
+	assert.WithinDuration(t, time.Now(), cfg.EnabledAt, time.Minute, "an enabled report restarts the validity window")
+	assert.Equal(t, []string{"auth"}, cfg.Suppressed.Domains)
+
+	report = fimpgo.NewObjectMessage(config_poll.EvtConfigReport, "telemetry", map[string]any{"enabled": false}, nil, nil, nil)
+	require.NoError(t, mqtt.PublishToTopic(config_poll.ConfigResponseTopic, report))
+
+	require.Eventually(t, func() bool { return !tel.IsEnabled() }, 2*time.Second, 20*time.Millisecond)
+
+	cfg, err = store.Telemetry()
+	require.NoError(t, err)
+	assert.True(t, cfg.EnabledAt.IsZero())
+	assert.Nil(t, cfg.Suppressed, "a report without this app's entry clears suppression")
 }

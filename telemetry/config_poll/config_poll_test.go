@@ -350,3 +350,25 @@ func mustAddress(t *testing.T, topic string) *fimpgo.Address {
 
 	return addr
 }
+
+func TestListen_MalformedReportIsIgnored(t *testing.T) { //nolint:paralleltest
+	mqtt := suite.DefaultMQTT("cliff_cfgpoll_malformed", "", "", "")
+	require.NoError(t, mqtt.Start(2*time.Second))
+	t.Cleanup(mqtt.Stop)
+
+	var calls atomic.Int32
+
+	cfg := New(mqtt, "src", func(_ bool, _ map[string]types.SuppressedEntry) { calls.Add(1) })
+
+	require.NoError(t, cfg.Start())
+	t.Cleanup(cfg.Stop)
+
+	waitSubscribed(t, cfg)
+
+	require.NoError(t, mqtt.PublishToTopic(ConfigResponseTopic, fimpgo.NewStringMessage(EvtConfigReport, "telemetry", "not-an-object", nil, nil, nil)))
+	publishConfigResponse(t, mqtt, configResponseT{Enabled: true})
+
+	require.Eventually(t, func() bool { return calls.Load() >= 1 }, 2*time.Second, 20*time.Millisecond)
+	time.Sleep(100 * time.Millisecond)
+	assert.Equal(t, int32(1), calls.Load(), "only the valid report may be applied")
+}

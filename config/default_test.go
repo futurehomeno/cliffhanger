@@ -170,3 +170,61 @@ func TestDefaultStore_ConcurrentReadsAndWrites_AreRaceFree(t *testing.T) { //nol
 
 	wg.Wait()
 }
+
+func TestNewDefault_Directories(t *testing.T) { //nolint:paralleltest
+	d := config.NewDefault("/var/lib/app")
+	assert.Equal(t, "/var/lib/app", d.WorkDir)
+	assert.Equal(t, "/var/lib/app", d.ConfigDir)
+
+	d = config.NewCanonicalDefault("/etc/app", "/var/lib/app")
+	assert.Equal(t, "/var/lib/app", d.WorkDir)
+	assert.Equal(t, "/etc/app", d.ConfigDir)
+}
+
+func TestDefaultStore_IncrementRestartsCount_SavesWithoutStamping(t *testing.T) { //nolint:paralleltest
+	store, cfg, saves := newTestStore(t)
+
+	count, err := store.IncrementRestartsCount()
+
+	require.NoError(t, err)
+	assert.Equal(t, 1, count)
+	assert.Equal(t, 1, store.RestartsCount())
+	assert.Equal(t, int32(1), saves.Load())
+	assert.Empty(t, cfg.ConfiguredAt, "a restart is not a configuration change")
+}
+
+func TestDefaultStore_IncrementRestartsCount_SaveFailure(t *testing.T) { //nolint:paralleltest
+	cfg := &config.Default{RestartsCount: 4}
+	store := config.NewDefaultStore(
+		func() *config.Default { return cfg },
+		func() error { return errors.New("disk full") },
+	)
+
+	count, err := store.IncrementRestartsCount()
+
+	assert.EqualError(t, err, "disk full")
+	assert.Zero(t, count)
+	assert.Equal(t, 5, store.RestartsCount(), "the in-memory increment survives for a later save")
+}
+
+func TestDefaultStore_Default_ClonesTelemetry(t *testing.T) { //nolint:paralleltest
+	store, _, _ := newTestStore(t)
+
+	require.NoError(t, store.SetTelemetry(&types.TelemetryConfig{
+		Enabled:    true,
+		Suppressed: &types.SuppressedEntry{Domains: []string{"a"}, Events: []string{"x"}},
+	}))
+
+	snap := store.Default()
+	snap.Telemetry.Enabled = false
+	snap.Telemetry.Suppressed.Domains[0] = "mutated"
+	snap.Telemetry.Suppressed.Events[0] = "mutated"
+	snap.Telemetry.Suppressed = nil
+
+	got, err := store.Telemetry()
+	require.NoError(t, err)
+	assert.True(t, got.Enabled)
+	require.NotNil(t, got.Suppressed)
+	assert.Equal(t, []string{"a"}, got.Suppressed.Domains)
+	assert.Equal(t, []string{"x"}, got.Suppressed.Events)
+}

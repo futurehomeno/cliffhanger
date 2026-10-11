@@ -3,11 +3,14 @@ package app_test
 import (
 	"errors"
 	"fmt"
+	"strings"
 	"sync"
 	"sync/atomic"
 	"testing"
 	"time"
 
+	"github.com/sirupsen/logrus"
+	logtest "github.com/sirupsen/logrus/hooks/test"
 	"github.com/stretchr/testify/assert"
 
 	"github.com/futurehomeno/cliffhanger/app"
@@ -18,12 +21,13 @@ import (
 
 type fakeReporter struct {
 	reports atomic.Int32
+	err     error
 }
 
 func (r *fakeReporter) SendConnectivityReport() error {
 	r.reports.Add(1)
 
-	return nil
+	return r.err
 }
 
 func TestConnectivityChecker_Check(t *testing.T) { //nolint:funlen
@@ -525,4 +529,78 @@ func TestConnectivityChecker_DisconnectsAfterConsecutiveFailuresThenReconnects(t
 		time.Second, 5*time.Millisecond, "a successful recheck should reconnect")
 
 	checker.Cancel()
+}
+
+func TestConnectivityChecker_ReporterFailureKeepsTransition(t *testing.T) {
+	t.Parallel()
+
+	lc := lifecycle.New(nil)
+	reporter := &fakeReporter{err: errors.New("publish failed")}
+
+	checker := app.NewConnectivityChecker(func() error { return nil }, lc, reporter, app.CheckerConfig{})
+
+	assert.NoError(t, checker.CheckNow())
+
+	assert.Equal(t, int32(1), reporter.reports.Load())
+	assert.Equal(t, lifecycle.AuthStateAuthenticated, lc.AuthState())
+	assert.Equal(t, lifecycle.ConnStateConnected, lc.ConnectionState())
+	assert.Equal(t, lifecycle.AppHealthRunning, lc.AppHealth())
+}
+
+func TestConnectivityChecker_NilReporter(t *testing.T) {
+	t.Parallel()
+
+	lc := lifecycle.New(nil)
+	checker := app.NewConnectivityChecker(func() error { return httpclient.ErrUnauthorized }, lc, nil, app.CheckerConfig{})
+
+	assert.NotPanics(t, func() { _ = checker.CheckNow() })
+	assert.Equal(t, lifecycle.AuthStateLost, lc.AuthState())
+	assert.Equal(t, lifecycle.ConnStateDisconnected, lc.ConnectionState())
+}
+
+func TestConnectivityChecker_ThrottlesIdenticalFailureWarnings(t *testing.T) {
+	t.Parallel()
+
+	hook := logtest.NewGlobal()
+	probeErr := errors.New("throttle-probe-" + t.Name())
+
+	var fail atomic.Bool
+
+	fail.Store(true)
+
+	checker := app.NewConnectivityChecker(func() error {
+		if fail.Load() {
+			return probeErr
+		}
+
+		return nil
+	}, lifecycle.New(nil), nil, app.CheckerConfig{
+		RecheckBackoff: backoff.New(time.Hour, time.Hour, time.Hour, 1, 1),
+	})
+	t.Cleanup(checker.Cancel)
+
+	warnings := func() int {
+		n := 0
+
+		for _, e := range hook.AllEntries() {
+			if e.Level == logrus.WarnLevel && strings.Contains(e.Message, probeErr.Error()) {
+				n++
+			}
+		}
+
+		return n
+	}
+
+	for range 3 {
+		_ = checker.CheckNow()
+	}
+
+	assert.Equal(t, 1, warnings(), "an identical failure streak must warn once")
+
+	fail.Store(false)
+	_ = checker.CheckNow()
+	fail.Store(true)
+	_ = checker.CheckNow()
+
+	assert.Equal(t, 2, warnings(), "settling must re-arm the warning")
 }

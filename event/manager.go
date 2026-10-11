@@ -41,7 +41,9 @@ func (m *manager) Publish(event Event) {
 func (m *manager) Subscribe(subID string, buffer int, filters ...Filter) chan Event {
 	predicates := make([]func(Event) bool, len(filters))
 	for i, f := range filters {
-		predicates[i] = f.Filter
+		if f != nil {
+			predicates[i] = f.Filter
+		}
 	}
 
 	return m.bus.Subscribe(subID, buffer, predicates...)

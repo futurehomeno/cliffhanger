@@ -1,6 +1,9 @@
 package security_test
 
 import (
+	"encoding/hex"
+	"os"
+	"path/filepath"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -59,4 +62,83 @@ func TestDecrypt_InvalidInput(t *testing.T) {
 
 	_, err = security.Decrypt(encrypted, otherKey)
 	assert.Error(t, err, "a ciphertext must not decrypt under a different key")
+}
+
+func TestGetKey_GeneratesAndPersistsKey(t *testing.T) {
+	t.Parallel()
+
+	path := filepath.Join(t.TempDir(), "key")
+
+	key, err := security.GetKey(path)
+	require.NoError(t, err)
+
+	raw, err := hex.DecodeString(key)
+	require.NoError(t, err)
+	assert.Len(t, raw, 32)
+
+	info, err := os.Stat(path)
+	require.NoError(t, err)
+	assert.Equal(t, os.FileMode(0o600), info.Mode().Perm())
+
+	again, err := security.GetKey(path)
+	require.NoError(t, err)
+	assert.Equal(t, key, again, "a persisted key must be reused, not regenerated")
+
+	encrypted, err := security.Encrypt("secret", key)
+	require.NoError(t, err)
+
+	decrypted, err := security.Decrypt(encrypted, again)
+	require.NoError(t, err)
+	assert.Equal(t, "secret", decrypted)
+}
+
+func TestGetKey_TightensPermissionsOfExistingKey(t *testing.T) {
+	t.Parallel()
+
+	path := filepath.Join(t.TempDir(), "key")
+	require.NoError(t, os.WriteFile(path, []byte("abcd"), 0o644)) //nolint:gosec
+	require.NoError(t, os.Chmod(path, 0o644))                     //nolint:gosec
+
+	key, err := security.GetKey(path)
+	require.NoError(t, err)
+	assert.Equal(t, "abcd", key)
+
+	info, err := os.Stat(path)
+	require.NoError(t, err)
+	assert.Equal(t, os.FileMode(0o600), info.Mode().Perm())
+}
+
+func TestGetKey_UnwritablePath(t *testing.T) {
+	t.Parallel()
+
+	_, err := security.GetKey(filepath.Join(t.TempDir(), "missing", "key"))
+	assert.Error(t, err)
+}
+
+func TestEncrypt_InvalidKey(t *testing.T) {
+	t.Parallel()
+
+	_, err := security.Encrypt("secret", "not hex")
+	assert.Error(t, err)
+
+	shortKey, err := security.GenerateKey(10)
+	require.NoError(t, err)
+
+	_, err = security.Encrypt("secret", shortKey)
+	assert.Error(t, err)
+
+	_, err = security.Decrypt("0123456789abcdef0123456789abcdef", shortKey)
+	assert.Error(t, err)
+
+	for _, size := range []int{16, 24} {
+		key, err := security.GenerateKey(size)
+		require.NoError(t, err)
+
+		encrypted, err := security.Encrypt("secret", key)
+		require.NoError(t, err)
+
+		decrypted, err := security.Decrypt(encrypted, key)
+		require.NoError(t, err)
+		assert.Equal(t, "secret", decrypted)
+	}
 }
