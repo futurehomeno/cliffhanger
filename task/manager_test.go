@@ -1,6 +1,7 @@
 package task_test
 
 import (
+	"sync/atomic"
 	"testing"
 	"time"
 
@@ -160,4 +161,77 @@ func TestManager(t *testing.T) {
 	}
 
 	s.Run(t)
+}
+
+func TestManager_StartStopErrorsAndRestart(t *testing.T) {
+	t.Parallel()
+
+	var runs atomic.Int32
+
+	m := task.NewManager(task.New(func() { runs.Add(1) }, 0))
+
+	assert.Error(t, m.Stop())
+	assert.NoError(t, m.Start())
+	assert.Error(t, m.Start())
+	assert.NoError(t, m.Stop())
+	assert.Error(t, m.Stop())
+	assert.Equal(t, int32(1), runs.Load())
+
+	assert.NoError(t, m.Start())
+	assert.NoError(t, m.Stop())
+	assert.Equal(t, int32(2), runs.Load(), "a run-once task runs again on every start")
+}
+
+func TestManager_PeriodicTaskSurvivesPanic(t *testing.T) {
+	t.Parallel()
+
+	var runs atomic.Int32
+
+	m := task.NewManager(task.New(func() {
+		if runs.Add(1) == 1 {
+			panic("first tick")
+		}
+	}, 5*time.Millisecond))
+
+	assert.NoError(t, m.Start())
+	assert.Eventually(t, func() bool { return runs.Load() >= 2 }, time.Second, time.Millisecond)
+	assert.NoError(t, m.Stop())
+}
+
+func TestManager_VoterReevaluatedOnEveryTick(t *testing.T) {
+	t.Parallel()
+
+	var (
+		allowed atomic.Bool
+		votes   atomic.Int32
+		runs    atomic.Int32
+	)
+
+	voter := task.VoterFn(func() bool {
+		votes.Add(1)
+
+		return allowed.Load()
+	})
+
+	m := task.NewManager(task.New(func() { runs.Add(1) }, 2*time.Millisecond, voter))
+
+	assert.NoError(t, m.Start())
+	assert.Eventually(t, func() bool { return votes.Load() >= 3 }, time.Second, time.Millisecond)
+	assert.Equal(t, int32(0), runs.Load())
+
+	allowed.Store(true)
+
+	assert.Eventually(t, func() bool { return runs.Load() >= 1 }, time.Second, time.Millisecond)
+	assert.NoError(t, m.Stop())
+}
+
+func TestCombine(t *testing.T) {
+	t.Parallel()
+
+	a := task.New(func() {}, 0)
+	b := task.New(func() {}, 0)
+	c := task.New(func() {}, 0)
+
+	assert.Equal(t, []*task.Task{a, b, c}, task.Combine([]*task.Task{a}, []*task.Task{b, c}))
+	assert.Equal(t, []*task.Task{c, a}, task.Combine(c, a))
 }

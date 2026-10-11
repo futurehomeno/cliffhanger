@@ -7,9 +7,7 @@ network blip or rate limit. `app.ConnectivityChecker` implements `app.CheckableA
 caller-supplied probe and mapping its outcome onto the lifecycle auth and connectivity axes, with
 backoff, a failure threshold, and teardown-safe cancellation. Every transition it makes re-announces
 all things to the hub so node availability follows the app state.
-
 ## Requirements
-
 ### Requirement: Probe Contract And Error Classification
 `NewConnectivityChecker(probe, lifecycle, reporter, cfg)` SHALL accept a `func() error` probe whose
 returned error classifies the outcome. The checker SHALL classify with `errors.Is`, so the probe MAY
@@ -205,3 +203,19 @@ and probing back to back — and SHALL compare timer identity so a timer that fi
 #### Scenario: cancel racing a firing timer
 - **WHEN** `Cancel()` clears the timer just as it fires
 - **THEN** the callback observes the identity mismatch and performs no probe
+
+### Requirement: Cancelled Checker Never Probes Or Re-Arms
+The checker SHALL re-read the cancelled flag immediately before calling the probe, so a `Cancel`
+landing after a periodic `Check` passed its skip test, or after a recheck timer fired and released
+its lock, never reaches the third party API. `schedule` SHALL refuse to arm a recheck timer while
+the checker is cancelled, so a failing or rate-limited probe whose result was applied just before a
+`Cancel` cannot resume a torn-down checker; only `CheckNow` SHALL resume it.
+
+#### Scenario: cancel before the probe starts
+- **WHEN** `Cancel()` lands between the pending-timer check and the probe call
+- **THEN** the probe is not called and no state is applied
+
+#### Scenario: schedule after cancel
+- **WHEN** a recheck would be scheduled after `Cancel()` has run
+- **THEN** no timer is armed and no further probe runs until `CheckNow()`
+

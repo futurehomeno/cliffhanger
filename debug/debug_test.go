@@ -795,3 +795,90 @@ func TestInitializeLogger_ConcurrentSettersAreRaceFree(t *testing.T) { //nolint:
 
 	wg.Wait()
 }
+
+func TestRouting_RejectedSets_LeaveSettingsUnchanged(t *testing.T) { //nolint:paralleltest
+	logFile := filepath.Join(t.TempDir(), "app.log")
+	cfg := &config.Default{LogLevel: "info", LogFormat: "text", LogFile: logFile, LogRevertTimeout: 3 * time.Hour}
+
+	saved := logrus.GetLevel()
+	t.Cleanup(func() { logrus.SetLevel(saved) })
+
+	reject := func(iface, value string) *suite.Node {
+		return &suite.Node{
+			Name:    iface + " " + value,
+			Command: suite.StringMessage("pt:j1/mt:cmd/rt:app/rn:test/ad:1", iface, "test_service", value),
+			Expectations: []*suite.Expectation{
+				suite.ExpectError("pt:j1/mt:evt/rt:app/rn:test/ad:1", "test_service"),
+			},
+		}
+	}
+
+	s := &suite.Suite{
+		Cases: []*suite.Case{
+			{
+				Name: "rejected sets",
+				Setup: suite.BaseSetup(func(t *testing.T, _ *fimpgo.MqttTransport) ([]*router.Routing, []*task.Task, []suite.Mock) {
+					t.Helper()
+
+					store := config.NewDefaultStore(func() *config.Default { return cfg }, func() error { return nil })
+					require.NoError(t, debug.InitializeLogger(store))
+
+					return debug.Route("test_service"), nil, nil
+				}),
+				Nodes: []*suite.Node{
+					reject(debug.CmdLogSetLevel, "verbose"),
+					reject(debug.CmdLogSetFile, "../../etc/passwd"),
+					reject(debug.CmdLogSetFile, "sub/app.log"),
+					reject(debug.CmdLogSetFile, ".."),
+					reject(debug.CmdLogSetFile, ""),
+					reject(debug.CmdLogSetRevertTimeout, "forever"),
+					reject(debug.CmdLogSetRevertTimeout, "0s"),
+					reject(debug.CmdLogSetRevertTimeout, "-1h"),
+				},
+			},
+		},
+	}
+
+	s.Run(t)
+
+	assert.Equal(t, "info", cfg.LogLevel)
+	assert.Equal(t, logrus.InfoLevel, logrus.GetLevel())
+	assert.Equal(t, logFile, cfg.LogFile)
+	assert.Equal(t, 3*time.Hour, cfg.LogRevertTimeout)
+}
+
+func TestSetRevertTimeout_RecomputesArmedDeadline(t *testing.T) { //nolint:paralleltest
+	logFile := filepath.Join(t.TempDir(), "app.log")
+	cfg := &config.Default{LogLevel: "debug", LogFormat: "text", LogFile: logFile, LogRevertAt: time.Now().Add(time.Minute)}
+
+	saved := logrus.GetLevel()
+	t.Cleanup(func() { logrus.SetLevel(saved) })
+
+	s := &suite.Suite{
+		Cases: []*suite.Case{
+			{
+				Name: "armed deadline recomputed",
+				Setup: suite.BaseSetup(func(t *testing.T, _ *fimpgo.MqttTransport) ([]*router.Routing, []*task.Task, []suite.Mock) {
+					t.Helper()
+
+					store := config.NewDefaultStore(func() *config.Default { return cfg }, func() error { return nil })
+					require.NoError(t, debug.InitializeLogger(store))
+
+					return debug.Route("test_service"), nil, nil
+				}),
+				Nodes: []*suite.Node{
+					{
+						Command: suite.StringMessage("pt:j1/mt:cmd/rt:app/rn:test/ad:1", debug.CmdLogSetRevertTimeout, "test_service", "10h"),
+						Expectations: []*suite.Expectation{
+							suite.ExpectString("pt:j1/mt:evt/rt:app/rn:test/ad:1", debug.EvtLogRevertTimeoutReport, "test_service", "10h0m0s"),
+						},
+					},
+				},
+			},
+		},
+	}
+
+	s.Run(t)
+
+	assert.WithinDuration(t, time.Now().Add(10*time.Hour), cfg.LogRevertAt, time.Minute)
+}

@@ -1,6 +1,7 @@
 package event_test
 
 import (
+	"sync/atomic"
 	"testing"
 	"time"
 
@@ -99,4 +100,64 @@ func TestListener_Process(t *testing.T) {
 
 	err = listener.Stop()
 	assert.NoError(t, err)
+}
+
+func TestListener_StopUnsubscribesAndRestarts(t *testing.T) {
+	t.Parallel()
+
+	received := make(chan event.Event, 10)
+	manager := event.NewManager()
+
+	listener := event.NewListener(manager, event.NewHandler(
+		event.ProcessorFn(func(e event.Event) { received <- e }),
+		"listener_restart",
+		10,
+	))
+
+	assert.NoError(t, listener.Start())
+
+	sibling := manager.Subscribe("listener_restart", 1)
+
+	manager.Publish(event.New("d", "first"))
+	assert.Equal(t, "first", (<-received).Class())
+
+	assert.NoError(t, listener.Stop())
+	assert.Equal(t, "first", (<-sibling).Class())
+
+	select {
+	case _, open := <-sibling:
+		assert.False(t, open, "Stop unsubscribes the handler ID, closing every channel under it")
+	case <-time.After(time.Second):
+		assert.Fail(t, "Stop must unsubscribe the handler ID, closing every channel under it")
+	}
+
+	assert.NoError(t, listener.Start())
+
+	manager.Publish(event.New("d", "second"))
+
+	select {
+	case e := <-received:
+		assert.Equal(t, "second", e.Class())
+	case <-time.After(time.Second):
+		assert.Fail(t, "a restarted listener must receive events again")
+	}
+
+	assert.NoError(t, listener.Stop())
+}
+
+func TestListener_HandlerExitsWhenSubscriptionIsClosed(t *testing.T) {
+	t.Parallel()
+
+	var calls atomic.Int32
+
+	manager := event.NewManager()
+	listener := event.NewListener(manager, event.NewHandler(event.ProcessorFn(func(event.Event) { calls.Add(1) }), "listener_closed", 1))
+
+	assert.NoError(t, listener.Start())
+
+	manager.Unsubscribe("listener_closed")
+
+	assert.Never(t, func() bool { return calls.Load() > 0 }, 50*time.Millisecond, time.Millisecond,
+		"a closed subscription must end the handler, not feed it nil events")
+	assert.NoError(t, listener.Stop())
 }

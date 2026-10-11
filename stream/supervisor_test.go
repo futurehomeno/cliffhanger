@@ -3,6 +3,8 @@ package stream_test
 import (
 	"context"
 	"errors"
+	"slices"
+	"sync"
 	"sync/atomic"
 	"testing"
 	"time"
@@ -220,4 +222,54 @@ func TestSupervisor_ReconnectsAfterFailure(t *testing.T) {
 	assert.Eventually(t, func() bool { return calls.Load() >= 3 }, time.Second, time.Millisecond,
 		"failed connections should be retried with backoff")
 	assert.NoError(t, s.Stop())
+}
+
+type recordingBackoff struct {
+	mu     sync.Mutex
+	events []string
+}
+
+func (b *recordingBackoff) record(event string) {
+	b.mu.Lock()
+	defer b.mu.Unlock()
+
+	b.events = append(b.events, event)
+}
+
+func (b *recordingBackoff) Next() time.Duration {
+	b.record("next")
+
+	return time.Millisecond
+}
+
+func (b *recordingBackoff) Reset()       { b.record("reset") }
+func (b *recordingBackoff) Fail()        { b.record("fail") }
+func (b *recordingBackoff) Should() bool { return false }
+
+func (b *recordingBackoff) snapshot() []string {
+	b.mu.Lock()
+	defer b.mu.Unlock()
+
+	return slices.Clone(b.events)
+}
+
+func TestSupervisor_RepeatedFailuresEscalateBackoff(t *testing.T) {
+	t.Parallel()
+
+	var calls atomic.Int32
+
+	b := &recordingBackoff{}
+	s := stream.NewSupervisor(func(context.Context, func()) error {
+		calls.Add(1)
+
+		return errors.New("connection err")
+	}, b)
+
+	assert.NoError(t, s.Start())
+	assert.Eventually(t, func() bool { return calls.Load() >= 3 }, time.Second, time.Millisecond)
+	assert.NoError(t, s.Stop())
+
+	events := b.snapshot()
+	assert.GreaterOrEqual(t, len(events), 2)
+	assert.NotContains(t, events, "reset", "a connection that never reported itself established must not reset the streak")
 }

@@ -195,6 +195,85 @@ func TestDatabase_Recovery_StaleRecoveredFileIsTruncated(t *testing.T) { //nolin
 	assert.NotContains(t, string(recovered), "STALE_TRAILING_GARBAGE_FROM_PREVIOUS_RECOVERY_ATTEMPT")
 }
 
+func TestDatabase_ResumesInterruptedRecovery(t *testing.T) { //nolint:paralleltest
+	db := database.NewDomainDatabase("test_domain", makeTestDatabase(t, true))
+
+	assert.NoError(t, db.Set("test_bucket", "test_key1", "test_value1"))
+	assert.NoError(t, db.Stop())
+
+	assert.NoError(t, os.Rename("../testdata/database/test.db", "../testdata/database/test.db.recovered"))
+
+	db = database.NewDomainDatabase("test_domain", makeTestDatabase(t, false))
+
+	var value string
+
+	ok, err := db.Get("test_bucket", "test_key1", &value)
+
+	assert.NoError(t, err)
+	assert.True(t, ok)
+	assert.Equal(t, "test_value1", value)
+	assert.NoFileExists(t, "../testdata/database/test.db.recovered")
+}
+
+func TestDatabase_Get_UndecodableValue(t *testing.T) { //nolint:paralleltest
+	db := makeTestDatabase(t, true)
+
+	assert.NoError(t, db.Set("test_bucket", "test_key", "test_value"))
+
+	var value int
+
+	ok, err := db.Get("test_bucket", "test_key", &value)
+
+	assert.Error(t, err)
+	assert.False(t, ok)
+}
+
+func TestDatabase_SetWithExpiry_NonPositiveExpiryNeverExpires(t *testing.T) { //nolint:paralleltest
+	db := makeTestDatabase(t, true)
+
+	assert.NoError(t, db.SetWithExpiry("test_bucket", "zero", "v", 0))
+	assert.NoError(t, db.SetWithExpiry("test_bucket", "negative", "v", -time.Second))
+
+	time.Sleep(10 * time.Millisecond)
+
+	keys, err := db.Keys("test_bucket")
+
+	assert.NoError(t, err)
+	assert.Equal(t, []string{"negative", "zero"}, keys)
+}
+
+func TestDomainDatabase_Isolation(t *testing.T) { //nolint:paralleltest
+	db := makeTestDatabase(t, true)
+	a := database.NewDomainDatabase("domain_a", db)
+	b := database.NewDomainDatabase("domain_b", db)
+
+	assert.NoError(t, a.Set("test_bucket", "test_key", "value_a"))
+	assert.NoError(t, b.Set("test_bucket", "test_key", "value_b"))
+	assert.NoError(t, b.Set("test_bucket", "only_b", "value_b"))
+
+	var value string
+
+	ok, err := a.Get("test_bucket", "test_key", &value)
+	assert.NoError(t, err)
+	assert.True(t, ok)
+	assert.Equal(t, "value_a", value)
+
+	keys, err := a.Keys("test_bucket")
+	assert.NoError(t, err)
+	assert.Equal(t, []string{"test_key"}, keys)
+
+	assert.NoError(t, a.Delete("test_bucket", "test_key"))
+
+	ok, err = b.Get("test_bucket", "test_key", &value)
+	assert.NoError(t, err)
+	assert.True(t, ok)
+	assert.Equal(t, "value_b", value)
+
+	keys, err = db.Keys("domain_b:test_bucket")
+	assert.NoError(t, err)
+	assert.Equal(t, []string{"only_b", "test_key"}, keys)
+}
+
 func makeTestDatabase(t *testing.T, cleanup bool) database.Database {
 	t.Helper()
 
