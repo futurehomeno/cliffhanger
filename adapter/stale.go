@@ -142,11 +142,14 @@ func staleAddresses(a Adapter, devices prime.Devices) []string {
 
 // belongsToAdapter reports whether the hub attributes the device to this adapter. The resource
 // name and instance are taken from a service topic rather than from device.FIMP.Adapter, which
-// carries the service name - the two differ for technologies such as zwave.
+// carries the service name - the two differ for technologies such as zwave. Every named service must
+// agree: excluding a node is destructive, so a device mixing adapters is never claimed.
 func belongsToAdapter(a Adapter, device *prime.Device) bool {
 	if device.FIMP.AdapterAddress != "" && device.FIMP.AdapterAddress != a.Address() {
 		return false
 	}
+
+	owned := false
 
 	for _, service := range device.Services {
 		address, err := fimpgo.NewAddressFromString(service.Addr)
@@ -154,11 +157,13 @@ func belongsToAdapter(a Adapter, device *prime.Device) bool {
 			continue
 		}
 
-		if address.ResourceName == a.Name() &&
-			(address.ResourceAddress == "" || address.ResourceAddress == a.Address()) {
-			return true
+		if address.ResourceName != a.Name() ||
+			(address.ResourceAddress != "" && address.ResourceAddress != a.Address()) {
+			return false
 		}
+
+		owned = true
 	}
 
-	return false
+	return owned
 }

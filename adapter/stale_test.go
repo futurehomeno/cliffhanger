@@ -147,3 +147,21 @@ func TestExcludeStaleNodes_IgnoresNodesOfAnotherAdapterInstanceViaServiceTopic(t
 	assert.Empty(t, excluded)
 	a.AssertNotCalled(t, "DestroyThingByAddress", mock.Anything)
 }
+
+func TestExcludeStaleNodes_IgnoresDevicesWithAServiceOfAnotherAdapter(t *testing.T) {
+	t.Parallel()
+
+	a := staleAdapter(t)
+
+	device := hubDevice("zw", "2")
+	device.Services["meter_elec"] = &prime.Service{Addr: "pt:j1/mt:evt/rt:dev/rn:mill/ad:1/sv:meter_elec/ad:2"}
+
+	c := mockedprime.NewClient(t)
+	c.On("GetDevices").Return(prime.Devices{device}, nil)
+
+	excluded, err := adapter.ExcludeStaleNodes(a, c)
+
+	assert.NoError(t, err)
+	assert.Empty(t, excluded)
+	a.AssertNotCalled(t, "DestroyThingByAddress", mock.Anything)
+}

@@ -157,12 +157,10 @@ func (c *ConnectivityChecker) authorized() bool {
 	return c.cfg.Authorized == nil || c.cfg.Authorized()
 }
 
-// check performs the probe and applies its outcome; the caller must hold checkMu
-// and have cleared the cancelled flag while committing to this probe.
+// check performs the probe and applies its outcome; the caller must hold checkMu.
 func (c *ConnectivityChecker) check() {
-	// Re-read rather than trust the caller's snapshot: the recheck timer drops the lock before
-	// getting here, so a Cancel landing in that gap would otherwise still reach the third-party
-	// API after a logout or reset.
+	// The recheck timer releases c.mu before getting here, so a Cancel landing in that gap would
+	// otherwise still reach the third-party API after a logout or reset.
 	if c.stale() {
 		return
 	}
@@ -349,15 +347,10 @@ func (c *ConnectivityChecker) schedule(delay time.Duration) {
 			return
 		}
 		c.timer = nil
-		// A Cancel racing the firing timer is discarded later via stale(). The flag is not
-		// cleared here: this recheck must not resume a checker that Cancel tore down.
-		cancelled := c.cancelled
 		c.mu.Unlock()
 
-		if cancelled {
-			return
-		}
-
+		// The cancelled flag is not cleared here: check() re-reads it, so this recheck never
+		// resumes a checker that Cancel tore down.
 		c.check()
 	})
 	c.timer = timer

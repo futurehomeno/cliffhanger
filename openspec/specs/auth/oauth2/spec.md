@@ -8,9 +8,7 @@ proxy, serializes and paces refresh attempts so a flapping partner API cannot be
 distinguishes a transient failure from a genuine loss of authorization that only a new login can
 repair. It also supplies the bearer transport, credential persistence contract and JWT expiry
 helper the adapters build on.
-
 ## Requirements
-
 ### Requirement: Proactive Access Token Refresh
 `auth.Authenticator.AccessToken` SHALL return the stored access token unchanged while it is more
 than `RefreshLead` away from `ExpiresAt`, and SHALL exchange the refresh token for new credentials
@@ -236,3 +234,12 @@ SHALL return an error and a zero time.
 #### Scenario: Token with an expiry claim
 - **WHEN** `TokenExpirationDate` is given a JWT carrying `exp`
 - **THEN** the claim is returned as a UTC time regardless of the signature's validity
+
+### Requirement: Empty Access Token Is A Rejection
+`auth.ProxyClient` SHALL return an error matching `httpclient.ErrUnauthorized` when the proxy answers
+200 with an empty `access_token`, so the attempt is not retried and the authenticator's grace applies.
+
+#### Scenario: proxy answers 200 without a token
+- **WHEN** a refresh exchange returns 200 with an empty `access_token`
+- **THEN** an error matching `httpclient.ErrUnauthorized` is returned after a single attempt
+

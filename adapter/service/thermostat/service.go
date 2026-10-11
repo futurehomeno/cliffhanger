@@ -2,6 +2,7 @@ package thermostat
 
 import (
 	"fmt"
+	"math"
 	"strconv"
 	"sync"
 
@@ -203,7 +204,7 @@ func (s *service) SendSetpointReport(mode string, force bool) (bool, error) {
 		return false, fmt.Errorf("%s: failed to retrieve setpoint report for mode %s: %w", s.Name(), normalizedMode, err)
 	}
 
-	if !force && !s.reportingCache.ReportRequired(s.reportingStrategy, EvtSetpointReport, mode, value) {
+	if !force && !s.reportingCache.ReportRequired(s.reportingStrategy, EvtSetpointReport, normalizedMode, value) {
 		return false, nil
 	}
 
@@ -221,7 +222,7 @@ func (s *service) SendSetpointReport(mode string, force bool) (bool, error) {
 		return false, fmt.Errorf("%s: failed to send state report: %w", s.Name(), err)
 	}
 
-	s.reportingCache.Reported(EvtSetpointReport, mode, value)
+	s.reportingCache.Reported(EvtSetpointReport, normalizedMode, value)
 
 	return true, nil
 }
@@ -295,9 +296,9 @@ func (s *service) normalizeSetpoint(mode string) (string, bool) {
 
 // Setpoint is an object representing a Thermostat setpoint.
 type Setpoint struct {
-	Type        string
-	Temperature float64
-	Unit        string
+	Type        string  `json:"type"`
+	Temperature float64 `json:"temp"`
+	Unit        string  `json:"unit"`
 }
 
 // NewSetpoint create a new setpoint object.
@@ -338,6 +339,10 @@ func SetpointFromStringMap(input map[string]string) (*Setpoint, error) {
 	temp, err := strconv.ParseFloat(tempStr, 64)
 	if err != nil {
 		return nil, fmt.Errorf("setpoint: cannot parse `temp` field %s: %w", tempStr, err)
+	}
+
+	if math.IsNaN(temp) || math.IsInf(temp, 0) {
+		return nil, fmt.Errorf("setpoint: invalid `temp` field %s", tempStr)
 	}
 
 	return &Setpoint{
