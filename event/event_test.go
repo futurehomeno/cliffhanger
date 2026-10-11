@@ -32,8 +32,6 @@ func TestFilters_Payload(t *testing.T) {
 }
 
 func TestManager_SubscribeIgnoresNilFilter(t *testing.T) {
-	t.Skip("openspec/issues/messaging-event-manager-nil-filter-panics.md")
-
 	m := event.NewManager()
 	ch := m.Subscribe("nil_filter", 1, nil, event.WaitForDomain("d"))
 
