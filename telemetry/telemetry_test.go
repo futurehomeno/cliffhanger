@@ -1133,14 +1133,17 @@ func setupTelChannel(t *testing.T, name string) (telemetry.Telemetry, fimpgo.Mes
 	return tel, ch
 }
 
-func assertPublished(t *testing.T, ch fimpgo.MessageCh, msg string) {
+func assertPublished(t *testing.T, ch fimpgo.MessageCh, msg string) *fimpgo.Message {
 	t.Helper()
 
 	select {
-	case <-ch:
+	case m := <-ch:
+		return m
 	case <-time.After(2 * time.Second):
 		t.Fatal(msg)
 	}
+
+	return nil
 }
 
 func assertNotPublished(t *testing.T, ch fimpgo.MessageCh, msg string) {
@@ -1412,17 +1415,10 @@ func TestStartAfterStop_RearmsValidityTimer(t *testing.T) { //nolint:paralleltes
 func readEvent(t *testing.T, ch fimpgo.MessageCh) telemetry.Event {
 	t.Helper()
 
-	select {
-	case m := <-ch:
-		var ev telemetry.Event
-		require.NoError(t, m.Payload.GetObjectValue(&ev))
+	var ev telemetry.Event
+	require.NoError(t, assertPublished(t, ch, "expected telemetry message not received").Payload.GetObjectValue(&ev))
 
-		return ev
-	case <-time.After(2 * time.Second):
-		t.Fatal("expected telemetry message not received")
-	}
-
-	return telemetry.Event{}
+	return ev
 }
 
 func TestEmitRebootMilestone_OnlyPositiveMultiplesOf500(t *testing.T) { //nolint:paralleltest

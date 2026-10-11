@@ -21,12 +21,13 @@ import (
 
 type fakeReporter struct {
 	reports atomic.Int32
+	err     error
 }
 
 func (r *fakeReporter) SendConnectivityReport() error {
 	r.reports.Add(1)
 
-	return nil
+	return r.err
 }
 
 func TestConnectivityChecker_Check(t *testing.T) { //nolint:funlen
@@ -530,27 +531,17 @@ func TestConnectivityChecker_DisconnectsAfterConsecutiveFailuresThenReconnects(t
 	checker.Cancel()
 }
 
-type failingReporter struct {
-	calls atomic.Int32
-}
-
-func (r *failingReporter) SendConnectivityReport() error {
-	r.calls.Add(1)
-
-	return errors.New("publish failed")
-}
-
 func TestConnectivityChecker_ReporterFailureKeepsTransition(t *testing.T) {
 	t.Parallel()
 
 	lc := lifecycle.New(nil)
-	reporter := &failingReporter{}
+	reporter := &fakeReporter{err: errors.New("publish failed")}
 
 	checker := app.NewConnectivityChecker(func() error { return nil }, lc, reporter, app.CheckerConfig{})
 
 	assert.NoError(t, checker.CheckNow())
 
-	assert.Equal(t, int32(1), reporter.calls.Load())
+	assert.Equal(t, int32(1), reporter.reports.Load())
 	assert.Equal(t, lifecycle.AuthStateAuthenticated, lc.AuthState())
 	assert.Equal(t, lifecycle.ConnStateConnected, lc.ConnectionState())
 	assert.Equal(t, lifecycle.AppHealthRunning, lc.AppHealth())
