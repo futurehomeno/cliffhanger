@@ -267,9 +267,11 @@ func TestSupervisor_RepeatedFailuresEscalateBackoff(t *testing.T) {
 
 	assert.NoError(t, s.Start())
 	assert.Eventually(t, func() bool { return calls.Load() >= 3 }, time.Second, time.Millisecond)
+
+	// Snapshot before Stop: a stop landing in the backoff wait resets the backoff on its way out.
+	events := b.snapshot()
 	assert.NoError(t, s.Stop())
 
-	events := b.snapshot()
 	assert.GreaterOrEqual(t, len(events), 2)
 	assert.NotContains(t, events, "reset", "a connection that never reported itself established must not reset the streak")
 }
