@@ -52,7 +52,9 @@ bucket name on the same database.
 ### Requirement: Encryption Key Management
 `GetKey(path)` SHALL return the key stored at the given path, and SHALL generate, persist and return
 a fresh 32-byte (64 hex character) key only when the file does not exist. In both cases the key file
-SHALL be chmodded to `0600`. Any other read error, a chmod failure, or a stored key that is not hex
+SHALL be chmodded to `0600`. A new key SHALL be written to a temporary file and linked into place, so
+the key file never holds a partial key and concurrent first runs all return the key that was linked.
+Any other read error, a chmod failure, or a stored key that is not hex
 decoding to 16, 24 or 32 bytes SHALL be returned as an error, leaving the file untouched.
 `GenerateKey(size)` SHALL return `size` cryptographically random bytes encoded as a lowercase hex
 string.
@@ -73,3 +75,7 @@ string.
 #### Scenario: unreadable key file
 - **WHEN** the key file exists but cannot be read
 - **THEN** `GetKey` returns an error and the file is not overwritten
+
+#### Scenario: concurrent first run
+- **WHEN** several callers run `GetKey` at once for a path that does not exist
+- **THEN** they all return the key stored in the file

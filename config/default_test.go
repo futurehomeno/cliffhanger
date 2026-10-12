@@ -42,6 +42,20 @@ func TestDefault_DefaultConfigIfMethods(t *testing.T) { //nolint:paralleltest
 	assert.Equal(t, 2, d.IncrementRestartsCount())
 }
 
+func TestDefault_TelemetryIsCloned(t *testing.T) { //nolint:paralleltest
+	d := &config.Default{}
+
+	in := types.TelemetryConfig{Suppressed: &types.SuppressedEntry{Domains: []string{"a"}}}
+	d.SetTelemetry(in)
+	in.Suppressed.Domains[0] = "mutated"
+
+	got, err := d.GetTelemetry()
+	require.NoError(t, err)
+	got.Suppressed.Domains[0] = "mutated"
+
+	assert.Equal(t, []string{"a"}, d.Telemetry.Suppressed.Domains)
+}
+
 func newTestStore(t *testing.T) (*config.DefaultStore, *config.Default, *atomic.Int32) {
 	t.Helper()
 

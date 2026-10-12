@@ -5,6 +5,7 @@ import (
 	"os"
 	"path/filepath"
 	"strings"
+	"sync"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -122,15 +123,53 @@ func TestGetKey_InvalidStoredKey(t *testing.T) {
 	t.Parallel()
 
 	for name, content := range map[string]string{"empty": "", "trailing newline": strings.Repeat("ab", 32) + "\n", "wrong length": "abcd", "not hex": strings.Repeat("zz", 32)} {
-		path := filepath.Join(t.TempDir(), "key")
-		require.NoError(t, os.WriteFile(path, []byte(content), 0o600))
+		t.Run(name, func(t *testing.T) {
+			t.Parallel()
 
-		_, err := security.GetKey(path)
-		assert.Error(t, err, name)
+			path := filepath.Join(t.TempDir(), "key")
+			require.NoError(t, os.WriteFile(path, []byte(content), 0o644)) //nolint:gosec
+			require.NoError(t, os.Chmod(path, 0o644))                      //nolint:gosec
 
-		raw, err := os.ReadFile(path) //nolint:gosec
-		require.NoError(t, err)
-		assert.Equal(t, content, string(raw), "%s: an invalid key must not be overwritten", name)
+			_, err := security.GetKey(path)
+			assert.Error(t, err)
+
+			raw, err := os.ReadFile(path) //nolint:gosec
+			require.NoError(t, err)
+			assert.Equal(t, content, string(raw), "an invalid key must not be overwritten")
+
+			info, err := os.Stat(path)
+			require.NoError(t, err)
+			assert.Equal(t, os.FileMode(0o644), info.Mode().Perm(), "an invalid key file must be left untouched")
+		})
+	}
+}
+
+func TestGetKey_ConcurrentFirstRunAgreeOnOneKey(t *testing.T) {
+	t.Parallel()
+
+	path := filepath.Join(t.TempDir(), "key")
+	keys := make([]string, 20)
+
+	var wg sync.WaitGroup
+	for i := range keys {
+		wg.Add(1)
+
+		go func() {
+			defer wg.Done()
+
+			var err error
+			keys[i], err = security.GetKey(path)
+			assert.NoError(t, err)
+		}()
+	}
+
+	wg.Wait()
+
+	stored, err := os.ReadFile(path) //nolint:gosec
+	require.NoError(t, err)
+
+	for _, key := range keys {
+		assert.Equal(t, string(stored), key)
 	}
 }
 

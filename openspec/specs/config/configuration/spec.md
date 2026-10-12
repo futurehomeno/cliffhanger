@@ -65,7 +65,8 @@ SHALL be cloned so a caller cannot mutate shared state.
 `DefaultStore.SetTelemetry` SHALL store a clone of the supplied configuration, including cloned
 `Suppressed.Domains` and `Suppressed.Events` slices, so the caller's value cannot mutate the stored
 one afterwards. `DefaultStore.Telemetry` SHALL return such a clone too, so mutating the returned
-`Suppressed` entry or its slices cannot change the stored configuration. `DefaultStore.Telemetry`
+`Suppressed` entry or its slices cannot change the stored configuration; `Default.GetTelemetry` and
+`Default.SetTelemetry` SHALL clone likewise. `DefaultStore.Telemetry`
 SHALL return an error when no telemetry configuration is present, whereas `Default.GetTelemetry`
 SHALL return the zero `TelemetryConfig` and no error in that case.
 

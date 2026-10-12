@@ -60,11 +60,11 @@ func (d *Default) GetTelemetry() (types.TelemetryConfig, error) {
 		return types.TelemetryConfig{}, nil
 	}
 
-	return *d.Telemetry, nil
+	return d.Telemetry.Clone(), nil
 }
 
 func (d *Default) SetTelemetry(cfg types.TelemetryConfig) {
-	c := cfg
+	c := cfg.Clone()
 	d.Telemetry = &c
 }
 
