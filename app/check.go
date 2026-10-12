@@ -287,10 +287,6 @@ func (c *ConnectivityChecker) set(auth, conn lifecycle.State, reason string) boo
 		return false
 	}
 
-	if auth == lifecycle.AuthStateAuthenticated {
-		defer c.repairAppHealth()
-	}
-
 	changed := false
 
 	// AuthStateLost triggers the auth-loss watcher, which reports the whole state bundle.
@@ -314,6 +310,10 @@ func (c *ConnectivityChecker) set(auth, conn lifecycle.State, reason string) boo
 
 			changed = true
 		}
+	}
+
+	if auth == lifecycle.AuthStateAuthenticated {
+		c.repairAppHealth()
 	}
 
 	return changed
