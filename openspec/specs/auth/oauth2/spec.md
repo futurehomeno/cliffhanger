@@ -246,14 +246,6 @@ SHALL return an error and a zero time.
 - **WHEN** `TokenExpirationDate` is given a JWT carrying `exp`
 - **THEN** the claim is returned as a UTC time regardless of the signature's validity
 
-### Requirement: Empty Access Token Is A Rejection
-`auth.ProxyClient` SHALL return an error matching `httpclient.ErrUnauthorized` when the proxy answers
-200 with an empty `access_token`, so the attempt is not retried and the authenticator's grace applies.
-
-#### Scenario: proxy answers 200 without a token
-- **WHEN** a refresh exchange returns 200 with an empty `access_token`
-- **THEN** an error matching `httpclient.ErrUnauthorized` is returned after a single attempt
-
 ### Requirement: Successful Exchange Ends A Rejection Streak
 A successful `ExchangeRefreshToken` SHALL clear any open rejection streak, whether or not the new
 credentials could be persisted afterwards, so a later rejection starts a fresh `UnauthorizedGrace`
@@ -264,4 +256,13 @@ window instead of inheriting the elapsed time of the refuted one.
   refresh is rejected again after the original grace would have elapsed
 - **THEN** the later rejection is still inside a fresh grace window and authorization loss is not
   concluded
+
+### Requirement: Empty Access Token Is Transient
+`auth.ProxyClient` SHALL treat a 200 answer with an empty `access_token` as a transient failure: the
+attempt is retried like any other, and the returned error SHALL NOT match `httpclient.ErrUnauthorized`,
+so it does not start the authenticator's rejection streak.
+
+#### Scenario: proxy answers 200 without a token
+- **WHEN** a refresh exchange keeps returning 200 with an empty `access_token` and `Retry` is 2
+- **THEN** three requests are made and the error does not match `httpclient.ErrUnauthorized`
 

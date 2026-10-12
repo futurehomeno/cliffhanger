@@ -64,7 +64,9 @@ func TestProxyClient_RateLimitedExchangeIsNotRetried(t *testing.T) {
 	assert.Equal(t, 1, requests, "a rate-limited exchange must not be retried locally")
 }
 
-func TestProxyClient_EmptyAccessTokenIsARejection(t *testing.T) {
+// A 200 is not a 401/403: an empty token must not start the authenticator's rejection streak,
+// which a real invalid_grant (400) does not start either.
+func TestProxyClient_EmptyAccessTokenIsTransient(t *testing.T) {
 	t.Parallel()
 
 	requests := 0
@@ -80,8 +82,9 @@ func TestProxyClient_EmptyAccessTokenIsARejection(t *testing.T) {
 	client := auth.NewProxyClient(&auth.ProxyClientConfig{URL: srv.URL, Retry: 2, RetryDelay: time.Millisecond})
 
 	_, err := client.ExchangeRefreshToken("refresh")
-	assert.ErrorIs(t, err, httpclient.ErrUnauthorized)
-	assert.Equal(t, 1, requests, "an empty access token must not be retried locally")
+	assert.Error(t, err)
+	assert.NotErrorIs(t, err, httpclient.ErrUnauthorized)
+	assert.Equal(t, 3, requests, "an empty access token is retried like any transient failure")
 }
 
 func TestProxyClient_ExchangeRequests(t *testing.T) {
@@ -94,10 +97,12 @@ func TestProxyClient_ExchangeRequests(t *testing.T) {
 		body     string
 	}{
 		{
-			name:     "authorization code",
-			exchange: func(c auth.ProxyClient) (*auth.OAuth2TokenResponse, error) { return c.ExchangeAuthorizationCode("code") },
-			path:     "/api/control/edge/proxy/auth-code",
-			body:     `{"code":"code","partnerCode":"partner"}`,
+			name: "authorization code",
+			exchange: func(c auth.ProxyClient) (*auth.OAuth2TokenResponse, error) {
+				return c.ExchangeAuthorizationCode("code")
+			},
+			path: "/api/control/edge/proxy/auth-code",
+			body: `{"code":"code","partnerCode":"partner"}`,
 		},
 		{
 			name:     "refresh token",
