@@ -360,7 +360,7 @@ func (d *Device) GetServicePropertyObject(serviceName fimptype.ServiceNameT, pro
 
 func (d *Device) MatchesTopic(topic string) bool {
 	for _, srv := range d.Services {
-		if strings.Contains(topic, srv.Addr) {
+		if srv.Addr != "" && strings.HasSuffix(topic, srv.Addr) {
 			return true
 		}
 	}
@@ -587,74 +587,86 @@ type StateDevice struct {
 
 func (d *StateDevice) GetAttributeStringValue(serviceName fimptype.ServiceNameT, attributeName string, properties map[string]string) (string, time.Time) {
 	var val string
+	t := d.GetAttributeObjectValue(serviceName, attributeName, properties, &val)
 
-	return val, d.GetAttributeObjectValue(serviceName, attributeName, properties, &val)
+	return val, t
 }
 
 func (d *StateDevice) GetAttributeIntValue(serviceName fimptype.ServiceNameT, attributeName string, properties map[string]string) (int, time.Time) {
 	var val int
+	t := d.GetAttributeObjectValue(serviceName, attributeName, properties, &val)
 
-	return val, d.GetAttributeObjectValue(serviceName, attributeName, properties, &val)
+	return val, t
 }
 
 func (d *StateDevice) GetAttributeFloatValue(serviceName fimptype.ServiceNameT, attributeName string, properties map[string]string) (float64, time.Time) {
 	var val float64
+	t := d.GetAttributeObjectValue(serviceName, attributeName, properties, &val)
 
-	return val, d.GetAttributeObjectValue(serviceName, attributeName, properties, &val)
+	return val, t
 }
 
 func (d *StateDevice) GetAttributeBoolValue(serviceName fimptype.ServiceNameT, attributeName string, properties map[string]string) (bool, time.Time) {
 	var val bool
+	t := d.GetAttributeObjectValue(serviceName, attributeName, properties, &val)
 
-	return val, d.GetAttributeObjectValue(serviceName, attributeName, properties, &val)
+	return val, t
 }
 
 func (d *StateDevice) GetAttributeStringArrayValue(serviceName fimptype.ServiceNameT, attributeName string, properties map[string]string) ([]string, time.Time) {
 	var val []string
+	t := d.GetAttributeObjectValue(serviceName, attributeName, properties, &val)
 
-	return val, d.GetAttributeObjectValue(serviceName, attributeName, properties, &val)
+	return val, t
 }
 
 func (d *StateDevice) GetAttributeIntArrayValue(serviceName fimptype.ServiceNameT, attributeName string, properties map[string]string) ([]int, time.Time) {
 	var val []int
+	t := d.GetAttributeObjectValue(serviceName, attributeName, properties, &val)
 
-	return val, d.GetAttributeObjectValue(serviceName, attributeName, properties, &val)
+	return val, t
 }
 
 func (d *StateDevice) GetAttributeFloatArrayValue(serviceName fimptype.ServiceNameT, attributeName string, properties map[string]string) ([]float64, time.Time) {
 	var val []float64
+	t := d.GetAttributeObjectValue(serviceName, attributeName, properties, &val)
 
-	return val, d.GetAttributeObjectValue(serviceName, attributeName, properties, &val)
+	return val, t
 }
 
 func (d *StateDevice) GetAttributeBoolArrayValue(serviceName fimptype.ServiceNameT, attributeName string, properties map[string]string) ([]bool, time.Time) {
 	var val []bool
+	t := d.GetAttributeObjectValue(serviceName, attributeName, properties, &val)
 
-	return val, d.GetAttributeObjectValue(serviceName, attributeName, properties, &val)
+	return val, t
 }
 
 func (d *StateDevice) GetAttributeStringMapValue(serviceName fimptype.ServiceNameT, attributeName string, properties map[string]string) (map[string]string, time.Time) {
 	var val map[string]string
+	t := d.GetAttributeObjectValue(serviceName, attributeName, properties, &val)
 
-	return val, d.GetAttributeObjectValue(serviceName, attributeName, properties, &val)
+	return val, t
 }
 
 func (d *StateDevice) GetAttributeIntMapValue(serviceName fimptype.ServiceNameT, attributeName string, properties map[string]string) (map[string]int, time.Time) {
 	var val map[string]int
+	t := d.GetAttributeObjectValue(serviceName, attributeName, properties, &val)
 
-	return val, d.GetAttributeObjectValue(serviceName, attributeName, properties, &val)
+	return val, t
 }
 
 func (d *StateDevice) GetAttributeFloatMapValue(serviceName fimptype.ServiceNameT, attributeName string, properties map[string]string) (map[string]float64, time.Time) {
 	var val map[string]float64
+	t := d.GetAttributeObjectValue(serviceName, attributeName, properties, &val)
 
-	return val, d.GetAttributeObjectValue(serviceName, attributeName, properties, &val)
+	return val, t
 }
 
 func (d *StateDevice) GetAttributeBoolMapValue(serviceName fimptype.ServiceNameT, attributeName string, properties map[string]string) (map[string]bool, time.Time) {
 	var val map[string]bool
+	t := d.GetAttributeObjectValue(serviceName, attributeName, properties, &val)
 
-	return val, d.GetAttributeObjectValue(serviceName, attributeName, properties, &val)
+	return val, t
 }
 
 func (d *StateDevice) GetAttributeObjectValue(serviceName fimptype.ServiceNameT, attributeName string, properties map[string]string, object any) time.Time {

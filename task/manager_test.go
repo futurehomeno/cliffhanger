@@ -6,6 +6,7 @@ import (
 	"time"
 
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 
 	"github.com/futurehomeno/cliffhanger/task"
 	"github.com/futurehomeno/cliffhanger/test/suite"
@@ -222,6 +223,18 @@ func TestManager_VoterReevaluatedOnEveryTick(t *testing.T) {
 	allowed.Store(true)
 
 	assert.Eventually(t, func() bool { return runs.Load() >= 1 }, time.Second, time.Millisecond)
+	assert.NoError(t, m.Stop())
+}
+
+func TestManager_NilTasksAreDropped(t *testing.T) {
+	t.Parallel()
+
+	var ran atomic.Bool
+
+	m := task.NewManager(nil, task.New(func() { ran.Store(true) }, 0), nil)
+
+	require.NotPanics(t, func() { assert.NoError(t, m.Start()) })
+	assert.Eventually(t, ran.Load, time.Second, time.Millisecond)
 	assert.NoError(t, m.Stop())
 }
 

@@ -2,7 +2,9 @@ package root
 
 import (
 	"errors"
+	"flag"
 	"path/filepath"
+	"slices"
 	"sync"
 
 	"github.com/futurehomeno/fimpgo"
@@ -140,6 +142,11 @@ func (b *Builder) Build() (App, error) {
 }
 
 func logBootstrapDirs() {
+	// GetConfigurationDirectory registers -c and parses the command line when it is not there yet.
+	if !flag.Parsed() {
+		return
+	}
+
 	if workDir, err := filepath.Abs(bootstrap.GetWorkingDirectory()); err != nil {
 		log.Warnf("[cliff] Resolve working dir=%s err: %v", bootstrap.GetWorkingDirectory(), err)
 	} else {
@@ -176,18 +183,15 @@ func (b *Builder) doBuild() App {
 
 // prepareRouting prepares routing for the root application.
 func (b *Builder) prepareRouting(rootApp *app) {
-	topicSubscriptions := append(b.topicSubscriptions, discovery.Topic) //nolint:gocritic
-	routing := append(                                                  //nolint:gocritic
-		b.routing,
-		discovery.Route(
-			b.resourceName,
-			b.resourceType,
-			b.packageName,
-			b.instanceID,
-			b.version,
-			b.lifecycle,
-		),
-	)
+	topicSubscriptions := slices.Concat(b.topicSubscriptions, []string{discovery.Topic})
+	routing := slices.Concat(b.routing, []*router.Routing{discovery.Route(
+		b.resourceName,
+		b.resourceType,
+		b.packageName,
+		b.instanceID,
+		b.version,
+		b.lifecycle,
+	)})
 
 	// Include application factory reset routing only if resetters are provided.
 	if len(rootApp.resetters) > 0 {
