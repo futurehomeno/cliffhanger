@@ -36,9 +36,7 @@ type CheckerConfig struct {
 	AuthLossState func(current lifecycle.State) lifecycle.State
 	// Authorized gates the success path; returning false skips restoring the running state,
 	// e.g. when a Logout/Reset cleared credentials mid-probe. nil keeps the default of always
-	// restoring. It re-reads state without a lock, so a teardown landing between this check
-	// and the restore is possible; the cancelled/stale guard still covers a teardown that
-	// overlaps the probe itself.
+	// restoring. A Cancel landing after this gate still discards the success.
 	Authorized func() bool
 }
 
@@ -176,8 +174,7 @@ func (c *ConnectivityChecker) check() {
 		c.settle()
 
 		if c.authorized() {
-			c.apply(lifecycle.AuthStateAuthenticated, lifecycle.ConnStateConnected, "")
-			c.repairAppHealth()
+			c.restore()
 		}
 
 		return
@@ -238,6 +235,20 @@ func (c *ConnectivityChecker) settleLocked() {
 		c.timer.Stop()
 		c.timer = nil
 	}
+}
+
+// restore applies a successful probe. c.mu is held across the cancelled read and the writes so a
+// Cancel landing after the Authorized gate either wins here or runs after the restore.
+func (c *ConnectivityChecker) restore() {
+	c.mu.Lock()
+	defer c.mu.Unlock()
+
+	if c.cancelled {
+		return
+	}
+
+	c.apply(lifecycle.AuthStateAuthenticated, lifecycle.ConnStateConnected, "")
+	c.repairAppHealth()
 }
 
 // repairAppHealth restores the running and configured states after a successful probe.

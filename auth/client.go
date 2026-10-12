@@ -34,6 +34,8 @@ func (cfg *ProxyClientConfig) setDefaults() {
 	if cfg.Timeout == 0 {
 		cfg.Timeout = 60 * time.Second
 	}
+
+	cfg.Retry = max(cfg.Retry, 0)
 }
 
 type ProxyClient interface {

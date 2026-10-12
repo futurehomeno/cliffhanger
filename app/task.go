@@ -1,6 +1,7 @@
 package app
 
 import (
+	"sync/atomic"
 	"time"
 
 	log "github.com/sirupsen/logrus"
@@ -40,9 +41,14 @@ func TaskInitialization(
 ) []*task.Task {
 	handler := HandleInitialization(app, appLifecycle, interval)
 
+	var started atomic.Bool
+
+	// The periodic task runs once immediately; skip it so it cannot double the one-shot startup run.
+	skipFirstRun := task.VoterFn(func() bool { return started.Swap(true) })
+
 	return []*task.Task{
 		task.New(handler, 0),
-		task.New(handler, interval, task.WhenAppEncounteredStartupError(appLifecycle)),
+		task.New(handler, interval, skipFirstRun, task.WhenAppEncounteredStartupError(appLifecycle)),
 	}
 }
 

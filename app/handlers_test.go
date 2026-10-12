@@ -263,10 +263,14 @@ func TestHandleCmdAppUninstall(t *testing.T) {
 		exclude      func() error
 		uninstallErr error
 		wantStatus   string
+		wantError    string
 	}{
 		{name: "exclusion fails, uninstall still runs", exclude: func() error { return errors.New("exclude") }, wantStatus: app.OperationStatusOK},
 		{name: "nil exclusion is skipped", wantStatus: app.OperationStatusOK},
-		{name: "uninstall fails", exclude: func() error { return nil }, uninstallErr: errors.New("boom"), wantStatus: app.OperationStatusError},
+		{
+			name: "uninstall fails", exclude: func() error { return nil }, uninstallErr: errors.New("boom"),
+			wantStatus: app.OperationStatusError, wantError: "uninstall the app err: boom",
+		},
 	}
 
 	for _, tc := range tests {
@@ -279,6 +283,7 @@ func TestHandleCmdAppUninstall(t *testing.T) {
 			report := requireReply[*app.ConfigurationReport](t, handler.Handle(newRequest(t, app.CmdAppUninstall, nil)), app.EvtAppUninstallReport)
 
 			assert.Equal(t, tc.wantStatus, report.OpStatus)
+			assert.Equal(t, tc.wantError, report.OpError)
 			assert.Equal(t, 1, application.uninstalls)
 		})
 	}

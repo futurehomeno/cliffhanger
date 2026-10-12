@@ -169,8 +169,9 @@ sleeping `RetryDelay` between them and replaying the request body each attempt, 
 immediately without retrying when the failure matches `httpclient.ErrUnauthorized` (rejection is
 definitive) or `httpclient.ErrTooManyRequests` (the caller's backoff paces the next attempt). Any
 non-200 response SHALL be mapped through `httpclient.ErrorFromResponse`. Unset configuration SHALL
-default `URL` to `ProxyURL(hub.EnvProd)` and `Timeout` to 60 seconds; additional `Headers` SHALL be
-added to each request except `Authorization` and `Content-Type`, which cannot be overridden.
+default `URL` to `ProxyURL(hub.EnvProd)` and `Timeout` to 60 seconds, and a negative `Retry` SHALL
+count as 0; additional `Headers` SHALL be added to each request except `Authorization` and
+`Content-Type`, which cannot be overridden.
 
 #### Scenario: Refresh rejected by the proxy
 - **WHEN** the proxy answers a refresh exchange with 401 or 403
@@ -183,6 +184,10 @@ added to each request except `Authorization` and `Content-Type`, which cannot be
 #### Scenario: Custom header collides with the bearer
 - **WHEN** the client is configured with an `Authorization` entry in `Headers`
 - **THEN** the request still carries `Bearer <Token>` from the configured `Token`
+
+#### Scenario: negative retry
+- **WHEN** the client is configured with `Retry: -1` and the proxy answers 502
+- **THEN** exactly one request is made and an error is returned
 
 ### Requirement: Environment-Keyed Proxy Endpoints
 `ProxyURL` and `ProxyCallbackURL` SHALL select their host from `hub.Environment`: `hub.EnvBeta`

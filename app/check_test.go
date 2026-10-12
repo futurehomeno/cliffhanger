@@ -205,6 +205,31 @@ func TestConnectivityChecker_AuthorizedGateSkipsRestore(t *testing.T) {
 	assert.Equal(t, lifecycle.ConnStateConnected, lc.ConnectionState(), "once authorized, a success restores state")
 }
 
+func TestConnectivityChecker_LogoutAfterAuthorizedGateWins(t *testing.T) {
+	t.Parallel()
+
+	lc := lifecycle.New(nil)
+	reporter := &fakeReporter{}
+
+	var checker *app.ConnectivityChecker
+
+	checker = app.NewConnectivityChecker(func() error { return nil }, lc, reporter, app.CheckerConfig{
+		Authorized: func() bool {
+			checker.Cancel()
+			lc.SetAppState(lifecycle.AppHealthNotConfigured, lifecycle.ConfigStateNotConfigured,
+				lifecycle.ConnStateDisconnected, lifecycle.AuthStateNotAuthenticated)
+
+			return true
+		},
+	})
+
+	assert.NoError(t, checker.Check())
+	assert.Equal(t, lifecycle.AuthStateNotAuthenticated, lc.AuthState())
+	assert.Equal(t, lifecycle.ConnStateDisconnected, lc.ConnectionState())
+	assert.Equal(t, lifecycle.AppHealthNotConfigured, lc.AppHealth())
+	assert.Equal(t, int32(0), reporter.reports.Load())
+}
+
 func TestConnectivityChecker_RepairAppHealthLeavesRunningAppUntouched(t *testing.T) {
 	t.Parallel()
 

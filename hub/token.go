@@ -32,7 +32,7 @@ func (cfg *TokenLoaderConfig) setDefaults() {
 		cfg.MQTTServerURI = "tcp://localhost:1883"
 	}
 
-	if cfg.Retry == 0 {
+	if cfg.Retry < 1 {
 		cfg.Retry = 7
 	}
 
@@ -55,10 +55,11 @@ type TokenLoader interface {
 
 // NewTokenLoader creates new instance of a token loader service.
 func NewTokenLoader(cfg *TokenLoaderConfig) TokenLoader {
-	cfg.setDefaults()
+	c := *cfg
+	c.setDefaults()
 
 	return &tokenLoader{
-		cfg: cfg,
+		cfg: &c,
 	}
 }
 
@@ -103,9 +104,9 @@ func (g *tokenLoader) requestToken(client *fimpgo.SyncClient) (string, error) {
 		response *fimpgo.FimpMessage
 	)
 
-	for i := 0; i < g.cfg.Retry; i++ {
+	for i := 1; ; i++ {
 		response, err = client.SendFimp("pt:j1/mt:cmd/rt:app/rn:clbridge/ad:1", reqMsg, 5)
-		if err == nil {
+		if err == nil || i >= g.cfg.Retry {
 			break
 		}
 
