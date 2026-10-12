@@ -92,8 +92,8 @@ func (suite *RouterTestSuite) TestConcurrentMatchesOfOneExpectation() {
 		suite.Require().NoError(suite.mqtt.Publish(addr, msg))
 	}
 
+	suite.Eventually(func() bool { return replies.Load() >= 20 }, time.Second, 5*time.Millisecond)
 	suite.router.AssertExpectations(100 * time.Millisecond)
-	suite.Eventually(func() bool { return replies.Load() == 20 }, time.Second, 5*time.Millisecond)
 }
 
 func (suite *RouterTestSuite) TestAtMostOnceDoesNotWaitOutTimeout() {

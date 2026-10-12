@@ -91,6 +91,10 @@ func (r *Router) AssertExpectations(timeout time.Duration) {
 	waitUntilTimeout := r.shouldWaitUntilTimeout()
 
 	for {
+		if !waitUntilTimeout && r.expectationsMet() {
+			return
+		}
+
 		select {
 		case <-t.C:
 			if !r.expectationsMet() {
@@ -100,9 +104,6 @@ func (r *Router) AssertExpectations(timeout time.Duration) {
 
 			return
 		case <-poll.C:
-			if !waitUntilTimeout && r.expectationsMet() {
-				return
-			}
 		}
 	}
 }
