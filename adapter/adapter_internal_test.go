@@ -586,6 +586,23 @@ func TestEnsureThings_DuplicateSeedsCreateOneThing(t *testing.T) {
 	assert.Equal(t, []string{"first"}, a.ThingByID("A").InclusionReport().Groups, "the first seed wins")
 }
 
+// TestEnsureThings_KeepSeedNeverCreatesOrHeals pins that a SyncThings pin seed, which carries no
+// Info, only shields a record from destroy: if the thing was deleted or ghosted after the pin
+// was taken, it must not be recreated from the Info-less seed.
+func TestEnsureThings_KeepSeedNeverCreatesOrHeals(t *testing.T) {
+	t.Parallel()
+
+	a := newInitializedTestAdapter(t, stubPublisher{})
+	_, err := a.state.add(&thingStateModel{ID: "G", Address: "7", Info: json.RawMessage(`{"groups":["g1"]}`)})
+	require.NoError(t, err)
+
+	require.NoError(t, a.EnsureThings(ThingSeeds{{ID: "D", keep: true}, {ID: "G", CustomAddress: "7", keep: true}}))
+
+	assert.Empty(t, a.things, "a pin seed must neither create nor heal a thing")
+	assert.Nil(t, a.state.byID("D"))
+	require.NotNil(t, a.state.byID("G"), "the pinned ghost record must not be destroyed")
+}
+
 type exclusionCounter struct {
 	stubPublisher
 

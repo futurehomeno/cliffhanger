@@ -92,14 +92,14 @@ func SyncThings[T any](
 }
 
 // unseededLiveThings returns a seed pinning every live thing of a selected device that has no
-// seed, which EnsureThings then leaves untouched instead of destroying it.
+// seed. EnsureThings never destroys, creates or heals from such a seed.
 func unseededLiveThings(a Adapter, selected []string, seeds ThingSeeds) ThingSeeds {
 	var kept ThingSeeds
 
 	for _, t := range a.Things() {
 		id, ok := a.ExchangeAddress(t.Address())
 		if ok && !seeds.Contains(id) && (selected == nil || slices.Contains(selected, id)) {
-			kept = append(kept, &ThingSeed{ID: id, CustomAddress: t.Address()})
+			kept = append(kept, &ThingSeed{ID: id, CustomAddress: t.Address(), keep: true})
 		}
 	}
 

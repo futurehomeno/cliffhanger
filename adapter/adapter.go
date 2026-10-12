@@ -342,6 +342,10 @@ func (a *adapter) ensureThings(seeds ThingSeeds) error {
 	}
 
 	for _, seed := range seeds {
+		if seed.keep {
+			continue
+		}
+
 		if err := a.recreateThing(seed, ghostAddresses[seed.ID], ghostStates[seed.ID]); err != nil {
 			errs = append(errs, err)
 		}
