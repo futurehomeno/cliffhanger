@@ -84,11 +84,6 @@ func writeKeyFile(path string) (newKey string, err error) {
 	}
 
 	if err != nil {
-		// Filesystems without hard links (vfat, some FUSE mounts) still get an atomic, if racy, rename.
-		err = os.Rename(tmp.Name(), path)
-	}
-
-	if err != nil {
 		return "", fmt.Errorf("security: could not link key file: %w", err)
 	}
 
