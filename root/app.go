@@ -205,7 +205,7 @@ func (a *app) doStart() (err error) {
 			a.lifecycle.SetAppHealth(lifecycle.AppHealthStartupError, nil)
 		}
 
-		debug.FlushLogs()
+		debug.SetLogWriteThrough(true)
 	}()
 
 	if err = a.mqtt.Start(10 * time.Second); err != nil {

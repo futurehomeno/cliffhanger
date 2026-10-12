@@ -183,6 +183,8 @@ func TestSetLogWriteThrough_SurvivesOutputSwapAndTurnsOff(t *testing.T) { //noli
 		logrus.SetFormatter(savedFormatter)
 	})
 
+	logManager = nil
+
 	dir := t.TempDir()
 	cfg := &config.Default{LogLevel: "info", LogFormat: "text", LogFile: filepath.Join(dir, "a.log")}
 	store := config.NewDefaultStore(func() *config.Default { return cfg }, func() error { return nil })

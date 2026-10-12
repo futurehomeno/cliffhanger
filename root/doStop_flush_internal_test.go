@@ -38,6 +38,7 @@ func TestDoStop_FlushesLogsEvenOnFailure(t *testing.T) { //nolint:paralleltest
 	})
 
 	require.NoError(t, debug.InitializeLogger(store))
+	debug.SetLogWriteThrough(false)
 
 	a := &app{
 		running:       true,
@@ -68,3 +69,4 @@ func TestDoStop_FlushesLogsEvenOnFailure(t *testing.T) { //nolint:paralleltest
 	require.NoError(t, err)
 	assert.Contains(t, string(b), "stop-banner-after-doStop", "lines logged after doStop() must be written through")
 }
+
