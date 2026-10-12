@@ -1,6 +1,7 @@
 package presence
 
 import (
+	"errors"
 	"time"
 
 	log "github.com/sirupsen/logrus"
@@ -30,7 +31,7 @@ func handleReporting(serviceRegistry adapter.ServiceRegistry) func() {
 			}
 
 			_, err := presence.SendPresenceReport(false)
-			if err != nil {
+			if err != nil && !errors.Is(err, adapter.ErrNotReported) {
 				log.Errorf("[presence] Send presence report. err: %v", err)
 			}
 		}

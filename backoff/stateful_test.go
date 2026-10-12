@@ -63,3 +63,33 @@ func TestStateful_Next(t *testing.T) {
 		})
 	}
 }
+
+func TestStateful_FailShouldReset(t *testing.T) {
+	t.Parallel()
+
+	b := backoff.NewStateful(time.Hour, 2*time.Hour, 3*time.Hour, 1, 1)
+	assert.False(t, b.Should(), "a backoff that never failed must not hold the caller back")
+
+	b.Fail()
+	assert.True(t, b.Should())
+
+	b.Reset()
+	assert.False(t, b.Should())
+	assert.Equal(t, time.Hour, b.Next(), "the streak restarts at the initial delay after a reset")
+	assert.Equal(t, 2*time.Hour, b.Next())
+}
+
+func TestTolerantFixed_Should(t *testing.T) {
+	t.Parallel()
+
+	b := backoff.NewTolerantFixed(2, time.Hour)
+
+	b.Fail()
+	assert.False(t, b.Should(), "the first failure is tolerated")
+
+	b.Fail()
+	assert.False(t, b.Should(), "the second failure is tolerated")
+
+	b.Fail()
+	assert.True(t, b.Should(), "the third failure imposes the fixed delay")
+}

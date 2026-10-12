@@ -52,7 +52,7 @@ func sendChargepointReports(s Service) {
 		}
 	}
 
-	if s.SupportsAdjustingPhaseModes() {
+	if s.IsPhaseModeAware() {
 		_, err = s.SendPhaseModeReport(false)
 		if err != nil {
 			log.Errorf("[chargepoint] Send phase mode report. err: %v", err)

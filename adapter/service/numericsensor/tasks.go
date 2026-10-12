@@ -1,6 +1,7 @@
 package numericsensor
 
 import (
+	"errors"
 	"strings"
 	"time"
 
@@ -36,7 +37,7 @@ func handleReporting(serviceRegistry adapter.ServiceRegistry) func() {
 
 			for _, unit := range sensor.SupportedUnits() {
 				_, err := sensor.SendSensorReport(unit, false)
-				if err != nil {
+				if err != nil && !errors.Is(err, adapter.ErrNotReported) {
 					log.Errorf("[numericsensor] Send sensor report. unit: %s err: %v", unit, err)
 				}
 			}

@@ -7,9 +7,7 @@ seed-driven presence reconciliation (`EnsureThings`), service-topology drift rep
 (`RebuildChangedThings`), the generic `SyncThings` flow, and the announcement of inclusion and
 exclusion reports to the hub. Every adapter in the fleet depends on these invariants, so a
 violation shows up as duplicated, ghosted or silently stale hub nodes.
-
 ## Requirements
-
 ### Requirement: Thing Factory Contract
 `ThingFactory.Create` SHALL be side-effect-free beyond the `Thing` it returns, and SHALL NOT call
 back into the `Adapter` it is handed. `RebuildChangedThings` invokes it speculatively on a
@@ -31,9 +29,11 @@ built.
 
 ### Requirement: Seeds From Selection
 `SeedsFromSelection` SHALL build one seed per available device whose ID appears in the selection.
-A `nil` selection SHALL select every available device; a non-`nil` empty selection SHALL select
-none. Duplicate IDs — in the available list or the selection — SHALL yield a single seed, because
-two seeds with the same ID would create two things with the second stranded at a second address.
+The seed function MAY return nil for an available item it cannot map now; no seed is produced for
+it (see Generic Sync Flow). A `nil`
+selection SHALL select every available device; a non-`nil` empty selection SHALL select none.
+Duplicate IDs — in the available list or the selection — SHALL yield a single seed, because two
+seeds with the same ID would create two things with the second stranded at a second address.
 
 #### Scenario: missing selection key means all devices
 - **WHEN** the selection is `nil` (the value produced by unmarshalling a missing JSON key)
@@ -46,6 +46,10 @@ two seeds with the same ID would create two things with the second stranded at a
 #### Scenario: duplicate device in the available list
 - **WHEN** two available items map to the same seed ID
 - **THEN** exactly one seed for that ID is returned
+
+#### Scenario: seed function skips an item
+- **WHEN** the seed function returns nil for an available item
+- **THEN** no seed is produced for it and the remaining items are still seeded
 
 ### Requirement: Thing Creation
 `CreateThing` SHALL persist a state record, build the thing through the factory, send a forced
@@ -108,16 +112,22 @@ next attempt. The adapter SHALL be marked initialized only after the whole pass 
 `EnsureThings` SHALL make the set of things match the supplied seeds: every state record whose ID
 is absent from the seeds is destroyed, and every seed with no state record is created. Seeds whose
 ID already has a live thing SHALL be dropped without being touched — presence reconciliation never
-re-announces or rebuilds a healthy thing. Destruction SHALL be skipped while the adapter is not yet
-initialized, so a device sync racing `InitializeThings` cannot drop persisted records before they
-have been announced; seeds whose IDs have no stored state SHALL still be created. The whole pass
-SHALL run under the adapter write lock inside a single state batch, and SHALL be best-effort per
-device with failures joined, so a non-nil error means the pass was partially applied.
+re-announces or rebuilds a healthy thing. Seeds sharing an ID SHALL be applied once, the first one
+winning, so a duplicate never strands a second thing at a second address. Destruction SHALL be
+skipped while the adapter is not yet initialized, so a device sync racing `InitializeThings` cannot
+drop persisted records before they have been announced; seeds whose IDs have no stored state SHALL
+still be created. The whole pass SHALL run under the adapter write lock inside a single state batch,
+and SHALL be best-effort per device with failures joined, so a non-nil error means the pass was
+partially applied.
 
 #### Scenario: seed with no record
 - **WHEN** `EnsureThings` receives a seed whose ID has no stored state
 - **THEN** a state record is created, an address is allocated unless the seed pins a `CustomAddress`,
   and a forced inclusion report is published
+
+#### Scenario: duplicate seeds
+- **WHEN** `EnsureThings` receives two seeds with the same ID and no `CustomAddress`
+- **THEN** exactly one thing is created for that ID, from the first seed
 
 #### Scenario: record with no seed
 - **WHEN** a stored thing's ID is absent from the seeds on an initialized adapter
@@ -196,13 +206,21 @@ restart or sync.
 selection, exclude vanished devices, apply `EnsureThings`, and return the applied seeds together
 with the IDs it excluded. If the fetch fails nothing SHALL be mutated and the error SHALL be
 returned, so a network glitch can never wipe live things. A successful fetch SHALL be treated as
-complete: every selected device absent from it is destroyed, including when the response is empty —
+complete: every selected device absent from it is destroyed, including when the response is empty
+unless an item maps to a nil seed —
 adapters must therefore make their client return an error rather than a truncated or empty slice on
 a non-2xx, a rate limit or an unparsable body. Until the adapter is initialized that destroy is
 deferred by `EnsureThings`, so a racing boot sync cannot wipe records `InitializeThings` has not
-announced yet. `SyncThings` SHALL NOT be atomic: it takes and releases the adapter lock per
-operation, so adapters that also handle `cmd.thing.delete` or configuration writes must serialise
-those against it with a shared `router.MessageHandlerLocker`.
+announced yet. A seed function returning nil means the item cannot be mapped now: it gets no seed,
+and since its ID is unknown no unseeded selected device can be told apart from it, so while any
+fetched item maps to nil `SyncThings` SHALL exclude no vanished device, SHALL keep every live thing
+and ghost record of a selected device that has no seed, and SHALL return an error wrapping `ErrUnmappedDevice`, so
+callers do not prune their selection and the stale sweep is skipped. Devices the adapter never
+supports must be filtered out in the fetch, not by a nil seed, or no sync would clean up again.
+`SyncThings` SHALL NOT
+be atomic: it takes and releases the adapter lock per operation, so adapters that also handle
+`cmd.thing.delete` or configuration writes must serialise those against it with a shared
+`router.MessageHandlerLocker`.
 
 #### Scenario: fetch fails
 - **WHEN** the fetch function returns an error
@@ -221,9 +239,23 @@ those against it with a shared `router.MessageHandlerLocker`.
 - **THEN** the applied seeds are returned so the caller can pass them to `RebuildChangedThings`
   without fetching again
 
+#### Scenario: an owned device cannot be mapped
+- **WHEN** the seed function returns nil for a fetched, selected device the adapter has a live thing for
+- **THEN** that thing is neither destroyed nor rebuilt, no seed for it is returned, and the error wraps
+  `ErrUnmappedDevice`
+
+#### Scenario: a device the adapter does not own cannot be mapped
+- **WHEN** the seed function returns nil for a fetched, selected device the adapter owns no thing for
+- **THEN** no exclusion is published for its ID and it is not returned in `excludedIDs`
+
+#### Scenario: a ghost of an owned device cannot be mapped
+- **WHEN** the seed function returns nil for a fetched item while a selected device without a seed has
+  a state record but no live thing
+- **THEN** its record is kept and no exclusion is published for it
+
 ### Requirement: Exclusion Of Vanished Devices
-Before `EnsureThings` runs, `SyncThings` SHALL publish an exclusion report for every selected ID
-that the fetch no longer lists and that the adapter owns no thing for, using the device ID itself as
+Before `EnsureThings` runs, and only when every fetched item mapped to a seed, `SyncThings` SHALL
+publish an exclusion report for every selected ID that the fetch no longer lists and that the adapter owns no thing for, using the device ID itself as
 the report address, and SHALL return the IDs it successfully excluded. Duplicate IDs in the
 selection SHALL be announced once. An ID that resolves through `ExchangeID` to a thing the adapter
 owns, or through `ExchangeAddress` to another thing's address, SHALL NOT be excluded. The pass SHALL
@@ -243,51 +275,6 @@ and be excluded a second time at the wrong address.
 #### Scenario: the ID collides with another thing's address
 - **WHEN** a selected ID missing from the fetch matches another thing's address
 - **THEN** no exclusion is published, so the unrelated thing is not killed
-
-### Requirement: Stale Hub Node Sweep
-The adapter SHALL sweep hub nodes it no longer owns, clearing nodes left behind by a state store
-that was lost or restored from an older backup. `ExcludeStaleNodes` SHALL ask the hub which devices
-it attributes to this adapter and SHALL destroy every address the adapter holds no thing for,
-best-effort per address: failures SHALL be joined and the addresses that were excluded SHALL still
-be returned. Attribution SHALL be read from a service topic's resource name rather than from
-`device.FIMP.Adapter`, which carries the service name and differs for technologies such as zwave.
-Several hub devices MAY share one thing address, so addresses SHALL be deduplicated.
-
-The sweep SHALL run only from `SyncThings`, and only when the fetch, the vanished-device exclusion
-and `EnsureThings` all succeeded — that is the only moment the adapter's things are known to match
-the service's, so a node the sync is about to recreate can never be excluded first. It SHALL
-additionally require the adapter to be initialized: until then no thing is registered, so every hub
-node would be classified stale and the whole fleet excluded. That check SHALL leave the once-per-
-process budget unspent, so a sync that arrives before initialization defers the sweep rather than
-consuming it. Otherwise the sweep SHALL run at most once per process, SHALL run asynchronously so it
-cannot hold up the sync, and its failures SHALL be logged rather than returned, because a sweep must
-not break a sync. The Vinculum request SHALL be bounded by a timeout.
-
-The sweep SHALL be enabled by default. `WithStaleNodeExclusion` SHALL replace the predicate that
-gates it, evaluated when the sweep is due so it can be backed by a configuration setting.
-
-#### Scenario: state restored from an older backup
-- **WHEN** a sync completes without errors and the hub attributes a node to this adapter that the
-  adapter owns no thing for
-- **THEN** that address is destroyed and its exclusion announced, asynchronously
-
-#### Scenario: a device the sync is about to recreate
-- **WHEN** the device fetch or `EnsureThings` reported an error during the sync
-- **THEN** no sweep is triggered, so a node awaiting recreation is not excluded first
-
-#### Scenario: a sync races initialization at startup
-- **WHEN** a device sync completes before `InitializeThings` has run, so the adapter reports success
-  with no things registered
-- **THEN** no sweep is started, and the first sync after initialization still performs one
-
-#### Scenario: the once is consumed even when disabled
-- **WHEN** the predicate returns false the first time a sweep is due
-- **THEN** the sweep is skipped and SHALL NOT run again for the lifetime of the process, even if the
-  predicate would later return true
-
-#### Scenario: the hub cannot be reached
-- **WHEN** the Vinculum request fails or times out
-- **THEN** the error is logged and the sync that triggered the sweep is unaffected
 
 ### Requirement: Inclusion Report Deduplication
 `Thing.SendInclusionReport(false)` SHALL publish `evt.thing.inclusion_report` only when the CRC32 of
@@ -338,3 +325,82 @@ to the same service.
 #### Scenario: topic lookup from an inbound message
 - **WHEN** `ServiceByTopic` is given the full MQTT topic of an inbound command
 - **THEN** the prefix ahead of `/rt:dev/rn:` is cut and the matching service is returned
+
+### Requirement: Stale Sweep Claims Only Wholly Owned Devices
+The stale sweep SHALL treat a hub device as this adapter's only when every service whose topic names
+a resource name names this adapter, and the instance, when present, is this adapter's.
+
+#### Scenario: a device mixing services of two adapters
+- **WHEN** a hub device has one service on this adapter's resource name and another on a different one
+- **THEN** the sweep does not exclude it
+
+### Requirement: Prospective Build State
+When `RebuildChangedThings` builds a prospective thing, the `ThingState` it passes to
+`ThingFactory.Create` SHALL be an in-memory stand-in carrying the seed's ID, the live thing's address
+and the seed's `Info` (round-tripped through JSON, a no-op when the seed has none). It SHALL report
+no persisted state and a zero inclusion checksum, and SHALL silently discard `SetState` and
+`SetInclusionChecksum`, so the drift check never touches `adapter.json`. A service topology derived
+from persisted per-thing state rather than from `Info` is therefore seen as changed by the drift
+check.
+
+#### Scenario: factory reads the seed info during a drift check
+- **WHEN** `RebuildChangedThings` calls `Create` for a seed whose `Info` lists an extra capability
+- **THEN** `Info` on the passed state yields the seed's new info and `Address` the live address
+- **AND** `State` leaves the model untouched and nothing is written to the state file
+
+### Requirement: Stale Hub Node Sweep Once
+The adapter SHALL sweep hub nodes it no longer owns, clearing nodes left behind by a state store
+that was lost or restored from an older backup. `ExcludeStaleNodes` SHALL ask the hub which devices
+it attributes to this adapter and SHALL destroy every address the adapter holds no thing for,
+best-effort per address: failures SHALL be joined and the addresses that were excluded SHALL still
+be returned. When the hub request itself fails it SHALL exclude nothing and return an error wrapping
+`ErrStaleNodeFetch`; a per-address failure SHALL NOT wrap it. Attribution SHALL be read from a
+service topic's resource name rather than from `device.FIMP.Adapter`, which carries the service name
+and differs for technologies such as zwave. Hub devices with an empty FIMP address SHALL be ignored,
+and since several hub devices MAY share one thing address, addresses SHALL be deduplicated.
+
+The automatic sweep SHALL run only from `SyncThings` on an adapter built by `NewAdapter` with a
+non-nil MQTT transport, and only when the fetch, the vanished-device exclusion and `EnsureThings` all
+succeeded — that is the only moment the adapter's things are known to match the service's, so a node
+the sync is about to recreate can never be excluded first. It SHALL additionally require the adapter
+to be initialized: until then no thing is registered, so every hub node would be classified stale and
+the whole fleet excluded. The predicate set by `WithStaleNodeExclusion` (the sweep is enabled by
+default) SHALL be evaluated on every such sync. Neither the initialization check nor a false
+predicate SHALL spend the once-per-process claim, so a sync that arrives too early or while the
+sweep is disabled defers it, and a runtime configuration flag can enable it later.
+
+Once claimed, the sweep SHALL run asynchronously so it cannot hold up the sync, its failures SHALL be
+logged rather than returned, and the Vinculum request SHALL be bounded by a timeout. A sweep whose
+hub request failed SHALL release the claim so a later successful sync retries it; any other outcome,
+including partial per-address failures, SHALL keep the claim, so the sweep is not repeated for the
+lifetime of the process. The claim SHALL also keep two sweeps from overlapping.
+
+#### Scenario: state restored from an older backup
+- **WHEN** a sync completes without errors and the hub attributes a node to this adapter that the
+  adapter owns no thing for
+- **THEN** that address is destroyed and its exclusion announced, asynchronously
+
+#### Scenario: a device the sync is about to recreate
+- **WHEN** the device fetch or `EnsureThings` reported an error during the sync
+- **THEN** no sweep is triggered, so a node awaiting recreation is not excluded first
+
+#### Scenario: a sync races initialization at startup
+- **WHEN** a device sync completes before `InitializeThings` has run, so the adapter reports success
+  with no things registered
+- **THEN** no sweep is started, and the first sync after initialization still performs one
+
+#### Scenario: a disabled predicate does not spend the once
+- **WHEN** the predicate returns false on the first successful sync and true on a later one
+- **THEN** the first sync skips the sweep without spending the claim and
+  the later sync performs it
+
+#### Scenario: the hub cannot be reached
+- **WHEN** the Vinculum request fails or times out
+- **THEN** the error is logged, the sync that triggered the sweep is unaffected, and the claim is
+  released so the next successful sync sweeps again
+
+#### Scenario: one stale node fails to be excluded
+- **WHEN** the hub answers and excluding one of the stale addresses fails
+- **THEN** the other addresses are still excluded, the failure is logged, and no later sync sweeps
+  again
+

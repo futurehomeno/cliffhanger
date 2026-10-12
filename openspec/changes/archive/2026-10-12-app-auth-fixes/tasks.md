@@ -1,0 +1,6 @@
+- [x] Checker: a logout/reset landing after the `Authorized` gate wins (app-checker-success-races-logout)
+- [x] Init retry task skips its immediate first run (app-init-retry-can-fire-immediately)
+- [x] Uninstall replies and logs an uninstall error (app-uninstall-reports-configure-error)
+- [x] Deprecate `manifest.AuthResponse` (app-manifest-authresponse-unused)
+- [x] `ProxyClient` clamps a negative `Retry` to 0 (auth-proxy-client-negative-retry)
+- [x] Token loader retry edges and config copy (platform-hub-token-loader-retry-edges)
