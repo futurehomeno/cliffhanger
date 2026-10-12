@@ -36,9 +36,7 @@ type CheckerConfig struct {
 	AuthLossState func(current lifecycle.State) lifecycle.State
 	// Authorized gates the success path; returning false skips restoring the running state,
 	// e.g. when a Logout/Reset cleared credentials mid-probe. nil keeps the default of always
-	// restoring. It re-reads state without a lock, so a teardown landing between this check
-	// and the restore is possible; the cancelled/stale guard still covers a teardown that
-	// overlaps the probe itself.
+	// restoring. A Cancel landing after this gate still discards the success.
 	Authorized func() bool
 }
 
@@ -177,7 +175,6 @@ func (c *ConnectivityChecker) check() {
 
 		if c.authorized() {
 			c.apply(lifecycle.AuthStateAuthenticated, lifecycle.ConnStateConnected, "")
-			c.repairAppHealth()
 		}
 
 		return
@@ -271,10 +268,25 @@ func (c *ConnectivityChecker) rateLimitDelay(err error) time.Duration {
 	return c.cfg.RateLimitDelay
 }
 
-// apply sets the provided lifecycle states (empty auth leaves it untouched) and
-// broadcasts node availability if any of them changed. reason accompanies an
-// AuthStateLost transition to tell the auth-loss watcher why the session was lost.
+// apply sets the provided lifecycle states (empty auth leaves it untouched), repairs the app
+// health on AuthStateAuthenticated and broadcasts node availability if any state changed.
+// reason accompanies an AuthStateLost transition to tell the auth-loss watcher why the session
+// was lost.
 func (c *ConnectivityChecker) apply(auth, conn lifecycle.State, reason string) {
+	c.report(c.set(auth, conn, reason))
+}
+
+// set writes the states unless a Cancel landed since the probe. c.mu is held across the cancelled
+// read and the writes, so a logout or reset either wins here or runs after them; the report is
+// sent outside the lock.
+func (c *ConnectivityChecker) set(auth, conn lifecycle.State, reason string) bool {
+	c.mu.Lock()
+	defer c.mu.Unlock()
+
+	if c.cancelled {
+		return false
+	}
+
 	changed := false
 
 	// AuthStateLost triggers the auth-loss watcher, which reports the whole state bundle.
@@ -300,7 +312,11 @@ func (c *ConnectivityChecker) apply(auth, conn lifecycle.State, reason string) {
 		}
 	}
 
-	c.report(changed)
+	if auth == lifecycle.AuthStateAuthenticated {
+		c.repairAppHealth()
+	}
+
+	return changed
 }
 
 // report broadcasts node availability when a state change occurred.
