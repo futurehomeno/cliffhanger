@@ -71,6 +71,23 @@ func TestDevices(t *testing.T) {
 			want:    &prime.Device{ID: 3, Services: map[fimptype.ServiceNameT]*prime.Service{"test_service": {Addr: "test_topic"}}},
 		},
 		{
+			name: "find by topic - address must be the topic suffix",
+			devices: prime.Devices{
+				{ID: 1, Services: map[fimptype.ServiceNameT]*prime.Service{"out_bin_switch": {Addr: "/rt:dev/rn:zw/ad:1/sv:out_bin_switch/ad:1"}}},
+				{ID: 2, Services: map[fimptype.ServiceNameT]*prime.Service{"out_bin_switch": {Addr: "/rt:dev/rn:zw/ad:1/sv:out_bin_switch/ad:12_0"}}},
+			},
+			call: func(devices prime.Devices) any {
+				return devices.FindByTopic("pt:j1/mt:evt/rt:dev/rn:zw/ad:1/sv:out_bin_switch/ad:12_0").ID
+			},
+			want: 2,
+		},
+		{
+			name:    "find by topic - empty address matches nothing",
+			devices: prime.Devices{{ID: 1, Services: map[fimptype.ServiceNameT]*prime.Service{"test_service": {Addr: ""}}}},
+			call:    func(devices prime.Devices) any { return devices.FindByTopic("test_topic") },
+			want:    (*prime.Device)(nil),
+		},
+		{
 			name:    "find by topic - no matches",
 			devices: prime.Devices{{ID: 1}, {ID: 2}, {ID: 3, Services: map[fimptype.ServiceNameT]*prime.Service{"test_service": {Addr: "test_topic"}}}},
 			call:    func(devices prime.Devices) any { return devices.FindByTopic("other_topic") },
