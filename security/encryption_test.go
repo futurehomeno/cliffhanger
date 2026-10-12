@@ -4,6 +4,8 @@ import (
 	"encoding/hex"
 	"os"
 	"path/filepath"
+	"strings"
+	"sync"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -96,12 +98,14 @@ func TestGetKey_TightensPermissionsOfExistingKey(t *testing.T) {
 	t.Parallel()
 
 	path := filepath.Join(t.TempDir(), "key")
-	require.NoError(t, os.WriteFile(path, []byte("abcd"), 0o644)) //nolint:gosec
+	stored, err := security.GenerateKey(16)
+	require.NoError(t, err)
+	require.NoError(t, os.WriteFile(path, []byte(stored), 0o644)) //nolint:gosec
 	require.NoError(t, os.Chmod(path, 0o644))                     //nolint:gosec
 
 	key, err := security.GetKey(path)
 	require.NoError(t, err)
-	assert.Equal(t, "abcd", key)
+	assert.Equal(t, stored, key)
 
 	info, err := os.Stat(path)
 	require.NoError(t, err)
@@ -113,6 +117,79 @@ func TestGetKey_UnwritablePath(t *testing.T) {
 
 	_, err := security.GetKey(filepath.Join(t.TempDir(), "missing", "key"))
 	assert.Error(t, err)
+}
+
+func TestGetKey_InvalidStoredKey(t *testing.T) {
+	t.Parallel()
+
+	for name, content := range map[string]string{"empty": "", "trailing newline": strings.Repeat("ab", 32) + "\n", "wrong length": "abcd", "not hex": strings.Repeat("zz", 32)} {
+		t.Run(name, func(t *testing.T) {
+			t.Parallel()
+
+			path := filepath.Join(t.TempDir(), "key")
+			require.NoError(t, os.WriteFile(path, []byte(content), 0o644)) //nolint:gosec
+			require.NoError(t, os.Chmod(path, 0o644))                      //nolint:gosec
+
+			_, err := security.GetKey(path)
+			assert.Error(t, err)
+
+			raw, err := os.ReadFile(path) //nolint:gosec
+			require.NoError(t, err)
+			assert.Equal(t, content, string(raw), "an invalid key must not be overwritten")
+
+			info, err := os.Stat(path)
+			require.NoError(t, err)
+			assert.Equal(t, os.FileMode(0o644), info.Mode().Perm(), "an invalid key file must be left untouched")
+		})
+	}
+}
+
+func TestGetKey_ConcurrentFirstRunAgreeOnOneKey(t *testing.T) {
+	t.Parallel()
+
+	path := filepath.Join(t.TempDir(), "key")
+	keys := make([]string, 20)
+
+	var wg sync.WaitGroup
+	for i := range keys {
+		wg.Add(1)
+
+		go func() {
+			defer wg.Done()
+
+			var err error
+			keys[i], err = security.GetKey(path)
+			assert.NoError(t, err)
+		}()
+	}
+
+	wg.Wait()
+
+	stored, err := os.ReadFile(path) //nolint:gosec
+	require.NoError(t, err)
+
+	for _, key := range keys {
+		assert.Equal(t, string(stored), key)
+	}
+}
+
+func TestGetKey_UnreadableKeyIsNotOverwritten(t *testing.T) {
+	t.Parallel()
+
+	if os.Geteuid() == 0 {
+		t.Skip("root ignores file permissions")
+	}
+
+	path := filepath.Join(t.TempDir(), "key")
+	require.NoError(t, os.WriteFile(path, []byte("original"), 0o200))
+
+	_, err := security.GetKey(path)
+	assert.Error(t, err)
+
+	require.NoError(t, os.Chmod(path, 0o600))
+	raw, err := os.ReadFile(path) //nolint:gosec
+	require.NoError(t, err)
+	assert.Equal(t, "original", string(raw))
 }
 
 func TestEncrypt_InvalidKey(t *testing.T) {

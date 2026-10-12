@@ -42,6 +42,20 @@ func TestDefault_DefaultConfigIfMethods(t *testing.T) { //nolint:paralleltest
 	assert.Equal(t, 2, d.IncrementRestartsCount())
 }
 
+func TestDefault_TelemetryIsCloned(t *testing.T) { //nolint:paralleltest
+	d := &config.Default{}
+
+	in := types.TelemetryConfig{Suppressed: &types.SuppressedEntry{Domains: []string{"a"}}}
+	d.SetTelemetry(in)
+	in.Suppressed.Domains[0] = "mutated"
+
+	got, err := d.GetTelemetry()
+	require.NoError(t, err)
+	got.Suppressed.Domains[0] = "mutated"
+
+	assert.Equal(t, []string{"a"}, d.Telemetry.Suppressed.Domains)
+}
+
 func newTestStore(t *testing.T) (*config.DefaultStore, *config.Default, *atomic.Int32) {
 	t.Helper()
 
@@ -205,6 +219,24 @@ func TestDefaultStore_IncrementRestartsCount_SaveFailure(t *testing.T) { //nolin
 	assert.EqualError(t, err, "disk full")
 	assert.Zero(t, count)
 	assert.Equal(t, 5, store.RestartsCount(), "the in-memory increment survives for a later save")
+}
+
+func TestDefaultStore_Telemetry_ReturnsClone(t *testing.T) { //nolint:paralleltest
+	store, _, _ := newTestStore(t)
+
+	require.NoError(t, store.SetTelemetry(&types.TelemetryConfig{
+		Suppressed: &types.SuppressedEntry{Domains: []string{"a"}, Events: []string{"x"}},
+	}))
+
+	got, err := store.Telemetry()
+	require.NoError(t, err)
+	got.Suppressed.Domains[0] = "mutated"
+	got.Suppressed.Events[0] = "mutated"
+
+	got, err = store.Telemetry()
+	require.NoError(t, err)
+	assert.Equal(t, []string{"a"}, got.Suppressed.Domains)
+	assert.Equal(t, []string{"x"}, got.Suppressed.Events)
 }
 
 func TestDefaultStore_Default_ClonesTelemetry(t *testing.T) { //nolint:paralleltest
