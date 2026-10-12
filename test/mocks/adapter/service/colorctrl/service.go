@@ -346,19 +346,19 @@ func (_c *Service_SupportedComponents_Call) RunAndReturn(run func() []string) *S
 }
 
 // SupportedDurations provides a mock function with no fields
-func (_m *Service) SupportedDurations() map[string]int {
+func (_m *Service) SupportedDurations() []int {
 	ret := _m.Called()
 
 	if len(ret) == 0 {
 		panic("no return value specified for SupportedDurations")
 	}
 
-	var r0 map[string]int
-	if rf, ok := ret.Get(0).(func() map[string]int); ok {
+	var r0 []int
+	if rf, ok := ret.Get(0).(func() []int); ok {
 		r0 = rf()
 	} else {
 		if ret.Get(0) != nil {
-			r0 = ret.Get(0).(map[string]int)
+			r0 = ret.Get(0).([]int)
 		}
 	}
 
@@ -382,12 +382,12 @@ func (_c *Service_SupportedDurations_Call) Run(run func()) *Service_SupportedDur
 	return _c
 }
 
-func (_c *Service_SupportedDurations_Call) Return(_a0 map[string]int) *Service_SupportedDurations_Call {
+func (_c *Service_SupportedDurations_Call) Return(_a0 []int) *Service_SupportedDurations_Call {
 	_c.Call.Return(_a0)
 	return _c
 }
 
-func (_c *Service_SupportedDurations_Call) RunAndReturn(run func() map[string]int) *Service_SupportedDurations_Call {
+func (_c *Service_SupportedDurations_Call) RunAndReturn(run func() []int) *Service_SupportedDurations_Call {
 	_c.Call.Return(run)
 	return _c
 }

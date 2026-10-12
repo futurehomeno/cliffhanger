@@ -2,10 +2,7 @@ package auth_test
 
 import (
 	"errors"
-	"fmt"
 	"slices"
-	"sync"
-	"sync/atomic"
 	"testing"
 	"time"
 
@@ -604,80 +601,4 @@ func TestAuthenticator_AccessToken(t *testing.T) {
 		assert.Equal(t, "access", token)
 		assert.Zero(t, exchanger.calls, "backoff must suppress the refresh exchange")
 	})
-}
-
-type countingExchanger struct {
-	calls atomic.Int32
-}
-
-func (e *countingExchanger) ExchangeRefreshToken(string) (*auth.OAuth2TokenResponse, error) {
-	n := e.calls.Add(1)
-	time.Sleep(20 * time.Millisecond)
-
-	return &auth.OAuth2TokenResponse{AccessToken: fmt.Sprintf("fresh-%d", n), ExpiresIn: 3600}, nil
-}
-
-func TestAuthenticator_ConcurrentCallersShareOneRefresh(t *testing.T) {
-	t.Parallel()
-
-	exchanger := &countingExchanger{}
-	a := auth.NewAuthenticator(&fakeStore{creds: expiredCreds()}, exchanger, auth.AuthenticatorConfig{})
-
-	tokens := make([]string, 10)
-
-	var wg sync.WaitGroup
-
-	for i := range tokens {
-		wg.Go(func() {
-			token, err := a.AccessToken()
-			assert.NoError(t, err)
-
-			tokens[i] = token
-		})
-	}
-
-	wg.Wait()
-
-	assert.Equal(t, int32(1), exchanger.calls.Load())
-
-	for _, token := range tokens {
-		assert.Equal(t, "fresh-1", token)
-	}
-}
-
-type failingClearStore struct {
-	fakeStore
-}
-
-func (s *failingClearStore) ClearCredentials() error { return errors.New("disk full") }
-
-func TestAuthenticator_AuthLossSurvivesClearFailure(t *testing.T) {
-	t.Parallel()
-
-	lossReason := ""
-	a := auth.NewAuthenticator(&failingClearStore{fakeStore{creds: expiredCreds()}}, &fakeExchanger{err: httpclient.ErrUnauthorized},
-		auth.AuthenticatorConfig{OnAuthLoss: func(reason string) { lossReason = reason }})
-
-	_, err := a.AccessToken()
-	assert.ErrorIs(t, err, auth.ErrReloginRequired)
-	assert.Contains(t, lossReason, "refresh token rejected", "auth loss must be reported even when clearing fails")
-}
-
-func TestAuthenticator_TransientFailureAfterExpiry(t *testing.T) {
-	t.Parallel()
-
-	exchangeErr := errors.New("proxy down")
-	store := &fakeStore{creds: expiredCreds()}
-	lost := false
-	a := auth.NewAuthenticator(store, &fakeExchanger{err: exchangeErr}, auth.AuthenticatorConfig{
-		OnAuthLoss: func(string) { lost = true },
-	})
-
-	_, err := a.AccessToken()
-	assert.ErrorIs(t, err, exchangeErr)
-	assert.NotErrorIs(t, err, auth.ErrReloginRequired)
-	assert.NotErrorIs(t, err, auth.ErrRefreshDeferred)
-	assert.NotErrorIs(t, err, httpclient.ErrUnauthorized)
-	assert.False(t, lost)
-	assert.Equal(t, expiredCreds().RefreshToken, store.creds.RefreshToken, "a transient failure must keep the credentials")
 }

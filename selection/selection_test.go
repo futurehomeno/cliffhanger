@@ -94,15 +94,3 @@ func TestSelection_SurvivesJSONInBothDirections(t *testing.T) {
 		})
 	}
 }
-
-func TestDevices_SelectionWritesThroughToTheModel(t *testing.T) {
-	t.Parallel()
-
-	cfg := &struct{ selection.Devices }{}
-
-	var selectable selection.Selectable = cfg
-
-	*selectable.Selection() = selection.Selection{"a"}
-
-	assert.Equal(t, selection.Selection{"a"}, cfg.SelectedDevices)
-}

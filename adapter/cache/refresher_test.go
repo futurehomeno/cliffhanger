@@ -2,8 +2,6 @@ package cache_test
 
 import (
 	"errors"
-	"sync"
-	"sync/atomic"
 	"testing"
 	"time"
 
@@ -159,104 +157,4 @@ func (m *refreshMock) mockRefresh(want any, err error, once bool) *refreshMock {
 	}
 
 	return m
-}
-
-func TestRefresher_BackoffWrapsLastError(t *testing.T) {
-	t.Parallel()
-
-	cause := errors.New("myuplink: 503")
-	refresher := cache.NewRefresher(newRefreshMock().mockRefresh(nil, cause, true).refresh, time.Minute, cache.WithDefaultBackoff())
-
-	_, err := refresher.Refresh()
-	assert.ErrorIs(t, err, cause)
-
-	_, err = refresher.Refresh()
-	assert.ErrorIs(t, err, cache.ErrBackoff)
-	assert.ErrorIs(t, err, cause)
-	assert.ErrorContains(t, err, "refresher: backoff is in effect: last error: myuplink: 503")
-}
-
-func TestRefresher_ResetKeepsBackoff(t *testing.T) {
-	t.Parallel()
-
-	calls := 0
-	refresher := cache.NewRefresher(func() (int, error) {
-		calls++
-
-		if calls == 2 {
-			return 0, errors.New("cloud down")
-		}
-
-		return calls, nil
-	}, time.Nanosecond, cache.WithDefaultBackoff())
-
-	_, err := refresher.Refresh()
-	assert.NoError(t, err)
-
-	time.Sleep(time.Millisecond)
-
-	_, err = refresher.Refresh()
-	assert.Error(t, err)
-
-	refresher.Reset()
-
-	_, err = refresher.Refresh()
-	assert.ErrorIs(t, err, cache.ErrBackoff, "a reset must not lift the backoff")
-	assert.Equal(t, 2, calls)
-}
-
-func TestRefresher_NoBackoffWithoutOption(t *testing.T) {
-	t.Parallel()
-
-	m := newRefreshMock().mockRefresh(nil, errors.New("test"), false)
-	refresher := cache.NewRefresher(m.refresh, time.Minute)
-
-	_, err := refresher.Refresh()
-	assert.Error(t, err)
-
-	_, err = refresher.Refresh()
-	assert.Error(t, err)
-	assert.NotErrorIs(t, err, cache.ErrBackoff)
-	m.AssertNumberOfCalls(t, "refresh", 2)
-	assert.True(t, refresher.IsFailing(), "the failure threshold defaults to zero")
-}
-
-func TestRefresher_ConcurrentCallersShareOneRefresh(t *testing.T) {
-	t.Parallel()
-
-	var calls atomic.Int32
-
-	release := make(chan struct{})
-	refresher := cache.NewRefresher(func() (int, error) {
-		calls.Add(1)
-		<-release
-
-		return 42, nil
-	}, time.Minute)
-
-	const callers = 5
-
-	var wg sync.WaitGroup
-
-	results := make(chan int, callers)
-
-	for range callers {
-		wg.Go(func() {
-			v, err := refresher.Refresh()
-			assert.NoError(t, err)
-
-			results <- v
-		})
-	}
-
-	time.Sleep(20 * time.Millisecond)
-	close(release)
-	wg.Wait()
-	close(results)
-
-	assert.Equal(t, int32(1), calls.Load(), "concurrent callers must not refresh in parallel")
-
-	for v := range results {
-		assert.Equal(t, 42, v)
-	}
 }

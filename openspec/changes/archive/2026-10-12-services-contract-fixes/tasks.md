@@ -1,6 +1,0 @@
-- [x] battery advertises `evt.lvl.report` as `int`
-- [x] colorctrl advertises `cmd.color.set` as `int_map`
-- [x] colorctrl `SupportedDurations()` returns the stored map
-- [x] chargepoint task polls the phase mode of an aware-only charger
-- [x] parameters: a nil parameter is an error, not a panic
-- [x] thermostat/waterheater setpoint dedup includes the unit

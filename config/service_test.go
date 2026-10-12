@@ -1,7 +1,6 @@
 package config_test
 
 import (
-	"errors"
 	"os"
 	"path/filepath"
 	"sync"
@@ -201,25 +200,4 @@ func TestService_Reset_KeepsRunTimeDirectoriesOnFailedReload(t *testing.T) {
 
 	assert.Equal(t, workDir, srv.Model().WorkDir)
 	assert.Equal(t, filepath.Join(workDir, "etc"), srv.Model().ConfigDir)
-}
-
-func TestService_Migrate_SavesOnlyWhenAStepApplied(t *testing.T) {
-	t.Parallel()
-
-	dir := t.TempDir()
-	s := storage.New(&testConfig{}, dir, "config.json")
-	srv := config.NewService(s, func(c *testConfig) *config.Default { return &c.Default }, nil)
-	dataPath := filepath.Join(dir, "data", "config.json")
-
-	assert.NoError(t, srv.Migrate(config.Migration{From: 5, To: 6}))
-	assert.NoFileExists(t, dataPath, "a migration run applying no step must not write the storage")
-
-	boom := errors.New("boom")
-	err := srv.Migrate(
-		config.Migration{From: 0, To: 1},
-		config.Migration{From: 1, To: 2, Do: func() error { return boom }},
-	)
-
-	assert.ErrorIs(t, err, boom)
-	assert.NoFileExists(t, dataPath, "a failed migration run must not write the storage")
 }

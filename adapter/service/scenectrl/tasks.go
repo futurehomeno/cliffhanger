@@ -1,7 +1,6 @@
 package scenectrl
 
 import (
-	"errors"
 	"time"
 
 	log "github.com/sirupsen/logrus"
@@ -31,7 +30,7 @@ func handleReporting(serviceRegistry adapter.ServiceRegistry) func() {
 			}
 
 			_, err := scene.SendSceneReport(false)
-			if err != nil && !errors.Is(err, adapter.ErrNotReported) {
+			if err != nil {
 				log.Errorf("[scenectrl] Send scene report. err: %v", err)
 			}
 		}

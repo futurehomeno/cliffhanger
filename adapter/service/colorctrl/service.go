@@ -40,8 +40,8 @@ type Service interface {
 	SendColorReport(force bool) (bool, error)
 	// SupportedComponents returns a list of supported color components.
 	SupportedComponents() []string
-	// SupportedDurations returns the supported durations map.
-	SupportedDurations() map[string]int
+	// SupportedDurations returns a list of supported durations.
+	SupportedDurations() []int
 }
 
 // Config represents a service configuration.
@@ -138,11 +138,7 @@ func (s *service) SupportedComponents() []string {
 	return s.Service.Specification().PropertyStrings(PropertySupportedComponents)
 }
 
-// SupportedDurations returns the supported durations map.
-func (s *service) SupportedDurations() map[string]int {
-	var durations map[string]int
-
-	_ = s.Service.Specification().PropertyObject(PropertySupportedDurations, &durations)
-
-	return durations
+// SupportedDurations returns a list of supported durations.
+func (s *service) SupportedDurations() []int {
+	return s.Service.Specification().PropertyIntegers(PropertySupportedDurations)
 }

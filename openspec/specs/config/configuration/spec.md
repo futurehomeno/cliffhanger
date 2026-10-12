@@ -7,7 +7,9 @@ the shared baseline settings every adapter inherits, a generic thread-safe servi
 adapter's own configuration model, versioned migrations for upgrading a file written by an older
 release, validators and typed FIMP routes for exposing individual settings, and the change events
 other components subscribe to.
+
 ## Requirements
+
 ### Requirement: Single Non-Reentrant Configuration Lock
 `config.Service[C]` and its `DefaultStore` SHALL share one `sync.RWMutex`, because both mutate the
 same underlying model. Mutating operations SHALL take the write lock and reads SHALL take the read
@@ -64,11 +66,9 @@ SHALL be cloned so a caller cannot mutate shared state.
 ### Requirement: Telemetry Configuration Storage
 `DefaultStore.SetTelemetry` SHALL store a clone of the supplied configuration, including cloned
 `Suppressed.Domains` and `Suppressed.Events` slices, so the caller's value cannot mutate the stored
-one afterwards. `DefaultStore.Telemetry` SHALL return such a clone too, so mutating the returned
-`Suppressed` entry or its slices cannot change the stored configuration; `Default.GetTelemetry` and
-`Default.SetTelemetry` SHALL clone likewise. `DefaultStore.Telemetry`
-SHALL return an error when no telemetry configuration is present, whereas `Default.GetTelemetry`
-SHALL return the zero `TelemetryConfig` and no error in that case.
+one afterwards. `DefaultStore.Telemetry` SHALL return an error when no telemetry configuration is
+present, whereas `Default.GetTelemetry` SHALL return the zero `TelemetryConfig` and no error in
+that case.
 
 #### Scenario: Telemetry never configured
 - **WHEN** `DefaultStore.Telemetry` is called and the model has no telemetry configuration
@@ -77,10 +77,6 @@ SHALL return the zero `TelemetryConfig` and no error in that case.
 #### Scenario: Caller mutates the value it stored
 - **WHEN** a caller mutates the slices of a `TelemetryConfig` it passed to `SetTelemetry`
 - **THEN** the stored configuration keeps the values as of the call
-
-#### Scenario: Caller mutates the value it read
-- **WHEN** a caller mutates the `Suppressed` slices of the value returned by `DefaultStore.Telemetry`
-- **THEN** a later `DefaultStore.Telemetry` returns the stored values unchanged
 
 ### Requirement: Guarded Model Updates
 `Service.Update` SHALL apply the caller's function to the model under the write lock, stamp
@@ -246,35 +242,3 @@ matching a single service/setting pair.
 #### Scenario: Subscriber waiting for a setting
 - **WHEN** a component waits with `WaitForConfigurationUpdate` for a service and setting
 - **THEN** it is woken only by a change event carrying that exact service and setting
-
-### Requirement: Default Settings Constructors
-`config.NewDefault(workDir)` SHALL return a `Default` whose `WorkDir` and `ConfigDir` both hold
-`workDir`, for the Thingsplex layout where configuration and data share one directory.
-`config.NewCanonicalDefault(cfgDir, workDir)` SHALL set `ConfigDir` to `cfgDir` and `WorkDir` to
-`workDir`. Every other field SHALL be left at its zero value for the storage to load.
-
-#### Scenario: Canonical layout
-- **WHEN** `NewCanonicalDefault("/etc/app", "/var/lib/app")` is called
-- **THEN** `ConfigDir` is `/etc/app` and `WorkDir` is `/var/lib/app`
-
-### Requirement: Restart Counter Save Failure
-`DefaultStore.IncrementRestartsCount` SHALL increment the in-memory `RestartsCount` under the write
-lock, save, and return the new count. When the save fails it SHALL return zero together with the
-save error; the in-memory count SHALL stay incremented, so a later successful save persists it.
-
-#### Scenario: Save fails while counting a restart
-- **WHEN** `IncrementRestartsCount` is called and the save function returns an error
-- **THEN** zero and that error are returned
-- **AND** `RestartsCount()` reports the incremented value
-
-### Requirement: Configuration Route Value Decoding
-After the value-type check, a set route SHALL decode the payload value into the setter's Go type
-through a JSON round trip — the raw object for object routes — and SHALL return the decoding error
-without calling the setter when the value does not fit that type. The reply SHALL carry the decoded
-value as received, not a value re-read through a getter.
-
-#### Scenario: Object of the wrong shape
-- **WHEN** an object route whose setter takes a struct with an integer field receives an object
-  carrying a string in that field
-- **THEN** an error is returned and the setter is not called
-

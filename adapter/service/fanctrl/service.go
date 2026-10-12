@@ -11,7 +11,6 @@ import (
 
 	"github.com/futurehomeno/cliffhanger/adapter"
 	"github.com/futurehomeno/cliffhanger/adapter/cache"
-	"github.com/futurehomeno/cliffhanger/utils"
 )
 
 const (
@@ -91,12 +90,11 @@ func (s *service) SetMode(mode string) error {
 	s.lock.Lock()
 	defer s.lock.Unlock()
 
-	normalizedMode, ok := utils.Normalize(mode, s.SupportedModes())
-	if !ok {
+	if !slices.Contains(s.SupportedModes(), mode) {
 		return fmt.Errorf("mode %s is not supported", mode)
 	}
 
-	err := s.controller.SetFanCtrlMode(normalizedMode)
+	err := s.controller.SetFanCtrlMode(mode)
 	if err != nil {
 		return fmt.Errorf("failed to set mode: %w", err)
 	}

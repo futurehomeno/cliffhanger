@@ -1,5 +1,0 @@
-- [x] Stale sweep: a device with a service of another adapter is not excluded
-- [x] Empty access token wraps `httpclient.ErrUnauthorized`
-- [x] Water heater shares the thermostat setpoint helpers; NaN/Inf rejected for both
-- [x] Water heater setpoint report cache keyed by the normalized mode
-- [x] Drop the redundant cancelled snapshot in the checker's timer callback

@@ -7,7 +7,9 @@ writes. `database` is an in-memory key-value store with append-only persistence 
 high-churn data where rewriting a whole JSON file per change would be wasteful. `security` provides
 the AES-GCM primitives and the on-disk key an adapter uses to encrypt values it must not store in
 clear text.
+
 ## Requirements
+
 ### Requirement: Storage Layout Variants
 `Storage[T]` SHALL expose `Model`, `Load`, `Save` and `Reset` over a caller-owned model, which is
 expected to be a pointer. The constructor chosen SHALL determine the file layout and whether a
@@ -127,9 +129,8 @@ opened at `<workdir>/<filename>.db` with the work directory created if missing. 
 SHALL be `data`, the compaction size threshold SHALL be 2 MiB and the compaction percentage SHALL be
 100 — a percentage of 0 would degenerate into rewriting the whole database after any write. The
 `workdir` argument SHALL take precedence over a `WithWorkdir` option passed by the caller. Values
-SHALL be stored JSON-encoded under the composite key `<bucket>:<key>`. `Delete` SHALL be idempotent:
-deleting a key that does not exist SHALL return nil. `Start` SHALL be a no-op and `Stop` SHALL close
-the underlying file.
+SHALL be stored JSON-encoded under the composite key `<bucket>:<key>`. `Start` SHALL be a no-op and
+`Stop` SHALL close the underlying file.
 
 #### Scenario: round trip
 - **WHEN** a value is set in a bucket and read back through `Get`
@@ -138,10 +139,6 @@ the underlying file.
 #### Scenario: missing key
 - **WHEN** `Get` is called for a key that does not exist
 - **THEN** it returns `ok` false and a nil error
-
-#### Scenario: deleting a missing key
-- **WHEN** `Delete` is called for a key that does not exist
-- **THEN** it returns nil
 
 ### Requirement: Expiry
 `Set` SHALL store a value without expiry. `SetWithExpiry` SHALL attach a TTL only when the supplied
@@ -154,11 +151,8 @@ duration is greater than zero; a zero or negative duration SHALL behave exactly 
 ### Requirement: Key Enumeration
 `Keys` SHALL return every key of a bucket in ascending order with the `<bucket>:` prefix stripped.
 `KeysFrom` SHALL return the keys from the given key inclusive to the end of the bucket. `KeysBetween`
-SHALL return the keys from `from` inclusive to `to` exclusive. All three SHALL be confined to the keys
-starting with `<bucket>:`, matching the bucket name literally — `*` and `?` in a bucket name have no
-special meaning. Keys MAY contain `:`, so a plain bucket also enumerates the keys of a
-`NewDomainDatabase` whose domain equals that bucket name; a domain name SHALL NOT be reused as a plain
-bucket name on the same database.
+SHALL return the keys from `from` inclusive to `to` exclusive. All three SHALL be confined to the
+requested bucket.
 
 #### Scenario: bounded range
 - **WHEN** a bucket holds `test_key1` through `test_key6` and `KeysBetween(bucket, "test_key2",
@@ -168,14 +162,6 @@ bucket name on the same database.
 #### Scenario: open-ended range does not leak into a sibling bucket
 - **WHEN** `KeysFrom` is called on `test_bucket_a` while `test_bucket_b` also holds keys
 - **THEN** only keys of `test_bucket_a` are returned
-
-#### Scenario: glob characters in a bucket name
-- **WHEN** buckets `a*`, `a?` and `ab` hold keys and `Keys("a*")` is called
-- **THEN** only the keys of bucket `a*` are returned
-
-#### Scenario: key containing a colon
-- **WHEN** a bucket holds the key `pt:j1/ad:1`
-- **THEN** `Keys` returns `pt:j1/ad:1` unchanged
 
 ### Requirement: Corrupted File Recovery
 When the data file cannot be opened because buntdb reports it invalid or truncated, the database
@@ -210,13 +196,9 @@ file afterwards; it is not scoped to a domain.
 
 ### Requirement: Encryption Key Management
 `GetKey(path)` SHALL return the key stored at the given path, and SHALL generate, persist and return
-a fresh 32-byte (64 hex character) key only when the file does not exist. In both cases the key file
-SHALL be chmodded to `0600`. A new key SHALL be written to a temporary file and linked into place, so
-the key file never holds a partial key and concurrent first runs all return the key that was linked.
-Any other read error, a chmod failure, or a stored key that is not hex
-decoding to 16, 24 or 32 bytes SHALL be returned as an error, leaving the file untouched.
-`GenerateKey(size)` SHALL return `size` cryptographically random bytes encoded as a lowercase hex
-string.
+a fresh 32-byte (64 hex character) key when the file cannot be read. In both cases the key file SHALL
+be chmodded to `0600`. `GenerateKey(size)` SHALL return `size` cryptographically random bytes encoded
+as a lowercase hex string.
 
 #### Scenario: first run
 - **WHEN** `GetKey` is called for a path that does not exist
@@ -226,27 +208,12 @@ string.
 - **WHEN** `GetKey` is called again for the same path
 - **THEN** the previously generated key is returned unchanged
 
-#### Scenario: invalid stored key
-- **WHEN** the key file is empty, has a trailing newline, is not hex or decodes to a length other
-  than 16, 24 or 32 bytes
-- **THEN** `GetKey` returns an error and the file is not overwritten
-
-#### Scenario: unreadable key file
-- **WHEN** the key file exists but cannot be read
-- **THEN** `GetKey` returns an error and the file is not overwritten
-
-#### Scenario: concurrent first run
-- **WHEN** several callers run `GetKey` at once for a path that does not exist
-- **THEN** they all return the key stored in the file
-
 ### Requirement: Value Encryption
 `Encrypt` SHALL interpret the key as a hex string, encrypt with AES-GCM using a freshly generated
-random nonce, prepend that nonce to the ciphertext and return the result hex-encoded. The decoded key
-length SHALL select AES-128, AES-192 or AES-256 (16, 24 or 32 bytes); any other length SHALL make
-both `Encrypt` and `Decrypt` return an error. `Decrypt` SHALL be the exact inverse of `Encrypt` and
-SHALL fail rather than panic on malformed input: a non-hex key, a non-hex ciphertext, a ciphertext
-shorter than the GCM nonce, or a payload that fails authentication SHALL all return an error.
-`Encrypt` SHALL likewise return an error for a non-hex key.
+random nonce, prepend that nonce to the ciphertext and return the result hex-encoded. `Decrypt` SHALL
+be its exact inverse and SHALL fail rather than panic on malformed input: a non-hex key, a non-hex
+ciphertext, a ciphertext shorter than the GCM nonce, or a payload that fails authentication SHALL all
+return an error.
 
 #### Scenario: round trip
 - **WHEN** a string is encrypted and then decrypted with the same key
@@ -259,35 +226,3 @@ shorter than the GCM nonce, or a payload that fails authentication SHALL all ret
 #### Scenario: truncated ciphertext
 - **WHEN** `Decrypt` is given a hex string shorter than the nonce
 - **THEN** it returns an error naming the required nonce length
-
-#### Scenario: key of an unsupported length
-- **WHEN** `Encrypt` is given a valid hex key that decodes to 10 bytes
-- **THEN** it returns an error
-
-### Requirement: Invalid Defaults File
-When the defaults file exists but cannot be read or unmarshalled, `Load` SHALL return that error
-without consulting the data file or the backup. A defaults-backed `Reset` hitting the same failure SHALL return
-the error after the data and backup files were removed, leaving the model zeroed.
-
-#### Scenario: Corrupted defaults file
-- **WHEN** the defaults file contains invalid JSON and a valid data file exists
-- **THEN** `Load` returns an error
-
-### Requirement: Interrupted Database Recovery Resumes
-When `<filename>.db` is missing but `<filename>.db.recovered` exists — a crash between renaming the
-corrupted file away and renaming the recovered one into place — opening the database SHALL first
-rename the recovered file to `<filename>.db` and open it, so the salvaged data is not lost.
-
-#### Scenario: Crash between the recovery renames
-- **WHEN** the database is opened with only `<filename>.db.recovered` on disk
-- **THEN** the database opens with the recovered entries and `<filename>.db.recovered` no longer
-  exists
-
-### Requirement: Undecodable Stored Value
-`Get` SHALL return `ok` false and an error when the stored JSON cannot be unmarshalled into the
-caller's value, so a type mismatch is never mistaken for a missing key nor for a successful read.
-
-#### Scenario: Reading into the wrong type
-- **WHEN** a string was stored and `Get` is called with a pointer to an integer
-- **THEN** it returns `ok` false and a non-nil error
-

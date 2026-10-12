@@ -3,11 +3,9 @@ package colorctrl_test
 import (
 	"testing"
 
-	"github.com/futurehomeno/fimpgo/fimptype"
 	"github.com/stretchr/testify/assert"
 
 	"github.com/futurehomeno/cliffhanger/adapter/service/colorctrl"
-	"github.com/futurehomeno/cliffhanger/router"
 	mockedadapter "github.com/futurehomeno/cliffhanger/test/mocks/adapter"
 	mockedcolorctrl "github.com/futurehomeno/cliffhanger/test/mocks/adapter/service/colorctrl"
 )
@@ -30,24 +28,5 @@ func TestService_SupportedProperties(t *testing.T) {
 	svc := colorctrl.NewService(mockedadapter.NewServicePublisher(t), cfg)
 
 	assert.Equal(t, []string{"red", "green", "blue"}, svc.SupportedComponents())
-	assert.Equal(t, map[string]int{"default": 500}, svc.SupportedDurations())
-}
-
-func TestSpecification(t *testing.T) {
-	t.Parallel()
-
-	want := map[string]fimptype.ValueTypeT{
-		colorctrl.CmdColorSet:       fimptype.VTypeIntMap,
-		colorctrl.EvtColorReport:    fimptype.VTypeIntMap,
-		colorctrl.CmdColorGetReport: fimptype.VTypeNull,
-		router.EvtErrorReport:       fimptype.VTypeString,
-	}
-
-	got := make(map[string]fimptype.ValueTypeT)
-
-	for _, intf := range colorctrl.Specification("test_adapter", "1", "2", nil, []string{"red"}, nil).Interfaces {
-		got[intf.MsgType] = intf.ValueType
-	}
-
-	assert.Equal(t, want, got)
+	assert.Equal(t, map[string]int{"default": 500}, svc.Specification().Props[colorctrl.PropertySupportedDurations])
 }

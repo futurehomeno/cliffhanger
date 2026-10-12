@@ -1,2 +1,0 @@
-- [x] Test: an unmapped sync keeps a ghost record of a selected device and publishes no exclusion
-- [x] Pin ghost records as well as live things in `SyncThings`

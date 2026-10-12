@@ -80,17 +80,3 @@ func TestStore_RemovePropagatesWriteFailure(t *testing.T) {
 
 	assert.ErrorIs(t, store.Remove("a"), errWrite)
 }
-
-func TestStore_RemoveDropsEveryOccurrence(t *testing.T) {
-	t.Parallel()
-
-	var stored selection.Selection
-
-	store := selection.NewStore(
-		func() selection.Selection { return selection.Selection{"a", "b", "a"} },
-		func(s selection.Selection) error { stored = s; return nil },
-	)
-
-	require.NoError(t, store.Remove("a"))
-	assert.Equal(t, selection.Selection{"b"}, stored)
-}

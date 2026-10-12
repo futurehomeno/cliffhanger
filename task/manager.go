@@ -3,7 +3,6 @@ package task
 import (
 	"errors"
 	"runtime/debug"
-	"slices"
 	"sync"
 	"time"
 
@@ -26,14 +25,9 @@ type manager struct {
 }
 
 func NewManager(tasks ...*Task) Manager {
-	valid := slices.DeleteFunc(slices.Clone(tasks), func(t *Task) bool { return t == nil })
-	if dropped := len(tasks) - len(valid); dropped > 0 {
-		log.Errorf("[cliff] Dropped %d nil tasks", dropped)
-	}
-
 	return &manager{
 		wg:    &sync.WaitGroup{},
-		tasks: valid,
+		tasks: tasks,
 		lock:  &sync.Mutex{},
 	}
 }
@@ -93,9 +87,7 @@ func (m *manager) runContinuously(task *Task) {
 	ticker := time.NewTicker(task.duration)
 	defer ticker.Stop()
 
-	if !task.delayed {
-		run(task)
-	}
+	run(task)
 
 	for {
 		select {
@@ -116,6 +108,11 @@ func run(task *Task) {
 			log.Errorf("[cliff] Panic running task: %+v\n%s", r, debug.Stack())
 		}
 	}()
+
+	if task == nil {
+		log.Error("[cliff] Task is nil")
+		return
+	}
 
 	task.run()
 }

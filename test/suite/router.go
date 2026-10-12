@@ -85,16 +85,9 @@ func (r *Router) AssertExpectations(timeout time.Duration) {
 	t := time.NewTimer(timeout)
 	defer t.Stop()
 
-	poll := time.NewTicker(5 * time.Millisecond)
-	defer poll.Stop()
-
 	waitUntilTimeout := r.shouldWaitUntilTimeout()
 
 	for {
-		if !waitUntilTimeout && r.expectationsMet() {
-			return
-		}
-
 		select {
 		case <-t.C:
 			if !r.expectationsMet() {
@@ -103,7 +96,14 @@ func (r *Router) AssertExpectations(timeout time.Duration) {
 			}
 
 			return
-		case <-poll.C:
+		default:
+			if waitUntilTimeout {
+				continue
+			}
+
+			if r.expectationsMet() {
+				return
+			}
 		}
 	}
 }
@@ -238,15 +238,14 @@ func (r *Router) processMessage(message *fimpgo.Message) (*fimpgo.FimpMessage, e
 		e.called++
 		r.lock.Unlock()
 
-		publish := e.Publish
 		if e.PublishFn != nil {
-			publish = e.PublishFn()
+			e.Publish = e.PublishFn()
 		}
 
-		publishMessage(r.t, r.mqtt, publish)
+		publishMessage(r.t, r.mqtt, e.Publish)
 
 		if e.ReplyFn != nil {
-			return e.ReplyFn(), nil
+			e.Reply = e.ReplyFn()
 		}
 
 		return e.Reply, nil

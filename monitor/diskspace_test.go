@@ -10,7 +10,7 @@ import (
 )
 
 func TestDiskSpace_Start(t *testing.T) { //nolint:paralleltest
-	ds := monitor.NewDiskSpace(100*time.Millisecond, 101)
+	ds := monitor.NewDiskSpace(100*time.Millisecond, 90)
 
 	err := ds.Start()
 	assert.NoError(t, err)
@@ -26,13 +26,14 @@ func TestDiskSpace_Start(t *testing.T) { //nolint:paralleltest
 	assert.Error(t, err)
 }
 
-func TestDiskSpace_DiskFull_HostIndependentLimits(t *testing.T) { //nolint:paralleltest
-	assert.False(t, monitor.NewDiskSpace(time.Hour, 101).DiskFull())
-	assert.True(t, monitor.NewDiskSpace(time.Hour, 0).DiskFull())
+func TestDiskSpace_DiskFull(t *testing.T) { //nolint:paralleltest
+	ds := monitor.NewDiskSpace(100*time.Millisecond, 90)
+
+	assert.False(t, ds.DiskFull())
 }
 
 func TestDiskSpace_Start_DiskFull(t *testing.T) { //nolint:paralleltest
-	ds := monitor.NewDiskSpace(100*time.Millisecond, 0)
+	ds := monitor.NewDiskSpace(100*time.Millisecond, 10)
 
 	err := ds.Start()
 	assert.NoError(t, err)

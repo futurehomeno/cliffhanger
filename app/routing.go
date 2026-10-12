@@ -2,7 +2,6 @@ package app
 
 import (
 	"fmt"
-	"strings"
 
 	"github.com/futurehomeno/fimpgo"
 	"github.com/futurehomeno/fimpgo/fimptype"
@@ -226,11 +225,16 @@ func HandleCmdConfigExtendedSet[C any](
 			cfg := configFactory()
 
 			err := message.Payload.GetObjectValue(cfg)
-			if err == nil {
-				err = app.Configure(cfg)
+			if err != nil {
+				return makeConfigurationReply(serviceName, EvtAppConfigReport, message, appLifecycle, err), nil
 			}
 
-			return makeConfigurationReply(serviceName, EvtAppConfigReport, message, appLifecycle, "Configure", err), nil
+			err = app.Configure(cfg)
+			if err != nil {
+				return makeConfigurationReply(serviceName, EvtAppConfigReport, message, appLifecycle, err), nil
+			}
+
+			return makeConfigurationReply(serviceName, EvtAppConfigReport, message, appLifecycle, nil), nil
 		}),
 		router.WithExternalLock(locker),
 	)
@@ -267,7 +271,11 @@ func HandleCmdAppUninstall(
 				}
 			}
 
-			return makeConfigurationReply(serviceName, EvtAppUninstallReport, message, appLifecycle, "Uninstall", app.Uninstall()), nil
+			if err := app.Uninstall(); err != nil {
+				return makeConfigurationReply(serviceName, EvtAppUninstallReport, message, appLifecycle, err), nil
+			}
+
+			return makeConfigurationReply(serviceName, EvtAppUninstallReport, message, appLifecycle, nil), nil
 		}),
 		router.WithExternalLock(locker),
 	)
@@ -395,7 +403,6 @@ func makeConfigurationReply(
 	messageType string,
 	message *fimpgo.Message,
 	appLifecycle *lifecycle.Lifecycle,
-	op string,
 	err error,
 ) *fimpgo.FimpMessage {
 	configReport := &ConfigurationReport{
@@ -406,10 +413,10 @@ func makeConfigurationReply(
 		log.WithField("topic", message.Topic).
 			WithField("service", message.Payload.Service).
 			WithField("type", message.Payload.Interface).
-			Errorf("[app] %s app err: %v", op, err)
+			Errorf("[app] Configure app err: %v", err)
 
 		configReport.OpStatus = OperationStatusError
-		configReport.OpError = fmt.Sprintf("%s the app err: %s", strings.ToLower(op), err)
+		configReport.OpError = fmt.Sprintf("configure the app err: %s", err)
 	}
 
 	configReport.AppState = *appLifecycle.AllStates()

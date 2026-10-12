@@ -1,7 +1,6 @@
 package router
 
 import (
-	"errors"
 	"fmt"
 	"sync"
 
@@ -9,10 +8,6 @@ import (
 	"github.com/futurehomeno/fimpgo/fimptype"
 	log "github.com/sirupsen/logrus"
 )
-
-// ErrNotReported marks a state the device has not reported yet, so there is nothing to send.
-// It lives here because adapter imports router; adapter.ErrNotReported is the same value.
-var ErrNotReported = errors.New("state not reported yet")
 
 type MessageHandler interface {
 	// Handle handles the incoming message and optionally returns a response. If no response is expected a nil message should be returned.
@@ -158,15 +153,10 @@ func (m *messageHandler) handleReply(requestMessage *fimpgo.Message, reply *fimp
 
 // handleError handles message processing error.
 func (m *messageHandler) handleError(requestMessage *fimpgo.Message, err error) *fimpgo.Message {
-	level := log.ErrorLevel
-	if errors.Is(err, ErrNotReported) {
-		level = log.WarnLevel
-	}
-
 	log.WithField("topic", requestMessage.Topic).
 		WithField("service", requestMessage.Payload.Service).
 		WithField("type", requestMessage.Payload.Interface).
-		Logf(level, "[router] Process message. err: %v", err)
+		Errorf("[router] Process message. err: %v", err)
 
 	if m.silentErrors {
 		return nil

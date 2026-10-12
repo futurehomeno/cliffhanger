@@ -74,18 +74,7 @@ func prepareDatabase(workdir, filename string) (*buntdb.DB, error) {
 		return nil, fmt.Errorf("database: failed to create work directory: %w", err)
 	}
 
-	dbPath := path.Join(workdir, filename+dbExtension)
-	recoveredPath := path.Join(workdir, filename+".db.recovered")
-
-	if _, err := os.Stat(dbPath); errors.Is(err, os.ErrNotExist) {
-		if _, err := os.Stat(recoveredPath); err == nil {
-			if err := os.Rename(recoveredPath, dbPath); err != nil {
-				return nil, fmt.Errorf("database: failed to restore recovered data file: %w", err)
-			}
-		}
-	}
-
-	db, err := buntdb.Open(dbPath)
+	db, err := buntdb.Open(path.Join(workdir, filename+dbExtension))
 	if err != nil {
 		if errors.Is(err, buntdb.ErrInvalid) || errors.Is(err, io.ErrUnexpectedEOF) {
 			return recoverDatabase(workdir, filename)
@@ -238,7 +227,7 @@ func (d *database) SetWithExpiry(bucket, key string, value any, expiry time.Dura
 func (d *database) Delete(bucket, key string) error {
 	return d.db.Update(func(tx *buntdb.Tx) error {
 		_, err := tx.Delete(d.key(bucket, key))
-		if err != nil && !errors.Is(err, buntdb.ErrNotFound) {
+		if err != nil {
 			return fmt.Errorf("database: failed to delete the key: %w", err)
 		}
 
@@ -265,9 +254,21 @@ func (d *database) Get(bucket, key string, value any) (ok bool, err error) {
 
 // Keys gets the keys for the entire bucket.
 func (d *database) Keys(bucket string) ([]string, error) {
-	keys, err := d.keysBetween(bucket, "", bucketEnd(bucket))
+	var keys []string
+
+	err := d.db.View(func(tx *buntdb.Tx) error {
+		return tx.AscendKeys(d.key(bucket, "*"), func(key, _ string) bool {
+			keys = append(keys, key)
+
+			return true
+		})
+	})
 	if err != nil {
 		return nil, fmt.Errorf("database: failed to get the keys for bucket %s: %w", bucket, err)
+	}
+
+	for i, key := range keys {
+		keys[i] = key[len(bucket)+1:]
 	}
 
 	return keys, nil
@@ -275,7 +276,7 @@ func (d *database) Keys(bucket string) ([]string, error) {
 
 // KeysFrom gets the keys for the bucket from the provided key.
 func (d *database) KeysFrom(bucket, from string) ([]string, error) {
-	keys, err := d.keysBetween(bucket, from, bucketEnd(bucket))
+	keys, err := d.keysBetween(bucket, from, string([]byte{255}))
 	if err != nil {
 		return nil, fmt.Errorf("database: failed to get the keys for bucket %s from %s: %w", bucket, from, err)
 	}
@@ -285,7 +286,7 @@ func (d *database) KeysFrom(bucket, from string) ([]string, error) {
 
 // KeysBetween gets the keys for the bucket between the provided keys.
 func (d *database) KeysBetween(bucket, from, to string) ([]string, error) {
-	keys, err := d.keysBetween(bucket, from, d.key(bucket, to))
+	keys, err := d.keysBetween(bucket, from, to)
 	if err != nil {
 		return nil, fmt.Errorf("database: failed to get the keys for bucket %s between %s and %s: %w", bucket, from, to, err)
 	}
@@ -293,11 +294,11 @@ func (d *database) KeysBetween(bucket, from, to string) ([]string, error) {
 	return keys, nil
 }
 
-func (d *database) keysBetween(bucket, from, end string) ([]string, error) {
+func (d *database) keysBetween(bucket, from, to string) ([]string, error) {
 	var keys []string
 
 	err := d.db.View(func(tx *buntdb.Tx) error {
-		return tx.AscendRange("", d.key(bucket, from), end, func(key, _ string) bool {
+		return tx.AscendRange("", d.key(bucket, from), d.key(bucket, to), func(key, _ string) bool {
 			keys = append(keys, key)
 
 			return true
@@ -312,11 +313,6 @@ func (d *database) keysBetween(bucket, from, end string) ([]string, error) {
 	}
 
 	return keys, nil
-}
-
-// bucketEnd is the first key past every "<bucket>:" key, as ';' follows ':'.
-func bucketEnd(bucket string) string {
-	return bucket + ";"
 }
 
 // key creates a key for the bucket and key.

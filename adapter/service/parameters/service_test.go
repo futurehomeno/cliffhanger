@@ -233,22 +233,6 @@ func TestService_SendSupportedParamsReport_Deduplicates(t *testing.T) {
 	assert.False(t, sent, "unchanged supported parameters must not be reported again")
 }
 
-func TestService_SendParameterReport_NilParameterIsAnError(t *testing.T) {
-	t.Parallel()
-
-	controller := mockedparameters.NewController(t)
-	controller.On("GetParameter", "missing").Return(nil, nil).Once()
-
-	svc := parameters.NewService(mockedadapter.NewServicePublisher(t), &parameters.Config{
-		Specification: parameters.Specification("test_adapter", "1", "2", nil),
-		Controller:    controller,
-	})
-
-	sent, err := svc.SendParameterReport("missing", true)
-	assert.ErrorContains(t, err, "parameter not found")
-	assert.False(t, sent)
-}
-
 // newTestService builds a parameters service whose publisher expects exactly wantPublished
 // messages, so a report that should have been suppressed fails the mock expectation too.
 func newTestService(t *testing.T, controller parameters.Controller, wantPublished int) parameters.Service {

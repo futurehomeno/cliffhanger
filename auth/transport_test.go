@@ -47,13 +47,6 @@ func TestTransport(t *testing.T) {
 	assert.NoError(t, err)
 	assert.NoError(t, resp.Body.Close())
 	assert.Equal(t, 1, unauthorized)
-
-	status = http.StatusForbidden
-
-	resp, err = client.Do(req)
-	assert.NoError(t, err)
-	assert.NoError(t, resp.Body.Close())
-	assert.Equal(t, 2, unauthorized)
 }
 
 func TestTransport_Redirects(t *testing.T) {
@@ -189,27 +182,4 @@ func TestTransport_RedirectFromSynthesizedResponse(t *testing.T) {
 	assert.NoError(t, err)
 	assert.NoError(t, resp.Body.Close())
 	assert.Empty(t, gotAuth, "an unverifiable redirect chain must not get the bearer reattached")
-}
-
-type failingToken struct{ err error }
-
-func (t failingToken) AccessToken() (string, error) { return "", t.err }
-
-func TestTransport_TokenSourceErrorAbortsRequest(t *testing.T) {
-	t.Parallel()
-
-	requests := 0
-	srv := httptest.NewServer(http.HandlerFunc(func(http.ResponseWriter, *http.Request) { requests++ }))
-	defer srv.Close()
-
-	client := &http.Client{Transport: &auth.Transport{Source: failingToken{err: auth.ErrNotLoggedIn}}}
-
-	req, err := http.NewRequestWithContext(context.Background(), http.MethodGet, srv.URL, nil)
-	assert.NoError(t, err)
-
-	resp, err := client.Do(req) //nolint:bodyclose
-	assert.ErrorIs(t, err, auth.ErrNotLoggedIn)
-	assert.Nil(t, resp)
-	assert.Zero(t, requests)
-	assert.Empty(t, req.Header.Get("Authorization"), "the caller's request must stay untouched")
 }

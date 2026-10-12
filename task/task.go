@@ -13,21 +13,11 @@ func New(handler func(), duration time.Duration, voters ...Voter) *Task {
 	}
 }
 
-// NewDelayed creates a periodic task whose first run waits for the first interval instead of running on startup.
-// A zero duration has no interval to wait for, so the task runs once on startup like New.
-func NewDelayed(handler func(), duration time.Duration, voters ...Voter) *Task {
-	t := New(handler, duration, voters...)
-	t.delayed = true
-
-	return t
-}
-
 // Task is an object representing a task including its running interval and condition voters for being executed.
 type Task struct {
 	handler  func()
 	duration time.Duration
 	voters   []Voter
-	delayed  bool
 }
 
 // run runs the task if all set conditions are met.

@@ -5,7 +5,9 @@ Every FIMP command an adapter receives over MQTT enters through the router. The 
 dispatch contract — which handler sees which message, how many messages are processed at once, where
 a reply is published and what happens when a handler fails — so adapter authors write only
 `MessageProcessor` bodies and inherit consistent addressing, error reporting and panic containment.
+
 ## Requirements
+
 ### Requirement: Routing Composition
 A `Routing` SHALL consist of exactly one `MessageHandler` and zero or more `MessageVoter`s, created
 by `NewRouting(handler, voters...)`. `Routing.Wrap(voters...)` SHALL return a new routing reusing the
@@ -157,19 +159,13 @@ the supplied address instead of the request address.
 When the `MessageProcessor` returns an error, the handler SHALL log it with the request topic,
 service and type, and SHALL reply with an `evt.error.report` message carrying the request's service,
 a string value `"failed to process incoming message"` and the properties `msg` (the error text),
-`cmd_topic`, `cmd_service` and `cmd_type` taken from the request. An error wrapping
-`router.ErrNotReported` (the same value as `adapter.ErrNotReported`) SHALL be logged at warning
-level, any other error at error level. `WithSilentErrors()` SHALL suppress the reply while keeping
-the log. An error reply addressed to a device resource SHALL be marked with the skip storage
-strategy so device errors are not persisted by the hub.
+`cmd_topic`, `cmd_service` and `cmd_type` taken from the request. `WithSilentErrors()` SHALL suppress
+the reply while keeping the log. An error reply addressed to a device resource SHALL be marked with
+the skip storage strategy so device errors are not persisted by the hub.
 
 #### Scenario: processor returns an error
 - **WHEN** a message processor returns an error and silent errors are not enabled
 - **THEN** an `evt.error.report` is replied with `msg`, `cmd_topic`, `cmd_service` and `cmd_type` properties
-
-#### Scenario: state not reported yet
-- **WHEN** a message processor returns an error wrapping `router.ErrNotReported`
-- **THEN** the error is logged at warning level and the `evt.error.report` is still replied
 
 #### Scenario: device error not stored
 - **WHEN** the error reply resolves to a `rt:dev` address and the payload has no storage strategy
@@ -218,4 +214,3 @@ incoming message whose interface starts with one of the given prefixes (for exam
 #### Scenario: credential-carrying command
 - **WHEN** `DefaultLogStats("cmd.auth.")` logs an incoming `cmd.auth.login` message
 - **THEN** the logged value is `***` instead of the payload value
-

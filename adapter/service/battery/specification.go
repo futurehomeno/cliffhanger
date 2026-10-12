@@ -42,7 +42,7 @@ func requiredInterfaces() []fimptype.Interface {
 		{
 			Type:      fimptype.TypeOut,
 			MsgType:   EvtLevelReport,
-			ValueType: fimptype.VTypeInt,
+			ValueType: fimptype.VTypeString,
 			Version:   "1",
 		},
 		{

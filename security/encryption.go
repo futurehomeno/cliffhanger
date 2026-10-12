@@ -5,22 +5,20 @@ import (
 	"crypto/cipher"
 	"crypto/rand"
 	"encoding/hex"
-	"errors"
 	"fmt"
 	"io"
-	"io/fs"
 	"os"
-	"path/filepath"
+
+	log "github.com/sirupsen/logrus"
 )
 
 func GetKey(path string) (key string, err error) {
 	key, err = readKeyFromFile(path)
-	if errors.Is(err, fs.ErrNotExist) {
-		key, err = writeKeyFile(path)
-	}
-
 	if err != nil {
-		return "", fmt.Errorf("security: could not read or generate key: %w", err)
+		key, err = writeKeyFile(path)
+		if err != nil {
+			return "", fmt.Errorf("security: could not read or generate key: %w", err)
+		}
 	}
 
 	return key, nil
@@ -33,15 +31,6 @@ func readKeyFromFile(path string) (key string, err error) {
 		return "", fmt.Errorf("security: could not read key file: %w", err)
 	}
 
-	raw, err := hex.DecodeString(string(uint8key))
-	if err == nil {
-		_, err = aes.NewCipher(raw)
-	}
-
-	if err != nil {
-		return "", fmt.Errorf("security: invalid key in key file: %w", err)
-	}
-
 	err = os.Chmod(path, 0o600)
 	if err != nil {
 		return "", fmt.Errorf("security: could not set chmod on key file: %w", err)
@@ -50,50 +39,34 @@ func readKeyFromFile(path string) (key string, err error) {
 	return string(uint8key), nil
 }
 
-// writeKeyFile writes a random key to a 0600 temporary file and hard-links it into place, so the key file never
-// exists half-written and a concurrent first run reads the key that won instead of overwriting it.
+// writeKeyFile writes writes a randomly generated key to file.
 func writeKeyFile(path string) (newKey string, err error) {
-	key, err := GenerateKey(32)
-	if err != nil {
-		return "", fmt.Errorf("security: could not generate key: %w", err)
-	}
-
-	tmp, err := os.CreateTemp(filepath.Dir(path), filepath.Base(path)+".tmp*")
+	f, err := os.Create(path) //nolint:gosec
 	if err != nil {
 		return "", fmt.Errorf("security: could not generate key file: %w", err)
 	}
 
-	defer func() { _ = os.Remove(tmp.Name()) }()
+	defer func() {
+		if err := f.Close(); err != nil {
+			log.Errorf("[security] Close err: %v", err)
+		}
+	}()
 
-	err = tmp.Chmod(0o600)
-	if err == nil {
-		_, err = tmp.WriteString(key)
-	}
-
-	if err == nil {
-		err = tmp.Sync()
-	}
-
-	if closeErr := tmp.Close(); err == nil {
-		err = closeErr
-	}
-
+	err = os.Chmod(path, 0o600)
 	if err != nil {
-		return "", fmt.Errorf("security: could not write key file: %w", err)
+		return "", fmt.Errorf("security: could not set chmod on key file: %w", err)
 	}
 
-	err = os.Link(tmp.Name(), path)
-	if errors.Is(err, fs.ErrExist) {
-		return readKeyFromFile(path)
-	}
+	keySize := 32
 
+	key, err := GenerateKey(keySize)
 	if err != nil {
-		return "", fmt.Errorf("security: could not link key file: %w", err)
+		return "", fmt.Errorf("security: could not generate key: %w", err)
 	}
 
-	if dir, err := os.Open(filepath.Dir(path)); err == nil {
-		_ = dir.Sync()
-		_ = dir.Close()
+	_, err = f.WriteString(key)
+	if err != nil {
+		return "", fmt.Errorf("security: could not write string to key file: %w", err)
 	}
 
 	return key, nil

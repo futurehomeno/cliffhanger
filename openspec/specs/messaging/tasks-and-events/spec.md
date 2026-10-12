@@ -6,7 +6,9 @@ only run while the application is in a suitable lifecycle state, and they need a
 inside the process to react to each other without going through MQTT. The `task` package provides
 voted, interval-driven work; the `event` package provides an in-process typed event bus whose central
 guarantee is that publishing never blocks the publisher.
+
 ## Requirements
+
 ### Requirement: Task Definition And Voting
 `task.New(handler, duration, voters...)` SHALL define one unit of periodic work. Before each
 execution the task SHALL evaluate all its voters and SHALL run the handler only if every voter
@@ -20,19 +22,13 @@ mix of `*Task` values and `[]*Task` slices into one slice in argument order.
 - **AND** the task remains scheduled and runs on a later tick once the voter accepts
 
 ### Requirement: Run-Once Tasks
-A task created with a duration of 0 SHALL be executed exactly once per `Start` of the task manager,
-in its own goroutine, and SHALL NOT be rescheduled; a manager stopped and started again SHALL run it
-again. Such a task SHALL still be subject to its voters, so a voter rejecting the single execution
-means the handler never runs for that start. `Stop` SHALL wait for a run-once handler still in
-flight.
+A task created with a duration of 0 SHALL be executed exactly once, in its own goroutine, when the
+task manager starts, and SHALL NOT be rescheduled. Such a task SHALL still be subject to its voters,
+so a voter rejecting the single execution means the handler never runs.
 
 #### Scenario: startup task
 - **WHEN** the task manager starts with a task whose duration is 0
 - **THEN** the handler is invoked once and the goroutine exits
-
-#### Scenario: restarted manager
-- **WHEN** the manager is stopped and started again
-- **THEN** the run-once handler is invoked a second time
 
 ### Requirement: Periodic Tasks Fire Immediately
 A task created with a non-zero duration SHALL run once immediately when the manager starts and then
@@ -61,17 +57,16 @@ observe the stop signal only between runs.
 
 ### Requirement: Task Panic Isolation
 A panic raised by a task handler SHALL be recovered and logged with its stack, and SHALL NOT stop the
-task's ticker, kill the manager, or affect other tasks. `NewManager` SHALL drop nil tasks and log how
-many it dropped, so a nil task never reaches `Start` and the remaining tasks start and stop normally.
+task's ticker, kill the manager, or affect other tasks. The recovery covers the handler only: `Start`
+walks the task list in order and reads each task's interval before spawning that task's goroutine, so
+a nil task SHALL panic out of `Start` and MUST NOT be registered. Because the walk is sequential, the
+goroutines for tasks earlier in the list are already running when it panics, so a failed `Start`
+SHALL NOT be assumed to have left the manager idle.
 
 #### Scenario: handler panics on one tick
 - **WHEN** a periodic task's handler panics
 - **THEN** the panic is recovered and logged
 - **AND** the same task runs again on the next tick
-
-#### Scenario: nil task in the list
-- **WHEN** `NewManager` receives a nil task next to a valid one
-- **THEN** `Start` runs the valid task without panicking and `Stop` returns
 
 ### Requirement: Lifecycle-Aware Task Voters
 The package SHALL provide voters reading the application lifecycle state:
@@ -79,24 +74,12 @@ The package SHALL provide voters reading the application lifecycle state:
 `WhenAppEncounteredStartupError` and `WhenAppEncounteredError` SHALL compare `APP_HEALTH` against
 `STARTING`, `NOT_CONFIGURED`, `RUNNING`, `TERMINATING`, `STARTUP_ERROR` and `ERROR` respectively;
 `WhenAppIsConnected` and `WhenAppIsDisconnected` SHALL compare `CONN_STATE` against `CONNECTED` and
-`DISCONNECTED`; `WhenAppIsAuthenticated` and `WhenAppIsNotAuthenticated` SHALL compare `AUTH_STATE`
-against `AUTHENTICATED` and `NOT_AUTHENTICATED`. A voter comparing one axis SHALL ignore the other
-three, so guarding vendor-cloud work against both loss of authorization and loss of connectivity
-requires combining the auth and connectivity voters on the same task. Each voter SHALL read the
-current state at vote time.
+`DISCONNECTED`. `WhenNot` SHALL invert any voter. Each voter SHALL read the current state at vote
+time.
 
 #### Scenario: polling only while running
 - **WHEN** a task guarded by `WhenAppIsRunning` ticks while app health is `NOT_CONFIGURED`
 - **THEN** the handler is skipped, and it resumes on the first tick after health becomes `RUNNING`
-
-#### Scenario: polling stops when authorization is lost
-- **WHEN** a task guarded by `WhenAppIsAuthenticated` ticks while `AUTH_STATE` is `LOST`
-- **THEN** the handler is skipped, so no request is made against the vendor cloud with credentials it has already rejected
-- **AND** it resumes on the first tick after a successful login sets `AUTH_STATE` to `AUTHENTICATED`
-
-#### Scenario: neither auth voter accepts an intermediate state
-- **WHEN** `AUTH_STATE` is `IN_PROGRESS`, `ERROR`, `LOST` or `NA`
-- **THEN** both `WhenAppIsAuthenticated` and `WhenAppIsNotAuthenticated` return false
 
 ### Requirement: In-Process Event Bus Scope
 The event bus SHALL deliver values only between components inside the adapter process. It SHALL NOT
@@ -112,10 +95,9 @@ generic `Bus[T]` SHALL back both the event manager (`Bus[Event]`) and the applic
 `Subscribe(subID, buffer, filters...)` SHALL create and return a fresh channel with the requested
 buffer for each call, even when the ID is already in use, and each such subscription SHALL keep its
 own filters. `Unsubscribe(subID)` SHALL close every channel registered under that ID and remove them,
-so an ID is only safe to share between subscribers with the same lifetime; unsubscribing an unknown
-or already removed ID SHALL be a no-op. The filter slice SHALL be cloned on subscribe so that later
-mutation of the caller's slice cannot alter a live subscription. A nil filter
-SHALL be ignored rather than invoked.
+so an ID is only safe to share between subscribers with the same lifetime. The filter slice SHALL be
+cloned on subscribe so that later mutation of the caller's slice cannot alter a live subscription. A
+nil filter SHALL be ignored rather than invoked.
 
 #### Scenario: two subscribers share an ID
 - **WHEN** two components subscribe under the same ID and one of them unsubscribes
@@ -149,18 +131,13 @@ deadlock; it SHOULD record what happened and act after `Publish` returns.
 
 ### Requirement: Event Manager Wait For Event
 `WaitFor(timeout, filters...)` SHALL return a channel of capacity 1 that yields the first event
-matching all filters, or nil if the timeout expires first; with no filters the first event of any
-kind matches. It SHALL subscribe under a generated unique ID with a buffer of 10 before it returns,
-so an event published right after the call is observed, and SHALL unsubscribe when it resolves, in
-both the matched and the timed-out case.
+matching all filters, or nil if the timeout expires first. It SHALL subscribe under a generated
+unique ID with a buffer of 10 and SHALL unsubscribe when it resolves, in both the matched and the
+timed-out case.
 
 #### Scenario: no matching event before the deadline
 - **WHEN** the timeout expires before any matching event is published
 - **THEN** the returned channel yields nil and the temporary subscription is removed
-
-#### Scenario: event published right after the call
-- **WHEN** a matching event is published immediately after `WaitFor` returns
-- **THEN** the returned channel yields that event
 
 ### Requirement: Event Identity And Filters
 An `Event` SHALL be identified by its domain and class. `NewWithPayload` SHALL additionally carry an
@@ -189,12 +166,3 @@ handler. A handler goroutine SHALL also exit when its subscription channel is cl
 #### Scenario: listener stop
 - **WHEN** `Stop` is called on a started listener
 - **THEN** it blocks until all handler goroutines have returned and then unsubscribes each handler ID
-
-### Requirement: Task Voter Negation
-`task.WhenNot(v)` SHALL return a voter that accepts exactly when `v` rejects. It SHALL evaluate `v`
-on every vote, so a negated lifecycle voter follows the current state like the voter it wraps.
-
-#### Scenario: running only while disconnected from the vendor
-- **WHEN** a task is guarded by `WhenNot(WhenAppIsConnected(l))` and `CONN_STATE` is `DISCONNECTED`
-- **THEN** the handler runs, and it is skipped on the first tick after `CONN_STATE` becomes `CONNECTED`
-

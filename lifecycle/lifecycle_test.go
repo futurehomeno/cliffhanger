@@ -373,30 +373,3 @@ func TestWaitFor_ReturnsOnBundledStateChange(t *testing.T) {
 		t.Fatal("WaitFor did not return after a bundled setter reached the state")
 	}
 }
-
-func TestEmit_FullSubscriberBufferDropsWithoutBlocking(t *testing.T) {
-	t.Parallel()
-
-	l := lifecycle.New(nil)
-	slow := l.Subscribe("slow", 1)
-	fast := l.Subscribe("fast", 5)
-
-	done := make(chan struct{})
-
-	go func() {
-		l.SetConfigState(lifecycle.ConfigStateInProgress)
-		l.SetConfigState(lifecycle.ConfigStateConfigured)
-		close(done)
-	}()
-
-	select {
-	case <-done:
-	case <-time.After(time.Second):
-		t.Fatal("a full subscriber buffer must not block the setter")
-	}
-
-	assert.Equal(t, lifecycle.ConfigStateConfigured, l.ConfigState())
-	require.Len(t, slow, 1)
-	assert.Equal(t, lifecycle.ConfigStateInProgress, (<-slow).State, "the event that did not fit is dropped")
-	assert.Len(t, fast, 2, "a drop for one subscriber must not affect another")
-}

@@ -106,24 +106,17 @@ func (a *app) Reset() error {
 
 // Wait waits for the application to stop.
 func (a *app) Wait() error {
-	result := a.result()
-	if result == nil {
-		return nil
-	}
-
-	return <-result
-}
-
-// result returns the channel the current run's stop result arrives on, or nil when not running.
-func (a *app) result() chan error {
 	a.lock.Lock()
-	defer a.lock.Unlock()
 
 	if !a.running {
+		a.lock.Unlock()
+
 		return nil
 	}
 
-	return a.errCh
+	a.lock.Unlock()
+
+	return <-a.errCh
 }
 
 // Run starts the application and waits for it to stop.
@@ -167,9 +160,6 @@ func (a *app) doStart() (err error) {
 	if a.running {
 		return nil
 	}
-
-	// Per run: a Wait() still holding the previous run's channel gets that run's stop result.
-	a.errCh = make(chan error, 1)
 
 	log.Info("[cliff] Start app")
 
@@ -309,7 +299,6 @@ func (a *app) startAuthLossWatcher(tel telemetry.Telemetry) {
 				report, armed = nextAuthArm(armed, event.State)
 				if report {
 					a.reportAuthLoss(tel, event.Params["reason"])
-					armed = a.lifecycle.AuthState() == lifecycle.AuthStateAuthenticated
 				}
 
 			case <-a.authWatcherStopCh:

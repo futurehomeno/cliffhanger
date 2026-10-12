@@ -1,4 +1,0 @@
-- [x] database: idempotent `Delete` (config-storage-database-delete-missing-key)
-- [x] database: literal bucket range scan, domain-name restriction documented (config-storage-database-bucket-prefix-overlap)
-- [x] security: `GetKey` regenerates only a missing file and validates the key (config-storage-getkey-overwrites-unchmoddable-key)
-- [x] config: `DefaultStore.Telemetry` returns a clone (config-storage-telemetry-getter-shallow-copy)

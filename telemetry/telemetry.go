@@ -360,7 +360,7 @@ func (ptr *telemetryT) config() types.TelemetryConfig {
 		return types.TelemetryConfig{}
 	}
 
-	return snap
+	return snap.Clone()
 }
 
 func (ptr *telemetryT) publish(topic, domain, event string, data map[string]any) error {

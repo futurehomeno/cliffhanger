@@ -12,9 +12,6 @@ func SeedsFromSelection[T any](available []T, selected []string, seed func(T) *T
 
 	for _, item := range available {
 		s := seed(item)
-		if s == nil {
-			continue
-		}
 
 		if selected != nil && !slices.Contains(selected, s.ID) {
 			continue

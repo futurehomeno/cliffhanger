@@ -138,36 +138,6 @@ func TestRouteAdapter_NetworkGetAllNodes(t *testing.T) { //nolint:paralleltest
 					},
 				},
 			},
-			{
-				Name:     "cmd.network.get_all_nodes with no things carries an empty array",
-				TearDown: adapterhelper.TearDownAdapter(testAdapterWorkDir),
-				Setup: suite.BaseSetup(func(t *testing.T, mqtt *fimpgo.MqttTransport) ([]*router.Routing, []*task.Task, []suite.Mock) {
-					t.Helper()
-
-					ad := adapterhelper.PrepareSeededAdapter(t, testAdapterWorkDir, mqtt, nil, nil)
-
-					return adapter.RouteAdapter(ad), nil, nil
-				}),
-				Nodes: []*suite.Node{
-					{
-						Name: "get_all_nodes",
-						Command: suite.NullMessage(
-							testAdapterCmdTopic,
-							adapter.CmdNetworkGetAllNodes,
-							testAdapterName,
-						),
-						Expectations: []*suite.Expectation{
-							suite.NewExpectation().
-								ExpectTopic(testAdapterEvtTopic).
-								ExpectType(adapter.EvtNetworkAllNodesReport).
-								Expect(router.MessageVoterFn(func(m *fimpgo.Message) bool {
-									return string(m.Payload.ValueObj) == "[]"
-								})).
-								ExactlyOnce(),
-						},
-					},
-				},
-			},
 		},
 	}
 

@@ -105,10 +105,6 @@ func (s *service) SendParameterReport(id string, force bool) (bool, error) {
 		return false, fmt.Errorf("%s: failed to get parameter ID %s: %w", s.Name(), id, err)
 	}
 
-	if parameter == nil {
-		return false, fmt.Errorf("%s: parameter not found: %s", s.Name(), id)
-	}
-
 	if !force && !s.reportingCache.ReportRequired(s.reportingStrategy, EvtParamReport, id, parameter) {
 		return false, nil
 	}

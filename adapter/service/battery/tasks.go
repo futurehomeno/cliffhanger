@@ -1,7 +1,6 @@
 package battery
 
 import (
-	"errors"
 	"time"
 
 	log "github.com/sirupsen/logrus"
@@ -31,13 +30,13 @@ func handleReporting(serviceRegistry adapter.ServiceRegistry) func() {
 			}
 
 			_, err := battery.SendBatteryLevelReport(false)
-			if err != nil && !errors.Is(err, adapter.ErrNotReported) {
+			if err != nil {
 				log.Errorf("[battery] Send battery level report. err: %v", err)
 			}
 
 			for _, event := range battery.SupportedEvents() {
 				_, err = battery.SendBatteryAlarmReport(event, false)
-				if err != nil && !errors.Is(err, adapter.ErrNotReported) {
+				if err != nil {
 					log.Errorf("[battery] Send battery alarm report. event: %s err: %v", event, err)
 				}
 			}

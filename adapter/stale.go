@@ -14,10 +14,6 @@ import (
 // staleNodeTimeout bounds the Vinculum request, which runs inline in a device sync.
 const staleNodeTimeout = 10 * time.Second
 
-// ErrStaleNodeFetch reports that the hub never answered, so no node was examined. A per-node
-// exclusion failure does not wrap it.
-var ErrStaleNodeFetch = errors.New("adapter: fetch hub devices")
-
 // Option configures an adapter at construction time.
 type Option func(*adapter)
 
@@ -48,24 +44,17 @@ func (a *adapter) excludeStaleNodesOnce() {
 		return
 	}
 
-	// Claimed rather than done once: a failed sweep releases the claim so the next successful
-	// sync retries it, while the claim still keeps two sweeps from overlapping.
-	if !a.staleNodesSwept.CompareAndSwap(false, true) {
-		return
-	}
-
-	// Asking the hub is a round trip over MQTT: a sweep must never hold up the sync it
-	// is triggered from, nor block it for the full timeout when nothing answers.
-	go a.excludeStaleNodes(prime.NewClient(fimpgo.NewSyncClient(a.mqtt), a.name, staleNodeTimeout))
+	a.staleNodesOnce.Do(func() {
+		// Asking the hub is a round trip over MQTT: a sweep must never hold up the sync it
+		// is triggered from, nor block it for the full timeout when nothing answers.
+		go a.excludeStaleNodes()
+	})
 }
 
-func (a *adapter) excludeStaleNodes(client prime.Client) {
-	excluded, err := ExcludeStaleNodes(a, client)
+func (a *adapter) excludeStaleNodes() {
+	excluded, err := ExcludeStaleNodes(a, prime.NewClient(fimpgo.NewSyncClient(a.mqtt), a.name, staleNodeTimeout))
 	if err != nil {
 		log.Errorf("[adapter] Exclude stale hub nodes. err: %v", err)
-
-		// A later sync retries; the nodes already excluded are gone from the hub's list by then.
-		a.staleNodesSwept.Store(false)
 	}
 
 	for _, address := range excluded {
@@ -84,7 +73,7 @@ func (a *adapter) excludeStaleNodes(client prime.Client) {
 func ExcludeStaleNodes(a Adapter, client prime.Client) ([]string, error) {
 	devices, err := client.GetDevices()
 	if err != nil {
-		return nil, fmt.Errorf("%w: %w", ErrStaleNodeFetch, err)
+		return nil, fmt.Errorf("adapter: fetch hub devices: %w", err)
 	}
 
 	var (
@@ -137,14 +126,11 @@ func staleAddresses(a Adapter, devices prime.Devices) []string {
 
 // belongsToAdapter reports whether the hub attributes the device to this adapter. The resource
 // name and instance are taken from a service topic rather than from device.FIMP.Adapter, which
-// carries the service name - the two differ for technologies such as zwave. Every named service must
-// agree: excluding a node is destructive, so a device mixing adapters is never claimed.
+// carries the service name - the two differ for technologies such as zwave.
 func belongsToAdapter(a Adapter, device *prime.Device) bool {
 	if device.FIMP.AdapterAddress != "" && device.FIMP.AdapterAddress != a.Address() {
 		return false
 	}
-
-	owned := false
 
 	for _, service := range device.Services {
 		address, err := fimpgo.NewAddressFromString(service.Addr)
@@ -152,13 +138,9 @@ func belongsToAdapter(a Adapter, device *prime.Device) bool {
 			continue
 		}
 
-		if address.ResourceName != a.Name() ||
-			(address.ResourceAddress != "" && address.ResourceAddress != a.Address()) {
-			return false
-		}
-
-		owned = true
+		return address.ResourceName == a.Name() &&
+			(address.ResourceAddress == "" || address.ResourceAddress == a.Address())
 	}
 
-	return owned
+	return false
 }

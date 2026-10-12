@@ -34,8 +34,6 @@ func (cfg *ProxyClientConfig) setDefaults() {
 	if cfg.Timeout == 0 {
 		cfg.Timeout = 60 * time.Second
 	}
-
-	cfg.Retry = max(cfg.Retry, 0)
 }
 
 type ProxyClient interface {
@@ -46,6 +44,8 @@ type ProxyClient interface {
 }
 
 func NewProxyClient(cfg *ProxyClientConfig) ProxyClient {
+	cfg.setDefaults()
+
 	headers := make(map[string]string, len(cfg.Headers))
 	for k, v := range cfg.Headers {
 		headers[k] = v
@@ -53,12 +53,11 @@ func NewProxyClient(cfg *ProxyClientConfig) ProxyClient {
 
 	cfgCopy := *cfg
 	cfgCopy.Headers = headers
-	cfgCopy.setDefaults()
 
 	return &proxyClient{
 		cfg: &cfgCopy,
 		client: &http.Client{
-			Timeout: cfgCopy.Timeout,
+			Timeout: cfg.Timeout,
 		},
 	}
 }
@@ -160,10 +159,6 @@ func (c *proxyClient) requestToken(r *http.Request) (*OAuth2TokenResponse, error
 	err = json.Unmarshal(responseData, tokenResponse)
 	if err != nil {
 		return nil, fmt.Errorf("proxy proxyClient: failed to read response: %w", err)
-	}
-
-	if tokenResponse.AccessToken == "" {
-		return nil, errors.New("proxy proxyClient: empty access token")
 	}
 
 	return tokenResponse, nil

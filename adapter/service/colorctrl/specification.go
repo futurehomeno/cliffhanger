@@ -41,7 +41,7 @@ func requiredInterfaces() []fimptype.Interface {
 		{
 			Type:      fimptype.TypeIn,
 			MsgType:   CmdColorSet,
-			ValueType: fimptype.VTypeIntMap,
+			ValueType: fimptype.VTypeNull,
 			Version:   "1",
 		},
 		{

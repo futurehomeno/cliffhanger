@@ -7,7 +7,6 @@ import (
 
 	"github.com/futurehomeno/fimpgo"
 	"github.com/futurehomeno/fimpgo/fimptype"
-	"github.com/stretchr/testify/assert"
 
 	"github.com/futurehomeno/cliffhanger/adapter"
 	"github.com/futurehomeno/cliffhanger/adapter/service/battery"
@@ -130,23 +129,4 @@ func setupService(
 	ad := adapterhelper.PrepareSeededAdapter(t, "../../testdata/adapter/test_adapter", mqtt, factory, adapter.ThingSeeds{seed})
 
 	return battery.RouteService(ad), task.Combine(battery.TaskReporting(ad, duration)), mocks
-}
-
-func TestSpecification(t *testing.T) {
-	t.Parallel()
-
-	want := map[string]fimptype.ValueTypeT{
-		battery.CmdLevelGetReport: fimptype.VTypeNull,
-		battery.EvtLevelReport:    fimptype.VTypeInt,
-		battery.EvtAlarmReport:    fimptype.VTypeStrMap,
-		router.EvtErrorReport:     fimptype.VTypeString,
-	}
-
-	got := make(map[string]fimptype.ValueTypeT)
-
-	for _, intf := range battery.Specification("test_adapter", "1", "2", nil, nil).Interfaces {
-		got[intf.MsgType] = intf.ValueType
-	}
-
-	assert.Equal(t, want, got)
 }

@@ -31,7 +31,7 @@ func TestRouteService(t *testing.T) { //nolint:paralleltest
 			{
 				Name:     "Happy paths",
 				TearDown: adapterhelper.TearDownAdapter(workdir),
-				Setup:    routeService(0, adapter.ConnStatusUp),
+				Setup:    routeService(0, time.Second),
 				Nodes: []*suite.Node{
 					{
 						Name: "Cmd meter add",
@@ -142,7 +142,7 @@ func TestRouteService(t *testing.T) { //nolint:paralleltest
 			{
 				Name:     "Error paths",
 				TearDown: adapterhelper.TearDownAdapter(workdir),
-				Setup:    routeService(0, adapter.ConnStatusUp),
+				Setup:    routeService(0, time.Second),
 				Nodes: []*suite.Node{
 					{
 						Name: "Error when unsupported unit property provided",
@@ -196,11 +196,11 @@ func TestRouteService(t *testing.T) { //nolint:paralleltest
 	s.Run(t)
 }
 
-func routeService(duration time.Duration, status adapter.ConnStatusT) suite.BaseSetup {
+func routeService(duration, recalculatingPeriod time.Duration) suite.BaseSetup {
 	return func(t *testing.T, mqtt *fimpgo.MqttTransport) ([]*router.Routing, []*task.Task, []suite.Mock) {
 		t.Helper()
 
-		return setupService(t, mqtt, duration, status)
+		return setupService(t, mqtt, duration, recalculatingPeriod)
 	}
 }
 
@@ -208,7 +208,7 @@ func setupService(
 	t *testing.T,
 	mqtt *fimpgo.MqttTransport,
 	duration time.Duration,
-	status adapter.ConnStatusT,
+	recalculatingPeriod time.Duration,
 ) ([]*router.Routing, []*task.Task, []suite.Mock) {
 	t.Helper()
 
@@ -218,21 +218,13 @@ func setupService(
 			Address: "2",
 			Groups:  []string{"ch1"},
 		},
-		Connector: mockedadapter.NewConnector(t).MockConnectivity(&adapter.ConnectivityDetails{ConnStatus: status}, false),
-	}
-
-	controller := mockedoutlvlswitch.NewController(t)
-	levelReport := controller.On("LevelSwitchLevelReport").Return(1, nil)
-
-	if status == adapter.ConnStatusDown {
-		levelReport.Maybe()
-		t.Cleanup(func() { controller.AssertNotCalled(t, "LevelSwitchLevelReport") })
+		Connector: mockedadapter.NewConnector(t),
 	}
 
 	db, err := database.NewDatabase(workdir)
 	assert.NoError(t, err, "should create database")
 
-	managerWrapper := virtualmeter.NewManager(db, time.Second, time.Hour)
+	managerWrapper := virtualmeter.NewManager(db, recalculatingPeriod, time.Hour)
 	seed := &adapter.ThingSeed{ID: "B", CustomAddress: "2"}
 
 	factory := adapterhelper.FactoryHelper(func(a adapter.Adapter, publisher adapter.Publisher, thingState adapter.ThingState) (adapter.Thing, error) {
@@ -249,7 +241,8 @@ func setupService(
 			publisher,
 			&outlvlswitch.Config{
 				Specification: outLvlSwitchSpec,
-				Controller:    controller,
+				Controller: mockedoutlvlswitch.NewController(t).
+					MockLevelSwitchLevelReport(1, nil, false),
 			},
 		)
 

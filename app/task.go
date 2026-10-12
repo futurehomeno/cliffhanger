@@ -42,7 +42,7 @@ func TaskInitialization(
 
 	return []*task.Task{
 		task.New(handler, 0),
-		task.NewDelayed(handler, interval, task.WhenAppEncounteredStartupError(appLifecycle)),
+		task.New(handler, interval, task.WhenAppEncounteredStartupError(appLifecycle)),
 	}
 }
 

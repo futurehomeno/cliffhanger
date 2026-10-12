@@ -77,7 +77,7 @@ func (s *service) SendPresenceReport(force bool) (bool, error) {
 
 	value, err := s.controller.SensorPresenceReport()
 	if err != nil {
-		return false, fmt.Errorf("%s: failed to get presence report: %w", s.Name(), err)
+		return false, fmt.Errorf("%s: failed to get presence reeport: %w", s.Name(), err)
 	}
 
 	if !force && !s.reportingCache.ReportRequired(s.reportingStrategy, EvtPresenceReport, "", value) {

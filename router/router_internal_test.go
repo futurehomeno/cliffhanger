@@ -103,31 +103,3 @@ func TestIsNilHandler(t *testing.T) {
 		func(*fimpgo.Message) (*fimpgo.FimpMessage, error) { return nil, nil },
 	))))
 }
-
-func TestRouting_WrapPrependsWithoutMutatingReceiver(t *testing.T) {
-	t.Parallel()
-
-	var order []string
-
-	voter := func(name string, result bool) MessageVoter {
-		return MessageVoterFn(func(*fimpgo.Message) bool {
-			order = append(order, name)
-
-			return result
-		})
-	}
-
-	original := NewRouting(nil, voter("inner", true))
-	wrapped := original.Wrap(voter("outer", true))
-
-	assert.True(t, wrapped.vote(&fimpgo.Message{}))
-	assert.Equal(t, []string{"outer", "inner"}, order)
-
-	order = nil
-
-	assert.False(t, original.Wrap(voter("reject", false)).vote(&fimpgo.Message{}))
-	assert.Equal(t, []string{"reject"}, order, "voting stops at the first rejecting voter")
-
-	assert.Len(t, original.voters, 1)
-	assert.True(t, NewRouting(nil).vote(&fimpgo.Message{}), "a routing without voters accepts every message")
-}

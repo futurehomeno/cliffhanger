@@ -20,11 +20,6 @@ import (
 
 const (
 	addr = "test"
-
-	// Full FIMP topics for the same device channel: the seeding lookup in add() has to match
-	// these across the differing sv: segment, so a bare shared string would not exercise it.
-	vmsTopic       = "pt:j1/mt:evt/rt:dev/rn:test/ad:1/sv:virtual_meter_elec/ad:test_ch1"
-	lvlSwitchTopic = "pt:j1/mt:evt/rt:dev/rn:test/ad:1/sv:out_lvl_switch/ad:test_ch1"
 )
 
 var (
@@ -43,16 +38,6 @@ var (
 			Specification: &fimptype.Service{
 				Name:    numericmeter.MeterElec,
 				Address: addr,
-			},
-		})
-
-	// Addressed with a real VMS topic so add() seeds through the sv:-crossing lookup.
-	outLvlSwitchServiceVMSTopic = outlvlswitch.NewService(
-		nil,
-		&outlvlswitch.Config{
-			Specification: &fimptype.Service{
-				Name:    outlvlswitch.OutLvlSwitch,
-				Address: vmsTopic,
 			},
 		})
 
@@ -83,7 +68,6 @@ func levelSwitchForceReport(t *testing.T, topic string) outlvlswitch.Service {
 func TestVirtualMeterManager_Add(t *testing.T) { //nolint:paralleltest
 	cases := []struct {
 		name              string
-		topic             string
 		configuredService adapter.Service
 		existingDevice    *Device
 		mockedThing       adapter.Thing
@@ -130,13 +114,12 @@ func TestVirtualMeterManager_Add(t *testing.T) { //nolint:paralleltest
 			// No outlvlswitch stub on the case above: a device that already has a CurrentMode
 			// must not be re-seeded.
 			name:              "should force an initial level report when a retried add finds the service already present",
-			topic:             vmsTopic,
-			configuredService: outLvlSwitchServiceVMSTopic,
+			configuredService: outLvlSwitchService,
 			existingDevice:    &Device{Modes: map[string]float64{"on": 123}},
 			mockedThing: mockedadapter.NewThing(t).
 				WithSendInclusionReport(true, true, true, nil).
-				WithServiceByTopic(vmsTopic, true, meterElecService).
-				WithServices(outlvlswitch.OutLvlSwitch, true, []adapter.Service{levelSwitchForceReport(t, lvlSwitchTopic)}),
+				WithServiceByTopic(addr, true, meterElecService).
+				WithServices(outlvlswitch.OutLvlSwitch, true, []adapter.Service{levelSwitchForceReport(t, addr)}),
 			teardown:    adapterhelper.TearDownAdapter(workdir)[0],
 			expectError: false,
 		},
@@ -154,14 +137,13 @@ func TestVirtualMeterManager_Add(t *testing.T) { //nolint:paralleltest
 		},
 		{
 			name:              "should force an initial level report on first add so the meter isn't stuck at zero",
-			topic:             vmsTopic,
-			configuredService: outLvlSwitchServiceVMSTopic,
+			configuredService: outLvlSwitchService,
 			existingDevice:    &Device{Modes: nil},
 			mockedThing: mockedadapter.NewThing(t).
 				WithUpdate(true, nil).
 				WithSendInclusionReport(true, true, true, nil).
-				WithServiceByTopic(vmsTopic, true, nil).
-				WithServices(outlvlswitch.OutLvlSwitch, true, []adapter.Service{levelSwitchForceReport(t, lvlSwitchTopic)}),
+				WithServiceByTopic(addr, true, nil).
+				WithServices(outlvlswitch.OutLvlSwitch, true, []adapter.Service{levelSwitchForceReport(t, addr)}),
 			teardown:    adapterhelper.TearDownAdapter(workdir)[0],
 			expectError: false,
 		},
@@ -176,31 +158,26 @@ func TestVirtualMeterManager_Add(t *testing.T) { //nolint:paralleltest
 			mr := NewManager(db, time.Second, time.Hour)
 			m := mr.(*manager) //nolint:forcetypeassert
 
-			topic := c.topic
-			if topic == "" {
-				topic = addr
-			}
-
 			// Expected in every case: the thing is now resolved before the manager lock is taken,
 			// so the lookup happens even when the service template check rejects the call.
-			mockAdapter := mockedadapter.NewAdapter(t).WithThingByTopic(topic, true, c.mockedThing)
+			mockAdapter := mockedadapter.NewAdapter(t).WithThingByTopic(addr, true, c.mockedThing)
 
 			if c.existingDevice != nil {
-				err := m.storage.SetDevice(topic, c.existingDevice)
+				err := m.storage.SetDevice(addr, c.existingDevice)
 				assert.NoError(t, err, "should set device")
 			}
 
 			m.ad = mockAdapter
-			m.virtualServices = map[string]adapter.Service{topic: c.configuredService}
+			m.virtualServices = map[string]adapter.Service{addr: c.configuredService}
 
 			modes := map[string]float64{"on": 123}
 
-			err := m.add(topic, modes, "W")
+			err := m.add(addr, modes, "W")
 			if c.expectError {
 				assert.Error(t, err, "should fail to add a meter")
 			} else {
 				assert.NoError(t, err, "should add a meter")
-				modes, err := m.modes(topic)
+				modes, err := m.modes(addr)
 				assert.NoError(t, err, "should get modes")
 				assert.Equal(t, modes, modes, "should add modes")
 			}
@@ -819,6 +796,7 @@ func TestManager_RegisterDevice(t *testing.T) { //nolint:paralleltest
 	cases := []struct {
 		name        string
 		thing       adapter.Thing
+		adapter     adapter.Adapter
 		deviceKey   string
 		device      *Device
 		expectError bool
@@ -828,6 +806,7 @@ func TestManager_RegisterDevice(t *testing.T) { //nolint:paralleltest
 			thing: mockedadapter.NewThing(t).
 				WithInclusionReported(&fimptype.ThingInclusionReport{Address: addr, Groups: []string{"ch1"}}, true).
 				WithServices("", true, []adapter.Service{}),
+			adapter:     mockedadapter.NewAdapter(t),
 			expectError: false,
 		},
 		{
@@ -858,6 +837,11 @@ func TestManager_RegisterDevice(t *testing.T) { //nolint:paralleltest
 					},
 				}).
 				WithServices("", true, []adapter.Service{outLvlSwitchServiceFullAddr}),
+			adapter: mockedadapter.NewAdapter(t).
+				WithName("test", true).
+				WithName("test", true).
+				WithAddress(addr, true).
+				WithAddress(addr, true),
 			expectError: false,
 		},
 		{
@@ -867,6 +851,11 @@ func TestManager_RegisterDevice(t *testing.T) { //nolint:paralleltest
 				WithServices(VirtualMeterElec, true, []adapter.Service{}).
 				WithServices("", true, []adapter.Service{outLvlSwitchServiceFullAddr}).
 				WithUpdate(true, errors.New("some")),
+			adapter: mockedadapter.NewAdapter(t).
+				WithName("test", true).
+				WithName("test", true).
+				WithAddress(addr, true).
+				WithAddress(addr, true),
 			expectError: true,
 		},
 		{
@@ -877,6 +866,11 @@ func TestManager_RegisterDevice(t *testing.T) { //nolint:paralleltest
 				WithServices("", true, []adapter.Service{outLvlSwitchServiceFullAddr}).
 				WithUpdate(true, nil).
 				WithUpdate(true, nil),
+			adapter: mockedadapter.NewAdapter(t).
+				WithName("test", true).
+				WithName("test", true).
+				WithAddress(addr, true).
+				WithAddress(addr, true),
 			deviceKey: "/rt:dev/rn:test/ad:test/sv:virtual_meter_elec/ad:test_ch1",
 			device: &Device{
 				Modes: map[string]float64{ModeOn: 123},
@@ -890,6 +884,11 @@ func TestManager_RegisterDevice(t *testing.T) { //nolint:paralleltest
 				WithServices(VirtualMeterElec, true, []adapter.Service{}).
 				WithServices("", true, []adapter.Service{outLvlSwitchServiceFullAddr}).
 				WithUpdate(true, nil),
+			adapter: mockedadapter.NewAdapter(t).
+				WithName("test", true).
+				WithName("test", true).
+				WithAddress(addr, true).
+				WithAddress(addr, true),
 			deviceKey: "/rt:dev/rn:test/ad:test/sv:virtual_meter_elec/ad:test_ch1",
 			device: &Device{
 				Modes: nil,
@@ -908,6 +907,8 @@ func TestManager_RegisterDevice(t *testing.T) { //nolint:paralleltest
 
 			mr := NewManager(db, time.Second, time.Hour)
 			m := mr.(*manager) //nolint:forcetypeassert
+			m.ad = c.adapter
+
 			m.virtualServices = make(map[string]adapter.Service)
 
 			// pre-creating the state of the device represented by services.
