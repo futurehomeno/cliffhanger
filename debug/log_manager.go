@@ -132,6 +132,22 @@ func FlushLogs() {
 	}
 }
 
+// DisableLogBuffering flushes the buffer and writes every later line straight to the log file, so
+// lines logged after the app has stopped (an adapter's deferred stop banner) survive the exit.
+func DisableLogBuffering() {
+	if logManager == nil {
+		return
+	}
+
+	logManager.lock.Lock()
+	if logManager.logOutput != nil {
+		logManager.logOutput.direct.Store(true)
+	}
+	logManager.lock.Unlock()
+
+	logManager.flush()
+}
+
 func (ptr *logManagerT) flush() {
 	ptr.lock.Lock()
 	out := ptr.logOutput
@@ -304,9 +320,10 @@ func (f *levelFormatter) Unwrap() logrus.Formatter {
 // flushing on error-level entries, on a full buffer, and on the manager's
 // periodic tick.
 type bufferedWriter struct {
-	lock sync.Mutex
-	buf  *bufio.Writer
-	file *lumberjack.Logger
+	lock   sync.Mutex
+	buf    *bufio.Writer
+	file   *lumberjack.Logger
+	direct atomic.Bool
 }
 
 func newBufferedWriter(file *lumberjack.Logger) *bufferedWriter {
@@ -318,7 +335,7 @@ func (w *bufferedWriter) Write(p []byte) (int, error) {
 	defer w.lock.Unlock()
 
 	n, err := w.buf.Write(p)
-	if err != nil || !urgent.Load() {
+	if err != nil || !w.direct.Load() && !urgent.Load() {
 		return n, err
 	}
 

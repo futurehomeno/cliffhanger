@@ -121,6 +121,7 @@ func (a *app) Wait() error {
 
 // Run starts the application and waits for it to stop.
 func (a *app) Run() error {
+	defer debug.DisableLogBuffering()
 	defer telemetry.RecoverAndEmit(a.telemetry, "run", true)
 	err := a.Start()
 	if err != nil {
