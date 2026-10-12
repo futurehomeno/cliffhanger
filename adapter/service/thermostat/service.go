@@ -204,14 +204,16 @@ func (s *service) SendSetpointReport(mode string, force bool) (bool, error) {
 		return false, fmt.Errorf("%s: failed to retrieve setpoint report for mode %s: %w", s.Name(), normalizedMode, err)
 	}
 
-	if !force && !s.reportingCache.ReportRequired(s.reportingStrategy, EvtSetpointReport, normalizedMode, value) {
+	setpoint := NewSetpoint(normalizedMode, value, unit)
+
+	if !force && !s.reportingCache.ReportRequired(s.reportingStrategy, EvtSetpointReport, normalizedMode, *setpoint) {
 		return false, nil
 	}
 
 	message := fimpgo.NewStrMapMessage(
 		EvtSetpointReport,
 		s.Name(),
-		NewSetpoint(normalizedMode, value, unit).StringMap(),
+		setpoint.StringMap(),
 		nil,
 		nil,
 		nil,
@@ -222,7 +224,7 @@ func (s *service) SendSetpointReport(mode string, force bool) (bool, error) {
 		return false, fmt.Errorf("%s: failed to send state report: %w", s.Name(), err)
 	}
 
-	s.reportingCache.Reported(EvtSetpointReport, normalizedMode, value)
+	s.reportingCache.Reported(EvtSetpointReport, normalizedMode, *setpoint)
 
 	return true, nil
 }
