@@ -14,9 +14,8 @@ import (
 // staleNodeTimeout bounds the Vinculum request, which runs inline in a device sync.
 const staleNodeTimeout = 10 * time.Second
 
-// ErrStaleNodeFetch reports that the hub never answered, so no node was examined and the
-// sweep is worth retrying. A per-node exclusion failure does not wrap it: those nodes were
-// reached, and re-running the whole sweep would repeat the work that already succeeded.
+// ErrStaleNodeFetch reports that the hub never answered, so no node was examined. A per-node
+// exclusion failure does not wrap it.
 var ErrStaleNodeFetch = errors.New("adapter: fetch hub devices")
 
 // Option configures an adapter at construction time.
@@ -49,28 +48,24 @@ func (a *adapter) excludeStaleNodesOnce() {
 		return
 	}
 
-	// Claimed rather than done once: a sweep whose hub fetch fails releases the claim so the
-	// next successful sync retries it, while the claim still keeps two sweeps from overlapping.
+	// Claimed rather than done once: a failed sweep releases the claim so the next successful
+	// sync retries it, while the claim still keeps two sweeps from overlapping.
 	if !a.staleNodesSwept.CompareAndSwap(false, true) {
 		return
 	}
 
 	// Asking the hub is a round trip over MQTT: a sweep must never hold up the sync it
 	// is triggered from, nor block it for the full timeout when nothing answers.
-	go a.excludeStaleNodes()
+	go a.excludeStaleNodes(prime.NewClient(fimpgo.NewSyncClient(a.mqtt), a.name, staleNodeTimeout))
 }
 
-func (a *adapter) excludeStaleNodes() {
-	excluded, err := ExcludeStaleNodes(a, prime.NewClient(fimpgo.NewSyncClient(a.mqtt), a.name, staleNodeTimeout))
+func (a *adapter) excludeStaleNodes(client prime.Client) {
+	excluded, err := ExcludeStaleNodes(a, client)
 	if err != nil {
 		log.Errorf("[adapter] Exclude stale hub nodes. err: %v", err)
 
-		// Only a failed hub fetch means nothing was swept: let a later sync try again rather
-		// than spending the single attempt on a timeout. A partial exclusion failure keeps the
-		// claim, so the nodes that were excluded are not swept again on every later sync.
-		if errors.Is(err, ErrStaleNodeFetch) {
-			a.staleNodesSwept.Store(false)
-		}
+		// A later sync retries; the nodes already excluded are gone from the hub's list by then.
+		a.staleNodesSwept.Store(false)
 	}
 
 	for _, address := range excluded {
