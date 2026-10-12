@@ -5,6 +5,7 @@ import (
 	"errors"
 	"strconv"
 	"sync"
+	"sync/atomic"
 	"testing"
 
 	"github.com/futurehomeno/fimpgo"
@@ -560,4 +561,82 @@ func TestThingServiceByTopic_ResolvesInboundTopics(t *testing.T) {
 	assert.Same(t, svc, thing.ServiceByTopic("pt:j1/mt:cmd"+address))
 	assert.Nil(t, thing.ServiceByTopic("pt:j1/mt:cmd/rt:dev/rn:test_adapter/ad:1/sv:out_lvl_switch/ad:3"))
 	assert.Nil(t, thing.ServiceByTopic("rt:dev/rn:test_adapter/ad:1/sv:out_lvl_switch/ad:2"))
+}
+
+func newInitializedTestAdapter(t *testing.T, p Publisher) *adapter {
+	t.Helper()
+
+	s, err := NewState(t.TempDir())
+	require.NoError(t, err)
+
+	return &adapter{publisher: p, state: s, factory: groupsFactory{}, things: map[string]Thing{}, lock: &sync.RWMutex{}, initialized: true}
+}
+
+func TestEnsureThings_DuplicateSeedsCreateOneThing(t *testing.T) {
+	t.Parallel()
+
+	a := newInitializedTestAdapter(t, stubPublisher{})
+
+	require.NoError(t, a.EnsureThings(ThingSeeds{
+		{ID: "A", Info: groupsInfo{Groups: []string{"first"}}},
+		{ID: "A", Info: groupsInfo{Groups: []string{"second"}}},
+	}))
+
+	require.Len(t, a.things, 1, "a duplicate seed must not strand a second thing")
+	assert.Equal(t, []string{"first"}, a.ThingByID("A").InclusionReport().Groups, "the first seed wins")
+}
+
+type exclusionCounter struct {
+	stubPublisher
+
+	exclusions atomic.Int32
+}
+
+func (p *exclusionCounter) PublishAdapterMessage(m *fimpgo.FimpMessage) error {
+	if m.Interface == EvtThingExclusionReport {
+		p.exclusions.Add(1)
+	}
+
+	return nil
+}
+
+func TestSyncThings_UnmappedDeviceIsNeitherExcludedNorDestroyed(t *testing.T) {
+	t.Parallel()
+
+	g1 := groupsInfo{Groups: []string{"g1"}}
+	seed := func(id string) *ThingSeed {
+		if id == "B" {
+			return nil
+		}
+
+		return &ThingSeed{ID: id, Info: g1}
+	}
+	fetch := func() ([]string, error) { return []string{"A", "B"}, nil }
+
+	for _, tc := range []struct {
+		name     string
+		owned    ThingSeeds
+		selected []string
+	}{
+		{name: "owned, selected by ID", owned: ThingSeeds{{ID: "B", Info: g1}}, selected: []string{"A", "B"}},
+		{name: "owned, everything selected", owned: ThingSeeds{{ID: "B", Info: g1}}},
+		{name: "not owned", selected: []string{"A", "B"}},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+
+			p := &exclusionCounter{}
+			a := newInitializedTestAdapter(t, p)
+			require.NoError(t, a.EnsureThings(tc.owned))
+
+			seeds, excludedIDs, err := SyncThings(a, fetch, tc.selected, seed)
+
+			require.NoError(t, err)
+			require.Len(t, seeds, 1, "only mapped devices are returned for a rebuild")
+			assert.Equal(t, "A", seeds[0].ID)
+			assert.Empty(t, excludedIDs)
+			assert.Zero(t, p.exclusions.Load(), "no exclusion may be published")
+			assert.Equal(t, len(tc.owned) == 1, a.ThingByID("B") != nil, "an owned thing must survive")
+		})
+	}
 }

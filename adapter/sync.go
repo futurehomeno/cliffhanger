@@ -3,6 +3,7 @@ package adapter
 import (
 	"errors"
 	"fmt"
+	"slices"
 )
 
 // SyncThings reconciles things to match the devices selected from a freshly fetched list and
@@ -17,6 +18,11 @@ import (
 // unparsable body.
 //
 // A nil selection selects every available device; a non-nil empty selection selects none.
+//
+// A seed function returning nil means the item cannot be mapped now. Its ID is unknown, so no
+// unseeded selected device can be told apart from it: while any item maps to nil, no vanished
+// device is excluded, the live things of unseeded selected devices are kept, and the stale sweep
+// is skipped.
 //
 // Selected devices that vanished from the response and that the adapter does not own still get
 // an exclusion report, so an upgraded hub can drop stale nodes a legacy adapter left behind.
@@ -44,24 +50,53 @@ func SyncThings[T any](
 		return nil, nil, fmt.Errorf("adapter: fetch devices: %w", err)
 	}
 
-	seeds = SeedsFromSelection(available, selected, seed)
+	unmapped := false
+	seeds = SeedsFromSelection(available, selected, func(item T) *ThingSeed {
+		s := seed(item)
+		unmapped = unmapped || s == nil
+
+		return s
+	})
 
 	var errs []error
 
-	excludedIDs, exclErrs := excludeVanishedDevices(a, selected, seeds)
-	errs = append(errs, exclErrs...)
+	ensure := seeds
 
-	if err := a.EnsureThings(seeds); err != nil {
+	if unmapped {
+		ensure = append(slices.Clone(seeds), unseededLiveThings(a, selected, seeds)...)
+	} else {
+		var exclErrs []error
+
+		excludedIDs, exclErrs = excludeVanishedDevices(a, selected, seeds)
+		errs = append(errs, exclErrs...)
+	}
+
+	if err := a.EnsureThings(ensure); err != nil {
 		errs = append(errs, err)
 	}
 
 	// Only once the whole reconciliation succeeded are the things known to match the fetched
 	// list, which is what makes a hub node the adapter owns nothing for provably stale.
-	if impl, ok := a.(*adapter); ok && len(errs) == 0 {
+	if impl, ok := a.(*adapter); ok && len(errs) == 0 && !unmapped {
 		impl.excludeStaleNodesOnce()
 	}
 
 	return seeds, excludedIDs, errors.Join(errs...)
+}
+
+// unseededLiveThings returns a seed pinning every live thing of a selected device that has no
+// seed, which EnsureThings then leaves untouched instead of destroying it.
+func unseededLiveThings(a Adapter, selected []string, seeds ThingSeeds) ThingSeeds {
+	var kept ThingSeeds
+
+	for _, t := range a.Things() {
+		id, ok := a.ExchangeAddress(t.Address())
+		if ok && !seeds.Contains(id) && (selected == nil || slices.Contains(selected, id)) {
+			kept = append(kept, &ThingSeed{ID: id, CustomAddress: t.Address()})
+		}
+	}
+
+	return kept
 }
 
 // excludeVanishedDevices announces an exclusion for every selected device the fetch no longer

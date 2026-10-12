@@ -276,6 +276,7 @@ func (a *adapter) initializeThings() error {
 }
 
 // EnsureThings creates and destroys things based on provided map of IDs and custom information objects.
+// Seeds sharing an ID are applied once, the first one winning.
 // Best-effort per device: failures are joined, so a non-nil error means partially applied.
 func (a *adapter) EnsureThings(seeds ThingSeeds) error {
 	a.lock.Lock()
@@ -285,6 +286,8 @@ func (a *adapter) EnsureThings(seeds ThingSeeds) error {
 }
 
 func (a *adapter) ensureThings(seeds ThingSeeds) error {
+	seeds = SeedsFromSelection(seeds, nil, func(s *ThingSeed) *ThingSeed { return s })
+
 	var addressesToRemove []string
 
 	// Ghost records keep the address and persisted state they had before healing, mirroring
@@ -427,7 +430,7 @@ func (a *adapter) DestroyAllThings() error {
 }
 
 func (a *adapter) SendConnectivityReport() error {
-	var connectivityReports ConnectivityReports
+	connectivityReports := ConnectivityReports{}
 
 	for _, t := range a.Things() {
 		connectivityReports = append(connectivityReports, t.ConnectivityReport())
