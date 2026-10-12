@@ -55,6 +55,8 @@ type ThingSeed struct {
 	ID            string
 	Info          any
 	CustomAddress string
+
+	keep bool
 }
 
 type ThingConfig struct {

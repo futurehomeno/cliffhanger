@@ -6,9 +6,7 @@ report, deleting a single thing, resetting the whole network, querying one or al
 connectivity, and pinging a device. It also defines the two background tasks every adapter runs —
 loading persisted things once at start-up and reporting connectivity periodically — together with
 the voters that keep them from running too early.
-
 ## Requirements
-
 ### Requirement: Adapter Routing Set
 `RouteAdapter` SHALL return exactly six routings, handling `cmd.thing.get_inclusion_report`,
 `cmd.thing.delete`, `cmd.network.reset`, `cmd.network.get_node`, `cmd.network.get_all_nodes` and
@@ -107,11 +105,12 @@ regardless of the thing's connectivity reporting strategy.
 On `cmd.network.get_all_nodes` the router SHALL call `Adapter.SendConnectivityReport`, which
 publishes a single `evt.network.all_nodes_report` object message on the adapter topic carrying the
 array of connectivity reports for all registered things. The reports SHALL be collected without
-consulting any reporting strategy or cache, and the handler SHALL return no direct reply.
+consulting any reporting strategy or cache, and the handler SHALL return no direct reply. The value
+SHALL always be a JSON array, never `null`.
 
 #### Scenario: No things registered
 - **WHEN** `cmd.network.get_all_nodes` is received by an adapter with no registered things
-- **THEN** an `evt.network.all_nodes_report` is still published, carrying no connectivity reports
+- **THEN** an `evt.network.all_nodes_report` is still published, carrying the empty array `[]`
 
 ### Requirement: Ping
 On `cmd.ping.send` the router SHALL resolve the thing from the string payload address and call
@@ -173,3 +172,4 @@ SHALL NOT abort the iteration over the remaining things.
 #### Scenario: One thing fails to report
 - **WHEN** publishing the node report for one thing returns an error
 - **THEN** the error is logged and the remaining things are still asked to report
+

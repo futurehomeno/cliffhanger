@@ -29,7 +29,8 @@ built.
 
 ### Requirement: Seeds From Selection
 `SeedsFromSelection` SHALL build one seed per available device whose ID appears in the selection.
-The seed function MAY return nil to skip an available item; no seed is produced for it. A `nil`
+The seed function MAY return nil for an available item it cannot map now; no seed is produced for
+it (see Generic Sync Flow). A `nil`
 selection SHALL select every available device; a non-`nil` empty selection SHALL select none.
 Duplicate IDs — in the available list or the selection — SHALL yield a single seed, because two
 seeds with the same ID would create two things with the second stranded at a second address.
@@ -111,16 +112,22 @@ next attempt. The adapter SHALL be marked initialized only after the whole pass 
 `EnsureThings` SHALL make the set of things match the supplied seeds: every state record whose ID
 is absent from the seeds is destroyed, and every seed with no state record is created. Seeds whose
 ID already has a live thing SHALL be dropped without being touched — presence reconciliation never
-re-announces or rebuilds a healthy thing. Destruction SHALL be skipped while the adapter is not yet
-initialized, so a device sync racing `InitializeThings` cannot drop persisted records before they
-have been announced; seeds whose IDs have no stored state SHALL still be created. The whole pass
-SHALL run under the adapter write lock inside a single state batch, and SHALL be best-effort per
-device with failures joined, so a non-nil error means the pass was partially applied.
+re-announces or rebuilds a healthy thing. Seeds sharing an ID SHALL be applied once, the first one
+winning, so a duplicate never strands a second thing at a second address. Destruction SHALL be
+skipped while the adapter is not yet initialized, so a device sync racing `InitializeThings` cannot
+drop persisted records before they have been announced; seeds whose IDs have no stored state SHALL
+still be created. The whole pass SHALL run under the adapter write lock inside a single state batch,
+and SHALL be best-effort per device with failures joined, so a non-nil error means the pass was
+partially applied.
 
 #### Scenario: seed with no record
 - **WHEN** `EnsureThings` receives a seed whose ID has no stored state
 - **THEN** a state record is created, an address is allocated unless the seed pins a `CustomAddress`,
   and a forced inclusion report is published
+
+#### Scenario: duplicate seeds
+- **WHEN** `EnsureThings` receives two seeds with the same ID and no `CustomAddress`
+- **THEN** exactly one thing is created for that ID, from the first seed
 
 #### Scenario: record with no seed
 - **WHEN** a stored thing's ID is absent from the seeds on an initialized adapter
@@ -199,13 +206,21 @@ restart or sync.
 selection, exclude vanished devices, apply `EnsureThings`, and return the applied seeds together
 with the IDs it excluded. If the fetch fails nothing SHALL be mutated and the error SHALL be
 returned, so a network glitch can never wipe live things. A successful fetch SHALL be treated as
-complete: every selected device absent from it is destroyed, including when the response is empty —
+complete: every selected device absent from it is destroyed, including when the response is empty
+unless an item maps to a nil seed —
 adapters must therefore make their client return an error rather than a truncated or empty slice on
 a non-2xx, a rate limit or an unparsable body. Until the adapter is initialized that destroy is
 deferred by `EnsureThings`, so a racing boot sync cannot wipe records `InitializeThings` has not
-announced yet. `SyncThings` SHALL NOT be atomic: it takes and releases the adapter lock per
-operation, so adapters that also handle `cmd.thing.delete` or configuration writes must serialise
-those against it with a shared `router.MessageHandlerLocker`.
+announced yet. A seed function returning nil means the item cannot be mapped now: it gets no seed,
+and since its ID is unknown no unseeded selected device can be told apart from it, so while any
+fetched item maps to nil `SyncThings` SHALL exclude no vanished device, SHALL keep every live thing
+of a selected device that has no seed, and SHALL return an error wrapping `ErrUnmappedDevice`, so
+callers do not prune their selection and the stale sweep is skipped. Devices the adapter never
+supports must be filtered out in the fetch, not by a nil seed, or no sync would clean up again.
+`SyncThings` SHALL NOT
+be atomic: it takes and releases the adapter lock per operation, so adapters that also handle
+`cmd.thing.delete` or configuration writes must serialise those against it with a shared
+`router.MessageHandlerLocker`.
 
 #### Scenario: fetch fails
 - **WHEN** the fetch function returns an error
@@ -224,9 +239,18 @@ those against it with a shared `router.MessageHandlerLocker`.
 - **THEN** the applied seeds are returned so the caller can pass them to `RebuildChangedThings`
   without fetching again
 
+#### Scenario: an owned device cannot be mapped
+- **WHEN** the seed function returns nil for a fetched, selected device the adapter has a live thing for
+- **THEN** that thing is neither destroyed nor rebuilt, no seed for it is returned, and the error wraps
+  `ErrUnmappedDevice`
+
+#### Scenario: a device the adapter does not own cannot be mapped
+- **WHEN** the seed function returns nil for a fetched, selected device the adapter owns no thing for
+- **THEN** no exclusion is published for its ID and it is not returned in `excludedIDs`
+
 ### Requirement: Exclusion Of Vanished Devices
-Before `EnsureThings` runs, `SyncThings` SHALL publish an exclusion report for every selected ID
-that the fetch no longer lists and that the adapter owns no thing for, using the device ID itself as
+Before `EnsureThings` runs, and only when every fetched item mapped to a seed, `SyncThings` SHALL
+publish an exclusion report for every selected ID that the fetch no longer lists and that the adapter owns no thing for, using the device ID itself as
 the report address, and SHALL return the IDs it successfully excluded. Duplicate IDs in the
 selection SHALL be announced once. An ID that resolves through `ExchangeID` to a thing the adapter
 owns, or through `ExchangeAddress` to another thing's address, SHALL NOT be excluded. The pass SHALL
