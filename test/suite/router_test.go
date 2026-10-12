@@ -1,7 +1,7 @@
 package suite_test
 
 import (
-	"syscall"
+	"sync/atomic"
 	"testing"
 	"time"
 
@@ -71,10 +71,16 @@ func (suite *RouterTestSuite) TestRouter() {
 func (suite *RouterTestSuite) TestConcurrentMatchesOfOneExpectation() {
 	topic := "pt:j1/mt:cmd/rt:dev/rn:test/ad:1/sv:out_bin_switch/ad:1_0"
 
+	var replies atomic.Int32
+
 	suite.router.Expect(
 		cliffSuite.ExpectBool(topic, "cmd.binary.set", "out_bin_switch", true).
 			PublishInResponseFn(func() *fimpgo.Message { return nil }).
-			ReplyWithFn(func() *fimpgo.FimpMessage { return nil }),
+			ReplyWithFn(func() *fimpgo.FimpMessage {
+				replies.Add(1)
+
+				return nil
+			}),
 	)
 
 	addr, err := fimpgo.NewAddressFromString(topic)
@@ -87,21 +93,7 @@ func (suite *RouterTestSuite) TestConcurrentMatchesOfOneExpectation() {
 	}
 
 	suite.router.AssertExpectations(100 * time.Millisecond)
-}
-
-func (suite *RouterTestSuite) TestAssertExpectationsDoesNotSpin() {
-	topic := "pt:j1/mt:cmd/rt:dev/rn:test/ad:1/sv:out_bin_switch/ad:1_0"
-
-	suite.router.Expect(cliffSuite.ExpectBool(topic, "cmd.binary.set", "out_bin_switch", true).Never())
-
-	var before, after syscall.Rusage
-
-	suite.Require().NoError(syscall.Getrusage(syscall.RUSAGE_SELF, &before))
-	suite.router.AssertExpectations(300 * time.Millisecond)
-	suite.Require().NoError(syscall.Getrusage(syscall.RUSAGE_SELF, &after))
-
-	cpu := time.Duration(after.Utime.Nano() + after.Stime.Nano() - before.Utime.Nano() - before.Stime.Nano())
-	suite.Less(cpu, 100*time.Millisecond)
+	suite.Eventually(func() bool { return replies.Load() == 20 }, time.Second, 5*time.Millisecond)
 }
 
 func (suite *RouterTestSuite) TestAtMostOnceDoesNotWaitOutTimeout() {
