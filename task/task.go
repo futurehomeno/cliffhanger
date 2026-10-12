@@ -14,6 +14,7 @@ func New(handler func(), duration time.Duration, voters ...Voter) *Task {
 }
 
 // NewDelayed creates a periodic task whose first run waits for the first interval instead of running on startup.
+// A zero duration has no interval to wait for, so the task runs once on startup like New.
 func NewDelayed(handler func(), duration time.Duration, voters ...Voter) *Task {
 	t := New(handler, duration, voters...)
 	t.delayed = true
