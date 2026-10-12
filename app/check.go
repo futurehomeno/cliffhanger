@@ -174,7 +174,7 @@ func (c *ConnectivityChecker) check() {
 		c.settle()
 
 		if c.authorized() {
-			c.restore()
+			c.apply(lifecycle.AuthStateAuthenticated, lifecycle.ConnStateConnected, "")
 		}
 
 		return
@@ -237,20 +237,6 @@ func (c *ConnectivityChecker) settleLocked() {
 	}
 }
 
-// restore applies a successful probe. c.mu is held across the cancelled read and the writes so a
-// Cancel landing after the Authorized gate either wins here or runs after the restore.
-func (c *ConnectivityChecker) restore() {
-	c.mu.Lock()
-	defer c.mu.Unlock()
-
-	if c.cancelled {
-		return
-	}
-
-	c.apply(lifecycle.AuthStateAuthenticated, lifecycle.ConnStateConnected, "")
-	c.repairAppHealth()
-}
-
 // repairAppHealth restores the running and configured states after a successful probe.
 // A transient failure during authorization may have left the app NOT_CONFIGURED, and the
 // periodic check task does not run while the app is not RUNNING (task.WhenAppIsRunning),
@@ -282,10 +268,29 @@ func (c *ConnectivityChecker) rateLimitDelay(err error) time.Duration {
 	return c.cfg.RateLimitDelay
 }
 
-// apply sets the provided lifecycle states (empty auth leaves it untouched) and
-// broadcasts node availability if any of them changed. reason accompanies an
-// AuthStateLost transition to tell the auth-loss watcher why the session was lost.
+// apply sets the provided lifecycle states (empty auth leaves it untouched), repairs the app
+// health on AuthStateAuthenticated and broadcasts node availability if any state changed.
+// reason accompanies an AuthStateLost transition to tell the auth-loss watcher why the session
+// was lost.
 func (c *ConnectivityChecker) apply(auth, conn lifecycle.State, reason string) {
+	c.report(c.set(auth, conn, reason))
+}
+
+// set writes the states unless a Cancel landed since the probe. c.mu is held across the cancelled
+// read and the writes, so a logout or reset either wins here or runs after them; the report is
+// sent outside the lock.
+func (c *ConnectivityChecker) set(auth, conn lifecycle.State, reason string) bool {
+	c.mu.Lock()
+	defer c.mu.Unlock()
+
+	if c.cancelled {
+		return false
+	}
+
+	if auth == lifecycle.AuthStateAuthenticated {
+		defer c.repairAppHealth()
+	}
+
 	changed := false
 
 	// AuthStateLost triggers the auth-loss watcher, which reports the whole state bundle.
@@ -311,7 +316,7 @@ func (c *ConnectivityChecker) apply(auth, conn lifecycle.State, reason string) {
 		}
 	}
 
-	c.report(changed)
+	return changed
 }
 
 // report broadcasts node availability when a state change occurred.

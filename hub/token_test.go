@@ -112,13 +112,13 @@ func TestTokenLoader_NoDelayAfterFinalAttempt(t *testing.T) { //nolint:parallelt
 		ResourceName:  "token_no_bridge",
 		MQTTServerURI: "tcp://127.0.0.1:11883",
 		Retry:         1,
-		RetryDelay:    10 * time.Second,
+		RetryDelay:    time.Minute,
 	})
 
 	start := time.Now()
 	_, err := loader.LoadToken()
 	require.Error(t, err)
-	assert.Less(t, time.Since(start), 10*time.Second)
+	assert.Less(t, time.Since(start), 30*time.Second)
 }
 
 func TestNewTokenLoader_LeavesCallerConfigUntouched(t *testing.T) {

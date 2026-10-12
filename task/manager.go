@@ -87,7 +87,9 @@ func (m *manager) runContinuously(task *Task) {
 	ticker := time.NewTicker(task.duration)
 	defer ticker.Stop()
 
-	run(task)
+	if !task.delayed {
+		run(task)
+	}
 
 	for {
 		select {

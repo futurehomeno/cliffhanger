@@ -2,6 +2,7 @@ package app
 
 import (
 	"fmt"
+	"strings"
 
 	"github.com/futurehomeno/fimpgo"
 	"github.com/futurehomeno/fimpgo/fimptype"
@@ -229,7 +230,7 @@ func HandleCmdConfigExtendedSet[C any](
 				err = app.Configure(cfg)
 			}
 
-			return makeConfigurationReply(serviceName, EvtAppConfigReport, message, appLifecycle, "configure", err), nil
+			return makeConfigurationReply(serviceName, EvtAppConfigReport, message, appLifecycle, "Configure", err), nil
 		}),
 		router.WithExternalLock(locker),
 	)
@@ -266,7 +267,7 @@ func HandleCmdAppUninstall(
 				}
 			}
 
-			return makeConfigurationReply(serviceName, EvtAppUninstallReport, message, appLifecycle, "uninstall", app.Uninstall()), nil
+			return makeConfigurationReply(serviceName, EvtAppUninstallReport, message, appLifecycle, "Uninstall", app.Uninstall()), nil
 		}),
 		router.WithExternalLock(locker),
 	)
@@ -405,10 +406,10 @@ func makeConfigurationReply(
 		log.WithField("topic", message.Topic).
 			WithField("service", message.Payload.Service).
 			WithField("type", message.Payload.Interface).
-			Errorf("[app] App %s err: %v", op, err)
+			Errorf("[app] %s app err: %v", op, err)
 
 		configReport.OpStatus = OperationStatusError
-		configReport.OpError = fmt.Sprintf("%s the app err: %s", op, err)
+		configReport.OpError = fmt.Sprintf("%s the app err: %s", strings.ToLower(op), err)
 	}
 
 	configReport.AppState = *appLifecycle.AllStates()

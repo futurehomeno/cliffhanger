@@ -177,11 +177,17 @@ func TestTaskInitialization_RetryDoesNotRunAtStartup(t *testing.T) {
 	lc.SetAppHealth(lifecycle.AppHealthStartupError, nil)
 
 	manager := task.NewManager(app.TaskInitialization(stub, lc, time.Hour)...)
-	require.NoError(t, manager.Start())
 	t.Cleanup(func() { _ = manager.Stop() })
 
-	time.Sleep(50 * time.Millisecond)
-	assert.Equal(t, int32(1), stub.calls.Load())
+	for want := int32(1); want <= 2; want++ {
+		require.NoError(t, manager.Start())
+		assert.Eventually(t, func() bool { return stub.calls.Load() == want }, time.Second, time.Millisecond)
+		assert.Never(t, func() bool { return stub.calls.Load() > want }, 50*time.Millisecond, time.Millisecond)
+
+		if want == 1 {
+			require.NoError(t, manager.Stop())
+		}
+	}
 }
 
 func TestTaskApp_InitializableAndCheckableApp(t *testing.T) {

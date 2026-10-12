@@ -46,8 +46,6 @@ type ProxyClient interface {
 }
 
 func NewProxyClient(cfg *ProxyClientConfig) ProxyClient {
-	cfg.setDefaults()
-
 	headers := make(map[string]string, len(cfg.Headers))
 	for k, v := range cfg.Headers {
 		headers[k] = v
@@ -55,11 +53,12 @@ func NewProxyClient(cfg *ProxyClientConfig) ProxyClient {
 
 	cfgCopy := *cfg
 	cfgCopy.Headers = headers
+	cfgCopy.setDefaults()
 
 	return &proxyClient{
 		cfg: &cfgCopy,
 		client: &http.Client{
-			Timeout: cfg.Timeout,
+			Timeout: cfgCopy.Timeout,
 		},
 	}
 }

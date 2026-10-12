@@ -196,10 +196,12 @@ func TestProxyClient_NegativeRetryMakesOneRequest(t *testing.T) {
 	}))
 	defer srv.Close()
 
-	client := auth.NewProxyClient(&auth.ProxyClientConfig{URL: srv.URL, Retry: -1, RetryDelay: time.Millisecond})
+	cfg := &auth.ProxyClientConfig{URL: srv.URL, Retry: -1, RetryDelay: time.Millisecond}
+	want := *cfg
 
-	response, err := client.ExchangeRefreshToken("refresh")
+	response, err := auth.NewProxyClient(cfg).ExchangeRefreshToken("refresh")
 	assert.Error(t, err)
 	assert.Nil(t, response)
 	assert.Equal(t, int32(1), requests.Load())
+	assert.Equal(t, want, *cfg, "the caller's config must not be defaulted in place")
 }
