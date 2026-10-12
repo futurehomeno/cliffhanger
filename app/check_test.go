@@ -205,6 +205,87 @@ func TestConnectivityChecker_AuthorizedGateSkipsRestore(t *testing.T) {
 	assert.Equal(t, lifecycle.ConnStateConnected, lc.ConnectionState(), "once authorized, a success restores state")
 }
 
+func TestConnectivityChecker_LogoutAfterAuthorizedGateWins(t *testing.T) {
+	t.Parallel()
+
+	lc := lifecycle.New(nil)
+	reporter := &fakeReporter{}
+
+	var checker *app.ConnectivityChecker
+
+	checker = app.NewConnectivityChecker(func() error { return nil }, lc, reporter, app.CheckerConfig{
+		Authorized: func() bool {
+			checker.Cancel()
+			lc.SetAppState(lifecycle.AppHealthNotConfigured, lifecycle.ConfigStateNotConfigured,
+				lifecycle.ConnStateDisconnected, lifecycle.AuthStateNotAuthenticated)
+
+			return true
+		},
+	})
+
+	assert.NoError(t, checker.Check())
+	assert.Equal(t, lifecycle.AuthStateNotAuthenticated, lc.AuthState())
+	assert.Equal(t, lifecycle.ConnStateDisconnected, lc.ConnectionState())
+	assert.Equal(t, lifecycle.AppHealthNotConfigured, lc.AppHealth())
+	assert.Equal(t, int32(0), reporter.reports.Load())
+}
+
+func TestConnectivityChecker_LogoutDuringUnauthorizedProbeWins(t *testing.T) {
+	t.Parallel()
+
+	lc := lifecycle.New(nil)
+	reporter := &fakeReporter{}
+
+	var checker *app.ConnectivityChecker
+
+	checker = app.NewConnectivityChecker(func() error { return httpclient.ErrUnauthorized }, lc, reporter, app.CheckerConfig{
+		AuthLossState: func(lifecycle.State) lifecycle.State {
+			checker.Cancel()
+			lc.SetAuthState(lifecycle.AuthStateNotAuthenticated)
+
+			return lifecycle.AuthStateLost
+		},
+	})
+
+	assert.NoError(t, checker.Check())
+	assert.Equal(t, lifecycle.AuthStateNotAuthenticated, lc.AuthState())
+	assert.Equal(t, int32(0), reporter.reports.Load())
+}
+
+type cancellingReporter struct {
+	checker *app.ConnectivityChecker
+}
+
+func (r *cancellingReporter) SendConnectivityReport() error {
+	r.checker.Cancel()
+
+	return nil
+}
+
+func TestConnectivityChecker_ReporterMayCancel(t *testing.T) {
+	t.Parallel()
+
+	reporter := &cancellingReporter{}
+	reporter.checker = app.NewConnectivityChecker(func() error { return nil }, lifecycle.New(nil), reporter, app.CheckerConfig{})
+
+	done := make(chan struct{})
+
+	go func() {
+		defer close(done)
+
+		assert.NoError(t, reporter.checker.Check())
+	}()
+
+	assert.Eventually(t, func() bool {
+		select {
+		case <-done:
+			return true
+		default:
+			return false
+		}
+	}, time.Second, 5*time.Millisecond, "the connectivity report must not run under the checker's lock")
+}
+
 func TestConnectivityChecker_RepairAppHealthLeavesRunningAppUntouched(t *testing.T) {
 	t.Parallel()
 

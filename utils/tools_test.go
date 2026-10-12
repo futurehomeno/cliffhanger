@@ -43,6 +43,17 @@ func TestFilterGoroutinesByKeywords(t *testing.T) {
 	assert.Empty(t, utils.FilterGoroutinesByKeywords(goroutineDump, []string{"mute"}), "keywords match whole words only")
 }
 
+func TestFilterGoroutinesByKeywords_KeywordsAreLiteral(t *testing.T) {
+	t.Parallel()
+
+	dump := "goroutine 1 [running]:\naxb.run()\n\ngoroutine 2 [running]:\na.b.run()"
+
+	assert.Equal(t, "goroutine 2 [running]:\na.b.run()", utils.FilterGoroutinesByKeywords(dump, []string{"a.b"}))
+	assert.NotPanics(t, func() { utils.FilterGoroutinesByKeywords(dump, []string{"(", "["}) })
+	assert.Empty(t, utils.FilterGoroutinesByKeywords(dump, nil))
+	assert.Empty(t, utils.FilterGoroutinesByKeywords(dump, []string{"", "zzz"}), "an empty keyword matches nothing")
+}
+
 func TestPrintStackOnRecover(t *testing.T) { //nolint:paralleltest
 	hook := test.NewGlobal()
 	defer log.StandardLogger().ReplaceHooks(make(log.LevelHooks))

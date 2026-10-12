@@ -92,3 +92,43 @@ func TestTokenLoader_RejectsNonStringValue(t *testing.T) { //nolint:paralleltest
 	require.ErrorContains(t, err, "wrong message format")
 	assert.Empty(t, token)
 }
+
+func TestTokenLoader_NonPositiveRetryUsesDefault(t *testing.T) { //nolint:paralleltest
+	startCloudBridge(t, func(req *fimpgo.FimpMessage) *fimpgo.FimpMessage {
+		return fimpgo.NewStringMessage("evt.clbridge.auth_token_report", "clbridge", "hub-token", nil, nil, req)
+	})
+
+	token, err := hub.NewTokenLoader(&hub.TokenLoaderConfig{
+		ResourceName:  "token_negative_retry",
+		MQTTServerURI: "tcp://127.0.0.1:11883",
+		Retry:         -1,
+	}).LoadToken()
+	require.NoError(t, err)
+	assert.Equal(t, "hub-token", token)
+}
+
+func TestTokenLoader_NoDelayAfterFinalAttempt(t *testing.T) { //nolint:paralleltest
+	loader := hub.NewTokenLoader(&hub.TokenLoaderConfig{
+		ResourceName:  "token_no_bridge",
+		MQTTServerURI: "tcp://127.0.0.1:11883",
+		Retry:         1,
+		RetryDelay:    time.Minute,
+	})
+
+	start := time.Now()
+	_, err := loader.LoadToken()
+	require.Error(t, err)
+	assert.Less(t, time.Since(start), 30*time.Second)
+}
+
+func TestNewTokenLoader_LeavesCallerConfigUntouched(t *testing.T) {
+	t.Parallel()
+
+	cfg := &hub.TokenLoaderConfig{ResourceName: "token_cfg"}
+	want := *cfg
+
+	hub.NewTokenLoader(cfg)
+	hub.NewTokenLoader(cfg)
+
+	assert.Equal(t, want, *cfg)
+}

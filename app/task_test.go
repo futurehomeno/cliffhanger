@@ -168,6 +168,28 @@ func TestTaskInitialization_RetriesOnlyWhileInStartupError(t *testing.T) {
 	})
 }
 
+func TestTaskInitialization_RetryDoesNotRunAtStartup(t *testing.T) {
+	t.Parallel()
+
+	stub := &stubInitApp{errs: []error{errors.New("boom"), errors.New("boom")}}
+	lc := lifecycle.New(nil)
+	// Pre-set so the retry task's first vote passes deterministically, as when the one-shot run fails first.
+	lc.SetAppHealth(lifecycle.AppHealthStartupError, nil)
+
+	manager := task.NewManager(app.TaskInitialization(stub, lc, time.Hour)...)
+	t.Cleanup(func() { _ = manager.Stop() })
+
+	for want := int32(1); want <= 2; want++ {
+		require.NoError(t, manager.Start())
+		assert.Eventually(t, func() bool { return stub.calls.Load() == want }, time.Second, time.Millisecond)
+		assert.Never(t, func() bool { return stub.calls.Load() > want }, 50*time.Millisecond, time.Millisecond)
+
+		if want == 1 {
+			require.NoError(t, manager.Stop())
+		}
+	}
+}
+
 func TestTaskApp_InitializableAndCheckableApp(t *testing.T) {
 	t.Parallel()
 

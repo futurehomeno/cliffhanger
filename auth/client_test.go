@@ -184,3 +184,24 @@ func TestProxyClient_RetriesExhausted(t *testing.T) {
 	assert.Nil(t, response)
 	assert.Equal(t, int32(3), requests.Load())
 }
+
+func TestProxyClient_NegativeRetryMakesOneRequest(t *testing.T) {
+	t.Parallel()
+
+	var requests atomic.Int32
+
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+		requests.Add(1)
+		w.WriteHeader(http.StatusBadGateway)
+	}))
+	defer srv.Close()
+
+	cfg := &auth.ProxyClientConfig{URL: srv.URL, Retry: -1, RetryDelay: time.Millisecond}
+	want := *cfg
+
+	response, err := auth.NewProxyClient(cfg).ExchangeRefreshToken("refresh")
+	assert.Error(t, err)
+	assert.Nil(t, response)
+	assert.Equal(t, int32(1), requests.Load())
+	assert.Equal(t, want, *cfg, "the caller's config must not be defaulted in place")
+}

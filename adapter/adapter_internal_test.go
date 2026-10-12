@@ -5,6 +5,7 @@ import (
 	"errors"
 	"strconv"
 	"sync"
+	"sync/atomic"
 	"testing"
 
 	"github.com/futurehomeno/fimpgo"
@@ -560,4 +561,104 @@ func TestThingServiceByTopic_ResolvesInboundTopics(t *testing.T) {
 	assert.Same(t, svc, thing.ServiceByTopic("pt:j1/mt:cmd"+address))
 	assert.Nil(t, thing.ServiceByTopic("pt:j1/mt:cmd/rt:dev/rn:test_adapter/ad:1/sv:out_lvl_switch/ad:3"))
 	assert.Nil(t, thing.ServiceByTopic("rt:dev/rn:test_adapter/ad:1/sv:out_lvl_switch/ad:2"))
+}
+
+func newInitializedTestAdapter(t *testing.T, p Publisher) *adapter {
+	t.Helper()
+
+	s, err := NewState(t.TempDir())
+	require.NoError(t, err)
+
+	return &adapter{publisher: p, state: s, factory: groupsFactory{}, things: map[string]Thing{}, lock: &sync.RWMutex{}, initialized: true}
+}
+
+func TestEnsureThings_DuplicateSeedsCreateOneThing(t *testing.T) {
+	t.Parallel()
+
+	a := newInitializedTestAdapter(t, stubPublisher{})
+
+	require.NoError(t, a.EnsureThings(ThingSeeds{
+		{ID: "A", Info: groupsInfo{Groups: []string{"first"}}},
+		{ID: "A", Info: groupsInfo{Groups: []string{"second"}}},
+	}))
+
+	require.Len(t, a.things, 1, "a duplicate seed must not strand a second thing")
+	assert.Equal(t, []string{"first"}, a.ThingByID("A").InclusionReport().Groups, "the first seed wins")
+}
+
+// TestEnsureThings_KeepSeedNeverCreatesOrHeals pins that a SyncThings pin seed, which carries no
+// Info, only shields a record from destroy: if the thing was deleted or ghosted after the pin
+// was taken, it must not be recreated from the Info-less seed.
+func TestEnsureThings_KeepSeedNeverCreatesOrHeals(t *testing.T) {
+	t.Parallel()
+
+	a := newInitializedTestAdapter(t, stubPublisher{})
+	_, err := a.state.add(&thingStateModel{ID: "G", Address: "7", Info: json.RawMessage(`{"groups":["g1"]}`)})
+	require.NoError(t, err)
+
+	require.NoError(t, a.EnsureThings(ThingSeeds{{ID: "D", keep: true}, {ID: "G", CustomAddress: "7", keep: true}}))
+
+	assert.Empty(t, a.things, "a pin seed must neither create nor heal a thing")
+	assert.Nil(t, a.state.byID("D"))
+	require.NotNil(t, a.state.byID("G"), "the pinned ghost record must not be destroyed")
+}
+
+type exclusionCounter struct {
+	stubPublisher
+
+	exclusions atomic.Int32
+}
+
+func (p *exclusionCounter) PublishAdapterMessage(m *fimpgo.FimpMessage) error {
+	if m.Interface == EvtThingExclusionReport {
+		p.exclusions.Add(1)
+	}
+
+	return nil
+}
+
+func TestSyncThings_UnmappedDeviceIsNeitherExcludedNorDestroyed(t *testing.T) {
+	t.Parallel()
+
+	g1 := groupsInfo{Groups: []string{"g1"}}
+	seed := func(id string) *ThingSeed {
+		if id == "B" {
+			return nil
+		}
+
+		return &ThingSeed{ID: id, Info: g1}
+	}
+	fetch := func() ([]string, error) { return []string{"A", "B"}, nil }
+
+	ownedB := ThingSeeds{{ID: "B", Info: g1}}
+
+	for _, tc := range []struct {
+		name       string
+		owned      ThingSeeds
+		selected   []string
+		keepB      bool
+		exclusions int32
+	}{
+		{name: "owned, selected by ID", owned: ownedB, selected: []string{"A", "B"}, keepB: true},
+		{name: "owned, everything selected", owned: ownedB, keepB: true},
+		{name: "not owned", selected: []string{"A", "B"}},
+		{name: "owned, deselected", owned: ownedB, selected: []string{"A"}, exclusions: 1},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+
+			p := &exclusionCounter{}
+			a := newInitializedTestAdapter(t, p)
+			require.NoError(t, a.EnsureThings(tc.owned))
+
+			seeds, excludedIDs, err := SyncThings(a, fetch, tc.selected, seed)
+
+			require.ErrorIs(t, err, ErrUnmappedDevice, "a clean sync would tell callers every unseeded device is gone")
+			require.Len(t, seeds, 1, "only mapped devices are returned for a rebuild")
+			assert.Equal(t, "A", seeds[0].ID)
+			assert.Empty(t, excludedIDs)
+			assert.Equal(t, tc.exclusions, p.exclusions.Load())
+			assert.Equal(t, tc.keepB, a.ThingByID("B") != nil)
+		})
+	}
 }
