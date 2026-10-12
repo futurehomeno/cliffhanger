@@ -23,7 +23,7 @@ var ErrUnmappedDevice = errors.New("adapter: seed function could not map a devic
 //
 // A seed function returning nil means the item cannot be mapped now. Its ID is unknown, so no
 // unseeded selected device can be told apart from it: while any item maps to nil, no vanished
-// device is excluded, the live things of unseeded selected devices are kept, and the returned
+// device is excluded, the things and records of unseeded selected devices are kept, and the returned
 // error wraps ErrUnmappedDevice, so callers do not prune their selection and the stale sweep is
 // skipped. Devices the adapter never supports must be filtered out in fetch, not by a nil seed,
 // or no sync would clean up again.
@@ -70,7 +70,7 @@ func SyncThings[T any](
 
 	if unmapped > 0 {
 		errs = append(errs, fmt.Errorf("%w: %d items", ErrUnmappedDevice, unmapped))
-		ensure = append(slices.Clone(seeds), unseededLiveThings(a, selected, seeds)...)
+		ensure = append(slices.Clone(seeds), unseededThings(a, selected, seeds)...)
 	} else {
 		var exclErrs []error
 
@@ -91,15 +91,27 @@ func SyncThings[T any](
 	return seeds, excludedIDs, errors.Join(errs...)
 }
 
-// unseededLiveThings returns a seed pinning every live thing of a selected device that has no
-// seed. EnsureThings never destroys, creates or heals from such a seed.
-func unseededLiveThings(a Adapter, selected []string, seeds ThingSeeds) ThingSeeds {
+// unseededThings returns a seed pinning every thing, live or ghost, of a selected device that has
+// no seed. EnsureThings never destroys, creates or heals from such a seed.
+func unseededThings(a Adapter, selected []string, seeds ThingSeeds) ThingSeeds {
+	var addresses []string
+
+	if impl, ok := a.(*adapter); ok {
+		for _, ts := range impl.state.all() {
+			addresses = append(addresses, ts.Address())
+		}
+	} else {
+		for _, t := range a.Things() {
+			addresses = append(addresses, t.Address())
+		}
+	}
+
 	var kept ThingSeeds
 
-	for _, t := range a.Things() {
-		id, ok := a.ExchangeAddress(t.Address())
+	for _, address := range addresses {
+		id, ok := a.ExchangeAddress(address)
 		if ok && !seeds.Contains(id) && (selected == nil || slices.Contains(selected, id)) {
-			kept = append(kept, &ThingSeed{ID: id, CustomAddress: t.Address(), keep: true})
+			kept = append(kept, &ThingSeed{ID: id, CustomAddress: address, keep: true})
 		}
 	}
 
