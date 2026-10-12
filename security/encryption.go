@@ -87,6 +87,11 @@ func writeKeyFile(path string) (newKey string, err error) {
 		return "", fmt.Errorf("security: could not link key file: %w", err)
 	}
 
+	if dir, err := os.Open(filepath.Dir(path)); err == nil {
+		_ = dir.Sync()
+		_ = dir.Close()
+	}
+
 	return key, nil
 }
 
