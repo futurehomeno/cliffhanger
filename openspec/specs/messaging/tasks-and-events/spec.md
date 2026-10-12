@@ -61,16 +61,17 @@ observe the stop signal only between runs.
 
 ### Requirement: Task Panic Isolation
 A panic raised by a task handler SHALL be recovered and logged with its stack, and SHALL NOT stop the
-task's ticker, kill the manager, or affect other tasks. The recovery covers the handler only: `Start`
-walks the task list in order and reads each task's interval before spawning that task's goroutine, so
-a nil task SHALL panic out of `Start` and MUST NOT be registered. Because the walk is sequential, the
-goroutines for tasks earlier in the list are already running when it panics, so a failed `Start`
-SHALL NOT be assumed to have left the manager idle.
+task's ticker, kill the manager, or affect other tasks. `NewManager` SHALL drop nil tasks and log how
+many it dropped, so a nil task never reaches `Start` and the remaining tasks start and stop normally.
 
 #### Scenario: handler panics on one tick
 - **WHEN** a periodic task's handler panics
 - **THEN** the panic is recovered and logged
 - **AND** the same task runs again on the next tick
+
+#### Scenario: nil task in the list
+- **WHEN** `NewManager` receives a nil task next to a valid one
+- **THEN** `Start` runs the valid task without panicking and `Stop` returns
 
 ### Requirement: Lifecycle-Aware Task Voters
 The package SHALL provide voters reading the application lifecycle state:
