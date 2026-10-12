@@ -214,7 +214,7 @@ deferred by `EnsureThings`, so a racing boot sync cannot wipe records `Initializ
 announced yet. A seed function returning nil means the item cannot be mapped now: it gets no seed,
 and since its ID is unknown no unseeded selected device can be told apart from it, so while any
 fetched item maps to nil `SyncThings` SHALL exclude no vanished device, SHALL keep every live thing
-of a selected device that has no seed, and SHALL return an error wrapping `ErrUnmappedDevice`, so
+and ghost record of a selected device that has no seed, and SHALL return an error wrapping `ErrUnmappedDevice`, so
 callers do not prune their selection and the stale sweep is skipped. Devices the adapter never
 supports must be filtered out in the fetch, not by a nil seed, or no sync would clean up again.
 `SyncThings` SHALL NOT
@@ -247,6 +247,11 @@ be atomic: it takes and releases the adapter lock per operation, so adapters tha
 #### Scenario: a device the adapter does not own cannot be mapped
 - **WHEN** the seed function returns nil for a fetched, selected device the adapter owns no thing for
 - **THEN** no exclusion is published for its ID and it is not returned in `excludedIDs`
+
+#### Scenario: a ghost of an owned device cannot be mapped
+- **WHEN** the seed function returns nil for a fetched item while a selected device without a seed has
+  a state record but no live thing
+- **THEN** its record is kept and no exclusion is published for it
 
 ### Requirement: Exclusion Of Vanished Devices
 Before `EnsureThings` runs, and only when every fetched item mapped to a seed, `SyncThings` SHALL

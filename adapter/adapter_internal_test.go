@@ -637,9 +637,12 @@ func TestSyncThings_UnmappedDeviceIsNeitherExcludedNorDestroyed(t *testing.T) {
 		owned      ThingSeeds
 		selected   []string
 		keepB      bool
+		ghostB     bool
 		exclusions int32
 	}{
 		{name: "owned, selected by ID", owned: ownedB, selected: []string{"A", "B"}, keepB: true},
+		{name: "ghost, selected by ID", owned: ownedB, selected: []string{"A", "B"}, ghostB: true},
+		{name: "ghost, everything selected", owned: ownedB, ghostB: true},
 		{name: "owned, everything selected", owned: ownedB, keepB: true},
 		{name: "not owned", selected: []string{"A", "B"}},
 		{name: "owned, deselected", owned: ownedB, selected: []string{"A"}, exclusions: 1},
@@ -651,6 +654,10 @@ func TestSyncThings_UnmappedDeviceIsNeitherExcludedNorDestroyed(t *testing.T) {
 			a := newInitializedTestAdapter(t, p)
 			require.NoError(t, a.EnsureThings(tc.owned))
 
+			if tc.ghostB {
+				a.unregisterThing(a.ThingByID("B"))
+			}
+
 			seeds, excludedIDs, err := SyncThings(a, fetch, tc.selected, seed)
 
 			require.ErrorIs(t, err, ErrUnmappedDevice, "a clean sync would tell callers every unseeded device is gone")
@@ -659,6 +666,7 @@ func TestSyncThings_UnmappedDeviceIsNeitherExcludedNorDestroyed(t *testing.T) {
 			assert.Empty(t, excludedIDs)
 			assert.Equal(t, tc.exclusions, p.exclusions.Load())
 			assert.Equal(t, tc.keepB, a.ThingByID("B") != nil)
+			assert.Equal(t, tc.keepB || tc.ghostB, a.state.byID("B") != nil, "an unmapped device's record must survive")
 		})
 	}
 }
