@@ -25,6 +25,9 @@ var (
 	// hooks fire before the entry is written, so they cannot flush the very
 	// line that triggered them.
 	urgent atomic.Bool
+
+	// writeThrough is global rather than per output so a set_file after the app stopped keeps it.
+	writeThrough atomic.Bool
 )
 
 type logManagerT struct {
@@ -132,20 +135,14 @@ func FlushLogs() {
 	}
 }
 
-// DisableLogBuffering flushes the buffer and writes every later line straight to the log file, so
-// lines logged after the app has stopped (an adapter's deferred stop banner) survive the exit.
-func DisableLogBuffering() {
-	if logManager == nil {
-		return
+// SetLogWriteThrough turned on flushes the buffer and writes every later line straight to the log
+// file, so lines logged after the app has stopped (an adapter's deferred stop banner) survive the
+// exit. Turned off, lines are buffered again.
+func SetLogWriteThrough(on bool) {
+	writeThrough.Store(on)
+	if on {
+		FlushLogs()
 	}
-
-	logManager.lock.Lock()
-	if logManager.logOutput != nil {
-		logManager.logOutput.direct.Store(true)
-	}
-	logManager.lock.Unlock()
-
-	logManager.flush()
 }
 
 func (ptr *logManagerT) flush() {
@@ -320,10 +317,9 @@ func (f *levelFormatter) Unwrap() logrus.Formatter {
 // flushing on error-level entries, on a full buffer, and on the manager's
 // periodic tick.
 type bufferedWriter struct {
-	lock   sync.Mutex
-	buf    *bufio.Writer
-	file   *lumberjack.Logger
-	direct atomic.Bool
+	lock sync.Mutex
+	buf  *bufio.Writer
+	file *lumberjack.Logger
 }
 
 func newBufferedWriter(file *lumberjack.Logger) *bufferedWriter {
@@ -335,7 +331,7 @@ func (w *bufferedWriter) Write(p []byte) (int, error) {
 	defer w.lock.Unlock()
 
 	n, err := w.buf.Write(p)
-	if err != nil || !w.direct.Load() && !urgent.Load() {
+	if err != nil || !writeThrough.Load() && !urgent.Load() {
 		return n, err
 	}
 

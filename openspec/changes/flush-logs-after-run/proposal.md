@@ -6,8 +6,8 @@ Adapters log their `+++ Stop` banner in a `defer` after `app.Run()` returns. The
 
 ## What Changes
 
-- `debug.DisableLogBuffering()` flushes the buffer and makes the current output write every later line straight through.
-- `app.Run()` calls it on return, so lines logged after `Run` reach the file. Buffering during normal operation is unchanged.
+- `debug.SetLogWriteThrough(on)`: on flushes the buffer and writes every later line straight through (whatever the output), off buffers again.
+- The app's stop turns it on, its start turns it off, so lines logged after `Stop`/`Run` returns reach the file for `Run` and `Start`/`Stop` users (CloudBridge) alike. Buffering while running is unchanged.
 
 ## Impact
 

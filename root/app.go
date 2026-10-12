@@ -121,7 +121,6 @@ func (a *app) Wait() error {
 
 // Run starts the application and waits for it to stop.
 func (a *app) Run() error {
-	defer debug.DisableLogBuffering()
 	defer telemetry.RecoverAndEmit(a.telemetry, "run", true)
 	err := a.Start()
 	if err != nil {
@@ -168,6 +167,7 @@ func (a *app) doStart() (err error) {
 	default:
 	}
 
+	debug.SetLogWriteThrough(false)
 	log.Info("[cliff] Start app")
 
 	logBootstrapDirs()
@@ -384,8 +384,9 @@ func (a *app) doStop() error {
 	}
 
 	// Deferred so buffered diagnostics leading up to a failure are not lost on an early
-	// return below - exactly the case where they matter most.
-	defer debug.FlushLogs()
+	// return below - exactly the case where they matter most. Write-through keeps the lines
+	// adapters log after Stop/Run returns (their stop banner) from dying in the buffer.
+	defer debug.SetLogWriteThrough(true)
 
 	a.stopAuthLossWatcher()
 

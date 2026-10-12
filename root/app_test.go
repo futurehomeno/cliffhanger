@@ -2,18 +2,13 @@ package root_test
 
 import (
 	"errors"
-	"os"
-	"path/filepath"
 	"sync"
 	"testing"
 	"time"
 
-	"github.com/sirupsen/logrus"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
-	"github.com/futurehomeno/cliffhanger/config"
-	"github.com/futurehomeno/cliffhanger/debug"
 	"github.com/futurehomeno/cliffhanger/discovery"
 	"github.com/futurehomeno/cliffhanger/lifecycle"
 	"github.com/futurehomeno/cliffhanger/notification"
@@ -154,45 +149,6 @@ func TestApp_WaitAfterRestartIgnoresPreviousStopResult(t *testing.T) { //nolint:
 
 	assert.NoError(t, app.Wait())
 	service.AssertExpectations(t)
-}
-
-// TestApp_Run_LinesLoggedAfterRunReachLogFile pins that an adapter's stop banner, logged in a
-// defer after Run returns and so after the shutdown flush, is not left in the buffer.
-func TestApp_Run_LinesLoggedAfterRunReachLogFile(t *testing.T) { //nolint:paralleltest
-	logFile := filepath.Join(t.TempDir(), "app.log")
-	cfg := &config.Default{LogLevel: "info", LogFormat: "text", LogFile: logFile}
-	store := config.NewDefaultStore(func() *config.Default { return cfg }, func() error { return nil })
-
-	savedLevel := logrus.GetLevel()
-	savedOut := logrus.StandardLogger().Out
-	t.Cleanup(func() {
-		logrus.SetLevel(savedLevel)
-		logrus.SetOutput(savedOut)
-	})
-
-	require.NoError(t, debug.InitializeLogger(store))
-
-	app, err := root.NewEdgeAppBuilder().
-		WithMQTT(suite.DefaultMQTT("root_app_stop_banner", "", "", "")).
-		WithLifecycle(lifecycle.New(nil)).
-		WithServiceDiscovery("test_app", discovery.ResourceTypeApp, "test_app", "1", "1.0.0").
-		WithServices(mockedroot.NewService(t).MockStart(nil).MockStop(nil)).
-		Build()
-	require.NoError(t, err)
-
-	go func() {
-		time.Sleep(100 * time.Millisecond)
-
-		_ = app.Stop()
-	}()
-
-	require.NoError(t, app.Run())
-
-	logrus.Info("+++ Stop test_app v1.0.0 +++")
-
-	b, err := os.ReadFile(logFile) //nolint:gosec
-	require.NoError(t, err)
-	assert.Contains(t, string(b), "+++ Stop test_app v1.0.0 +++")
 }
 
 // TestApp_Run_AuthLossWatcherSubscribesBeforeFirstTaskProbe guards against a startup race:

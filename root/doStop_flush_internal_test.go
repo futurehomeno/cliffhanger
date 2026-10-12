@@ -32,6 +32,7 @@ func TestDoStop_FlushesLogsEvenOnFailure(t *testing.T) { //nolint:paralleltest
 	savedLevel := logrus.GetLevel()
 	savedOut := logrus.StandardLogger().Out
 	t.Cleanup(func() {
+		debug.SetLogWriteThrough(false)
 		logrus.SetLevel(savedLevel)
 		logrus.SetOutput(savedOut)
 	})
@@ -58,4 +59,12 @@ func TestDoStop_FlushesLogsEvenOnFailure(t *testing.T) { //nolint:paralleltest
 	require.NoError(t, err)
 	assert.Contains(t, string(b), "buffered-line-before-failed-stop",
 		"doStop() must flush buffered logs even when it returns early on error")
+
+	// Adapters log their stop banner in a defer after Stop()/Run() returns; it must not be left
+	// in the buffer to die with the process.
+	logrus.Info("stop-banner-after-doStop")
+
+	b, err = os.ReadFile(logFile) //nolint:gosec
+	require.NoError(t, err)
+	assert.Contains(t, string(b), "stop-banner-after-doStop", "lines logged after doStop() must be written through")
 }
