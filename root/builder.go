@@ -162,8 +162,7 @@ func logBootstrapDirs() {
 
 func (b *Builder) doBuild() App {
 	rootApp := &app{
-		lock:  &sync.Mutex{},
-		errCh: make(chan error, 1),
+		lock: &sync.Mutex{},
 
 		mqtt:                  b.mqtt,
 		lifecycle:             b.lifecycle,

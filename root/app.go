@@ -106,17 +106,24 @@ func (a *app) Reset() error {
 
 // Wait waits for the application to stop.
 func (a *app) Wait() error {
-	a.lock.Lock()
-
-	if !a.running {
-		a.lock.Unlock()
-
+	result := a.result()
+	if result == nil {
 		return nil
 	}
 
-	a.lock.Unlock()
+	return <-result
+}
 
-	return <-a.errCh
+// result returns the channel the current run's stop result arrives on, or nil when not running.
+func (a *app) result() chan error {
+	a.lock.Lock()
+	defer a.lock.Unlock()
+
+	if !a.running {
+		return nil
+	}
+
+	return a.errCh
 }
 
 // Run starts the application and waits for it to stop.
@@ -161,11 +168,8 @@ func (a *app) doStart() (err error) {
 		return nil
 	}
 
-	// A stop result buffered with no Wait() pending belongs to the previous run.
-	select {
-	case <-a.errCh:
-	default:
-	}
+	// Per run: a Wait() still holding the previous run's channel gets that run's stop result.
+	a.errCh = make(chan error, 1)
 
 	debug.SetLogWriteThrough(false)
 	log.Info("[cliff] Start app")
