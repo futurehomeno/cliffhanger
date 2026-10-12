@@ -207,6 +207,24 @@ func TestDefaultStore_IncrementRestartsCount_SaveFailure(t *testing.T) { //nolin
 	assert.Equal(t, 5, store.RestartsCount(), "the in-memory increment survives for a later save")
 }
 
+func TestDefaultStore_Telemetry_ReturnsClone(t *testing.T) { //nolint:paralleltest
+	store, _, _ := newTestStore(t)
+
+	require.NoError(t, store.SetTelemetry(&types.TelemetryConfig{
+		Suppressed: &types.SuppressedEntry{Domains: []string{"a"}, Events: []string{"x"}},
+	}))
+
+	got, err := store.Telemetry()
+	require.NoError(t, err)
+	got.Suppressed.Domains[0] = "mutated"
+	got.Suppressed.Events[0] = "mutated"
+
+	got, err = store.Telemetry()
+	require.NoError(t, err)
+	assert.Equal(t, []string{"a"}, got.Suppressed.Domains)
+	assert.Equal(t, []string{"x"}, got.Suppressed.Events)
+}
+
 func TestDefaultStore_Default_ClonesTelemetry(t *testing.T) { //nolint:paralleltest
 	store, _, _ := newTestStore(t)
 

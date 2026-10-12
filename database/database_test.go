@@ -71,6 +71,29 @@ func TestDatabase_Delete(t *testing.T) { //nolint:paralleltest
 	assert.Equal(t, []string{"test_key2"}, keys)
 }
 
+func TestDatabase_Delete_MissingKey(t *testing.T) { //nolint:paralleltest
+	db := makeTestDatabase(t, true)
+
+	assert.NoError(t, db.Delete("test_bucket", "missing"))
+}
+
+func TestDatabase_Keys_BucketIsLiteral(t *testing.T) { //nolint:paralleltest
+	db := makeTestDatabase(t, true)
+
+	assert.NoError(t, db.Set("a*", "k1", "v"))
+	assert.NoError(t, db.Set("a?", "k2", "v"))
+	assert.NoError(t, db.Set("ab", "k3", "v"))
+	assert.NoError(t, db.Set("ab", "pt:j1/ad:1", "v"))
+
+	keys, err := db.Keys("a*")
+	assert.NoError(t, err)
+	assert.Equal(t, []string{"k1"}, keys)
+
+	keys, err = db.Keys("ab")
+	assert.NoError(t, err)
+	assert.Equal(t, []string{"k3", "pt:j1/ad:1"}, keys, "keys may contain a colon")
+}
+
 func TestDatabase_Keys(t *testing.T) { //nolint:paralleltest
 	db := database.NewDomainDatabase("test_domain", makeTestDatabase(t, true))
 

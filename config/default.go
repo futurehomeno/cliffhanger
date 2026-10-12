@@ -210,7 +210,7 @@ func (s *DefaultStore) Telemetry() (types.TelemetryConfig, error) {
 		return types.TelemetryConfig{}, fmt.Errorf("not_found")
 	}
 
-	return *s.accessor().Telemetry, nil
+	return s.accessor().Telemetry.Clone(), nil
 }
 
 func (s *DefaultStore) SetTelemetry(cfg *types.TelemetryConfig) error {

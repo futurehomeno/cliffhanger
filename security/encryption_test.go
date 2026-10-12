@@ -4,6 +4,7 @@ import (
 	"encoding/hex"
 	"os"
 	"path/filepath"
+	"strings"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -96,12 +97,14 @@ func TestGetKey_TightensPermissionsOfExistingKey(t *testing.T) {
 	t.Parallel()
 
 	path := filepath.Join(t.TempDir(), "key")
-	require.NoError(t, os.WriteFile(path, []byte("abcd"), 0o644)) //nolint:gosec
+	stored, err := security.GenerateKey(16)
+	require.NoError(t, err)
+	require.NoError(t, os.WriteFile(path, []byte(stored), 0o644)) //nolint:gosec
 	require.NoError(t, os.Chmod(path, 0o644))                     //nolint:gosec
 
 	key, err := security.GetKey(path)
 	require.NoError(t, err)
-	assert.Equal(t, "abcd", key)
+	assert.Equal(t, stored, key)
 
 	info, err := os.Stat(path)
 	require.NoError(t, err)
@@ -113,6 +116,41 @@ func TestGetKey_UnwritablePath(t *testing.T) {
 
 	_, err := security.GetKey(filepath.Join(t.TempDir(), "missing", "key"))
 	assert.Error(t, err)
+}
+
+func TestGetKey_InvalidStoredKey(t *testing.T) {
+	t.Parallel()
+
+	for name, content := range map[string]string{"empty": "", "trailing newline": strings.Repeat("ab", 32) + "\n", "wrong length": "abcd", "not hex": strings.Repeat("zz", 32)} {
+		path := filepath.Join(t.TempDir(), "key")
+		require.NoError(t, os.WriteFile(path, []byte(content), 0o600))
+
+		_, err := security.GetKey(path)
+		assert.Error(t, err, name)
+
+		raw, err := os.ReadFile(path) //nolint:gosec
+		require.NoError(t, err)
+		assert.Equal(t, content, string(raw), "%s: an invalid key must not be overwritten", name)
+	}
+}
+
+func TestGetKey_UnreadableKeyIsNotOverwritten(t *testing.T) {
+	t.Parallel()
+
+	if os.Geteuid() == 0 {
+		t.Skip("root ignores file permissions")
+	}
+
+	path := filepath.Join(t.TempDir(), "key")
+	require.NoError(t, os.WriteFile(path, []byte("original"), 0o200))
+
+	_, err := security.GetKey(path)
+	assert.Error(t, err)
+
+	require.NoError(t, os.Chmod(path, 0o600))
+	raw, err := os.ReadFile(path) //nolint:gosec
+	require.NoError(t, err)
+	assert.Equal(t, "original", string(raw))
 }
 
 func TestEncrypt_InvalidKey(t *testing.T) {

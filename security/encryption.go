@@ -5,8 +5,10 @@ import (
 	"crypto/cipher"
 	"crypto/rand"
 	"encoding/hex"
+	"errors"
 	"fmt"
 	"io"
+	"io/fs"
 	"os"
 
 	log "github.com/sirupsen/logrus"
@@ -14,11 +16,12 @@ import (
 
 func GetKey(path string) (key string, err error) {
 	key, err = readKeyFromFile(path)
-	if err != nil {
+	if errors.Is(err, fs.ErrNotExist) {
 		key, err = writeKeyFile(path)
-		if err != nil {
-			return "", fmt.Errorf("security: could not read or generate key: %w", err)
-		}
+	}
+
+	if err != nil {
+		return "", fmt.Errorf("security: could not read or generate key: %w", err)
 	}
 
 	return key, nil
@@ -34,6 +37,15 @@ func readKeyFromFile(path string) (key string, err error) {
 	err = os.Chmod(path, 0o600)
 	if err != nil {
 		return "", fmt.Errorf("security: could not set chmod on key file: %w", err)
+	}
+
+	raw, err := hex.DecodeString(string(uint8key))
+	if err == nil {
+		_, err = aes.NewCipher(raw)
+	}
+
+	if err != nil {
+		return "", fmt.Errorf("security: invalid key in key file: %w", err)
 	}
 
 	return string(uint8key), nil
