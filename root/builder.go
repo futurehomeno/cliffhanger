@@ -142,15 +142,15 @@ func (b *Builder) Build() (App, error) {
 }
 
 func logBootstrapDirs() {
-	// GetConfigurationDirectory registers -c and parses the command line when it is not there yet.
-	if !flag.Parsed() {
-		return
-	}
-
 	if workDir, err := filepath.Abs(bootstrap.GetWorkingDirectory()); err != nil {
 		log.Warnf("[cliff] Resolve working dir=%s err: %v", bootstrap.GetWorkingDirectory(), err)
 	} else {
 		log.Infof("[cliff] Working dir=%s", workDir)
+	}
+
+	// GetConfigurationDirectory registers -c and parses the command line when -c is not there yet.
+	if flag.Lookup("c") == nil {
+		return
 	}
 
 	if cfgDir, err := filepath.Abs(bootstrap.GetConfigurationDirectory()); err != nil {

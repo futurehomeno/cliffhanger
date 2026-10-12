@@ -4,9 +4,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/shirou/gopsutil/v3/disk"
 	"github.com/stretchr/testify/assert"
-	"github.com/stretchr/testify/require"
 
 	"github.com/futurehomeno/cliffhanger/monitor"
 )
@@ -26,18 +24,6 @@ func TestDiskSpace_Start(t *testing.T) { //nolint:paralleltest
 
 	err = ds.Stop()
 	assert.Error(t, err)
-}
-
-func TestDiskSpace_DiskFull_SamplesOnDemandBeforeStart(t *testing.T) { //nolint:paralleltest
-	usage, err := disk.Usage("/")
-	require.NoError(t, err)
-
-	if usage.UsedPercent < 2 || usage.UsedPercent > 98 {
-		t.Skipf("host disk usage %.1f%% leaves no margin around the limit", usage.UsedPercent)
-	}
-
-	assert.True(t, monitor.NewDiskSpace(time.Hour, usage.UsedPercent-1).DiskFull())
-	assert.False(t, monitor.NewDiskSpace(time.Hour, usage.UsedPercent+1).DiskFull())
 }
 
 func TestDiskSpace_DiskFull_HostIndependentLimits(t *testing.T) { //nolint:paralleltest

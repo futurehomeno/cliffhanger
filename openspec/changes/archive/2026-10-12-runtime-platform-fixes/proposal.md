@@ -9,7 +9,7 @@ monitor, the goroutine filter and the timeline service name.
 
 - `task.NewManager` drops (and logs) nil tasks, so `Start`/`Stop` keep working.
 - `root.Builder` copies its routing and subscription slices into the built app.
-- `root.App.Start` logs the bootstrap directories only once the command line is parsed; it never parses flags.
+- `root.App.Start` logs the config directory only when `-c` is registered; it never registers or parses flags.
 - `prime.Device.MatchesTopic` matches a non-empty service address as the topic suffix.
 - `StateDevice.GetAttribute*Value` evaluate the lookup before returning the value.
 - The disk-space monitor samples through an unexported usage seam; its error and zero-usage paths are tested.

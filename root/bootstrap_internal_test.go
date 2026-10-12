@@ -20,4 +20,9 @@ func TestLogBootstrapDirs_LeavesUnparsedFlagsAlone(t *testing.T) { //nolint:para
 
 	assert.False(t, flag.Parsed())
 	assert.Nil(t, flag.Lookup("c"))
+
+	assert.NoError(t, flag.CommandLine.Parse(nil))
+	logBootstrapDirs()
+
+	assert.Nil(t, flag.Lookup("c"), "a parsed command line without -c is not touched either")
 }

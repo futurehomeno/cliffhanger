@@ -51,6 +51,7 @@ func TestFilterGoroutinesByKeywords_KeywordsAreLiteral(t *testing.T) {
 	assert.Equal(t, "goroutine 2 [running]:\na.b.run()", utils.FilterGoroutinesByKeywords(dump, []string{"a.b"}))
 	assert.NotPanics(t, func() { utils.FilterGoroutinesByKeywords(dump, []string{"(", "["}) })
 	assert.Empty(t, utils.FilterGoroutinesByKeywords(dump, nil))
+	assert.Empty(t, utils.FilterGoroutinesByKeywords(dump, []string{"", "zzz"}), "an empty keyword matches nothing")
 }
 
 func TestPrintStackOnRecover(t *testing.T) { //nolint:paralleltest

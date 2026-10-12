@@ -9,13 +9,16 @@ import (
 )
 
 func FilterGoroutinesByKeywords(input string, keywords []string) string {
-	if len(keywords) == 0 {
-		return ""
+	var quoted []string
+
+	for _, k := range keywords {
+		if k != "" {
+			quoted = append(quoted, regexp.QuoteMeta(k))
+		}
 	}
 
-	quoted := make([]string, len(keywords))
-	for i, k := range keywords {
-		quoted[i] = regexp.QuoteMeta(k)
+	if len(quoted) == 0 {
+		return ""
 	}
 
 	keywordRE := regexp.MustCompile(`(?i)\b(` + strings.Join(quoted, "|") + `)\b`)

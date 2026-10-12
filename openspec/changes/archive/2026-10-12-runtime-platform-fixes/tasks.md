@@ -4,5 +4,5 @@
 - [x] `MatchesTopic` matches the address as a topic suffix and skips empty addresses
 - [x] `GetAttribute*Value` assign the time before returning
 - [x] Disk monitor usage seam with tests for a failed sample and re-sampling at 0
-- [x] Goroutine filter quotes keywords and returns "" for an empty list
+- [x] Goroutine filter quotes keywords, skips empty ones and returns "" when none is left
 - [x] Timeline `kind_owl` recorded as deliberate in the diagnostics spec
