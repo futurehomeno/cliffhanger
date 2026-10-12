@@ -2,9 +2,12 @@ package router_test
 
 import (
 	"errors"
+	"fmt"
 	"testing"
 
 	"github.com/futurehomeno/fimpgo"
+	log "github.com/sirupsen/logrus"
+	logtest "github.com/sirupsen/logrus/hooks/test"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
@@ -71,6 +74,34 @@ func TestMessageHandler_ErrorReportContract(t *testing.T) {
 				router.PropertyCmdType:    "cmd.test.do",
 			}, reply.Payload.Properties)
 			assert.Equal(t, tc.wantStorage, reply.Payload.Storage)
+		})
+	}
+}
+
+func TestMessageHandler_ErrorLogLevel(t *testing.T) {
+	hook := logtest.NewGlobal()
+	defer hook.Reset()
+
+	tcs := []struct {
+		name string
+		err  error
+		want log.Level
+	}{
+		{name: "not reported yet is a warning", err: fmt.Errorf("sensor: %w", router.ErrNotReported), want: log.WarnLevel},
+		{name: "other failure is an error", err: errors.New("boom"), want: log.ErrorLevel},
+	}
+
+	for _, tc := range tcs {
+		t.Run(tc.name, func(t *testing.T) {
+			hook.Reset()
+
+			request := newHandlerRequest(t, "pt:j1/mt:cmd/rt:app/rn:test/ad:1")
+			reply := router.NewMessageHandler(failingProcessor(tc.err)).Handle(request)
+
+			require.NotNil(t, reply)
+			assert.Equal(t, router.EvtErrorReport, reply.Payload.Interface)
+			require.NotNil(t, hook.LastEntry())
+			assert.Equal(t, tc.want, hook.LastEntry().Level)
 		})
 	}
 }
