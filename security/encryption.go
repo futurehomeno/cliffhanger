@@ -65,7 +65,11 @@ func writeKeyFile(path string) (newKey string, err error) {
 
 	defer func() { _ = os.Remove(tmp.Name()) }()
 
-	_, err = tmp.WriteString(key)
+	err = tmp.Chmod(0o600)
+	if err == nil {
+		_, err = tmp.WriteString(key)
+	}
+
 	if err == nil {
 		err = tmp.Sync()
 	}
