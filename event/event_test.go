@@ -39,3 +39,14 @@ func TestManager_SubscribeIgnoresNilFilter(t *testing.T) {
 
 	assert.Len(t, ch, 1)
 }
+
+func TestManager_SubscribeIgnoresNilFilterFn(t *testing.T) {
+	m := event.NewManager()
+
+	var f event.FilterFn
+
+	ch := m.Subscribe("nil_filter_fn", 1, f)
+
+	assert.NotPanics(t, func() { m.Publish(event.New("d", "c")) })
+	assert.Len(t, ch, 1)
+}

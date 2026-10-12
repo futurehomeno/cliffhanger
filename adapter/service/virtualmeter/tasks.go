@@ -39,7 +39,7 @@ func handleReporting(serviceRegistry adapter.ServiceRegistry) func() {
 				continue
 			}
 
-			if _, err := vmeter.SendModesReport(false); err != nil {
+			if _, err := vmeter.SendModesReport(false); adapter.ReportFailed(err) {
 				log.Errorf("[cliff] Send modes report. err: %v", err)
 			}
 		}

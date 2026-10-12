@@ -1,6 +1,8 @@
 package adapter
 
 import (
+	"errors"
+
 	"github.com/futurehomeno/fimpgo"
 	"github.com/futurehomeno/fimpgo/fimptype"
 
@@ -11,6 +13,11 @@ import (
 // ErrNotReported marks a state the device has not reported yet, so there is nothing to send.
 // Periodic reporting tasks skip it without logging; the router logs it as a warning.
 var ErrNotReported = router.ErrNotReported
+
+// ReportFailed reports whether a reporting task should log err.
+func ReportFailed(err error) bool {
+	return err != nil && !errors.Is(err, ErrNotReported)
+}
 
 // Service is an interface representing a FIMP service.
 type Service interface {

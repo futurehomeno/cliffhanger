@@ -31,7 +31,7 @@ func handleReporting(serviceRegistry adapter.ServiceRegistry) func() {
 			}
 
 			_, err := fanCtrl.SendModeReport(false)
-			if err != nil {
+			if adapter.ReportFailed(err) {
 				log.Errorf("[fanctrl] Send mode report. err: %v", err)
 			}
 		}

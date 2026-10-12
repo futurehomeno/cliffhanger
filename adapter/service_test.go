@@ -1,6 +1,8 @@
 package adapter_test
 
 import (
+	"errors"
+	"fmt"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -71,4 +73,12 @@ func TestShouldSkipServiceTask(t *testing.T) {
 			assert.Equal(t, tc.want, adapter.ShouldSkipServiceTask(tc.registry(t), svc))
 		})
 	}
+}
+
+func TestReportFailed(t *testing.T) {
+	t.Parallel()
+
+	assert.False(t, adapter.ReportFailed(nil))
+	assert.False(t, adapter.ReportFailed(fmt.Errorf("svc: %w", adapter.ErrNotReported)))
+	assert.True(t, adapter.ReportFailed(errors.New("boom")))
 }
