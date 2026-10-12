@@ -613,14 +613,19 @@ func TestSyncThings_UnmappedDeviceIsNeitherExcludedNorDestroyed(t *testing.T) {
 	}
 	fetch := func() ([]string, error) { return []string{"A", "B"}, nil }
 
+	ownedB := ThingSeeds{{ID: "B", Info: g1}}
+
 	for _, tc := range []struct {
-		name     string
-		owned    ThingSeeds
-		selected []string
+		name       string
+		owned      ThingSeeds
+		selected   []string
+		keepB      bool
+		exclusions int32
 	}{
-		{name: "owned, selected by ID", owned: ThingSeeds{{ID: "B", Info: g1}}, selected: []string{"A", "B"}},
-		{name: "owned, everything selected", owned: ThingSeeds{{ID: "B", Info: g1}}},
+		{name: "owned, selected by ID", owned: ownedB, selected: []string{"A", "B"}, keepB: true},
+		{name: "owned, everything selected", owned: ownedB, keepB: true},
 		{name: "not owned", selected: []string{"A", "B"}},
+		{name: "owned, deselected", owned: ownedB, selected: []string{"A"}, exclusions: 1},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
 			t.Parallel()
@@ -631,12 +636,12 @@ func TestSyncThings_UnmappedDeviceIsNeitherExcludedNorDestroyed(t *testing.T) {
 
 			seeds, excludedIDs, err := SyncThings(a, fetch, tc.selected, seed)
 
-			require.NoError(t, err)
+			require.ErrorIs(t, err, ErrUnmappedDevice, "a clean sync would tell callers every unseeded device is gone")
 			require.Len(t, seeds, 1, "only mapped devices are returned for a rebuild")
 			assert.Equal(t, "A", seeds[0].ID)
 			assert.Empty(t, excludedIDs)
-			assert.Zero(t, p.exclusions.Load(), "no exclusion may be published")
-			assert.Equal(t, len(tc.owned) == 1, a.ThingByID("B") != nil, "an owned thing must survive")
+			assert.Equal(t, tc.exclusions, p.exclusions.Load())
+			assert.Equal(t, tc.keepB, a.ThingByID("B") != nil)
 		})
 	}
 }

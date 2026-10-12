@@ -39,14 +39,18 @@ partially applied.
 selection, exclude vanished devices, apply `EnsureThings`, and return the applied seeds together
 with the IDs it excluded. If the fetch fails nothing SHALL be mutated and the error SHALL be
 returned, so a network glitch can never wipe live things. A successful fetch SHALL be treated as
-complete: every selected device absent from it is destroyed, including when the response is empty —
+complete: every selected device absent from it is destroyed, including when the response is empty
+unless an item maps to a nil seed —
 adapters must therefore make their client return an error rather than a truncated or empty slice on
 a non-2xx, a rate limit or an unparsable body. Until the adapter is initialized that destroy is
 deferred by `EnsureThings`, so a racing boot sync cannot wipe records `InitializeThings` has not
 announced yet. A seed function returning nil means the item cannot be mapped now: it gets no seed,
 and since its ID is unknown no unseeded selected device can be told apart from it, so while any
 fetched item maps to nil `SyncThings` SHALL exclude no vanished device, SHALL keep every live thing
-of a selected device that has no seed, and SHALL NOT trigger the stale sweep. `SyncThings` SHALL NOT
+of a selected device that has no seed, and SHALL return an error wrapping `ErrUnmappedDevice`, so
+callers do not prune their selection and the stale sweep is skipped. Devices the adapter never
+supports must be filtered out in the fetch, not by a nil seed, or no sync would clean up again.
+`SyncThings` SHALL NOT
 be atomic: it takes and releases the adapter lock per operation, so adapters that also handle
 `cmd.thing.delete` or configuration writes must serialise those against it with a shared
 `router.MessageHandlerLocker`.
@@ -70,8 +74,56 @@ be atomic: it takes and releases the adapter lock per operation, so adapters tha
 
 #### Scenario: an owned device cannot be mapped
 - **WHEN** the seed function returns nil for a fetched, selected device the adapter has a live thing for
-- **THEN** that thing is neither destroyed nor rebuilt, and no seed for it is returned
+- **THEN** that thing is neither destroyed nor rebuilt, no seed for it is returned, and the error wraps
+  `ErrUnmappedDevice`
 
 #### Scenario: a device the adapter does not own cannot be mapped
 - **WHEN** the seed function returns nil for a fetched, selected device the adapter owns no thing for
 - **THEN** no exclusion is published for its ID and it is not returned in `excludedIDs`
+
+### Requirement: Exclusion Of Vanished Devices
+Before `EnsureThings` runs, and only when every fetched item mapped to a seed, `SyncThings` SHALL
+publish an exclusion report for every selected ID that the fetch no longer lists and that the adapter owns no thing for, using the device ID itself as
+the report address, and SHALL return the IDs it successfully excluded. Duplicate IDs in the
+selection SHALL be announced once. An ID that resolves through `ExchangeID` to a thing the adapter
+owns, or through `ExchangeAddress` to another thing's address, SHALL NOT be excluded. The pass SHALL
+run before `EnsureThings`, since afterwards every legitimately destroyed device would look orphaned
+and be excluded a second time at the wrong address.
+
+#### Scenario: stale hub node left by an older adapter version
+- **WHEN** a selected ID is missing from the fetch and neither `ExchangeID` nor `ExchangeAddress`
+  resolves it
+- **THEN** an exclusion report addressed with that ID is published and the ID is returned in
+  `excludedIDs` so the caller can drop it from its persisted selection
+
+#### Scenario: the adapter owns the device
+- **WHEN** a selected ID missing from the fetch resolves through `ExchangeID`
+- **THEN** no exclusion is published here, and `EnsureThings` destroys it announcing its real address
+
+#### Scenario: the ID collides with another thing's address
+- **WHEN** a selected ID missing from the fetch matches another thing's address
+- **THEN** no exclusion is published, so the unrelated thing is not killed
+
+### Requirement: Seeds From Selection
+`SeedsFromSelection` SHALL build one seed per available device whose ID appears in the selection.
+The seed function MAY return nil for an available item it cannot map now; no seed is produced for
+it (see Generic Sync Flow). A `nil`
+selection SHALL select every available device; a non-`nil` empty selection SHALL select none.
+Duplicate IDs — in the available list or the selection — SHALL yield a single seed, because two
+seeds with the same ID would create two things with the second stranded at a second address.
+
+#### Scenario: missing selection key means all devices
+- **WHEN** the selection is `nil` (the value produced by unmarshalling a missing JSON key)
+- **THEN** a seed is produced for every available device
+
+#### Scenario: explicit empty selection means none
+- **WHEN** the selection is a non-`nil` slice of length zero
+- **THEN** no seeds are produced, and `EnsureThings` destroys every existing thing
+
+#### Scenario: duplicate device in the available list
+- **WHEN** two available items map to the same seed ID
+- **THEN** exactly one seed for that ID is returned
+
+#### Scenario: seed function skips an item
+- **WHEN** the seed function returns nil for an available item
+- **THEN** no seed is produced for it and the remaining items are still seeded

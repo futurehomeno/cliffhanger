@@ -6,6 +6,8 @@ import (
 	"slices"
 )
 
+var ErrUnmappedDevice = errors.New("adapter: seed function could not map a device")
+
 // SyncThings reconciles things to match the devices selected from a freshly fetched list and
 // returns the seeds it applied, ready to be passed to RebuildChangedThings without fetching
 // again.
@@ -13,7 +15,7 @@ import (
 // The fetch runs outside the adapter lock and is the sole authority. If it fails nothing is
 // mutated and the error is returned, so a network glitch can never wipe live things. If it
 // succeeds the response is complete by definition: every selected device absent from it is
-// destroyed, including when the response is empty. Adapters must therefore make their client
+// destroyed, including when the response is empty, unless an item maps to a nil seed. Adapters must therefore make their client
 // return an error - never a truncated or empty slice - on a non-2xx, a rate limit or an
 // unparsable body.
 //
@@ -21,8 +23,10 @@ import (
 //
 // A seed function returning nil means the item cannot be mapped now. Its ID is unknown, so no
 // unseeded selected device can be told apart from it: while any item maps to nil, no vanished
-// device is excluded, the live things of unseeded selected devices are kept, and the stale sweep
-// is skipped.
+// device is excluded, the live things of unseeded selected devices are kept, and the returned
+// error wraps ErrUnmappedDevice, so callers do not prune their selection and the stale sweep is
+// skipped. Devices the adapter never supports must be filtered out in fetch, not by a nil seed,
+// or no sync would clean up again.
 //
 // Selected devices that vanished from the response and that the adapter does not own still get
 // an exclusion report, so an upgraded hub can drop stale nodes a legacy adapter left behind.
@@ -50,10 +54,12 @@ func SyncThings[T any](
 		return nil, nil, fmt.Errorf("adapter: fetch devices: %w", err)
 	}
 
-	unmapped := false
+	unmapped := 0
 	seeds = SeedsFromSelection(available, selected, func(item T) *ThingSeed {
 		s := seed(item)
-		unmapped = unmapped || s == nil
+		if s == nil {
+			unmapped++
+		}
 
 		return s
 	})
@@ -62,7 +68,8 @@ func SyncThings[T any](
 
 	ensure := seeds
 
-	if unmapped {
+	if unmapped > 0 {
+		errs = append(errs, fmt.Errorf("%w: %d items", ErrUnmappedDevice, unmapped))
 		ensure = append(slices.Clone(seeds), unseededLiveThings(a, selected, seeds)...)
 	} else {
 		var exclErrs []error
@@ -77,7 +84,7 @@ func SyncThings[T any](
 
 	// Only once the whole reconciliation succeeded are the things known to match the fetched
 	// list, which is what makes a hub node the adapter owns nothing for provably stale.
-	if impl, ok := a.(*adapter); ok && len(errs) == 0 && !unmapped {
+	if impl, ok := a.(*adapter); ok && len(errs) == 0 {
 		impl.excludeStaleNodesOnce()
 	}
 

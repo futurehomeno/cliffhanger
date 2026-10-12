@@ -11,8 +11,9 @@ exclude a selected device the vendor still lists.
 - `evt.network.all_nodes_report` carries `[]` when no thing is registered.
 - `EnsureThings` dedupes seeds by ID, first wins.
 - A nil seed means "cannot map now". The item has no known ID, so it cannot be told apart from a
-  vanished device: while any fetched item maps to nil, `SyncThings` excludes and destroys no selected
-  device and skips the stale sweep.
+  vanished device: while any fetched item maps to nil, `SyncThings` excludes no vanished
+  device, keeps the live things of unseeded selected devices and returns an error wrapping
+  `ErrUnmappedDevice`, so callers do not prune their selection and the stale sweep is skipped.
 
 ## Impact
 
