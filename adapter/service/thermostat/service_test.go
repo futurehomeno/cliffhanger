@@ -48,3 +48,25 @@ func TestService_SetpointReportCacheIsKeyedByNormalizedMode(t *testing.T) {
 	assert.NoError(t, err)
 	assert.False(t, sent, "an unchanged setpoint must not be re-reported under another case of its mode")
 }
+
+func TestService_SetpointReportIsRepublishedOnUnitChange(t *testing.T) {
+	t.Parallel()
+
+	publisher := mockedadapter.NewServicePublisher(t)
+	publisher.On("PublishServiceMessage", mock.Anything, mock.Anything).Return(nil).Twice()
+
+	svc := thermostat.NewService(publisher, &thermostat.Config{
+		Specification: thermostat.Specification("test_adapter", "1", "2", nil, []string{"heat"}, []string{"heat"}, []string{thermostat.StateHeat}),
+		Controller: mockedthermostat.NewController(t).
+			MockThermostatSetpointReport("heat", 21, "C", nil, true).
+			MockThermostatSetpointReport("heat", 21, "F", nil, true),
+	})
+
+	sent, err := svc.SendSetpointReport("heat", false)
+	assert.NoError(t, err)
+	assert.True(t, sent)
+
+	sent, err = svc.SendSetpointReport("heat", false)
+	assert.NoError(t, err)
+	assert.True(t, sent, "a setpoint whose unit changed must be reported again")
+}

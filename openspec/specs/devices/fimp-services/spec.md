@@ -369,7 +369,7 @@ represented. The package SHALL define the fault event names shared with the zigb
 ### Requirement: Setpoint String Map Validation
 `thermostat.SetpointFromStringMap` SHALL reject a `temp` that parses to NaN or ±Inf. The water heater
 SHALL use the same setpoint type and helpers. Both services SHALL key their setpoint report cache by the
-normalized mode.
+normalized mode and SHALL compare the whole setpoint, value and unit, when deciding whether to report.
 
 #### Scenario: NaN setpoint on a thermostat
 - **WHEN** `cmd.setpoint.set` carries `temp` "NaN"
@@ -379,9 +379,14 @@ normalized mode.
 - **WHEN** a thermostat or water heater setpoint is set with type "HEAT" and the periodic task then reports "heat" unchanged
 - **THEN** no second report is published
 
+#### Scenario: setpoint unit changes
+- **WHEN** the controller reports the same setpoint value with unit "F" after it was reported with unit "C"
+- **THEN** `evt.setpoint.report` is published again
+
 ### Requirement: Battery Service
 The `battery` package SHALL route `cmd.lvl.get_report` to a forced `SendBatteryLevelReport`, which
-publishes the reporter's level as an integer `evt.lvl.report`. `SendBatteryAlarmReport(event, force)`
+publishes the reporter's level as an integer `evt.lvl.report`, and SHALL advertise `evt.lvl.report`
+with value type `int`. `SendBatteryAlarmReport(event, force)`
 SHALL match the event case-insensitively against `sup_events`, fail with an "event is unsupported"
 error before calling the reporter when it does not match, and publish `evt.alarm.report` as a string
 map of `event` and `status` under the advertised spelling, with storage strategy `aggregate` keyed by
@@ -396,17 +401,27 @@ periodic task SHALL send the level report and then one alarm report per supporte
 - **WHEN** `SendBatteryAlarmReport` is called with an event absent from `sup_events`
 - **THEN** the reporter is not called and an "event is unsupported" error is returned
 
+#### Scenario: level report value type
+- **WHEN** a battery specification is built
+- **THEN** its outgoing `evt.lvl.report` interface has value type `int`
+
 ### Requirement: Color Control Service
 The `colorctrl` package SHALL route `cmd.color.set`, whose integer-map payload is passed to
 `SetColorCtrlColor` without validation against `sup_components`, followed by a forced
 `evt.color.report`; and `cmd.color.get_report` to a forced `evt.color.report`. The report SHALL be
 published as an integer map of the controller's component values. `Specification(...)` SHALL always
-set `sup_components` and SHALL set `sup_durations` only when the supplied durations map is non-empty.
+set `sup_components`, SHALL set `sup_durations` only when the supplied durations map is non-empty,
+and SHALL advertise `cmd.color.set` with value type `int_map`. `SupportedDurations()` SHALL return
+the `sup_durations` map, or nil when it is absent.
 
 #### Scenario: setting a color
 - **WHEN** `cmd.color.set` arrives with `{"red": 255, "green": 0}`
 - **THEN** the controller receives exactly that map
 - **AND** a forced `evt.color.report` carrying the controller's reported color is published
+
+#### Scenario: supported durations
+- **WHEN** a service is built with durations `{"default": 500}`
+- **THEN** `SupportedDurations()` returns `{"default": 500}`
 
 ### Requirement: Fan Control Service
 The `fanctrl` package SHALL route `cmd.mode.set` and `cmd.mode.get_report`. `SetMode` SHALL match the
@@ -600,11 +615,16 @@ when non-zero) and `offered_current` (only when offered-current adjustment is su
 lock report SHALL publish the lock state as a bool with a `cable_current` property only when the
 reported cable current is non-nil. The periodic task SHALL always send the session report, the state
 report when `sup_states` is non-empty, the max current report when max-current adjustment is
-supported and the cable lock report when the service is cable-lock aware.
+supported, the phase mode report when the service is phase-mode aware and the cable lock report when
+the service is cable-lock aware.
 
 #### Scenario: session report of an idle charger
 - **WHEN** the session report has zero `StartedAt`, zero `FinishedAt` and zero `PreviousSessionEnergy`
 - **THEN** `evt.current_session.report` carries none of `started_at`, `finished_at` and `previous_session`
+
+#### Scenario: phase mode of an aware-only charger is polled
+- **WHEN** the controller implements `PhaseModeAwareController` but not `AdjustablePhaseModeController`
+- **THEN** the periodic task publishes `evt.phase_mode.report`
 
 ### Requirement: Meter Get Report Payloads
 `cmd.meter.get_report` and `cmd.meter_export.get_report` SHALL accept a `string` or `null` payload
@@ -616,4 +636,12 @@ published as one forced extended report.
 #### Scenario: export report for all units
 - **WHEN** `cmd.meter_export.get_report` arrives with a null value on a meter with `sup_export_units` `["kWh", "W"]`
 - **THEN** a forced `evt.meter_export.report` is published for each of `kWh` and `W`
+
+### Requirement: Missing Parameter Report
+`parameters.SendParameterReport` SHALL return a "parameter not found" error, without publishing, when
+the controller's `GetParameter` returns a nil parameter and no error.
+
+#### Scenario: controller returns no parameter
+- **WHEN** `SendParameterReport("missing", true)` is called and `GetParameter` returns `nil, nil`
+- **THEN** nothing is published and a "parameter not found" error is returned
 
