@@ -31,21 +31,21 @@ func handleReporting(serviceRegistry adapter.ServiceRegistry) func() {
 
 			if len(waterHeater.SupportedModes()) > 0 {
 				_, err := waterHeater.SendModeReport(false)
-				if err != nil {
+				if adapter.ReportFailed(err) {
 					log.Errorf("[waterheater] Send mode report. err: %v", err)
 				}
 			}
 
 			for _, mode := range waterHeater.SupportedSetpoints() {
 				_, err := waterHeater.SendSetpointReport(mode, false)
-				if err != nil {
+				if adapter.ReportFailed(err) {
 					log.Errorf("[waterheater] Send setpoint report. mode: %s err: %v", mode, err)
 				}
 			}
 
 			if len(waterHeater.SupportedStates()) > 0 {
 				_, err := waterHeater.SendStateReport(false)
-				if err != nil {
+				if adapter.ReportFailed(err) {
 					log.Errorf("[waterheater] Send state report. err: %v", err)
 				}
 			}

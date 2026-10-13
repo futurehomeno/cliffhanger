@@ -30,7 +30,7 @@ func handleReporting(serviceRegistry adapter.ServiceRegistry) func() {
 			}
 
 			_, err := outBinSwitch.SendBinaryReport(false)
-			if err != nil {
+			if adapter.ReportFailed(err) {
 				log.Errorf("[outbinswitch] Send binary report. err: %v", err)
 			}
 		}
