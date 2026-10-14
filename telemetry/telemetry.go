@@ -27,10 +27,12 @@ type Telemetry interface {
 	Start() error
 	// Stop ends the configuration poll and the validity window timer.
 	Stop() error
-	emit(domain, event string, data map[string]any, sync bool) error
+	emit(domain, event string, data map[string]any, flush bool) error
 	emitOnChange(domain, event string, data map[string]any, interval time.Duration) error
 	emitIfMore(domain, event string, threshold int, reset bool, data map[string]any, interval time.Duration) error
 	resetEventCounters(domain, event string, scope map[string]any) error
+	// SetEvtTopic overrides the event topic. A topic that is not a FIMP address is published
+	// without waiting, so a fatal panic event on it may be lost to the re-panic.
 	SetEvtTopic(topic string)
 	Enable(enabled bool) error
 	IsEnabled() bool
@@ -45,12 +47,12 @@ func Emit(tel Telemetry, domain, event string, data map[string]any) {
 	emitEvent(tel, domain, event, data, false)
 }
 
-func emitEvent(tel Telemetry, domain, event string, data map[string]any, sync bool) {
+func emitEvent(tel Telemetry, domain, event string, data map[string]any, flush bool) {
 	if tel == nil {
 		return
 	}
 
-	if err := tel.emit(domain, event, data, sync); err != nil {
+	if err := tel.emit(domain, event, data, flush); err != nil {
 		log.Warnf("[cliff] Emit event=%q. err: %v", event, err)
 	}
 }
@@ -220,7 +222,7 @@ func validityOrDefault(c *types.TelemetryConfig) time.Duration {
 	return defaultTelemetryValidity
 }
 
-func (ptr *telemetryT) emit(domain, event string, data map[string]any, sync bool) error {
+func (ptr *telemetryT) emit(domain, event string, data map[string]any, flush bool) error {
 	cfg := ptr.config()
 	if !cfg.Enabled {
 		return nil
@@ -236,7 +238,7 @@ func (ptr *telemetryT) emit(domain, event string, data map[string]any, sync bool
 		}
 	}
 
-	return ptr.publish(ptr.evtTopic(), domain, event, data, sync)
+	return ptr.publish(ptr.evtTopic(), domain, event, data, flush)
 }
 
 func (ptr *telemetryT) emitOnChange(domain, event string, data map[string]any, interval time.Duration) error {
@@ -368,7 +370,7 @@ func (ptr *telemetryT) config() types.TelemetryConfig {
 	return snap
 }
 
-func (ptr *telemetryT) publish(topic, domain, event string, data map[string]any, sync bool) error {
+func (ptr *telemetryT) publish(topic, domain, event string, data map[string]any, flush bool) error {
 	if event == "" {
 		return errors.New("telemetry: event name is required")
 	}
@@ -388,7 +390,7 @@ func (ptr *telemetryT) publish(topic, domain, event string, data map[string]any,
 	msg.Source = ptr.sourceRn
 
 	var err error
-	if addr, aErr := fimpgo.NewAddressFromString(topic); sync && aErr == nil && addr.Serialize() == topic {
+	if addr, aErr := fimpgo.NewAddressFromString(topic); flush && aErr == nil && addr.Serialize() == topic {
 		err = ptr.mqtt.PublishSync(addr, msg)
 	} else {
 		err = ptr.mqtt.PublishToTopic(topic, msg)

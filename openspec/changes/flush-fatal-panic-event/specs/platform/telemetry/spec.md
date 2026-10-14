@@ -4,8 +4,8 @@
 `RecoverAndEmit(tel, name, terminate)` SHALL be usable as a deferred recover: when nothing panicked
 it SHALL do nothing. On a recovered panic it SHALL log the value and stack at error level and emit a
 `panic`-domain event whose event name is `name` and whose data carries `terminate`. When `terminate`
-is true it SHALL wait for that event's publish to complete, bounded by the transport's sync publish
-timeout, and then re-panic with the original value, so a fatal panic is reported before it crashes
+is true and the event topic is a FIMP address (the default) it SHALL wait for that event's publish
+to complete, bounded by the transport's sync publish timeout, and then re-panic with the original value, so a fatal panic is reported before it crashes
 the process and a disconnected broker cannot hold the crash back for longer than the timeout. When
 `terminate` is false the emit SHALL not wait.
 

@@ -377,9 +377,9 @@ func (_c *Telemetry_Validity_Call) RunAndReturn(run func() time.Duration) *Telem
 	return _c
 }
 
-// emit provides a mock function with given fields: domain, event, data, sync
-func (_m *Telemetry) emit(domain string, event string, data map[string]interface{}, sync bool) error {
-	ret := _m.Called(domain, event, data, sync)
+// emit provides a mock function with given fields: domain, event, data, flush
+func (_m *Telemetry) emit(domain string, event string, data map[string]interface{}, flush bool) error {
+	ret := _m.Called(domain, event, data, flush)
 
 	if len(ret) == 0 {
 		panic("no return value specified for emit")
@@ -387,7 +387,7 @@ func (_m *Telemetry) emit(domain string, event string, data map[string]interface
 
 	var r0 error
 	if rf, ok := ret.Get(0).(func(string, string, map[string]interface{}, bool) error); ok {
-		r0 = rf(domain, event, data, sync)
+		r0 = rf(domain, event, data, flush)
 	} else {
 		r0 = ret.Error(0)
 	}
@@ -404,12 +404,12 @@ type Telemetry_emit_Call struct {
 //   - domain string
 //   - event string
 //   - data map[string]interface{}
-//   - sync bool
-func (_e *Telemetry_Expecter) emit(domain interface{}, event interface{}, data interface{}, sync interface{}) *Telemetry_emit_Call {
-	return &Telemetry_emit_Call{Call: _e.mock.On("emit", domain, event, data, sync)}
+//   - flush bool
+func (_e *Telemetry_Expecter) emit(domain interface{}, event interface{}, data interface{}, flush interface{}) *Telemetry_emit_Call {
+	return &Telemetry_emit_Call{Call: _e.mock.On("emit", domain, event, data, flush)}
 }
 
-func (_c *Telemetry_emit_Call) Run(run func(domain string, event string, data map[string]interface{}, sync bool)) *Telemetry_emit_Call {
+func (_c *Telemetry_emit_Call) Run(run func(domain string, event string, data map[string]interface{}, flush bool)) *Telemetry_emit_Call {
 	_c.Call.Run(func(args mock.Arguments) {
 		run(args[0].(string), args[1].(string), args[2].(map[string]interface{}), args[3].(bool))
 	})
