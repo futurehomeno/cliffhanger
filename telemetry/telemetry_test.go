@@ -1488,44 +1488,65 @@ func (t *recordingToken) Error() error { return nil }
 
 type recordingClient struct {
 	paho.Client
-	token     *recordingToken
-	publishes int
+	token  *recordingToken
+	topics []string
 }
 
-func (c *recordingClient) Publish(string, byte, bool, any) paho.Token {
-	c.publishes++
+func (c *recordingClient) Publish(topic string, _ byte, _ bool, _ any) paho.Token {
+	c.topics = append(c.topics, topic)
 
 	return c.token
 }
 
 func TestRecoverAndEmit_FatalPanicWaitsForPublish(t *testing.T) { //nolint:paralleltest
-	for _, terminate := range []bool{true, false} {
-		client := &recordingClient{token: &recordingToken{}}
-		store := newStore()
-		store.model.Telemetry = &types.TelemetryConfig{Enabled: true, EnabledAt: time.Now(), Validity: time.Hour}
+	const x1Topic = "pt:x1/mt:rsp/rt:cloud/rn:backend-service/ad:telemetry"
 
-		tel, err := telemetry.New(fimpgo.NewMqttTransportFromConnection(client, 1, 1), "src", store.DefaultStore, "")
-		require.NoError(t, err)
-		stopTel(t, tel)
+	for _, tc := range []struct {
+		name      string
+		terminate bool
+		topic     string
+		wait      bool
+	}{
+		{name: "fatal", terminate: true, wait: true},
+		{name: "non-fatal", terminate: false},
+		{name: "fatal on a payload type sync publish rewrites", terminate: true, topic: x1Topic},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			client := &recordingClient{token: &recordingToken{}}
+			store := newStore()
+			store.model.Telemetry = &types.TelemetryConfig{Enabled: true, EnabledAt: time.Now(), Validity: time.Hour}
 
-		func() {
-			defer func() { _ = recover() }()
-			defer telemetry.RecoverAndEmit(tel, "run", terminate)
+			tel, err := telemetry.New(fimpgo.NewMqttTransportFromConnection(client, 1, 1), "src", store.DefaultStore, "")
+			require.NoError(t, err)
+			stopTel(t, tel)
 
-			panic("boom")
-		}()
+			if tc.topic != "" {
+				tel.SetEvtTopic(tc.topic)
+			}
 
-		require.Equal(t, 1, client.publishes, "the panic event must be published")
+			func() {
+				defer func() { _ = recover() }()
+				defer telemetry.RecoverAndEmit(tel, "run", tc.terminate)
 
-		if !terminate {
-			assert.Empty(t, client.token.waits, "a non-fatal panic must not wait for the publish")
+				panic("boom")
+			}()
 
-			continue
-		}
+			require.Len(t, client.topics, 1, "the panic event must be published")
 
-		require.Len(t, client.token.waits, 1, "a fatal panic must wait for the publish before re-panicking")
-		assert.Positive(t, client.token.waits[0])
-		assert.LessOrEqual(t, client.token.waits[0], 5*time.Second, "the wait must be bounded")
+			if tc.topic != "" {
+				assert.Equal(t, tc.topic, client.topics[0], "the panic event must stay on its topic")
+			}
+
+			if !tc.wait {
+				assert.Empty(t, client.token.waits, "the publish must not wait")
+
+				return
+			}
+
+			require.Len(t, client.token.waits, 1, "a fatal panic must wait for the publish before re-panicking")
+			assert.Positive(t, client.token.waits[0])
+			assert.LessOrEqual(t, client.token.waits[0], 5*time.Second, "the wait must be bounded")
+		})
 	}
 }
 

@@ -31,8 +31,8 @@ type Telemetry interface {
 	emitOnChange(domain, event string, data map[string]any, interval time.Duration) error
 	emitIfMore(domain, event string, threshold int, reset bool, data map[string]any, interval time.Duration) error
 	resetEventCounters(domain, event string, scope map[string]any) error
-	// SetEvtTopic overrides the event topic. A topic that is not a FIMP address is published
-	// without waiting, so a fatal panic event on it may be lost to the re-panic.
+	// SetEvtTopic overrides the event topic. A topic that is not a FIMP address with a j1 or j1c1
+	// payload is published without waiting, so a fatal panic event on it may be lost to the re-panic.
 	SetEvtTopic(topic string)
 	Enable(enabled bool) error
 	IsEnabled() bool
@@ -390,7 +390,8 @@ func (ptr *telemetryT) publish(topic, domain, event string, data map[string]any,
 	msg.Source = ptr.sourceRn
 
 	var err error
-	if addr, aErr := fimpgo.NewAddressFromString(topic); flush && aErr == nil && addr.Serialize() == topic {
+	if addr, aErr := fimpgo.NewAddressFromString(topic); flush && aErr == nil && addr.Serialize() == topic &&
+		(addr.PayloadType == fimpgo.DefaultPayload || addr.PayloadType == fimpgo.CompressedJsonPayload) {
 		err = ptr.mqtt.PublishSync(addr, msg)
 	} else {
 		err = ptr.mqtt.PublishToTopic(topic, msg)
