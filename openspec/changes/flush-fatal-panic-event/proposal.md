@@ -6,7 +6,7 @@
 
 ## What Changes
 
-- With `terminate` true the panic event is published with fimpgo's `PublishSync`, which waits for the publish to complete, bounded by its timeout (5 s), then re-panics. Gating is unchanged.
+- With `terminate` true the panic event is published with fimpgo's `PublishSync`, which waits for the publish to complete, bounded by its timeout (5 s) after the enqueue (bounded by the 15 s write timeout, as for every publish), then re-panics. Gating is unchanged.
 - `terminate` false and every other emit stay non-blocking.
 
 ## Impact
