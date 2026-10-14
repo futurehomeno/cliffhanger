@@ -5,6 +5,7 @@ go 1.26
 retract v1.19.0 // bad release, pushed by mistake
 
 require (
+	github.com/eclipse/paho.mqtt.golang v1.5.1
 	github.com/futurehomeno/fimpgo v1.17.1
 	github.com/golang-jwt/jwt/v5 v5.3.1
 	github.com/google/go-cmp v0.7.0
@@ -21,7 +22,6 @@ require (
 require (
 	github.com/buger/jsonparser v1.2.0 // indirect
 	github.com/davecgh/go-spew v1.1.1 // indirect
-	github.com/eclipse/paho.mqtt.golang v1.5.1 // indirect
 	github.com/go-ole/go-ole v1.3.0 // indirect
 	github.com/gorilla/websocket v1.5.3 // indirect
 	github.com/kr/text v0.2.0 // indirect

@@ -6,6 +6,7 @@ import (
 	"testing"
 	"time"
 
+	paho "github.com/eclipse/paho.mqtt.golang"
 	"github.com/futurehomeno/fimpgo"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -1470,6 +1471,83 @@ func TestRecoverAndEmit_FatalPanicIsReportedAndRepanics(t *testing.T) { //nolint
 	ev := readEvent(t, ch)
 	assert.Equal(t, "worker", ev.Event)
 	assert.Equal(t, true, ev.Data["terminate"])
+}
+
+type recordingToken struct {
+	paho.Token
+	waits []time.Duration
+}
+
+func (t *recordingToken) WaitTimeout(d time.Duration) bool {
+	t.waits = append(t.waits, d)
+
+	return true
+}
+
+func (t *recordingToken) Error() error { return nil }
+
+type recordingClient struct {
+	paho.Client
+	token  *recordingToken
+	topics []string
+}
+
+func (c *recordingClient) Publish(topic string, _ byte, _ bool, _ any) paho.Token {
+	c.topics = append(c.topics, topic)
+
+	return c.token
+}
+
+func TestRecoverAndEmit_FatalPanicWaitsForPublish(t *testing.T) { //nolint:paralleltest
+	const x1Topic = "pt:x1/mt:rsp/rt:cloud/rn:backend-service/ad:telemetry"
+
+	for _, tc := range []struct {
+		name      string
+		terminate bool
+		topic     string
+		wait      bool
+	}{
+		{name: "fatal", terminate: true, wait: true},
+		{name: "non-fatal", terminate: false},
+		{name: "fatal on a payload type sync publish rewrites", terminate: true, topic: x1Topic},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			client := &recordingClient{token: &recordingToken{}}
+			store := newStore()
+			store.model.Telemetry = &types.TelemetryConfig{Enabled: true, EnabledAt: time.Now(), Validity: time.Hour}
+
+			tel, err := telemetry.New(fimpgo.NewMqttTransportFromConnection(client, 1, 1), "src", store.DefaultStore, "")
+			require.NoError(t, err)
+			stopTel(t, tel)
+
+			if tc.topic != "" {
+				tel.SetEvtTopic(tc.topic)
+			}
+
+			func() {
+				defer func() { _ = recover() }()
+				defer telemetry.RecoverAndEmit(tel, "run", tc.terminate)
+
+				panic("boom")
+			}()
+
+			require.Len(t, client.topics, 1, "the panic event must be published")
+
+			if tc.topic != "" {
+				assert.Equal(t, tc.topic, client.topics[0], "the panic event must stay on its topic")
+			}
+
+			if !tc.wait {
+				assert.Empty(t, client.token.waits, "the publish must not wait")
+
+				return
+			}
+
+			require.Len(t, client.token.waits, 1, "a fatal panic must wait for the publish before re-panicking")
+			assert.Positive(t, client.token.waits[0])
+			assert.LessOrEqual(t, client.token.waits[0], 5*time.Second, "the wait must be bounded")
+		})
+	}
 }
 
 func TestRecoverAndEmit_NilTelemetryStillRecovers(t *testing.T) { //nolint:paralleltest
