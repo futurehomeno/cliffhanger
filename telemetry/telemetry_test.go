@@ -1488,18 +1488,23 @@ func (t *recordingToken) Error() error { return nil }
 
 type recordingClient struct {
 	paho.Client
-	token *recordingToken
+	token     *recordingToken
+	publishes int
 }
 
-func (c *recordingClient) Publish(string, byte, bool, any) paho.Token { return c.token }
+func (c *recordingClient) Publish(string, byte, bool, any) paho.Token {
+	c.publishes++
+
+	return c.token
+}
 
 func TestRecoverAndEmit_FatalPanicWaitsForPublish(t *testing.T) { //nolint:paralleltest
 	for _, terminate := range []bool{true, false} {
-		token := &recordingToken{}
+		client := &recordingClient{token: &recordingToken{}}
 		store := newStore()
 		store.model.Telemetry = &types.TelemetryConfig{Enabled: true, EnabledAt: time.Now(), Validity: time.Hour}
 
-		tel, err := telemetry.New(fimpgo.NewMqttTransportFromConnection(&recordingClient{token: token}, 1, 1), "src", store.DefaultStore, "")
+		tel, err := telemetry.New(fimpgo.NewMqttTransportFromConnection(client, 1, 1), "src", store.DefaultStore, "")
 		require.NoError(t, err)
 		stopTel(t, tel)
 
@@ -1510,15 +1515,17 @@ func TestRecoverAndEmit_FatalPanicWaitsForPublish(t *testing.T) { //nolint:paral
 			panic("boom")
 		}()
 
+		require.Equal(t, 1, client.publishes, "the panic event must be published")
+
 		if !terminate {
-			assert.Empty(t, token.waits, "a non-fatal panic must not wait for the publish")
+			assert.Empty(t, client.token.waits, "a non-fatal panic must not wait for the publish")
 
 			continue
 		}
 
-		require.Len(t, token.waits, 1, "a fatal panic must wait for the publish before re-panicking")
-		assert.Positive(t, token.waits[0])
-		assert.LessOrEqual(t, token.waits[0], 5*time.Second, "the wait must be bounded")
+		require.Len(t, client.token.waits, 1, "a fatal panic must wait for the publish before re-panicking")
+		assert.Positive(t, client.token.waits[0])
+		assert.LessOrEqual(t, client.token.waits[0], 5*time.Second, "the wait must be bounded")
 	}
 }
 
