@@ -403,3 +403,75 @@ func TestStorage_SaveTightensPermissionsOfAPreExistingSecretsBackup(t *testing.T
 	require.NoError(t, err)
 	assert.Equal(t, os.FileMode(0o640), data.Mode().Perm())
 }
+
+func TestStorage_SaveAbortsWhenBackupFails(t *testing.T) {
+	t.Parallel()
+
+	workDir := t.TempDir()
+	dataPath := path.Join(workDir, "data", configFileName)
+	cfg := &testConfig{SettingA: "A"}
+	store := storage.New(cfg, workDir, configFileName)
+
+	require.NoError(t, store.Save())
+
+	before, err := os.ReadFile(dataPath) //nolint:gosec
+	require.NoError(t, err)
+
+	require.NoError(t, os.MkdirAll(path.Join(dataPath+backupExtension, "blocker"), 0o750))
+
+	cfg.SettingA = "B"
+
+	assert.Error(t, store.Save())
+
+	after, err := os.ReadFile(dataPath) //nolint:gosec
+	require.NoError(t, err)
+	assert.Equal(t, before, after, "a failed backup must leave the data file untouched")
+}
+
+func TestStorage_LoadFailsOnInvalidDefaults(t *testing.T) {
+	t.Parallel()
+
+	workDir := t.TempDir()
+	require.NoError(t, os.MkdirAll(path.Join(workDir, "data"), 0o750))
+	require.NoError(t, os.MkdirAll(path.Join(workDir, "defaults"), 0o750))
+	require.NoError(t, os.WriteFile(path.Join(workDir, "data", configFileName), []byte(`{"SettingA": "A"}`), 0o600))
+	require.NoError(t, os.WriteFile(path.Join(workDir, "defaults", configFileName), []byte(`{invalid`), 0o600))
+
+	assert.Error(t, storage.New(&testConfig{}, workDir, configFileName).Load())
+}
+
+func TestStorage_CanonicalLayout(t *testing.T) {
+	t.Parallel()
+
+	workDir, defaultsDir := t.TempDir(), t.TempDir()
+	require.NoError(t, os.WriteFile(path.Join(defaultsDir, configFileName), []byte(`{"SettingA": "X", "SettingB": "Y"}`), 0o600))
+
+	cfg := &testConfig{}
+	store := storage.NewCanonical(cfg, workDir, defaultsDir, configFileName)
+
+	require.NoError(t, store.Load())
+	assert.Equal(t, "X", cfg.SettingA)
+
+	cfg.SettingB = "B"
+	require.NoError(t, store.Save())
+	assert.FileExists(t, path.Join(workDir, configFileName))
+
+	loaded := &testConfig{}
+	require.NoError(t, storage.NewCanonical(loaded, workDir, defaultsDir, configFileName).Load())
+	assert.Equal(t, "X", loaded.SettingA)
+	assert.Equal(t, "B", loaded.SettingB)
+}
+
+func TestNewState_LoadWithNothingPresent(t *testing.T) {
+	t.Parallel()
+
+	workDir := t.TempDir()
+	cfg := &testConfig{SettingA: "kept"}
+	store := storage.NewState(cfg, workDir, configFileName)
+
+	require.NoError(t, store.Load())
+	assert.Equal(t, "kept", cfg.SettingA)
+
+	require.NoError(t, store.Save())
+	assert.FileExists(t, path.Join(workDir, "data", configFileName))
+}

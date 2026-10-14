@@ -25,6 +25,9 @@ var (
 	// hooks fire before the entry is written, so they cannot flush the very
 	// line that triggered them.
 	urgent atomic.Bool
+
+	// writeThrough is global rather than per output so a set_file after the app stopped keeps it.
+	writeThrough atomic.Bool
 )
 
 type logManagerT struct {
@@ -129,6 +132,16 @@ func InitializeLogger(store Store) error {
 func FlushLogs() {
 	if logManager != nil {
 		logManager.flush()
+	}
+}
+
+// SetLogWriteThrough turned on flushes the buffer and writes every later line straight to the log
+// file, so lines logged after the app has stopped (an adapter's deferred stop banner) survive the
+// exit. Turned off, lines are buffered again.
+func SetLogWriteThrough(on bool) {
+	writeThrough.Store(on)
+	if on {
+		FlushLogs()
 	}
 }
 
@@ -318,7 +331,7 @@ func (w *bufferedWriter) Write(p []byte) (int, error) {
 	defer w.lock.Unlock()
 
 	n, err := w.buf.Write(p)
-	if err != nil || !urgent.Load() {
+	if err != nil || !writeThrough.Load() && !urgent.Load() {
 		return n, err
 	}
 

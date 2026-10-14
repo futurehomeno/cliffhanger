@@ -131,7 +131,7 @@ func (s *service) SendMeterReport(unit Unit, force bool) (bool, error) {
 		return false, fmt.Errorf("%s: unit is unsupported: %s", s.Name(), unit)
 	}
 
-	value, err := s.reporter.MeterReport(unit)
+	value, err := s.reporter.MeterReport(normalizedUnit)
 	if err != nil {
 		return false, fmt.Errorf("%s: failed to retrieve meter report: %w", s.Name(), err)
 	}
@@ -177,7 +177,7 @@ func (s *service) SendMeterExportReport(unit Unit, force bool) (bool, error) {
 		return false, fmt.Errorf("%s: unit is unsupported: %s", s.Name(), unit)
 	}
 
-	value, err := exportReporter.MeterExportReport(unit)
+	value, err := exportReporter.MeterExportReport(normalizedUnit)
 	if err != nil {
 		return false, fmt.Errorf("%s: failed to retrieve meter export report: %w", s.Name(), err)
 	}

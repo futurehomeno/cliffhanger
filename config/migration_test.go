@@ -157,6 +157,21 @@ func TestDefault_Migrate(t *testing.T) {
 		assert.Equal(t, 1, cfg.ConfigVersion)
 	})
 
+	t.Run("cycle is rejected before the closing step runs", func(t *testing.T) {
+		t.Parallel()
+
+		cfg := &config.Default{ConfigVersion: 1}
+
+		applied, err := cfg.Migrate(
+			config.Migration{From: 1, To: 2},
+			config.Migration{From: 2, To: 1, Do: func() error { t.Fatal("should not run"); return nil }},
+		)
+
+		assert.ErrorContains(t, err, "cycle")
+		assert.Equal(t, 1, applied)
+		assert.Equal(t, 2, cfg.ConfigVersion)
+	})
+
 	t.Run("picks the first matching migration when duplicates exist", func(t *testing.T) {
 		t.Parallel()
 

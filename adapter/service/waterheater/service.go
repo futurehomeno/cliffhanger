@@ -10,6 +10,7 @@ import (
 
 	"github.com/futurehomeno/cliffhanger/adapter"
 	"github.com/futurehomeno/cliffhanger/adapter/cache"
+	"github.com/futurehomeno/cliffhanger/adapter/service/thermostat"
 	"github.com/futurehomeno/cliffhanger/utils"
 )
 
@@ -146,7 +147,7 @@ func (s *service) SetSetpoint(mode string, value float64, unit string) error {
 		return fmt.Errorf("%s: setpoint mode is unsupported: %s", s.Name(), mode)
 	}
 
-	normalizedValue, err := s.normalizeValue(mode, value)
+	normalizedValue, err := s.normalizeValue(normalizedMode, value)
 	if err != nil {
 		return fmt.Errorf("%s: setpoint value is incorrect: %w", s.Name(), err)
 	}
@@ -211,14 +212,16 @@ func (s *service) SendSetpointReport(mode string, force bool) (bool, error) {
 		return false, fmt.Errorf("%s: failed to retrieve setpoint report for mode %s: %w", s.Name(), normalizedMode, err)
 	}
 
-	if !force && !s.reportingCache.ReportRequired(s.reportingStrategy, EvtSetpointReport, mode, value) {
+	setpoint := NewSetpoint(normalizedMode, value, unit)
+
+	if !force && !s.reportingCache.ReportRequired(s.reportingStrategy, EvtSetpointReport, normalizedMode, *setpoint) {
 		return false, nil
 	}
 
-	message := fimpgo.NewObjectMessage(
+	message := fimpgo.NewStrMapMessage(
 		EvtSetpointReport,
 		s.Name(),
-		NewSetpoint(normalizedMode, value, unit),
+		setpoint.StringMap(),
 		nil,
 		nil,
 		nil,
@@ -229,7 +232,7 @@ func (s *service) SendSetpointReport(mode string, force bool) (bool, error) {
 		return false, fmt.Errorf("%s: failed to send state report: %w", s.Name(), err)
 	}
 
-	s.reportingCache.Reported(EvtSetpointReport, mode, value)
+	s.reportingCache.Reported(EvtSetpointReport, normalizedMode, *setpoint)
 
 	return true, nil
 }
@@ -343,18 +346,13 @@ func (s *service) supportedRange(mode string) *Range {
 	return nil
 }
 
-// Setpoint is an object representing a water heater setpoint.
-type Setpoint struct {
-	Type        string  `json:"type"`
-	Temperature float64 `json:"temp"`
-	Unit        string  `json:"unit"`
+// Setpoint is a water heater setpoint; it shares the thermostat's str_map wire format.
+type Setpoint = thermostat.Setpoint
+
+func NewSetpoint(mode string, temp float64, unit string) *Setpoint {
+	return thermostat.NewSetpoint(mode, temp, unit)
 }
 
-// NewSetpoint create a new setpoint object.
-func NewSetpoint(mode string, temp float64, unit string) *Setpoint {
-	return &Setpoint{
-		Type:        mode,
-		Temperature: temp,
-		Unit:        unit,
-	}
+func SetpointFromStringMap(input map[string]string) (*Setpoint, error) {
+	return thermostat.SetpointFromStringMap(input)
 }

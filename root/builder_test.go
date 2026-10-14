@@ -3,7 +3,9 @@ package root_test
 import (
 	"testing"
 
+	"github.com/futurehomeno/fimpgo"
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 
 	"github.com/futurehomeno/cliffhanger/discovery"
 	"github.com/futurehomeno/cliffhanger/lifecycle"
@@ -86,4 +88,47 @@ func TestBuilder_Build(t *testing.T) {
 			}
 		})
 	}
+}
+
+func TestBuilder_LaterAppendsKeepBuiltDiscovery(t *testing.T) { //nolint:paralleltest
+	const otherTopic = "pt:j1/mt:cmd/rt:app/rn:other/ad:1"
+
+	other := router.NewRouting(
+		router.NewMessageHandler(router.MessageProcessorFn(func(*fimpgo.Message) (*fimpgo.FimpMessage, error) { return nil, nil })),
+		router.ForTopic(otherTopic),
+	)
+
+	s := suite.Suite{
+		Cases: []*suite.Case{
+			{
+				Name: "discovery answers after the builder gets another route and topic",
+				Setup: suite.ServiceSetup(func(t *testing.T) (suite.Service, []suite.Mock) {
+					t.Helper()
+
+					b := root.NewCoreAppBuilder().
+						WithMQTT(suite.DefaultMQTT("root_builder_aliasing", "", "", "")).
+						WithServiceDiscovery("test_app", discovery.ResourceTypeApp, "test_app", "1", "1.0.0")
+
+					for range 3 {
+						b.WithRouting(other).WithTopicSubscription(otherTopic)
+					}
+
+					app, err := b.Build()
+					require.NoError(t, err)
+
+					b.WithRouting(other).WithTopicSubscription(otherTopic)
+
+					return app, nil
+				}),
+				Nodes: []*suite.Node{
+					{
+						Command:      suite.NullMessage(discovery.Topic, discovery.CmdDiscoveryRequest, discovery.Service),
+						Expectations: []*suite.Expectation{suite.ExpectMessage("pt:j1/mt:evt/rt:discovery", discovery.EvtDiscoveryReport, discovery.Service)},
+					},
+				},
+			},
+		},
+	}
+
+	s.Run(t)
 }

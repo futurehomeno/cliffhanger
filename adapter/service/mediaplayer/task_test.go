@@ -2,9 +2,15 @@ package mediaplayer_test
 
 import (
 	"errors"
+	"fmt"
 	"testing"
 	"time"
 
+	log "github.com/sirupsen/logrus"
+	logtest "github.com/sirupsen/logrus/hooks/test"
+	"github.com/stretchr/testify/assert"
+
+	"github.com/futurehomeno/cliffhanger/adapter"
 	mockedmediaplayer "github.com/futurehomeno/cliffhanger/test/mocks/adapter/service/mediaplayer"
 	"github.com/futurehomeno/cliffhanger/test/suite"
 )
@@ -69,4 +75,44 @@ func TestTaskReporting(t *testing.T) { //nolint:paralleltest
 	}
 
 	s.Run(t)
+}
+
+func TestTaskReportingSkipsNotReported(t *testing.T) { //nolint:paralleltest
+	old := log.StandardLogger().ReplaceHooks(make(log.LevelHooks))
+	defer log.StandardLogger().ReplaceHooks(old)
+
+	hook := logtest.NewGlobal()
+
+	notReported := fmt.Errorf("no state: %w", adapter.ErrNotReported)
+
+	s := &suite.Suite{
+		Cases: []*suite.Case{
+			{
+				Name: "Media player state not reported yet",
+				Setup: routeServiceWithTasks(
+					mockedmediaplayer.NewController(t).
+						MockedMediaPlayerPlaybackReport("", notReported, true).
+						MockedMediaPlayerPlaybackModeReport(nil, notReported, true).
+						MockedMediaPlayerVolumeReport(0, notReported, true).
+						MockedMediaPlayerMuteReport(false, notReported, true).
+						MockedMediaPlayerMetadataReport(nil, notReported, true),
+				),
+				Nodes: []*suite.Node{
+					{
+						Name:    "no report is sent",
+						Timeout: 300 * time.Millisecond,
+						Expectations: []*suite.Expectation{
+							suite.ExpectString("pt:j1/mt:evt/rt:dev/rn:test_adapter/ad:1/sv:media_player/ad:3", "evt.playback.report", "media_player", "").Never(),
+						},
+					},
+				},
+			},
+		},
+	}
+
+	s.Run(t)
+
+	for _, e := range hook.AllEntries() {
+		assert.NotContains(t, e.Message, "[mediaplayer]")
+	}
 }

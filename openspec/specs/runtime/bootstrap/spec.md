@@ -6,9 +6,7 @@ container: it resolves where configuration and data live, blocks the main gorout
 terminates the process, and assembles the route and task sets every edge adapter is expected to
 expose. The `discovery` package supplies the one route no cliffhanger application may omit — the
 responder that tells the hub which resource, package, instance and version this process is.
-
 ## Requirements
-
 ### Requirement: Configuration Directory Resolution
 `GetConfigurationDirectory` SHALL return the value of the `-c` command line flag, falling back to
 `./` when the flag is absent or empty. It SHALL register and parse the `-c` flag itself only when no
@@ -43,7 +41,10 @@ signal handler before returning so a later handler installation is unaffected.
 `DefaultRoute` SHALL return the routes every service exposes: the configuration report route, the
 eight debug log-control routes and the six telemetry configuration routes — fifteen routes in total.
 The `config.RoutingOption` values passed to it SHALL be forwarded to the configuration-change
-publication of the debug and telemetry setter routes.
+publication of the debug and telemetry setter routes. The debug routes read the process log manager,
+so `debug.InitializeLogger` MUST have been called before `DefaultRoute` (and therefore
+`EdgeRouting`); otherwise `DefaultRoute` SHALL panic with `debug: Route called before
+InitializeLogger` at wiring time rather than on the first log command.
 
 #### Scenario: bundle contents
 - **WHEN** `DefaultRoute` is called with a service name, a config getter and a live telemetry service
@@ -54,6 +55,10 @@ publication of the debug and telemetry setter routes.
 #### Scenario: telemetry disabled at build time
 - **WHEN** `DefaultRoute` is called with a nil telemetry service
 - **THEN** the six telemetry routes are omitted and the remaining routes still work
+
+#### Scenario: logger not initialised
+- **WHEN** `DefaultRoute` is called before `debug.InitializeLogger`
+- **THEN** it panics instead of returning routes
 
 ### Requirement: Configuration Report Route
 The configuration report route SHALL answer `cmd.config.get_report` addressed to the service with
@@ -107,3 +112,4 @@ core application — the `app_state` field SHALL be omitted from the report.
 #### Scenario: core application
 - **WHEN** the responder was built with a nil lifecycle
 - **THEN** the report contains no `app_state` field
+

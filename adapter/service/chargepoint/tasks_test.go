@@ -5,6 +5,7 @@ import (
 	"time"
 
 	"github.com/futurehomeno/fimpgo"
+	"github.com/stretchr/testify/mock"
 
 	"github.com/futurehomeno/cliffhanger/adapter"
 	"github.com/futurehomeno/cliffhanger/adapter/service/chargepoint"
@@ -94,4 +95,47 @@ func taskChargepoint(
 
 		return nil, tasks, mocks
 	}
+}
+
+type phaseModeAwareCharger struct {
+	*mockedchargepoint.Controller
+	*mockedchargepoint.PhaseModeAwareController
+}
+
+func (c *phaseModeAwareCharger) AssertExpectations(t mock.TestingT) bool {
+	return c.Controller.AssertExpectations(t) && c.PhaseModeAwareController.AssertExpectations(t)
+}
+
+func TestTaskReporting_PhaseModeAwareOnly(t *testing.T) { //nolint:paralleltest
+	aware := mockedchargepoint.NewPhaseModeAwareController(t)
+	aware.On("ChargepointPhaseModeReport").Return(types.PhaseModeNL1, nil)
+
+	s := &suite.Suite{
+		Cases: []*suite.Case{
+			{
+				Name:     "Phase mode aware charger without adjustment",
+				TearDown: adapterhelper.TearDownAdapter("../../testdata/adapter/test_adapter"),
+				Setup: taskChargepoint(
+					&phaseModeAwareCharger{
+						Controller: mockedchargepoint.NewController(t).
+							MockChargepointCurrentSessionReport(&chargepoint.SessionReport{SessionEnergy: 1.23}, nil, false).
+							MockChargepointStateReport("ready_to_charge", nil, false),
+						PhaseModeAwareController: aware,
+					},
+					[]adapter.SpecificationOption{chargepoint.WithSupportedPhaseModes(types.PhaseModeNL1)},
+					100*time.Millisecond,
+				),
+				Nodes: []*suite.Node{
+					{
+						Name: "Phase mode is reported by the task",
+						Expectations: []*suite.Expectation{
+							suite.ExpectString("pt:j1/mt:evt/rt:dev/rn:test_adapter/ad:1/sv:chargepoint/ad:2", "evt.phase_mode.report", "chargepoint", "NL1").ExactlyOnce(),
+						},
+					},
+				},
+			},
+		},
+	}
+
+	s.Run(t)
 }

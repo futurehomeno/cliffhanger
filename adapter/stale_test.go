@@ -88,6 +88,7 @@ func TestExcludeStaleNodes_FetchFailureExcludesNothing(t *testing.T) {
 	excluded, err := adapter.ExcludeStaleNodes(a, c)
 
 	assert.ErrorIs(t, err, errHubDevices)
+	assert.ErrorIs(t, err, adapter.ErrStaleNodeFetch)
 	assert.Empty(t, excluded)
 	a.AssertNotCalled(t, "DestroyThingByAddress", mock.Anything)
 }
@@ -105,6 +106,7 @@ func TestExcludeStaleNodes_ReportsFailuresAndKeepsGoing(t *testing.T) {
 	excluded, err := adapter.ExcludeStaleNodes(a, c)
 
 	assert.Error(t, err)
+	assert.NotErrorIs(t, err, adapter.ErrStaleNodeFetch)
 	assert.Equal(t, []string{"2"}, excluded)
 }
 
@@ -134,6 +136,24 @@ func TestExcludeStaleNodes_IgnoresNodesOfAnotherAdapterInstanceViaServiceTopic(t
 	// AdapterAddress is empty, as it is for zwave devices; only the service topic names the
 	// instance, and it belongs to instance "2" while the adapter under test is instance "1".
 	device := hubDeviceForInstance("mill", "2", "2")
+
+	c := mockedprime.NewClient(t)
+	c.On("GetDevices").Return(prime.Devices{device}, nil)
+
+	excluded, err := adapter.ExcludeStaleNodes(a, c)
+
+	assert.NoError(t, err)
+	assert.Empty(t, excluded)
+	a.AssertNotCalled(t, "DestroyThingByAddress", mock.Anything)
+}
+
+func TestExcludeStaleNodes_IgnoresDevicesWithAServiceOfAnotherAdapter(t *testing.T) {
+	t.Parallel()
+
+	a := staleAdapter(t)
+
+	device := hubDevice("zw", "2")
+	device.Services["meter_elec"] = &prime.Service{Addr: "pt:j1/mt:evt/rt:dev/rn:mill/ad:1/sv:meter_elec/ad:2"}
 
 	c := mockedprime.NewClient(t)
 	c.On("GetDevices").Return(prime.Devices{device}, nil)
