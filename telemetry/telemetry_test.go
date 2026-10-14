@@ -6,6 +6,7 @@ import (
 	"testing"
 	"time"
 
+	paho "github.com/eclipse/paho.mqtt.golang"
 	"github.com/futurehomeno/fimpgo"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -1470,6 +1471,55 @@ func TestRecoverAndEmit_FatalPanicIsReportedAndRepanics(t *testing.T) { //nolint
 	ev := readEvent(t, ch)
 	assert.Equal(t, "worker", ev.Event)
 	assert.Equal(t, true, ev.Data["terminate"])
+}
+
+type recordingToken struct {
+	paho.Token
+	waits []time.Duration
+}
+
+func (t *recordingToken) WaitTimeout(d time.Duration) bool {
+	t.waits = append(t.waits, d)
+
+	return true
+}
+
+func (t *recordingToken) Error() error { return nil }
+
+type recordingClient struct {
+	paho.Client
+	token *recordingToken
+}
+
+func (c *recordingClient) Publish(string, byte, bool, any) paho.Token { return c.token }
+
+func TestRecoverAndEmit_FatalPanicWaitsForPublish(t *testing.T) { //nolint:paralleltest
+	for _, terminate := range []bool{true, false} {
+		token := &recordingToken{}
+		store := newStore()
+		store.model.Telemetry = &types.TelemetryConfig{Enabled: true, EnabledAt: time.Now(), Validity: time.Hour}
+
+		tel, err := telemetry.New(fimpgo.NewMqttTransportFromConnection(&recordingClient{token: token}, 1, 1), "src", store.DefaultStore, "")
+		require.NoError(t, err)
+		stopTel(t, tel)
+
+		func() {
+			defer func() { _ = recover() }()
+			defer telemetry.RecoverAndEmit(tel, "run", terminate)
+
+			panic("boom")
+		}()
+
+		if !terminate {
+			assert.Empty(t, token.waits, "a non-fatal panic must not wait for the publish")
+
+			continue
+		}
+
+		require.Len(t, token.waits, 1, "a fatal panic must wait for the publish before re-panicking")
+		assert.Positive(t, token.waits[0])
+		assert.LessOrEqual(t, token.waits[0], 5*time.Second, "the wait must be bounded")
+	}
 }
 
 func TestRecoverAndEmit_NilTelemetryStillRecovers(t *testing.T) { //nolint:paralleltest

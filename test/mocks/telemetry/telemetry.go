@@ -377,17 +377,17 @@ func (_c *Telemetry_Validity_Call) RunAndReturn(run func() time.Duration) *Telem
 	return _c
 }
 
-// emit provides a mock function with given fields: domain, event, data
-func (_m *Telemetry) emit(domain string, event string, data map[string]interface{}) error {
-	ret := _m.Called(domain, event, data)
+// emit provides a mock function with given fields: domain, event, data, sync
+func (_m *Telemetry) emit(domain string, event string, data map[string]interface{}, sync bool) error {
+	ret := _m.Called(domain, event, data, sync)
 
 	if len(ret) == 0 {
 		panic("no return value specified for emit")
 	}
 
 	var r0 error
-	if rf, ok := ret.Get(0).(func(string, string, map[string]interface{}) error); ok {
-		r0 = rf(domain, event, data)
+	if rf, ok := ret.Get(0).(func(string, string, map[string]interface{}, bool) error); ok {
+		r0 = rf(domain, event, data, sync)
 	} else {
 		r0 = ret.Error(0)
 	}
@@ -404,13 +404,14 @@ type Telemetry_emit_Call struct {
 //   - domain string
 //   - event string
 //   - data map[string]interface{}
-func (_e *Telemetry_Expecter) emit(domain interface{}, event interface{}, data interface{}) *Telemetry_emit_Call {
-	return &Telemetry_emit_Call{Call: _e.mock.On("emit", domain, event, data)}
+//   - sync bool
+func (_e *Telemetry_Expecter) emit(domain interface{}, event interface{}, data interface{}, sync interface{}) *Telemetry_emit_Call {
+	return &Telemetry_emit_Call{Call: _e.mock.On("emit", domain, event, data, sync)}
 }
 
-func (_c *Telemetry_emit_Call) Run(run func(domain string, event string, data map[string]interface{})) *Telemetry_emit_Call {
+func (_c *Telemetry_emit_Call) Run(run func(domain string, event string, data map[string]interface{}, sync bool)) *Telemetry_emit_Call {
 	_c.Call.Run(func(args mock.Arguments) {
-		run(args[0].(string), args[1].(string), args[2].(map[string]interface{}))
+		run(args[0].(string), args[1].(string), args[2].(map[string]interface{}), args[3].(bool))
 	})
 	return _c
 }
@@ -420,7 +421,7 @@ func (_c *Telemetry_emit_Call) Return(_a0 error) *Telemetry_emit_Call {
 	return _c
 }
 
-func (_c *Telemetry_emit_Call) RunAndReturn(run func(string, string, map[string]interface{}) error) *Telemetry_emit_Call {
+func (_c *Telemetry_emit_Call) RunAndReturn(run func(string, string, map[string]interface{}, bool) error) *Telemetry_emit_Call {
 	_c.Call.Return(run)
 	return _c
 }
