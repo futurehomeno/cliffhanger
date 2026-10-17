@@ -2,8 +2,8 @@ github.com/buger/jsonparser v1.6.1 h1:I0phFv0PlbLHnM7TZAVjZ2MJ2/eWRTDyuO7GLR98IE
 github.com/buger/jsonparser v1.6.1/go.mod h1:6RYKKt7H4d4+iWqouImQ9R2FZql3VbhNgx27UK13J/0=
 github.com/eclipse/paho.mqtt.golang v1.5.1 h1:/VSOv3oDLlpqR2Epjn1Q7b2bSTplJIeV2ISgCl2W7nE=
 github.com/eclipse/paho.mqtt.golang v1.5.1/go.mod h1:1/yJCneuyOoCOzKSsOTUc0AJfpsItBGWvYpBLimhArU=
-github.com/futurehomeno/fimpgo v1.17.2-0.20261017105601-4f9c00c471f8 h1:BXxCAcBezjhXdoQ+DTbhoMF2jDcTdVba/TMyTyCzPms=
-github.com/futurehomeno/fimpgo v1.17.2-0.20261017105601-4f9c00c471f8/go.mod h1:Nr7SX0K6vO/7l9nIhFBToPSjB7Jr1yfK5AmrAfbAMVU=
+github.com/futurehomeno/fimpgo v1.17.2-0.20261017204918-30e1e1352b49 h1:HWs6VpwFDIqV+2x2IZMp33qzRc+E0PyHghc/ZvGj2TY=
+github.com/futurehomeno/fimpgo v1.17.2-0.20261017204918-30e1e1352b49/go.mod h1:Nr7SX0K6vO/7l9nIhFBToPSjB7Jr1yfK5AmrAfbAMVU=
 github.com/go-ole/go-ole v1.2.6/go.mod h1:pprOEPIfldk/42T2oK7lQ4v4JSDwmV0As9GaiUsvbm0=
 github.com/go-ole/go-ole v1.3.0 h1:Dt6ye7+vXGIKZ7Xtk4s6/xVdGDQynvom7xCFEdWr6uE=
 github.com/go-ole/go-ole v1.3.0/go.mod h1:5LS6F96DhAwUc7C+1HLexzMXY1xGRSryjyPPKW6zv78=
