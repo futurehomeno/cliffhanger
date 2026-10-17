@@ -6,7 +6,7 @@ retract v1.19.0 // bad release, pushed by mistake
 
 require (
 	github.com/eclipse/paho.mqtt.golang v1.5.1
-	github.com/futurehomeno/fimpgo v1.17.2-0.20261017204918-30e1e1352b49
+	github.com/futurehomeno/fimpgo v1.18.0
 	github.com/golang-jwt/jwt/v5 v5.3.1
 	github.com/google/go-cmp v0.7.0
 	github.com/google/uuid v1.6.0
