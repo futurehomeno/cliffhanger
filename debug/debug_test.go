@@ -3,6 +3,7 @@ package debug_test
 import (
 	"os"
 	"path/filepath"
+	"runtime"
 	"strconv"
 	"strings"
 	"sync"
@@ -192,28 +193,33 @@ func TestLogBuffering_FlushesErrorWhileOtherGoroutinesLog(t *testing.T) { //noli
 
 	var stop atomic.Bool
 
-	var wg, started sync.WaitGroup
+	// Noise is rationed per error line: however the goroutines are scheduled, what it writes after
+	// the line stays within the searched tail.
+	const noiseLines = 1000
+
+	var budget atomic.Int64
+
+	var wg sync.WaitGroup
 
 	for range 4 {
 		wg.Add(1)
-		started.Add(1)
 
 		go func() {
 			defer wg.Done()
 
-			logrus.Info("noise")
-			started.Done()
-
 			for !stop.Load() {
+				if budget.Add(-1) < 0 {
+					runtime.Gosched()
+
+					continue
+				}
+
 				logrus.Info("noise")
 			}
 		}()
 	}
 
-	started.Wait()
-
-	// The noise flushed along with each error grows the log fast enough to rotate it, so the tail of
-	// every file is searched. The tail spans the buffer-full flushes the noise may add before the read.
+	// The noise can rotate the log, so the tail of every file is searched.
 	tail := make([]byte, 4*64*1024)
 
 	var written func(line string) bool
@@ -248,6 +254,13 @@ func TestLogBuffering_FlushesErrorWhileOtherGoroutinesLog(t *testing.T) { //noli
 
 	for i := range 50 {
 		line := "urgent-" + strconv.Itoa(i) + "-end"
+
+		budget.Store(noiseLines)
+
+		for budget.Load() > noiseLines-100 {
+			runtime.Gosched()
+		}
+
 		logrus.Error(line)
 
 		if !written(line) {
