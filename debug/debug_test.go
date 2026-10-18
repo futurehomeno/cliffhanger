@@ -3,6 +3,7 @@ package debug_test
 import (
 	"os"
 	"path/filepath"
+	"strconv"
 	"strings"
 	"sync"
 	"sync/atomic"
@@ -184,6 +185,80 @@ func TestLogBuffering_HoldsInfoUntilErrorOrExplicitFlush(t *testing.T) { //nolin
 
 	debug.FlushLogs()
 	assert.Contains(t, read(), "second-info-line", "explicit flush should drain the buffer")
+}
+
+func TestLogBuffering_FlushesErrorWhileOtherGoroutinesLog(t *testing.T) { //nolint:paralleltest
+	_, logFile := initLogger(t, "info", "text")
+
+	var stop atomic.Bool
+
+	var wg, started sync.WaitGroup
+
+	for range 4 {
+		wg.Add(1)
+		started.Add(1)
+
+		go func() {
+			defer wg.Done()
+
+			logrus.Info("noise")
+			started.Done()
+
+			for !stop.Load() {
+				logrus.Info("noise")
+			}
+		}()
+	}
+
+	started.Wait()
+
+	// The noise flushed along with each error grows the log fast enough to rotate it, so the tail of
+	// every file is searched. The tail spans the buffer-full flushes the noise may add before the read.
+	tail := make([]byte, 4*64*1024)
+
+	var written func(line string) bool
+
+	written = func(line string) bool {
+		files, err := filepath.Glob(filepath.Join(filepath.Dir(logFile), "*"))
+		require.NoError(t, err)
+
+		for _, file := range files {
+			f, err := os.Open(file) //nolint:gosec
+			if os.IsNotExist(err) {
+				return written(line) // rotated since the glob
+			}
+
+			require.NoError(t, err)
+
+			st, err := f.Stat()
+			require.NoError(t, err)
+
+			n, _ := f.ReadAt(tail, max(st.Size()-int64(len(tail)), 0))
+			require.NoError(t, f.Close())
+
+			if strings.Contains(string(tail[:n]), line) {
+				return true
+			}
+		}
+
+		return false
+	}
+
+	missed := 0
+
+	for i := range 50 {
+		line := "urgent-" + strconv.Itoa(i) + "-end"
+		logrus.Error(line)
+
+		if !written(line) {
+			missed++
+		}
+	}
+
+	stop.Store(true)
+	wg.Wait()
+
+	assert.Zero(t, missed, "error lines not in the file when logrus.Error returned")
 }
 
 // TestInitializeLogger_ReinitializationFlushesPreviousBuffer pins that re-calling
