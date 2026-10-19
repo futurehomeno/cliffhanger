@@ -4,6 +4,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/futurehomeno/cliffhanger/adapter"
 	"github.com/futurehomeno/cliffhanger/adapter/service/virtualmeter"
 	adapterhelper "github.com/futurehomeno/cliffhanger/test/helper/adapter"
 	"github.com/futurehomeno/cliffhanger/test/suite"
@@ -17,7 +18,7 @@ func TestTaskReporting(t *testing.T) {
 			{
 				Name:     "",
 				TearDown: adapterhelper.TearDownAdapter(workdir),
-				Setup:    routeService(time.Millisecond*50, time.Second),
+				Setup:    routeService(time.Millisecond*50, adapter.ConnStatusUp),
 				Nodes: []*suite.Node{
 					{
 						Name: "should report empty modes when nothing set",
@@ -100,6 +101,40 @@ func TestTaskReporting(t *testing.T) {
 								"virtual_meter_elec",
 								map[string]float64{},
 							),
+						},
+					},
+				},
+			},
+		},
+	}
+
+	s.Run(t)
+}
+
+func TestTaskStatePolling_SkipsThingDown(t *testing.T) { //nolint:paralleltest
+	lvlReport := suite.NewExpectation().
+		ExpectTopic("pt:j1/mt:evt/rt:dev/rn:test_adapter/ad:1/sv:out_lvl_switch/ad:2").
+		ExpectType("evt.lvl.report")
+	lvlReport.Occurrence = suite.Never
+
+	s := &suite.Suite{
+		Cases: []*suite.Case{
+			{
+				Name:     "level switch of a thing that is down is not polled",
+				TearDown: adapterhelper.TearDownAdapter(workdir),
+				Setup:    routeService(time.Millisecond*50, adapter.ConnStatusDown),
+				Nodes: []*suite.Node{
+					{
+						Name:    "modes are still reported, the level is not",
+						Timeout: 300 * time.Millisecond,
+						Expectations: []*suite.Expectation{
+							suite.ExpectFloatMap(
+								"pt:j1/mt:evt/rt:dev/rn:test_adapter/ad:1/sv:virtual_meter_elec/ad:2",
+								"evt.meter.report",
+								"virtual_meter_elec",
+								map[string]float64{},
+							),
+							lvlReport,
 						},
 					},
 				},

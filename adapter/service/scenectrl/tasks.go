@@ -30,7 +30,7 @@ func handleReporting(serviceRegistry adapter.ServiceRegistry) func() {
 			}
 
 			_, err := scene.SendSceneReport(false)
-			if err != nil {
+			if adapter.ReportFailed(err) {
 				log.Errorf("[scenectrl] Send scene report. err: %v", err)
 			}
 		}
