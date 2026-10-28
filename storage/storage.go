@@ -351,7 +351,7 @@ func (s *storage[T]) loadFile(path string) error {
 
 	err = json.Unmarshal(body, s.model)
 	if err != nil {
-		return fmt.Errorf("storage: cannot unmarshal a configuration file from path %s with contents '%s': %w", path, body, err)
+		return fmt.Errorf("storage: cannot unmarshal a configuration file from path %s: %w", path, err)
 	}
 
 	return nil
