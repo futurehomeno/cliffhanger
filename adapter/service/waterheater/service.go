@@ -218,10 +218,10 @@ func (s *service) SendSetpointReport(mode string, force bool) (bool, error) {
 		return false, nil
 	}
 
-	message := fimpgo.NewStrMapMessage(
+	message := fimpgo.NewObjectMessage(
 		EvtSetpointReport,
 		s.Name(),
-		setpoint.StringMap(),
+		setpoint,
 		nil,
 		nil,
 		nil,
@@ -346,13 +346,8 @@ func (s *service) supportedRange(mode string) *Range {
 	return nil
 }
 
-// Setpoint is a water heater setpoint; it shares the thermostat's str_map wire format.
 type Setpoint = thermostat.Setpoint
 
 func NewSetpoint(mode string, temp float64, unit string) *Setpoint {
 	return thermostat.NewSetpoint(mode, temp, unit)
-}
-
-func SetpointFromStringMap(input map[string]string) (*Setpoint, error) {
-	return thermostat.SetpointFromStringMap(input)
 }
