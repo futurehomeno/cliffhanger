@@ -1,12 +1,17 @@
 package root_test
 
 import (
+	"os"
+	"path/filepath"
 	"testing"
 
 	"github.com/futurehomeno/fimpgo"
+	"github.com/sirupsen/logrus"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
+	"github.com/futurehomeno/cliffhanger/config"
+	"github.com/futurehomeno/cliffhanger/debug"
 	"github.com/futurehomeno/cliffhanger/discovery"
 	"github.com/futurehomeno/cliffhanger/lifecycle"
 	"github.com/futurehomeno/cliffhanger/root"
@@ -131,4 +136,25 @@ func TestBuilder_LaterAppendsKeepBuiltDiscovery(t *testing.T) { //nolint:paralle
 	}
 
 	s.Run(t)
+}
+
+func TestBuilder_BuildWritesCrashLogMarker(t *testing.T) { //nolint:paralleltest
+	dir := t.TempDir()
+	cfg := &config.Default{LogLevel: "info", LogFormat: "text", LogFile: filepath.Join(dir, "app.log")}
+	store := config.NewDefaultStore(func() *config.Default { return cfg }, func() error { return nil })
+
+	savedOut := logrus.StandardLogger().Out
+	t.Cleanup(func() { logrus.SetOutput(savedOut) })
+
+	require.NoError(t, debug.InitializeLogger(store))
+
+	_, err := root.NewCoreAppBuilder().
+		WithMQTT(suite.DefaultMQTT("root_builder_crash_log", "", "", "")).
+		WithServiceDiscovery("test_app", discovery.ResourceTypeApp, "test_app", "1", "1.0.0").
+		Build()
+	require.NoError(t, err)
+
+	b, err := os.ReadFile(filepath.Join(dir, "crash.log")) //nolint:gosec
+	require.NoError(t, err)
+	assert.Contains(t, string(b), "--- Start test_app v1.0.0 ")
 }
