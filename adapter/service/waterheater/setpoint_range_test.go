@@ -51,15 +51,15 @@ func TestSpecification_SetpointIsAnObject(t *testing.T) {
 
 	spec := waterheater.Specification("test_adapter", "1", "2", nil, testModes, testSetpoints, testStates, nil, nil, testStep)
 
-	found := 0
+	var found []string
 
 	for _, iface := range spec.Interfaces {
 		if iface.MsgType == waterheater.CmdSetpointSet || iface.MsgType == waterheater.EvtSetpointReport {
 			assert.Equal(t, fimptype.VTypeObject, iface.ValueType, iface.MsgType)
 
-			found++
+			found = append(found, iface.MsgType)
 		}
 	}
 
-	assert.Equal(t, 2, found)
+	assert.ElementsMatch(t, []string{waterheater.CmdSetpointSet, waterheater.EvtSetpointReport}, found)
 }
