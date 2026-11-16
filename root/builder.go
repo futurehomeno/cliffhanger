@@ -12,6 +12,7 @@ import (
 	log "github.com/sirupsen/logrus"
 
 	"github.com/futurehomeno/cliffhanger/bootstrap"
+	"github.com/futurehomeno/cliffhanger/debug"
 	"github.com/futurehomeno/cliffhanger/discovery"
 	"github.com/futurehomeno/cliffhanger/lifecycle"
 	"github.com/futurehomeno/cliffhanger/notification"
@@ -137,6 +138,8 @@ func (b *Builder) Build() (App, error) {
 	if err := b.check(); err != nil {
 		return nil, err
 	}
+
+	debug.SetCrashLogApp(b.packageName, b.version)
 
 	return b.doBuild(), nil
 }
