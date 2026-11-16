@@ -51,9 +51,15 @@ func TestSpecification_SetpointIsAnObject(t *testing.T) {
 
 	spec := waterheater.Specification("test_adapter", "1", "2", nil, testModes, testSetpoints, testStates, nil, nil, testStep)
 
+	found := 0
+
 	for _, iface := range spec.Interfaces {
 		if iface.MsgType == waterheater.CmdSetpointSet || iface.MsgType == waterheater.EvtSetpointReport {
 			assert.Equal(t, fimptype.VTypeObject, iface.ValueType, iface.MsgType)
+
+			found++
 		}
 	}
+
+	assert.Equal(t, 2, found)
 }
