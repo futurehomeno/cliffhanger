@@ -407,6 +407,10 @@ func (a *app) doStop() error {
 	}
 
 	for _, topic := range config.Deduplicate(a.topicSubscriptions) {
+		if !a.mqtt.IsConnected() {
+			break
+		}
+
 		if err := a.mqtt.Unsubscribe(topic); err != nil {
 			errs = append(errs, fmt.Errorf("unsubscribe topic=%s err: %w", topic, err))
 		}
