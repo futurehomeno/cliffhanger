@@ -3,6 +3,7 @@ package waterheater_test
 import (
 	"testing"
 
+	"github.com/futurehomeno/fimpgo/fimptype"
 	"github.com/stretchr/testify/assert"
 
 	"github.com/futurehomeno/cliffhanger/adapter/service/waterheater"
@@ -43,4 +44,22 @@ func TestService_SetSetpointWithoutRangeOrStep(t *testing.T) {
 	})
 
 	assert.NoError(t, svc.SetSetpoint("heat", 123.4, "C"))
+}
+
+func TestSpecification_SetpointIsAnObject(t *testing.T) {
+	t.Parallel()
+
+	spec := waterheater.Specification("test_adapter", "1", "2", nil, testModes, testSetpoints, testStates, nil, nil, testStep)
+
+	var found []string
+
+	for _, iface := range spec.Interfaces {
+		if iface.MsgType == waterheater.CmdSetpointSet || iface.MsgType == waterheater.EvtSetpointReport {
+			assert.Equal(t, fimptype.VTypeObject, iface.ValueType, iface.MsgType)
+
+			found = append(found, iface.MsgType)
+		}
+	}
+
+	assert.ElementsMatch(t, []string{waterheater.CmdSetpointSet, waterheater.EvtSetpointReport}, found)
 }

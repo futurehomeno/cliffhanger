@@ -83,13 +83,13 @@ func requiredInterfaces() []fimptype.Interface {
 		{
 			Type:      fimptype.TypeIn,
 			MsgType:   CmdSetpointSet,
-			ValueType: fimptype.VTypeStrMap,
+			ValueType: fimptype.VTypeObject,
 			Version:   "1",
 		},
 		{
 			Type:      fimptype.TypeOut,
 			MsgType:   EvtSetpointReport,
-			ValueType: fimptype.VTypeStrMap,
+			ValueType: fimptype.VTypeObject,
 			Version:   "1",
 		},
 		{
