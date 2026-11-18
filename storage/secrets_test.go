@@ -121,3 +121,15 @@ func TestNew_ConfigFileMode(t *testing.T) {
 	assert.NoError(t, err)
 	assert.Equal(t, os.FileMode(0o644), info.Mode().Perm(), "save should tighten permissions of pre-existing files")
 }
+
+func TestNewSecrets_LoadErrorOmitsFileContents(t *testing.T) {
+	t.Parallel()
+
+	workDir := t.TempDir()
+	require.NoError(t, os.MkdirAll(filepath.Join(workDir, "data"), 0o750))
+	require.NoError(t, os.WriteFile(filepath.Join(workDir, "data", "secrets.json"), []byte(`{"AccessToken": "s3cr3t"`), 0o600))
+
+	err := storage.NewSecrets(&secrets{}, workDir, "secrets.json").Load()
+	require.Error(t, err)
+	assert.NotContains(t, err.Error(), "s3cr3t", "a load error ends up in logs, so it must not carry the file's contents")
+}
