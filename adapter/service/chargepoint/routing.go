@@ -4,6 +4,7 @@ import (
 	"fmt"
 
 	"github.com/futurehomeno/fimpgo"
+	log "github.com/sirupsen/logrus"
 
 	"github.com/futurehomeno/cliffhanger/adapter"
 	"github.com/futurehomeno/cliffhanger/router"
@@ -69,6 +70,8 @@ func handleCmdChargeStart(serviceRegistry adapter.ServiceRegistry) router.Messag
 
 			err = chargepoint.StartCharging(chargingSettings)
 			if err != nil {
+				sendStateReportAfterError(chargepoint)
+
 				return nil, fmt.Errorf("failed to start charging: %w", err)
 			}
 
@@ -85,6 +88,12 @@ func handleCmdChargeStart(serviceRegistry adapter.ServiceRegistry) router.Messag
 			return nil, nil
 		}),
 	)
+}
+
+func sendStateReportAfterError(chargepoint Service) {
+	if _, err := chargepoint.SendStateReport(true); err != nil {
+		log.Errorf("[chargepoint] Send state report. err: %v", err)
+	}
 }
 
 func routeCmdChargeStop(serviceRegistry adapter.ServiceRegistry) *router.Routing {
@@ -105,6 +114,8 @@ func handleCmdChargeStop(serviceRegistry adapter.ServiceRegistry) router.Message
 
 			err = chargepoint.StopCharging()
 			if err != nil {
+				sendStateReportAfterError(chargepoint)
+
 				return nil, fmt.Errorf("failed to stop charging: %w", err)
 			}
 
