@@ -128,8 +128,10 @@ type thing struct {
 	inclusionReport               *fimptype.ThingInclusionReport
 	services                      map[string]Service
 	lock                          *sync.RWMutex
-	// connectorLock, not lock, guards connector calls and the reporting cache: a slow device or cloud
-	// must not stall the thing, yet a stale connectivity report must never follow a fresher one.
+	// connectorLock, not lock, serialises Connectivity and Ping calls and the reporting cache, so a slow
+	// connector does not stall the thing and a stale connectivity report never follows a fresher one.
+	// Connect and Disconnect run outside it: a connector's Disconnect may wait for work that itself
+	// reports connectivity.
 	connectorLock sync.Mutex
 }
 
