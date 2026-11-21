@@ -1,0 +1,2 @@
+- [x] `adapter.ReportFailed` helper; every service reporting task uses it
+- [x] `FilterFn(nil)` matches everything instead of panicking

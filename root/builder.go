@@ -2,7 +2,9 @@ package root
 
 import (
 	"errors"
+	"flag"
 	"path/filepath"
+	"slices"
 	"sync"
 
 	"github.com/futurehomeno/fimpgo"
@@ -10,6 +12,7 @@ import (
 	log "github.com/sirupsen/logrus"
 
 	"github.com/futurehomeno/cliffhanger/bootstrap"
+	"github.com/futurehomeno/cliffhanger/debug"
 	"github.com/futurehomeno/cliffhanger/discovery"
 	"github.com/futurehomeno/cliffhanger/lifecycle"
 	"github.com/futurehomeno/cliffhanger/notification"
@@ -136,6 +139,8 @@ func (b *Builder) Build() (App, error) {
 		return nil, err
 	}
 
+	debug.SetCrashLogApp(b.packageName, b.version)
+
 	return b.doBuild(), nil
 }
 
@@ -144,6 +149,11 @@ func logBootstrapDirs() {
 		log.Warnf("[cliff] Resolve working dir=%s err: %v", bootstrap.GetWorkingDirectory(), err)
 	} else {
 		log.Infof("[cliff] Working dir=%s", workDir)
+	}
+
+	// GetConfigurationDirectory registers -c and parses the command line when -c is not there yet.
+	if flag.Lookup("c") == nil {
+		return
 	}
 
 	if cfgDir, err := filepath.Abs(bootstrap.GetConfigurationDirectory()); err != nil {
@@ -155,8 +165,7 @@ func logBootstrapDirs() {
 
 func (b *Builder) doBuild() App {
 	rootApp := &app{
-		lock:  &sync.Mutex{},
-		errCh: make(chan error),
+		lock: &sync.Mutex{},
 
 		mqtt:                  b.mqtt,
 		lifecycle:             b.lifecycle,
@@ -176,18 +185,15 @@ func (b *Builder) doBuild() App {
 
 // prepareRouting prepares routing for the root application.
 func (b *Builder) prepareRouting(rootApp *app) {
-	topicSubscriptions := append(b.topicSubscriptions, discovery.Topic) //nolint:gocritic
-	routing := append(                                                  //nolint:gocritic
-		b.routing,
-		discovery.Route(
-			b.resourceName,
-			b.resourceType,
-			b.packageName,
-			b.instanceID,
-			b.version,
-			b.lifecycle,
-		),
-	)
+	topicSubscriptions := slices.Concat(b.topicSubscriptions, []string{discovery.Topic})
+	routing := slices.Concat(b.routing, []*router.Routing{discovery.Route(
+		b.resourceName,
+		b.resourceType,
+		b.packageName,
+		b.instanceID,
+		b.version,
+		b.lifecycle,
+	)})
 
 	// Include application factory reset routing only if resetters are provided.
 	if len(rootApp.resetters) > 0 {

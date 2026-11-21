@@ -152,6 +152,7 @@ func (m *Manifest) GetAppConfig(id string) *AppConfig {
 	return nil
 }
 
+// Deprecated: use app.AuthenticationReport.
 type AuthResponse struct {
 	Status    string `json:"status"`
 	ErrorText string `json:"error_text"`

@@ -1,6 +1,7 @@
 package debug
 
 import (
+	"os"
 	"path/filepath"
 	"testing"
 	"time"
@@ -164,4 +165,46 @@ func TestSetFile_AfterFailedFirstInitStartsFlusher(t *testing.T) { //nolint:para
 	t.Cleanup(func() { logManager.stopFlusher() })
 
 	assert.NotNil(t, logManager.flushStop, "recovering through SetFile must start the periodic flusher")
+}
+
+// TestSetLogWriteThrough_SurvivesOutputSwapAndTurnsOff pins that write-through is not tied to one
+// output: a set_file after the app stopped must not bring buffering back and lose the stop banner.
+func TestSetLogWriteThrough_SurvivesOutputSwapAndTurnsOff(t *testing.T) { //nolint:paralleltest
+	saved := logManager
+	savedLevel := logrus.GetLevel()
+	savedOut := logrus.StandardLogger().Out
+	savedFormatter := logrus.StandardLogger().Formatter
+	t.Cleanup(func() {
+		SetLogWriteThrough(false)
+		logManager.stopFlusher()
+		logManager = saved
+		logrus.SetLevel(savedLevel)
+		logrus.SetOutput(savedOut)
+		logrus.SetFormatter(savedFormatter)
+	})
+
+	logManager = nil
+
+	dir := t.TempDir()
+	cfg := &config.Default{LogLevel: "info", LogFormat: "text", LogFile: filepath.Join(dir, "a.log")}
+	store := config.NewDefaultStore(func() *config.Default { return cfg }, func() error { return nil })
+	require.NoError(t, InitializeLogger(store))
+
+	SetLogWriteThrough(true)
+
+	swapped := filepath.Join(dir, "b.log")
+	require.NoError(t, logManager.SetFile(swapped))
+
+	logrus.Info("line-written-through")
+
+	b, err := os.ReadFile(swapped) //nolint:gosec
+	require.NoError(t, err)
+	assert.Contains(t, string(b), "line-written-through")
+
+	SetLogWriteThrough(false)
+	logrus.Info("line-buffered-again")
+
+	b, err = os.ReadFile(swapped) //nolint:gosec
+	require.NoError(t, err)
+	assert.NotContains(t, string(b), "line-buffered-again")
 }

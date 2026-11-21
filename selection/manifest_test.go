@@ -105,3 +105,29 @@ func TestPrepareManifest_ToleratesAMissingBlockOrConfig(t *testing.T) {
 		return []testDevice{{"1", "first"}}, nil
 	}, testDeviceOption))
 }
+
+func TestPrepareManifest_TextRules(t *testing.T) {
+	t.Parallel()
+
+	t.Run("block without a text map gets one", func(t *testing.T) {
+		t.Parallel()
+
+		m := &manifest.Manifest{UIBlocks: []manifest.AppUBLock{{ID: testBlockID}}}
+
+		require.NoError(t, selection.PrepareManifest(m, testBlock, false, func() ([]testDevice, error) { return nil, nil }, testDeviceOption))
+		assert.Equal(t, testBlock.NotReady, m.GetUIBlock(testBlockID).Text["en"])
+	})
+
+	t.Run("empty state text leaves the template text", func(t *testing.T) {
+		t.Parallel()
+
+		m := testManifest()
+		b := testBlock
+		b.Failed = ""
+
+		err := selection.PrepareManifest(m, b, true, func() ([]testDevice, error) { return nil, errors.New("down") }, testDeviceOption)
+
+		require.ErrorContains(t, err, "selection: fetch available devices")
+		assert.Equal(t, "template", m.GetUIBlock(testBlockID).Text["en"])
+	})
+}

@@ -6,9 +6,7 @@ error banner or a working integration — from the state an adapter reports. The
 state as four independent axes, serves them as the `evt.app.state_report` payload, and lets internal
 components wait on transitions. Its central guarantee is that a multi-axis change is published as one
 consistent snapshot, never as a torn sequence of partial updates.
-
 ## Requirements
-
 ### Requirement: Four Independent State Axes
 The lifecycle SHALL track exactly four state types, each with a closed set of values:
 `APP_HEALTH` is one of `STARTING`, `STARTUP_ERROR`, `NOT_CONFIGURED`, `ERROR`, `RUNNING`,
@@ -30,9 +28,9 @@ empty value for an unknown state type.
 `New(store)` SHALL initialise the lifecycle to `APP_HEALTH=STARTING`, `CONFIG_STATE=NOT_CONFIGURED`,
 `AUTH_STATE=NA`, `CONN_STATE=NA`, record the process start time, and — when a store is supplied —
 increment and read the persisted restart count. A failure to increment the count SHALL be logged and
-SHALL NOT prevent construction. A nil store SHALL be accepted and leave the count at zero.
-`Uptime()` SHALL report whole seconds since construction and `RestartsCount()` the value read at
-construction.
+SHALL NOT prevent construction; `RestartsCount()` SHALL then report zero. A nil store SHALL be
+accepted and leave the count at zero. `Uptime()` SHALL report whole seconds since construction and
+`RestartsCount()` the value read at construction.
 
 #### Scenario: adapter restart
 - **WHEN** the adapter process starts with a configuration store present
@@ -40,7 +38,8 @@ construction.
 
 #### Scenario: store increment fails
 - **WHEN** the store cannot increment the restart count
-- **THEN** the error is logged and the lifecycle is still constructed in its initial state
+- **THEN** the error is logged, the lifecycle is still constructed in its initial state and
+  `RestartsCount()` returns zero
 
 ### Requirement: Single-Axis Setters Emit Only On Change
 `SetAppHealth`, `SetConfigState`, `SetAuthState` and `SetConnState` SHALL each write one axis and emit
@@ -124,3 +123,4 @@ different type — is still observed.
 #### Scenario: target reached through a bundle
 - **WHEN** a waiter is blocked on `APP_HEALTH=RUNNING` and `MarkRunning()` is called
 - **THEN** the single emitted `AUTH_STATE` event makes the waiter re-read health, find `RUNNING` and return
+

@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	rdebug "runtime/debug"
 	"sync"
 	"sync/atomic"
 	"time"
@@ -19,12 +20,23 @@ import (
 var (
 	logManager *logManagerT
 
-	// urgent is set by levelFormatter for entries at error level or above and
-	// consumed by bufferedWriter.Write, which logrus calls immediately after
-	// Format under the same logger mutex. A level hook cannot serve here:
-	// hooks fire before the entry is written, so they cannot flush the very
-	// line that triggered them.
-	urgent atomic.Bool
+	// urgentLines holds the first byte of every line levelFormatter produced for an entry at error
+	// level or above, until bufferedWriter.Write writes it. logrus formats outside its mutex and
+	// writes under it, so a single flag would be overwritten by other goroutines' lines in
+	// between; the formatted slice is what reaches Write, so it identifies the line. A level hook
+	// cannot serve either: hooks fire before the entry is written.
+	urgentLines = struct {
+		sync.Mutex
+		m map[*byte]struct{}
+	}{m: map[*byte]struct{}{}}
+
+	// writeThrough is global rather than per output so a set_file after the app stopped keeps it.
+	writeThrough atomic.Bool
+
+	crashLog struct {
+		sync.Mutex
+		path, app, version, marked string
+	}
 )
 
 type logManagerT struct {
@@ -55,6 +67,12 @@ const (
 	debugLogFlushInterval = 2 * time.Second
 
 	logBufferSize = 64 * 1024
+
+	maxCrashLogSize = 1 << 20
+
+	// maxUrgentLines bounds the marks left by lines written to some other output, which never
+	// reach bufferedWriter.Write; lines in flight at once stay far below it.
+	maxUrgentLines = 256
 )
 
 type Store interface {
@@ -129,6 +147,16 @@ func InitializeLogger(store Store) error {
 func FlushLogs() {
 	if logManager != nil {
 		logManager.flush()
+	}
+}
+
+// SetLogWriteThrough turned on flushes the buffer and writes every later line straight to the log
+// file, so lines logged after the app has stopped (an adapter's deferred stop banner) survive the
+// exit. Turned off, lines are buffered again.
+func SetLogWriteThrough(on bool) {
+	writeThrough.Store(on)
+	if on {
+		FlushLogs()
 	}
 }
 
@@ -291,9 +319,32 @@ type levelFormatter struct {
 }
 
 func (f *levelFormatter) Format(entry *logrus.Entry) ([]byte, error) {
-	urgent.Store(entry.Level <= logrus.ErrorLevel)
+	b, err := f.Formatter.Format(entry)
+	if err == nil && len(b) > 0 && entry.Level <= logrus.ErrorLevel {
+		urgentLines.Lock()
+		if len(urgentLines.m) >= maxUrgentLines {
+			clear(urgentLines.m)
+		}
 
-	return f.Formatter.Format(entry)
+		urgentLines.m[&b[0]] = struct{}{}
+		urgentLines.Unlock()
+	}
+
+	return b, err
+}
+
+func takeUrgent(p []byte) bool {
+	if len(p) == 0 {
+		return false
+	}
+
+	urgentLines.Lock()
+	defer urgentLines.Unlock()
+
+	_, ok := urgentLines.m[&p[0]]
+	delete(urgentLines.m, &p[0])
+
+	return ok
 }
 
 func (f *levelFormatter) Unwrap() logrus.Formatter {
@@ -317,8 +368,10 @@ func (w *bufferedWriter) Write(p []byte) (int, error) {
 	w.lock.Lock()
 	defer w.lock.Unlock()
 
+	urgent := takeUrgent(p)
+
 	n, err := w.buf.Write(p)
-	if err != nil || !urgent.Load() {
+	if err != nil || !writeThrough.Load() && !urgent {
 		return n, err
 	}
 
@@ -339,6 +392,70 @@ func (w *bufferedWriter) Close() error {
 	// Both run: returning on a failed flush (a full disk being the likely cause) would leak the
 	// rotating file, which nothing else holds a reference to once logrus is switched away.
 	return errors.Join(w.buf.Flush(), w.file.Close())
+}
+
+// SetCrashLogApp names the app in the start marker written to crash.log, which the runtime's own
+// crash text lacks.
+func SetCrashLogApp(app, version string) {
+	crashLog.Lock()
+	defer crashLog.Unlock()
+
+	crashLog.app, crashLog.version = app, version
+	markCrashLogLocked()
+}
+
+// setCrashOutput sends what the runtime prints on an unrecovered panic or a fatal error to crash.log
+// beside the log file. Not the log file itself: lumberjack rotates it by renaming, and the
+// runtime's descriptor would follow the renamed backup.
+func setCrashOutput(logFile string) {
+	path := filepath.Join(filepath.Dir(logFile), "crash.log")
+
+	crashLog.Lock()
+	defer crashLog.Unlock()
+
+	if path == crashLog.path {
+		return
+	}
+
+	if fi, err := os.Stat(path); err == nil && fi.Size() > maxCrashLogSize {
+		if err := os.Rename(path, path+".1"); err != nil {
+			logrus.Warnf("[cliff] Rotate crash log=%s err: %v", path, err)
+		}
+	}
+
+	f, err := os.OpenFile(path, os.O_WRONLY|os.O_CREATE|os.O_APPEND, 0644) //nolint:gosec
+	if err != nil {
+		logrus.Warnf("[cliff] Open crash log=%s err: %v", path, err)
+		return
+	}
+
+	defer f.Close() //nolint:errcheck
+
+	if err := rdebug.SetCrashOutput(f, rdebug.CrashOptions{}); err != nil {
+		logrus.Warnf("[cliff] Set crash output=%s err: %v", path, err)
+		return
+	}
+
+	crashLog.path = path
+	markCrashLogLocked()
+}
+
+func markCrashLogLocked() {
+	if crashLog.path == "" || crashLog.app == "" || crashLog.marked == crashLog.path {
+		return
+	}
+
+	crashLog.marked = crashLog.path
+
+	f, err := os.OpenFile(crashLog.path, os.O_WRONLY|os.O_APPEND, 0)
+	if err == nil {
+		_, err = fmt.Fprintf(f, "--- Start %s v%s %s ---\n", crashLog.app, crashLog.version, time.Now().Format(time.RFC3339))
+		err = errors.Join(err, f.Close())
+	}
+
+	if err != nil {
+		logrus.Warnf("[cliff] Write crash log=%s marker err: %v", crashLog.path, err)
+	}
 }
 
 func (ptr *logManagerT) setLogOutput(logFile string) error {
@@ -373,6 +490,8 @@ func (ptr *logManagerT) setLogOutput(logFile string) error {
 			logrus.Errorf("[cliff] Close previous log output err: %v", err)
 		}
 	}
+
+	setCrashOutput(logFile)
 
 	return nil
 }

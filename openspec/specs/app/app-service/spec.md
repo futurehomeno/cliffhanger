@@ -9,9 +9,7 @@ adapter exclusively through these commands and the app manifest, so the reply ev
 report payload shapes and the manifest model are a hard compatibility surface. It also covers the
 optional capability interfaces an application may implement and what `app.RouteApp` does when one is
 absent.
-
 ## Requirements
-
 ### Requirement: Mandatory Application Contract
 An application SHALL implement `app.App`: `GetManifest`, `Configure(config any)`, `Uninstall` and —
 through the embedded `LogProvider` — `ErrorsReport`. `Configure` SHALL accept the value produced by
@@ -99,7 +97,8 @@ a state-carrying manifest report, so a storage that redacts secrets redacts them
 The `cmd.config.extended_set` and `cmd.app.uninstall` handlers SHALL always reply with a
 `ConfigurationReport` — `{op_status, op_error, app_state}` — and SHALL NOT surface a processing
 error. On success `op_status` SHALL be `ok`; on a payload unmarshalling failure or a failing
-`Configure`/`Uninstall` it SHALL be `error` with `op_error` set to `configure the app err: <error>`.
+`Configure` it SHALL be `error` with `op_error` set to `configure the app err: <error>`, and on a
+failing `Uninstall` it SHALL be `error` with `op_error` set to `uninstall the app err: <error>`.
 The report SHALL always carry the current lifecycle snapshot in `app_state`, so the hub learns the
 resulting state even when the operation failed.
 
@@ -111,6 +110,11 @@ resulting state even when the operation failed.
 #### Scenario: unparsable configuration payload
 - **WHEN** the `cmd.config.extended_set` value cannot be unmarshalled into the configuration type
 - **THEN** `Configure` is not called and the same `evt.app.config_report` error shape is published
+
+#### Scenario: uninstall fails
+- **WHEN** `Uninstall` returns `boom`
+- **THEN** `evt.app.uninstall_report` is published with `op_status` `error` and `op_error`
+  `uninstall the app err: boom`
 
 ### Requirement: Uninstall Excludes Things First
 The `cmd.app.uninstall` handler SHALL invoke the `excludeAllThings` callback, when one was provided
@@ -198,12 +202,13 @@ answerable while a long installation runs.
 
 ### Requirement: Diagnostic Report
 The `cmd.app.get_diag` handler SHALL reply with `evt.app.diag_report` carrying a `DiagReport`:
-`uptime` in whole seconds since process start, `restarts_count` from the lifecycle, and `errors` as
-returned by the `LogProvider`. A `LogProvider` returning an error SHALL abort the reply with
-"failed to retrieve error log entries", so the router publishes an error report and never a partial
-diag report. A nil `LogProvider` SHALL NOT be passed to `RouteCmdAppDiagGetReport`: the handler
-dereferences it unconditionally, and the resulting panic is contained by the router's per-message
-recovery, leaving the command silently unanswered.
+`uptime` in whole seconds since the `Lifecycle` was created by `lifecycle.New`, `restarts_count`
+as the persisted restart counter the `Lifecycle` incremented at construction (`0` when it was built
+without a store), and `errors` as returned by the `LogProvider`. A `LogProvider` returning an error
+SHALL abort the reply with "failed to retrieve error log entries", so the router publishes an error
+report and never a partial diag report. A nil `LogProvider` SHALL NOT be passed to
+`RouteCmdAppDiagGetReport`: the handler dereferences it unconditionally, and the resulting panic is
+contained by the router's per-message recovery, leaving the command silently unanswered.
 
 #### Scenario: hub requests diagnostics
 - **WHEN** `cmd.app.get_diag` arrives and `ErrorsReport` returns two entries
@@ -273,14 +278,33 @@ manifest".
 `InitializableApp` and `CheckableApp` SHALL be asserted by `TaskApp`, not by `RouteApp`, and an
 application implementing neither SHALL get no background tasks. `Initialize` SHALL run once at
 startup and, if it returns an error, SHALL set the app health to startup error and SHALL be retried
-every 10 minutes for as long as that state holds. `Check` SHALL run only while the app health is
-running, at the interval returned by `CheckInterval()`, and SHALL fall back to 30 minutes when that
-interval is 0. A failing `Check` SHALL only be logged.
+every 10 minutes for as long as that state holds; the retry SHALL NOT run at startup alongside the
+first attempt. `Check` SHALL run only while the app health is running, at the interval returned by
+`CheckInterval()`, and SHALL fall back to 30 minutes when that interval is 0. A failing `Check` SHALL
+only be logged.
 
 #### Scenario: initialization fails at boot
 - **WHEN** `Initialize` returns an error during startup
 - **THEN** the app health becomes startup error and initialization is retried 10 minutes later
+- **AND** `Initialize` is called exactly once at startup
 
 #### Scenario: default check interval
 - **WHEN** the application implements `CheckableApp` and returns 0 from `CheckInterval`
 - **THEN** `Check` is scheduled every 30 minutes while the app is running
+
+### Requirement: Optional Handler Locker
+The `locker` argument of `RouteCmdConfigExtendedSet`, `RouteCmdAppUninstall`, `RouteCmdAppReset`,
+`RouteConfigActionCommand`, `RouteCmdAuthLogin`, `RouteCmdAuthSetTokens`, `RouteCmdAuthLogout` and
+their `Handle*` counterparts SHALL be optional. A nil locker SHALL make the handler run every
+message without serialization and never reply with the "another operation is already running"
+error; a non-nil locker SHALL be released when the handler returns, so the next mutating command
+can run.
+
+#### Scenario: handler built without a locker
+- **WHEN** `HandleCmdConfigExtendedSet` is built with a nil locker and two messages are handled
+- **THEN** `Configure` is called for both and both reply with `evt.app.config_report`
+
+#### Scenario: lock released after a command
+- **WHEN** a mutating handler sharing a locker has finished processing a message
+- **THEN** the next mutating command on the same locker runs normally
+

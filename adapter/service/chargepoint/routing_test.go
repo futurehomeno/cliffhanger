@@ -236,15 +236,36 @@ func TestRouteService(t *testing.T) { //nolint:paralleltest
 				TearDown: adapterhelper.TearDownAdapter("../../testdata/adapter/test_adapter"),
 				Setup: routeService(
 					mockedchargepoint.NewController(t).
-						MockStartChargepointCharging(&chargepoint.ChargingSettings{}, errTest, true),
+						MockStartChargepointCharging(&chargepoint.ChargingSettings{}, errTest, true).
+						MockChargepointStateReport(chargepoint.StateReadyToCharge, nil, true),
 					nil,
 				),
 				Nodes: []*suite.Node{
 					{
-						Name:    "start charging",
+						Name:    "cmd.charge.start",
 						Command: suite.NullMessage("pt:j1/mt:cmd/rt:dev/rn:test_adapter/ad:1/sv:chargepoint/ad:2", "cmd.charge.start", "chargepoint"),
 						Expectations: []*suite.Expectation{
-							suite.ExpectError("pt:j1/mt:evt/rt:dev/rn:test_adapter/ad:1/sv:chargepoint/ad:2", "chargepoint"),
+							suite.ExpectString("pt:j1/mt:evt/rt:dev/rn:test_adapter/ad:1/sv:chargepoint/ad:2", "evt.state.report", "chargepoint", "ready_to_charge"),
+							suite.ExpectError("pt:j1/mt:evt/rt:dev/rn:test_adapter/ad:1/sv:chargepoint/ad:2", "chargepoint").ExpectProperty("msg", "failed to start charging: chargepoint: failed to start charging: test"),
+						},
+					},
+				},
+			},
+			{
+				Name:     "failed start charging routing - starting error and state report error",
+				TearDown: adapterhelper.TearDownAdapter("../../testdata/adapter/test_adapter"),
+				Setup: routeService(
+					mockedchargepoint.NewController(t).
+						MockStartChargepointCharging(&chargepoint.ChargingSettings{}, errTest, true).
+						MockChargepointStateReport("", errTest, true),
+					nil,
+				),
+				Nodes: []*suite.Node{
+					{
+						Name:    "cmd.charge.start",
+						Command: suite.NullMessage("pt:j1/mt:cmd/rt:dev/rn:test_adapter/ad:1/sv:chargepoint/ad:2", "cmd.charge.start", "chargepoint"),
+						Expectations: []*suite.Expectation{
+							suite.ExpectError("pt:j1/mt:evt/rt:dev/rn:test_adapter/ad:1/sv:chargepoint/ad:2", "chargepoint").ExpectProperty("msg", "failed to start charging: chargepoint: failed to start charging: test"),
 						},
 					},
 				},
@@ -292,7 +313,8 @@ func TestRouteService(t *testing.T) { //nolint:paralleltest
 				Name:     "failed start charging routing - unsupported charging mode",
 				TearDown: adapterhelper.TearDownAdapter("../../testdata/adapter/test_adapter"),
 				Setup: routeService(
-					mockedchargepoint.NewController(t),
+					mockedchargepoint.NewController(t).
+						MockChargepointStateReport(chargepoint.StateReadyToCharge, nil, true),
 					[]adapter.SpecificationOption{chargepoint.WithChargingModes(evChargerChargingTestModes...)},
 				),
 				Nodes: []*suite.Node{
@@ -303,6 +325,7 @@ func TestRouteService(t *testing.T) { //nolint:paralleltest
 							AddProperty(chargepoint.PropertyChargingMode, "dummy").
 							Build(),
 						Expectations: []*suite.Expectation{
+							suite.ExpectString("pt:j1/mt:evt/rt:dev/rn:test_adapter/ad:1/sv:chargepoint/ad:2", "evt.state.report", "chargepoint", "ready_to_charge"),
 							suite.ExpectError("pt:j1/mt:evt/rt:dev/rn:test_adapter/ad:1/sv:chargepoint/ad:2", "chargepoint"),
 						},
 					},
@@ -313,15 +336,36 @@ func TestRouteService(t *testing.T) { //nolint:paralleltest
 				TearDown: adapterhelper.TearDownAdapter("../../testdata/adapter/test_adapter"),
 				Setup: routeService(
 					mockedchargepoint.NewController(t).
-						MockStopChargepointCharging(errTest, true),
+						MockStopChargepointCharging(errTest, true).
+						MockChargepointStateReport(chargepoint.StateCharging, nil, true),
 					nil,
 				),
 				Nodes: []*suite.Node{
 					{
-						Name:    "stop charging",
+						Name:    "cmd.charge.stop",
 						Command: suite.NullMessage("pt:j1/mt:cmd/rt:dev/rn:test_adapter/ad:1/sv:chargepoint/ad:2", "cmd.charge.stop", "chargepoint"),
 						Expectations: []*suite.Expectation{
-							suite.ExpectError("pt:j1/mt:evt/rt:dev/rn:test_adapter/ad:1/sv:chargepoint/ad:2", "chargepoint"),
+							suite.ExpectString("pt:j1/mt:evt/rt:dev/rn:test_adapter/ad:1/sv:chargepoint/ad:2", "evt.state.report", "chargepoint", "charging"),
+							suite.ExpectError("pt:j1/mt:evt/rt:dev/rn:test_adapter/ad:1/sv:chargepoint/ad:2", "chargepoint").ExpectProperty("msg", "failed to stop charging: chargepoint: failed to stop charging: test"),
+						},
+					},
+				},
+			},
+			{
+				Name:     "failed stop charging routing - stopping error and state report error",
+				TearDown: adapterhelper.TearDownAdapter("../../testdata/adapter/test_adapter"),
+				Setup: routeService(
+					mockedchargepoint.NewController(t).
+						MockStopChargepointCharging(errTest, true).
+						MockChargepointStateReport("", errTest, true),
+					nil,
+				),
+				Nodes: []*suite.Node{
+					{
+						Name:    "cmd.charge.stop",
+						Command: suite.NullMessage("pt:j1/mt:cmd/rt:dev/rn:test_adapter/ad:1/sv:chargepoint/ad:2", "cmd.charge.stop", "chargepoint"),
+						Expectations: []*suite.Expectation{
+							suite.ExpectError("pt:j1/mt:evt/rt:dev/rn:test_adapter/ad:1/sv:chargepoint/ad:2", "chargepoint").ExpectProperty("msg", "failed to stop charging: chargepoint: failed to stop charging: test"),
 						},
 					},
 				},

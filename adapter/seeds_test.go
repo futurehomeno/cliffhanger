@@ -40,4 +40,14 @@ func TestSeedsFromSelection(t *testing.T) {
 	assert.Len(t, adapter.SeedsFromSelection(duplicated, []string{"1"}, func(d device) *adapter.ThingSeed {
 		return &adapter.ThingSeed{ID: d.ID}
 	}), 1)
+
+	skipped := adapter.SeedsFromSelection(available, nil, func(d device) *adapter.ThingSeed {
+		if d.ID == "2" {
+			return nil
+		}
+
+		return &adapter.ThingSeed{ID: d.ID}
+	})
+	assert.Len(t, skipped, 2)
+	assert.False(t, skipped.Contains("2"))
 }

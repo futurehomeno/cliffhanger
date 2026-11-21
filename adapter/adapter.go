@@ -5,6 +5,7 @@ import (
 	"errors"
 	"fmt"
 	"sync"
+	"sync/atomic"
 
 	"github.com/futurehomeno/fimpgo"
 	"github.com/futurehomeno/fimpgo/fimptype"
@@ -102,8 +103,8 @@ type adapter struct {
 	initialized bool
 	lock        *sync.RWMutex
 
-	staleNodes     func() bool
-	staleNodesOnce sync.Once
+	staleNodes      func() bool
+	staleNodesSwept atomic.Bool
 }
 
 func (a *adapter) Name() fimptype.ResourceNameT {
@@ -275,6 +276,7 @@ func (a *adapter) initializeThings() error {
 }
 
 // EnsureThings creates and destroys things based on provided map of IDs and custom information objects.
+// Seeds sharing an ID are applied once, the first one winning.
 // Best-effort per device: failures are joined, so a non-nil error means partially applied.
 func (a *adapter) EnsureThings(seeds ThingSeeds) error {
 	a.lock.Lock()
@@ -284,6 +286,8 @@ func (a *adapter) EnsureThings(seeds ThingSeeds) error {
 }
 
 func (a *adapter) ensureThings(seeds ThingSeeds) error {
+	seeds = SeedsFromSelection(seeds, nil, func(s *ThingSeed) *ThingSeed { return s })
+
 	var addressesToRemove []string
 
 	// Ghost records keep the address and persisted state they had before healing, mirroring
@@ -338,6 +342,10 @@ func (a *adapter) ensureThings(seeds ThingSeeds) error {
 	}
 
 	for _, seed := range seeds {
+		if seed.keep {
+			continue
+		}
+
 		if err := a.recreateThing(seed, ghostAddresses[seed.ID], ghostStates[seed.ID]); err != nil {
 			errs = append(errs, err)
 		}
@@ -426,7 +434,7 @@ func (a *adapter) DestroyAllThings() error {
 }
 
 func (a *adapter) SendConnectivityReport() error {
-	var connectivityReports ConnectivityReports
+	connectivityReports := ConnectivityReports{}
 
 	for _, t := range a.Things() {
 		connectivityReports = append(connectivityReports, t.ConnectivityReport())

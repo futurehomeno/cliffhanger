@@ -1,0 +1,1 @@
+- [x] Spec: empty access token is transient, matching `TestProxyClient_EmptyAccessTokenIsTransient`

@@ -30,7 +30,7 @@ func handleReporting(serviceRegistry adapter.ServiceRegistry) func() {
 			}
 
 			_, err := outLvlSwitch.SendLevelReport(false)
-			if err != nil {
+			if adapter.ReportFailed(err) {
 				log.Errorf("[outlvlswitch] Send level report. err: %v", err)
 			}
 		}

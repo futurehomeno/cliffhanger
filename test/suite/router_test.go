@@ -1,6 +1,7 @@
 package suite_test
 
 import (
+	"sync/atomic"
 	"testing"
 	"time"
 
@@ -65,4 +66,42 @@ func (suite *RouterTestSuite) TestRouter() {
 	suite.Require().NoError(err)
 
 	suite.router.AssertExpectations(assertionsTimeout)
+}
+
+func (suite *RouterTestSuite) TestConcurrentMatchesOfOneExpectation() {
+	topic := "pt:j1/mt:cmd/rt:dev/rn:test/ad:1/sv:out_bin_switch/ad:1_0"
+
+	var replies atomic.Int32
+
+	suite.router.Expect(
+		cliffSuite.ExpectBool(topic, "cmd.binary.set", "out_bin_switch", true).
+			PublishInResponseFn(func() *fimpgo.Message { return nil }).
+			ReplyWithFn(func() *fimpgo.FimpMessage {
+				replies.Add(1)
+
+				return nil
+			}),
+	)
+
+	addr, err := fimpgo.NewAddressFromString(topic)
+	suite.Require().NoError(err)
+
+	msg := fimpgo.NewBoolMessage("cmd.binary.set", "out_bin_switch", true, nil, nil, nil)
+
+	for range 20 {
+		suite.Require().NoError(suite.mqtt.Publish(addr, msg))
+	}
+
+	suite.Eventually(func() bool { return replies.Load() >= 20 }, time.Second, 5*time.Millisecond)
+	suite.router.AssertExpectations(100 * time.Millisecond)
+}
+
+func (suite *RouterTestSuite) TestAtMostOnceDoesNotWaitOutTimeout() {
+	topic := "pt:j1/mt:cmd/rt:dev/rn:test/ad:1/sv:out_bin_switch/ad:1_0"
+
+	suite.router.Expect(cliffSuite.ExpectBool(topic, "cmd.binary.set", "out_bin_switch", true).AtMostOnce())
+
+	start := time.Now()
+	suite.router.AssertExpectations(time.Second)
+	suite.Less(time.Since(start), 500*time.Millisecond)
 }

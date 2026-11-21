@@ -3,6 +3,8 @@ package debug_test
 import (
 	"os"
 	"path/filepath"
+	"runtime"
+	"strconv"
 	"strings"
 	"sync"
 	"sync/atomic"
@@ -184,6 +186,92 @@ func TestLogBuffering_HoldsInfoUntilErrorOrExplicitFlush(t *testing.T) { //nolin
 
 	debug.FlushLogs()
 	assert.Contains(t, read(), "second-info-line", "explicit flush should drain the buffer")
+}
+
+func TestLogBuffering_FlushesErrorWhileOtherGoroutinesLog(t *testing.T) { //nolint:paralleltest
+	_, logFile := initLogger(t, "info", "text")
+
+	var stop atomic.Bool
+
+	// Noise is rationed per error line: however the goroutines are scheduled, what it writes after
+	// the line stays within the searched tail.
+	const noiseLines = 1000
+
+	var budget atomic.Int64
+
+	var wg sync.WaitGroup
+
+	for range 4 {
+		wg.Add(1)
+
+		go func() {
+			defer wg.Done()
+
+			for !stop.Load() {
+				if budget.Add(-1) < 0 {
+					runtime.Gosched()
+
+					continue
+				}
+
+				logrus.Info("noise")
+			}
+		}()
+	}
+
+	// The noise can rotate the log, so the tail of every file is searched.
+	tail := make([]byte, 4*64*1024)
+
+	var written func(line string) bool
+
+	written = func(line string) bool {
+		files, err := filepath.Glob(filepath.Join(filepath.Dir(logFile), "*"))
+		require.NoError(t, err)
+
+		for _, file := range files {
+			f, err := os.Open(file) //nolint:gosec
+			if os.IsNotExist(err) {
+				return written(line) // rotated since the glob
+			}
+
+			require.NoError(t, err)
+
+			st, err := f.Stat()
+			require.NoError(t, err)
+
+			n, _ := f.ReadAt(tail, max(st.Size()-int64(len(tail)), 0))
+			require.NoError(t, f.Close())
+
+			if strings.Contains(string(tail[:n]), line) {
+				return true
+			}
+		}
+
+		return false
+	}
+
+	missed := 0
+
+	for i := range 50 {
+		line := "urgent-" + strconv.Itoa(i) + "-end"
+
+		budget.Store(noiseLines)
+
+		for budget.Load() > noiseLines-100 {
+			runtime.Gosched()
+		}
+
+		logrus.Error(line)
+
+		if !written(line) {
+			missed++
+		}
+	}
+
+	stop.Store(true)
+	wg.Wait()
+
+	assert.Zero(t, missed, "error lines not in the file when logrus.Error returned")
 }
 
 // TestInitializeLogger_ReinitializationFlushesPreviousBuffer pins that re-calling
@@ -794,4 +882,91 @@ func TestInitializeLogger_ConcurrentSettersAreRaceFree(t *testing.T) { //nolint:
 	}
 
 	wg.Wait()
+}
+
+func TestRouting_RejectedSets_LeaveSettingsUnchanged(t *testing.T) { //nolint:paralleltest
+	logFile := filepath.Join(t.TempDir(), "app.log")
+	cfg := &config.Default{LogLevel: "info", LogFormat: "text", LogFile: logFile, LogRevertTimeout: 3 * time.Hour}
+
+	saved := logrus.GetLevel()
+	t.Cleanup(func() { logrus.SetLevel(saved) })
+
+	reject := func(iface, value string) *suite.Node {
+		return &suite.Node{
+			Name:    iface + " " + value,
+			Command: suite.StringMessage("pt:j1/mt:cmd/rt:app/rn:test/ad:1", iface, "test_service", value),
+			Expectations: []*suite.Expectation{
+				suite.ExpectError("pt:j1/mt:evt/rt:app/rn:test/ad:1", "test_service"),
+			},
+		}
+	}
+
+	s := &suite.Suite{
+		Cases: []*suite.Case{
+			{
+				Name: "rejected sets",
+				Setup: suite.BaseSetup(func(t *testing.T, _ *fimpgo.MqttTransport) ([]*router.Routing, []*task.Task, []suite.Mock) {
+					t.Helper()
+
+					store := config.NewDefaultStore(func() *config.Default { return cfg }, func() error { return nil })
+					require.NoError(t, debug.InitializeLogger(store))
+
+					return debug.Route("test_service"), nil, nil
+				}),
+				Nodes: []*suite.Node{
+					reject(debug.CmdLogSetLevel, "verbose"),
+					reject(debug.CmdLogSetFile, "../../etc/passwd"),
+					reject(debug.CmdLogSetFile, "sub/app.log"),
+					reject(debug.CmdLogSetFile, ".."),
+					reject(debug.CmdLogSetFile, ""),
+					reject(debug.CmdLogSetRevertTimeout, "forever"),
+					reject(debug.CmdLogSetRevertTimeout, "0s"),
+					reject(debug.CmdLogSetRevertTimeout, "-1h"),
+				},
+			},
+		},
+	}
+
+	s.Run(t)
+
+	assert.Equal(t, "info", cfg.LogLevel)
+	assert.Equal(t, logrus.InfoLevel, logrus.GetLevel())
+	assert.Equal(t, logFile, cfg.LogFile)
+	assert.Equal(t, 3*time.Hour, cfg.LogRevertTimeout)
+}
+
+func TestSetRevertTimeout_RecomputesArmedDeadline(t *testing.T) { //nolint:paralleltest
+	logFile := filepath.Join(t.TempDir(), "app.log")
+	cfg := &config.Default{LogLevel: "debug", LogFormat: "text", LogFile: logFile, LogRevertAt: time.Now().Add(time.Minute)}
+
+	saved := logrus.GetLevel()
+	t.Cleanup(func() { logrus.SetLevel(saved) })
+
+	s := &suite.Suite{
+		Cases: []*suite.Case{
+			{
+				Name: "armed deadline recomputed",
+				Setup: suite.BaseSetup(func(t *testing.T, _ *fimpgo.MqttTransport) ([]*router.Routing, []*task.Task, []suite.Mock) {
+					t.Helper()
+
+					store := config.NewDefaultStore(func() *config.Default { return cfg }, func() error { return nil })
+					require.NoError(t, debug.InitializeLogger(store))
+
+					return debug.Route("test_service"), nil, nil
+				}),
+				Nodes: []*suite.Node{
+					{
+						Command: suite.StringMessage("pt:j1/mt:cmd/rt:app/rn:test/ad:1", debug.CmdLogSetRevertTimeout, "test_service", "10h"),
+						Expectations: []*suite.Expectation{
+							suite.ExpectString("pt:j1/mt:evt/rt:app/rn:test/ad:1", debug.EvtLogRevertTimeoutReport, "test_service", "10h0m0s"),
+						},
+					},
+				},
+			},
+		},
+	}
+
+	s.Run(t)
+
+	assert.WithinDuration(t, time.Now().Add(10*time.Hour), cfg.LogRevertAt, time.Minute)
 }

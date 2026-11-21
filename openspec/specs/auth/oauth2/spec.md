@@ -8,9 +8,7 @@ proxy, serializes and paces refresh attempts so a flapping partner API cannot be
 distinguishes a transient failure from a genuine loss of authorization that only a new login can
 repair. It also supplies the bearer transport, credential persistence contract and JWT expiry
 helper the adapters build on.
-
 ## Requirements
-
 ### Requirement: Proactive Access Token Refresh
 `auth.Authenticator.AccessToken` SHALL return the stored access token unchanged while it is more
 than `RefreshLead` away from `ExpiresAt`, and SHALL exchange the refresh token for new credentials
@@ -171,8 +169,9 @@ sleeping `RetryDelay` between them and replaying the request body each attempt, 
 immediately without retrying when the failure matches `httpclient.ErrUnauthorized` (rejection is
 definitive) or `httpclient.ErrTooManyRequests` (the caller's backoff paces the next attempt). Any
 non-200 response SHALL be mapped through `httpclient.ErrorFromResponse`. Unset configuration SHALL
-default `URL` to `ProxyURL(hub.EnvProd)` and `Timeout` to 60 seconds; additional `Headers` SHALL be
-added to each request except `Authorization` and `Content-Type`, which cannot be overridden.
+default `URL` to `ProxyURL(hub.EnvProd)` and `Timeout` to 60 seconds, and a negative `Retry` SHALL
+count as 0; additional `Headers` SHALL be added to each request except `Authorization` and
+`Content-Type`, which cannot be overridden.
 
 #### Scenario: Refresh rejected by the proxy
 - **WHEN** the proxy answers a refresh exchange with 401 or 403
@@ -185,6 +184,10 @@ added to each request except `Authorization` and `Content-Type`, which cannot be
 #### Scenario: Custom header collides with the bearer
 - **WHEN** the client is configured with an `Authorization` entry in `Headers`
 - **THEN** the request still carries `Bearer <Token>` from the configured `Token`
+
+#### Scenario: negative retry
+- **WHEN** the client is configured with `Retry: -1` and the proxy answers 502
+- **THEN** exactly one request is made and an error is returned
 
 ### Requirement: Environment-Keyed Proxy Endpoints
 `ProxyURL` and `ProxyCallbackURL` SHALL select their host from `hub.Environment`: `hub.EnvBeta`
@@ -209,8 +212,10 @@ caller without sending the request. `Base` SHALL default to `http.DefaultTranspo
 SHALL be dropped for the remainder of a redirect chain as soon as any hop changed host or
 downgraded from `https` to plaintext, and a hop the transport cannot verify — one whose
 `Response.Request` or its URL is nil, as produced by a synthesizing `Base` — SHALL count as
-stripped. When the response status is 401 and `OnUnauthorized` is set, the callback SHALL be
-invoked.
+stripped. A stripped hop SHALL be forwarded to `Base` unchanged, without asking the `TokenSource`
+for a token and without invoking `OnUnauthorized`. When a bearer-carrying request gets a 401 or 403
+response and `OnUnauthorized` is set, the callback SHALL be invoked; a round-trip error SHALL NOT
+invoke it.
 
 #### Scenario: Redirect to another host
 - **WHEN** a request is the result of a redirect from a different host
@@ -224,6 +229,10 @@ invoked.
 - **WHEN** `TokenSource.AccessToken` returns an error
 - **THEN** `RoundTrip` returns that error and performs no HTTP request
 
+#### Scenario: Forbidden response
+- **WHEN** a request carrying the bearer is answered with 403
+- **THEN** `OnUnauthorized` is invoked exactly as for a 401
+
 ### Requirement: JWT Expiry Inspection
 `auth.TokenExpirationDate` SHALL parse a JWT without verifying its signature and return the `exp`
 registered claim converted to UTC. When the token cannot be parsed, or carries no `exp` claim, it
@@ -236,3 +245,24 @@ SHALL return an error and a zero time.
 #### Scenario: Token with an expiry claim
 - **WHEN** `TokenExpirationDate` is given a JWT carrying `exp`
 - **THEN** the claim is returned as a UTC time regardless of the signature's validity
+
+### Requirement: Successful Exchange Ends A Rejection Streak
+A successful `ExchangeRefreshToken` SHALL clear any open rejection streak, whether or not the new
+credentials could be persisted afterwards, so a later rejection starts a fresh `UnauthorizedGrace`
+window instead of inheriting the elapsed time of the refuted one.
+
+#### Scenario: Rejection, success, rejection
+- **WHEN** a refresh is rejected inside the grace window, the next refresh succeeds and a later
+  refresh is rejected again after the original grace would have elapsed
+- **THEN** the later rejection is still inside a fresh grace window and authorization loss is not
+  concluded
+
+### Requirement: Empty Access Token Is Transient
+`auth.ProxyClient` SHALL treat a 200 answer with an empty `access_token` as a transient failure: the
+attempt is retried like any other, and the returned error SHALL NOT match `httpclient.ErrUnauthorized`,
+so it does not start the authenticator's rejection streak.
+
+#### Scenario: proxy answers 200 without a token
+- **WHEN** a refresh exchange keeps returning 200 with an empty `access_token` and `Retry` is 2
+- **THEN** three requests are made and the error does not match `httpclient.ErrUnauthorized`
+

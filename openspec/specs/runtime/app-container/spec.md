@@ -7,9 +7,7 @@ factory-reset resetters, and it defines the exact order in which they are starte
 partial failure never leaves the process half-running. It also owns the two cross-cutting behaviours
 that must survive any adapter: reporting a lost authorization session, and handling the hub's
 factory-reset event.
-
 ## Requirements
-
 ### Requirement: Builder Validation
 `Builder.Build` SHALL refuse to construct an application unless an MQTT transport and the full
 service-discovery identity — resource name, resource type, package name, instance ID and version —
@@ -63,7 +61,8 @@ other step conditional.
 timeout), telemetry, the registered services in registration order, the message router, the
 deduplicated topic subscriptions, the auth-loss watcher, and finally the task manager. Starting an
 already running application SHALL be a no-op returning nil. On entry the lifecycle app health SHALL
-be set to `STARTING`.
+be set to `STARTING`. `Start` SHALL log the working directory, and the configuration directory only
+when the `-c` flag is already registered; `Start` SHALL NOT register or parse flags.
 
 #### Scenario: watcher subscribes before the first task probe
 - **WHEN** a `WhenAppIsRunning`-gated task loses authorization on its very first probe immediately
@@ -74,6 +73,10 @@ be set to `STARTING`.
 #### Scenario: duplicate subscriptions collapse
 - **WHEN** the same topic is passed twice through `WithTopicSubscription`
 - **THEN** `mqtt.Subscribe` is invoked once for that topic
+
+#### Scenario: no -c flag registered
+- **WHEN** `Start` runs and the adapter has not registered `-c`, whether or not it parsed its flags
+- **THEN** no `-c` flag is registered, the command line is not parsed and the config directory is not logged
 
 ### Requirement: Startup Rollback
 A failure at any startup step SHALL undo the steps that already succeeded, in reverse order, before
@@ -127,24 +130,33 @@ a failing shutdown reach the log file.
 - **AND** the log lines buffered before the failure are present in the configured log file
 
 ### Requirement: Factory Reset
-`Reset` SHALL stop the application first — logging but not aborting on a stop error — and then invoke
-every registered resetter in registration order, returning on the first resetter error. The container
-SHALL handle the FIMP event `evt.gateway.factory_reset` received on
-`pt:j1/mt:evt/rt:ad/rn:gateway/ad:1` by running `Reset` in a separate goroutine, because the reset
-stops the message router that is dispatching the very message. The handler SHALL produce no reply and
-SHALL suppress error replies (`router.WithSilentErrors`).
+`Reset` SHALL stop the application first — logging but not aborting on a stop error, and treating an
+application that is not running as already stopped — and then invoke every registered resetter in
+registration order, returning on the first resetter error. The result delivered to a pending `Wait`
+(and so returned by `Run`) SHALL be the reset result, not the stop result. The container SHALL handle
+the FIMP event `evt.gateway.factory_reset` received on `pt:j1/mt:evt/rt:ad/rn:gateway/ad:1` by
+running `Reset` in a separate goroutine, because the reset stops the message router that is
+dispatching the very message. The handler SHALL produce no reply and SHALL suppress error replies
+(`router.WithSilentErrors`).
 
 #### Scenario: gateway factory reset event
 - **WHEN** `evt.gateway.factory_reset` arrives on the gateway event topic and a resetter is registered
 - **THEN** the application is stopped and the resetter's `Reset` is invoked
 - **AND** no FIMP reply is published for the event
 
+#### Scenario: a resetter fails
+- **WHEN** the first of two registered resetters returns an error
+- **THEN** `Reset` returns that error wrapped, the second resetter is not invoked, and a pending
+  `Wait` returns the same error
+
 ### Requirement: Run And Wait
 `Run` SHALL start the application, install a SIGINT/SIGTERM handler, and block until the application
 stops, returning the shutdown error. `Wait` SHALL return nil immediately when the application is not
 running, otherwise block on the internal error channel. Delivery of the shutdown result to that
-channel SHALL be non-blocking, so a `Stop` with no waiter does not deadlock. `Run` SHALL recover from
-a panic in itself or the signal goroutine, emit a panic telemetry event and re-panic.
+channel SHALL be non-blocking, so a `Stop` with no waiter does not deadlock, and `Start` SHALL discard
+a result left buffered there by a previous run, so a `Wait` after a restart blocks for the new run
+instead of returning the old shutdown error. `Run` SHALL recover from a panic in itself or the signal
+goroutine, emit a panic telemetry event and re-panic.
 
 #### Scenario: signal-driven shutdown
 - **WHEN** the process receives SIGTERM while running
@@ -155,6 +167,10 @@ a panic in itself or the signal goroutine, emit a panic telemetry event and re-p
 #### Scenario: reboot milestone
 - **WHEN** `Run` starts an edge application whose lifecycle restart count is a positive multiple of 500
 - **THEN** a reboot-milestone telemetry event carrying that count is emitted
+
+#### Scenario: wait after a restart
+- **WHEN** a `Stop` that failed with no waiter is followed by `Start`, then `Wait`, then a clean `Stop`
+- **THEN** `Wait` returns nil from the second stop, not the first stop's error
 
 ### Requirement: Auth-Loss Watcher Arming
 The container SHALL run an auth-loss watcher that subscribes to lifecycle state changes with a buffer
@@ -201,3 +217,4 @@ three outputs — app state report, telemetry event and push notification — SH
 #### Scenario: reporting disabled
 - **WHEN** the gate returns false and a loss is observed
 - **THEN** no notification is sent, no app state report is published and no telemetry event is emitted
+

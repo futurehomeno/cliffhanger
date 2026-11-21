@@ -23,6 +23,7 @@ type diskSpace struct {
 	interval     time.Duration
 	limitPercent float64
 	used         float64
+	usage        func() (float64, error)
 
 	closeCh   chan struct{}
 	lock      *sync.Mutex
@@ -36,9 +37,17 @@ func NewDiskSpace(interval time.Duration, limitPercent float64) DiskSpace {
 	return &diskSpace{
 		interval:     interval,
 		limitPercent: limitPercent,
-		lock:         &sync.Mutex{},
-		dataLock:     &sync.RWMutex{},
-		waitGroup:    &sync.WaitGroup{},
+		usage: func() (float64, error) {
+			u, err := disk.Usage("/")
+			if err != nil {
+				return 0, err
+			}
+
+			return u.UsedPercent, nil
+		},
+		lock:      &sync.Mutex{},
+		dataLock:  &sync.RWMutex{},
+		waitGroup: &sync.WaitGroup{},
 	}
 }
 
@@ -111,7 +120,7 @@ func (d *diskSpace) run() {
 }
 
 func (d *diskSpace) checkSpace() {
-	usage, err := disk.Usage("/")
+	used, err := d.usage()
 	if err != nil {
 		log.Errorf("[monitor] Get disk usage. err: %v", err)
 
@@ -121,5 +130,5 @@ func (d *diskSpace) checkSpace() {
 	d.dataLock.Lock()
 	defer d.dataLock.Unlock()
 
-	d.used = usage.UsedPercent
+	d.used = used
 }

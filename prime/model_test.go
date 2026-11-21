@@ -4,7 +4,9 @@ import (
 	"encoding/json"
 	"testing"
 
+	"github.com/futurehomeno/fimpgo"
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 
 	"github.com/futurehomeno/cliffhanger/prime"
 )
@@ -459,4 +461,26 @@ func TestNotify(t *testing.T) {
 			assert.Equal(t, tc.want, got)
 		})
 	}
+}
+
+func TestNotifyFromMessage(t *testing.T) {
+	t.Parallel()
+
+	raw, err := fimpgo.NewObjectMessage(prime.EvtPD7Notify, "vinculum", map[string]any{"cmd": "delete", "component": "device", "id": "42"}, nil, nil, nil).SerializeToJson()
+	require.NoError(t, err)
+
+	payload, err := fimpgo.NewMessageFromBytes(raw)
+	require.NoError(t, err)
+
+	notify, err := prime.NotifyFromMessage(&fimpgo.Message{Payload: payload})
+	require.NoError(t, err)
+	assert.Equal(t, prime.CmdDelete, notify.Cmd)
+	assert.Equal(t, prime.ComponentDevice, notify.Component)
+
+	id, err := notify.ParseIntegerID()
+	require.NoError(t, err)
+	assert.Equal(t, 42, id)
+
+	_, err = prime.NotifyFromMessage(&fimpgo.Message{Payload: fimpgo.NewStringMessage(prime.EvtPD7Notify, "vinculum", "x", nil, nil, nil)})
+	assert.Error(t, err)
 }

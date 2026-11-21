@@ -3,7 +3,10 @@ package adapter
 import (
 	"errors"
 	"fmt"
+	"slices"
 )
+
+var ErrUnmappedDevice = errors.New("adapter: seed function could not map a device")
 
 // SyncThings reconciles things to match the devices selected from a freshly fetched list and
 // returns the seeds it applied, ready to be passed to RebuildChangedThings without fetching
@@ -12,11 +15,18 @@ import (
 // The fetch runs outside the adapter lock and is the sole authority. If it fails nothing is
 // mutated and the error is returned, so a network glitch can never wipe live things. If it
 // succeeds the response is complete by definition: every selected device absent from it is
-// destroyed, including when the response is empty. Adapters must therefore make their client
+// destroyed, including when the response is empty, unless an item maps to a nil seed. Adapters must therefore make their client
 // return an error - never a truncated or empty slice - on a non-2xx, a rate limit or an
 // unparsable body.
 //
 // A nil selection selects every available device; a non-nil empty selection selects none.
+//
+// A seed function returning nil means the item cannot be mapped now. Its ID is unknown, so no
+// unseeded selected device can be told apart from it: while any item maps to nil, no vanished
+// device is excluded, the things and records of unseeded selected devices are kept, and the returned
+// error wraps ErrUnmappedDevice, so callers do not prune their selection and the stale sweep is
+// skipped. Devices the adapter never supports must be filtered out in fetch, not by a nil seed,
+// or no sync would clean up again.
 //
 // Selected devices that vanished from the response and that the adapter does not own still get
 // an exclusion report, so an upgraded hub can drop stale nodes a legacy adapter left behind.
@@ -44,14 +54,31 @@ func SyncThings[T any](
 		return nil, nil, fmt.Errorf("adapter: fetch devices: %w", err)
 	}
 
-	seeds = SeedsFromSelection(available, selected, seed)
+	unmapped := 0
+	seeds = SeedsFromSelection(available, selected, func(item T) *ThingSeed {
+		s := seed(item)
+		if s == nil {
+			unmapped++
+		}
+
+		return s
+	})
 
 	var errs []error
 
-	excludedIDs, exclErrs := excludeVanishedDevices(a, selected, seeds)
-	errs = append(errs, exclErrs...)
+	ensure := seeds
 
-	if err := a.EnsureThings(seeds); err != nil {
+	if unmapped > 0 {
+		errs = append(errs, fmt.Errorf("%w: %d items", ErrUnmappedDevice, unmapped))
+		ensure = append(slices.Clone(seeds), unseededThings(a, selected, seeds)...)
+	} else {
+		var exclErrs []error
+
+		excludedIDs, exclErrs = excludeVanishedDevices(a, selected, seeds)
+		errs = append(errs, exclErrs...)
+	}
+
+	if err := a.EnsureThings(ensure); err != nil {
 		errs = append(errs, err)
 	}
 
@@ -62,6 +89,33 @@ func SyncThings[T any](
 	}
 
 	return seeds, excludedIDs, errors.Join(errs...)
+}
+
+// unseededThings returns a seed pinning every thing, live or ghost, of a selected device that has
+// no seed. EnsureThings never destroys, creates or heals from such a seed.
+func unseededThings(a Adapter, selected []string, seeds ThingSeeds) ThingSeeds {
+	var addresses []string
+
+	if impl, ok := a.(*adapter); ok {
+		for _, ts := range impl.state.all() {
+			addresses = append(addresses, ts.Address())
+		}
+	} else {
+		for _, t := range a.Things() {
+			addresses = append(addresses, t.Address())
+		}
+	}
+
+	var kept ThingSeeds
+
+	for _, address := range addresses {
+		id, ok := a.ExchangeAddress(address)
+		if ok && !seeds.Contains(id) && (selected == nil || slices.Contains(selected, id)) {
+			kept = append(kept, &ThingSeed{ID: id, CustomAddress: address, keep: true})
+		}
+	}
+
+	return kept
 }
 
 // excludeVanishedDevices announces an exclusion for every selected device the fetch no longer
