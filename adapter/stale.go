@@ -22,13 +22,15 @@ var ErrStaleNodeFetch = errors.New("adapter: fetch hub devices")
 type Option func(*adapter)
 
 // WithStaleNodeExclusion overrides the stale node sweep, which is enabled by default. The
-// predicate is evaluated on every successful sync; the sweep itself still runs at most once
-// per process, so a runtime configuration flag can enable it after an earlier sync skipped it.
+// predicate is evaluated on every successful sync; the sweep runs until it has succeeded once per
+// process (a failed sweep is retried by the next successful sync), so a runtime configuration
+// flag can enable it after an earlier sync skipped it.
 func WithStaleNodeExclusion(enabled func() bool) Option {
 	return func(a *adapter) { a.staleNodes = enabled }
 }
 
-// excludeStaleNodesOnce sweeps stale hub nodes at most once per process, and is called from
+// excludeStaleNodesOnce sweeps stale hub nodes until a sweep has succeeded once per process (a
+// failed sweep is retried by the next successful sync), and is called from
 // SyncThings once a device list was successfully fetched and applied - the only moment the
 // adapter's things are known to match the service's, so that a node the sync is about to
 // recreate can never be excluded first. Failures are logged: a sweep must not break a sync.
@@ -43,7 +45,7 @@ func (a *adapter) excludeStaleNodesOnce() {
 	}
 
 	// Predicate is checked on every sync so a runtime toggle can still enable the sweep after
-	// an earlier sync ran while it was off; only the sweep itself is once-per-process.
+	// an earlier sync ran while it was off; only a successful sweep is once-per-process.
 	if a.mqtt == nil || a.staleNodes == nil || !a.staleNodes() {
 		return
 	}
