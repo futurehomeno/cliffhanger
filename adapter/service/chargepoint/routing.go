@@ -91,7 +91,7 @@ func handleCmdChargeStart(serviceRegistry adapter.ServiceRegistry) router.Messag
 }
 
 func sendStateReportAfterError(chargepoint Service) {
-	if _, err := chargepoint.SendStateReport(true); err != nil {
+	if _, err := chargepoint.SendStateReport(true); adapter.ReportFailed(err) {
 		log.Errorf("[chargepoint] Send state report. err: %v", err)
 	}
 }

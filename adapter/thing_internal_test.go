@@ -175,3 +175,29 @@ func TestThing_ConnectorPanicReleasesConnectorLock(t *testing.T) {
 		})
 	}
 }
+
+// reportingConnector reports connectivity from Connect and Disconnect, as a connector does whose
+// Disconnect waits for queued work that reports connectivity.
+type reportingConnector struct{}
+
+func (c *reportingConnector) Connectivity() *ConnectivityDetails {
+	return &ConnectivityDetails{ConnStatus: ConnStatusUp}
+}
+
+func (c *reportingConnector) Ping() *PingDetails { return &PingDetails{Status: PingResultSuccess} }
+
+func (c *reportingConnector) Connect(th Thing) { _, _ = th.SendConnectivityReport(true) }
+
+func (c *reportingConnector) Disconnect(th Thing) { _, _ = th.SendConnectivityReport(true) }
+
+func TestThing_ConnectAndDisconnectOutsideConnectorLock(t *testing.T) {
+	t.Parallel()
+
+	th := NewThing(stubPublisher{}, nil, &ThingConfig{
+		InclusionReport: &fimptype.ThingInclusionReport{Address: "1"},
+		Connector:       &reportingConnector{},
+	})
+
+	waitFor(t, runAsync(th.Connect), "Connect")
+	waitFor(t, runAsync(th.Disconnect), "Disconnect")
+}
