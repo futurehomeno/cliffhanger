@@ -20,8 +20,10 @@ type stateReportService struct {
 func (s stateReportService) SendStateReport(bool) (bool, error) { return false, s.err }
 
 func TestSendStateReportAfterError(t *testing.T) { //nolint:paralleltest
+	old := log.StandardLogger().ReplaceHooks(make(log.LevelHooks))
+	defer log.StandardLogger().ReplaceHooks(old)
+
 	hook := logtest.NewGlobal()
-	defer log.StandardLogger().ReplaceHooks(make(log.LevelHooks))
 
 	sendStateReportAfterError(stateReportService{err: fmt.Errorf("no state: %w", adapter.ErrNotReported)})
 	assert.Empty(t, hook.AllEntries(), "state not reported yet")
