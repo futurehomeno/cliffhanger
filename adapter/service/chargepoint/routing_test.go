@@ -122,7 +122,9 @@ func TestRouteService(t *testing.T) { //nolint:paralleltest
 							MockSetChargepointMaxCurrent(16, nil, true).
 							MockChargepointMaxCurrentReport(16, nil, false),
 						mockedchargepoint.NewAdjustableOfferedCurrentController(t).
-							MockSetChargepointOfferedCurrent(10, nil, true),
+							MockSetChargepointOfferedCurrent(10, nil, true).
+							MockSetChargepointOfferedCurrent(5, nil, true).
+							MockSetChargepointOfferedCurrent(0, nil, true),
 						mockedchargepoint.NewAdjustablePhaseModeController(t).
 							MockSetChargepointPhaseMode(types.PhaseModeNL1L2L3, nil, true).
 							MockChargepointPhaseModeReport(types.PhaseModeNL1L2L3, nil, false),
@@ -171,6 +173,24 @@ func TestRouteService(t *testing.T) { //nolint:paralleltest
 					{
 						Name:    "set offered current",
 						Command: suite.IntMessage("pt:j1/mt:cmd/rt:dev/rn:test_adapter/ad:1/sv:chargepoint/ad:2", "cmd.current_session.set_current", "chargepoint", 10),
+						Expectations: []*suite.Expectation{
+							suite.ExpectFloat("pt:j1/mt:evt/rt:dev/rn:test_adapter/ad:1/sv:chargepoint/ad:2", "evt.current_session.report", "chargepoint", 1.74).
+								ExpectProperty("offered_current", "10").
+								ExpectProperty("previous_session", "4.50"),
+						},
+					},
+					{
+						Name:    "set offered current below 6A",
+						Command: suite.IntMessage("pt:j1/mt:cmd/rt:dev/rn:test_adapter/ad:1/sv:chargepoint/ad:2", "cmd.current_session.set_current", "chargepoint", 5),
+						Expectations: []*suite.Expectation{
+							suite.ExpectFloat("pt:j1/mt:evt/rt:dev/rn:test_adapter/ad:1/sv:chargepoint/ad:2", "evt.current_session.report", "chargepoint", 1.74).
+								ExpectProperty("offered_current", "10").
+								ExpectProperty("previous_session", "4.50"),
+						},
+					},
+					{
+						Name:    "set offered current to zero",
+						Command: suite.IntMessage("pt:j1/mt:cmd/rt:dev/rn:test_adapter/ad:1/sv:chargepoint/ad:2", "cmd.current_session.set_current", "chargepoint", 0),
 						Expectations: []*suite.Expectation{
 							suite.ExpectFloat("pt:j1/mt:evt/rt:dev/rn:test_adapter/ad:1/sv:chargepoint/ad:2", "evt.current_session.report", "chargepoint", 1.74).
 								ExpectProperty("offered_current", "10").
@@ -823,8 +843,8 @@ func TestRouteService(t *testing.T) { //nolint:paralleltest
 						},
 					},
 					{
-						Name:    "too-small value on setting offered current",
-						Command: suite.IntMessage("pt:j1/mt:cmd/rt:dev/rn:test_adapter/ad:1/sv:chargepoint/ad:2", "cmd.current_session.set_current", "chargepoint", 5),
+						Name:    "negative value on setting offered current",
+						Command: suite.IntMessage("pt:j1/mt:cmd/rt:dev/rn:test_adapter/ad:1/sv:chargepoint/ad:2", "cmd.current_session.set_current", "chargepoint", -1),
 						Expectations: []*suite.Expectation{
 							suite.ExpectError("pt:j1/mt:evt/rt:dev/rn:test_adapter/ad:1/sv:chargepoint/ad:2", "chargepoint"),
 						},
