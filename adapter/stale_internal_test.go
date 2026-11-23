@@ -91,9 +91,16 @@ type hubClient struct {
 
 	devices prime.Devices
 	err     error
+	onFetch func()
 }
 
-func (c hubClient) GetDevices() (prime.Devices, error) { return c.devices, c.err }
+func (c hubClient) GetDevices() (prime.Devices, error) {
+	if c.onFetch != nil {
+		c.onFetch()
+	}
+
+	return c.devices, c.err
+}
 
 type failingPublisher struct{ stubPublisher }
 
@@ -125,6 +132,7 @@ func TestExcludeStaleNodes_FailedExclusionReleasesClaim(t *testing.T) {
 		Services: map[fimptype.ServiceNameT]*prime.Service{"thermostat": {Addr: "pt:j1/mt:evt/rt:dev/rn:mill/ad:1/sv:thermostat/ad:2"}},
 	}}
 
+	a.thingsSynced.Store(true)
 	a.staleNodesSwept.Store(true)
 	a.excludeStaleNodes(hubClient{devices: devices})
 
@@ -245,4 +253,39 @@ func TestNewStaleRetry_Schedule(t *testing.T) {
 	for i, want := range []time.Duration{time.Minute, 5 * time.Minute, 5 * time.Minute, 15 * time.Minute, 15 * time.Minute} {
 		assert.Equal(t, want, a.staleRetry.Next(), "retry %d", i+1)
 	}
+}
+
+// TestExcludeStaleNodes_SkipsWhenSyncStartedDuringHubRequest pins that the things are checked
+// again after the hub answered: the request takes up to its timeout, and a sync that began applying
+// meanwhile may be about to recreate a node the sweep would exclude.
+func TestExcludeStaleNodes_SkipsWhenSyncStartedDuringHubRequest(t *testing.T) {
+	t.Parallel()
+
+	s, err := NewState(t.TempDir())
+	require.NoError(t, err)
+
+	p := &countingPublisher{}
+
+	a := &adapter{
+		publisher:   p,
+		state:       s,
+		name:        "mill",
+		address:     "1",
+		lock:        &sync.RWMutex{},
+		things:      map[string]Thing{},
+		initialized: true,
+		staleRetry:  backoff.NewTolerantFixed(0, time.Hour),
+	}
+
+	devices := prime.Devices{{
+		FIMP:     prime.DeviceFIMP{Address: "2"},
+		Services: map[fimptype.ServiceNameT]*prime.Service{"thermostat": {Addr: "pt:j1/mt:evt/rt:dev/rn:mill/ad:1/sv:thermostat/ad:2"}},
+	}}
+
+	a.thingsSynced.Store(true)
+	a.staleNodesSwept.Store(true)
+	a.excludeStaleNodes(hubClient{devices: devices, onFetch: func() { a.thingsSynced.Store(false) }})
+
+	assert.Zero(t, p.adapterMessages.Load(), "no node may be excluded once a sync started applying")
+	assert.False(t, a.staleNodesSwept.Load(), "the skipped sweep must stay retryable")
 }

@@ -18,6 +18,10 @@ syncing on every check would cost it one more cloud call per check.
   errors: the things then no longer provably match the service, and the next clean sync sweeps as
   before.
 
+- Every automatic sweep checks that again once the hub answered, so a sync that began applying during
+  the hub request (up to 10 s) is not swept against half-applied things. This also covers the sweep a
+  sync starts, which had the same gap.
+
 ## Impact
 
 `adapter/stale.go`, `adapter/sync.go`, spec `adapter/thing-lifecycle`. No API change. Things changed

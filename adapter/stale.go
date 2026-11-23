@@ -25,6 +25,8 @@ func newStaleRetry() backoff.Stateful {
 // exclusion failure does not wrap it.
 var ErrStaleNodeFetch = errors.New("adapter: fetch hub devices")
 
+var errThingsChanged = errors.New("adapter: a sync started applying during the hub request")
+
 // Option configures an adapter at construction time.
 type Option func(*adapter)
 
@@ -80,7 +82,7 @@ func (a *adapter) retryStaleNodes() {
 }
 
 func (a *adapter) excludeStaleNodes(client prime.Client) {
-	excluded, err := ExcludeStaleNodes(a, client)
+	excluded, err := excludeStaleNodesWhile(a, client, a.thingsSynced.Load)
 	if err != nil {
 		log.Errorf("[adapter] Exclude stale hub nodes. err: %v", err)
 
@@ -108,9 +110,19 @@ func (a *adapter) excludeStaleNodes(client prime.Client) {
 // Best-effort per address: failures are joined and the addresses that did get excluded are
 // still returned.
 func ExcludeStaleNodes(a Adapter, client prime.Client) ([]string, error) {
+	return excludeStaleNodesWhile(a, client, func() bool { return true })
+}
+
+// excludeStaleNodesWhile asks match again once the hub answered: the request takes up to its
+// timeout, and a sync that began applying meanwhile may be about to recreate a node listed as stale.
+func excludeStaleNodesWhile(a Adapter, client prime.Client, match func() bool) ([]string, error) {
 	devices, err := client.GetDevices()
 	if err != nil {
 		return nil, fmt.Errorf("%w: %w", ErrStaleNodeFetch, err)
+	}
+
+	if !match() {
+		return nil, errThingsChanged
 	}
 
 	var (
