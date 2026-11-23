@@ -11,8 +11,9 @@ syncing on every check would cost it one more cloud call per check.
 
 ## What Changes
 
-- A failed automatic sweep is tried again without waiting for another sync: after 1 minute, twice
-  after 5 minutes, then every 15 minutes (`backoff.Stateful`), with no limit on the number of retries.
+- A failed automatic sweep is tried again without waiting for another sync: three times 1 minute
+  apart, three times 5 minutes apart, then once an hour (`backoff.Stateful`), with no limit on the
+  number of retries.
 - The retry passes the same initialization check, predicate and claim as a sweep started by a sync.
 - The retry is dropped when a `SyncThings` since then fetched its list and did not finish without
   errors: the things then no longer provably match the service, and the next clean sync sweeps as
