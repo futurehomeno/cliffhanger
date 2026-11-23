@@ -14,6 +14,9 @@ import (
 // staleNodeTimeout bounds the Vinculum request, which runs inline in a device sync.
 const staleNodeTimeout = 10 * time.Second
 
+// staleNodeRetry is how long a failed sweep waits before it tries again on its own.
+const staleNodeRetry = 5 * time.Minute
+
 // ErrStaleNodeFetch reports that the hub never answered, so no node was examined. A per-node
 // exclusion failure does not wrap it.
 var ErrStaleNodeFetch = errors.New("adapter: fetch hub devices")
@@ -58,16 +61,33 @@ func (a *adapter) excludeStaleNodesOnce() {
 
 	// Asking the hub is a round trip over MQTT: a sweep must never hold up the sync it
 	// is triggered from, nor block it for the full timeout when nothing answers.
-	go a.excludeStaleNodes(prime.NewClient(fimpgo.NewSyncClient(a.mqtt), a.name, staleNodeTimeout))
+	go a.excludeStaleNodes(prime.NewClient(fimpgo.NewSyncClient(a.mqtt), a.name, staleNodeTimeout), staleNodeRetry)
 }
 
-func (a *adapter) excludeStaleNodes(client prime.Client) {
+// retryStaleNodes repeats a failed sweep without waiting for a sync, which an adapter syncing only
+// on device drift may never run again. Dropped when a later sync left the things not matching its
+// fetched list: the next sync without errors sweeps instead.
+func (a *adapter) retryStaleNodes() {
+	a.staleRetryArmed.Store(false)
+
+	if a.thingsSynced.Load() {
+		a.excludeStaleNodesOnce()
+	}
+}
+
+func (a *adapter) excludeStaleNodes(client prime.Client, retry time.Duration) {
 	excluded, err := ExcludeStaleNodes(a, client)
 	if err != nil {
 		log.Errorf("[adapter] Exclude stale hub nodes. err: %v", err)
 
-		// A later sync retries; the nodes already excluded are gone from the hub's list by then.
+		// A later sync or the timer retries; the nodes already excluded are gone from the hub's
+		// list by then.
 		a.staleNodesSwept.Store(false)
+
+		// One pending retry at most, or failures of sweeps started by syncs would pile up timers.
+		if a.staleRetryArmed.CompareAndSwap(false, true) {
+			time.AfterFunc(retry, a.retryStaleNodes)
+		}
 	}
 
 	for _, address := range excluded {

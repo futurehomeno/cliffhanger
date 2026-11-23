@@ -105,6 +105,8 @@ type adapter struct {
 
 	staleNodes      func() bool
 	staleNodesSwept atomic.Bool
+	staleRetryArmed atomic.Bool
+	thingsSynced    atomic.Bool
 }
 
 func (a *adapter) Name() fimptype.ResourceNameT {

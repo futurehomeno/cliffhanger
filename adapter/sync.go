@@ -54,6 +54,11 @@ func SyncThings[T any](
 		return nil, nil, fmt.Errorf("adapter: fetch devices: %w", err)
 	}
 
+	impl, _ := a.(*adapter)
+	if impl != nil {
+		impl.thingsSynced.Store(false)
+	}
+
 	unmapped := 0
 	seeds = SeedsFromSelection(available, selected, func(item T) *ThingSeed {
 		s := seed(item)
@@ -84,7 +89,8 @@ func SyncThings[T any](
 
 	// Only once the whole reconciliation succeeded are the things known to match the fetched
 	// list, which is what makes a hub node the adapter owns nothing for provably stale.
-	if impl, ok := a.(*adapter); ok && len(errs) == 0 {
+	if impl != nil && len(errs) == 0 {
+		impl.thingsSynced.Store(true)
 		impl.excludeStaleNodesOnce()
 	}
 
