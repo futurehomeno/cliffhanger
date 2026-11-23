@@ -13,3 +13,10 @@ On untouched `develop` (5937f52), `go test -race -count=1 ./adapter -run TestSyn
 expectation saw two `evt.thing.inclusion_report` messages on `rn:test_adapter/ad:1`. Other sessions
 were running tests against the same local broker at the time, so messages of another test run on
 the same topic are the likely cause. Closes when the tests use a topic or broker of their own.
+
+## 2026-11-23: `make test` stalled once in `adapter/service/numericsensor`
+
+One `make test` run printed `ok` for the packages up to `adapter/service/numericmeter` and then
+nothing for about 8 minutes, until it was killed. No "lost connection with the broker" line in its
+log and no other test run was found afterwards. Running `numericsensor` and every later package
+again right away passed (43 packages). Not reproduced, cause unknown.
