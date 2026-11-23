@@ -3,13 +3,16 @@ package adapter
 import (
 	"errors"
 	"sync"
+	"sync/atomic"
 	"testing"
+	"time"
 
 	"github.com/futurehomeno/fimpgo"
 	"github.com/futurehomeno/fimpgo/fimptype"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
+	"github.com/futurehomeno/cliffhanger/backoff"
 	"github.com/futurehomeno/cliffhanger/prime"
 )
 
@@ -74,6 +77,7 @@ func TestExcludeStaleNodes_FailedFetchReleasesClaim(t *testing.T) {
 		lock:        &sync.RWMutex{},
 		things:      map[string]Thing{},
 		initialized: true,
+		staleRetry:  backoff.NewTolerantFixed(0, time.Hour),
 	}
 
 	a.staleNodesSwept.Store(true)
@@ -87,9 +91,16 @@ type hubClient struct {
 
 	devices prime.Devices
 	err     error
+	onFetch func()
 }
 
-func (c hubClient) GetDevices() (prime.Devices, error) { return c.devices, c.err }
+func (c hubClient) GetDevices() (prime.Devices, error) {
+	if c.onFetch != nil {
+		c.onFetch()
+	}
+
+	return c.devices, c.err
+}
 
 type failingPublisher struct{ stubPublisher }
 
@@ -113,6 +124,7 @@ func TestExcludeStaleNodes_FailedExclusionReleasesClaim(t *testing.T) {
 		lock:        &sync.RWMutex{},
 		things:      map[string]Thing{},
 		initialized: true,
+		staleRetry:  backoff.NewTolerantFixed(0, time.Hour),
 	}
 
 	devices := prime.Devices{{
@@ -120,8 +132,160 @@ func TestExcludeStaleNodes_FailedExclusionReleasesClaim(t *testing.T) {
 		Services: map[fimptype.ServiceNameT]*prime.Service{"thermostat": {Addr: "pt:j1/mt:evt/rt:dev/rn:mill/ad:1/sv:thermostat/ad:2"}},
 	}}
 
+	a.thingsSynced.Store(true)
 	a.staleNodesSwept.Store(true)
 	a.excludeStaleNodes(hubClient{devices: devices})
 
 	assert.False(t, a.staleNodesSwept.Load(), "a failed exclusion must leave the sweep retryable")
+}
+
+// TestExcludeStaleNodes_FailedSweepRetriesAfterDelay pins that a failed sweep comes back on its own:
+// an adapter that syncs only on device drift has no later sync to retry it.
+func TestExcludeStaleNodes_FailedSweepRetriesAfterDelay(t *testing.T) {
+	t.Parallel()
+
+	var predicateCalls atomic.Int32
+
+	a := &adapter{
+		lock:        &sync.RWMutex{},
+		things:      map[string]Thing{},
+		initialized: true,
+		mqtt:        &fimpgo.MqttTransport{},
+		// Returning false ends the retry at the predicate, before the hub would be asked.
+		staleNodes: func() bool { predicateCalls.Add(1); return false },
+		staleRetry: backoff.NewTolerantFixed(0, time.Millisecond),
+	}
+
+	a.thingsSynced.Store(true)
+	a.staleNodesSwept.Store(true)
+	a.excludeStaleNodes(hubClient{err: errors.New("timeout")})
+
+	assert.Eventually(t, func() bool { return predicateCalls.Load() == 1 }, time.Second, time.Millisecond)
+}
+
+// TestRetryStaleNodes_DroppedWhenThingsDoNotMatch pins that the retry never sweeps against things
+// a later sync left partly applied: a node awaiting recreation would be excluded first.
+func TestRetryStaleNodes_DroppedWhenThingsDoNotMatch(t *testing.T) {
+	t.Parallel()
+
+	var predicateCalls int
+
+	a := &adapter{
+		lock:        &sync.RWMutex{},
+		things:      map[string]Thing{},
+		initialized: true,
+		mqtt:        &fimpgo.MqttTransport{},
+		staleNodes:  func() bool { predicateCalls++; return false },
+	}
+
+	a.retryStaleNodes()
+	assert.Zero(t, predicateCalls, "things not known to match must not be swept")
+
+	a.thingsSynced.Store(true)
+	a.retryStaleNodes()
+	assert.Equal(t, 1, predicateCalls, "things matching the last sync must be swept")
+}
+
+// TestSyncThings_RecordsWhetherThingsMatch pins what the retry relies on: a sync without errors
+// marks the things as matching, a failed fetch mutates nothing and keeps the mark, and a sync that
+// reports an error drops it.
+func TestSyncThings_RecordsWhetherThingsMatch(t *testing.T) {
+	t.Parallel()
+
+	s, err := NewState(t.TempDir())
+	require.NoError(t, err)
+
+	a := &adapter{
+		publisher:   stubPublisher{},
+		state:       s,
+		lock:        &sync.RWMutex{},
+		things:      map[string]Thing{},
+		initialized: true,
+	}
+
+	noSeed := func(string) *ThingSeed { return nil }
+
+	_, _, err = SyncThings(a, func() ([]string, error) { return nil, nil }, nil, noSeed)
+	require.NoError(t, err)
+	assert.True(t, a.thingsSynced.Load(), "a sync without errors must mark the things as matching")
+
+	_, _, err = SyncThings(a, func() ([]string, error) { return nil, errors.New("timeout") }, nil, noSeed)
+	require.Error(t, err)
+	assert.True(t, a.thingsSynced.Load(), "a failed fetch mutates nothing and must keep the mark")
+
+	_, _, err = SyncThings(a, func() ([]string, error) { return []string{"1"}, nil }, nil, noSeed)
+	require.ErrorIs(t, err, ErrUnmappedDevice)
+	assert.False(t, a.thingsSynced.Load(), "a sync that reported an error must drop the mark")
+}
+
+// TestExcludeStaleNodes_FailedSweepsShareOneRetry pins that failures do not pile up timers: an
+// adapter syncing every minute against a silent hub would otherwise sweep ever more often.
+func TestExcludeStaleNodes_FailedSweepsShareOneRetry(t *testing.T) {
+	t.Parallel()
+
+	var predicateCalls atomic.Int32
+
+	a := &adapter{
+		lock:        &sync.RWMutex{},
+		things:      map[string]Thing{},
+		initialized: true,
+		mqtt:        &fimpgo.MqttTransport{},
+		staleNodes:  func() bool { predicateCalls.Add(1); return false },
+		staleRetry:  backoff.NewTolerantFixed(0, 10*time.Millisecond),
+	}
+
+	a.thingsSynced.Store(true)
+	a.excludeStaleNodes(hubClient{err: errors.New("timeout")})
+	a.excludeStaleNodes(hubClient{err: errors.New("timeout")})
+
+	require.Eventually(t, func() bool { return predicateCalls.Load() > 0 }, time.Second, time.Millisecond)
+	assert.Never(t, func() bool { return predicateCalls.Load() > 1 }, 200*time.Millisecond, 5*time.Millisecond)
+}
+
+// TestNewStaleRetry_Schedule pins how a silent hub is asked again: soon after a start that beat
+// Vinculum, then ever more rarely, so a hub that stays silent does not fill the log.
+func TestNewStaleRetry_Schedule(t *testing.T) {
+	t.Parallel()
+
+	a, ok := NewAdapter(nil, nil, nil, nil, "test", "1").(*adapter)
+	require.True(t, ok)
+
+	for i, want := range []time.Duration{time.Minute, 5 * time.Minute, 5 * time.Minute, 15 * time.Minute, 15 * time.Minute} {
+		assert.Equal(t, want, a.staleRetry.Next(), "retry %d", i+1)
+	}
+}
+
+// TestExcludeStaleNodes_SkipsWhenSyncStartedDuringHubRequest pins that the things are checked
+// again after the hub answered: the request takes up to its timeout, and a sync that began applying
+// meanwhile may be about to recreate a node the sweep would exclude.
+func TestExcludeStaleNodes_SkipsWhenSyncStartedDuringHubRequest(t *testing.T) {
+	t.Parallel()
+
+	s, err := NewState(t.TempDir())
+	require.NoError(t, err)
+
+	p := &countingPublisher{}
+
+	a := &adapter{
+		publisher:   p,
+		state:       s,
+		name:        "mill",
+		address:     "1",
+		lock:        &sync.RWMutex{},
+		things:      map[string]Thing{},
+		initialized: true,
+		staleRetry:  backoff.NewTolerantFixed(0, time.Hour),
+	}
+
+	devices := prime.Devices{{
+		FIMP:     prime.DeviceFIMP{Address: "2"},
+		Services: map[fimptype.ServiceNameT]*prime.Service{"thermostat": {Addr: "pt:j1/mt:evt/rt:dev/rn:mill/ad:1/sv:thermostat/ad:2"}},
+	}}
+
+	a.thingsSynced.Store(true)
+	a.staleNodesSwept.Store(true)
+	a.excludeStaleNodes(hubClient{devices: devices, onFetch: func() { a.thingsSynced.Store(false) }})
+
+	assert.Zero(t, p.adapterMessages.Load(), "no node may be excluded once a sync started applying")
+	assert.False(t, a.staleNodesSwept.Load(), "the skipped sweep must stay retryable")
 }

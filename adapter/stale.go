@@ -8,15 +8,24 @@ import (
 	"github.com/futurehomeno/fimpgo"
 	log "github.com/sirupsen/logrus"
 
+	"github.com/futurehomeno/cliffhanger/backoff"
 	"github.com/futurehomeno/cliffhanger/prime"
 )
 
 // staleNodeTimeout bounds the Vinculum request, which runs inline in a device sync.
 const staleNodeTimeout = 10 * time.Second
 
+// newStaleRetry spaces the retries of a failed sweep: after 1 minute, twice after 5, then every 15,
+// with no end, as a sweep that never ran leaves the stale nodes on the hub.
+func newStaleRetry() backoff.Stateful {
+	return backoff.NewStateful(time.Minute, 5*time.Minute, 15*time.Minute, 1, 2)
+}
+
 // ErrStaleNodeFetch reports that the hub never answered, so no node was examined. A per-node
 // exclusion failure does not wrap it.
 var ErrStaleNodeFetch = errors.New("adapter: fetch hub devices")
+
+var errThingsChanged = errors.New("adapter: a sync started applying during the hub request")
 
 // Option configures an adapter at construction time.
 type Option func(*adapter)
@@ -61,13 +70,30 @@ func (a *adapter) excludeStaleNodesOnce() {
 	go a.excludeStaleNodes(prime.NewClient(fimpgo.NewSyncClient(a.mqtt), a.name, staleNodeTimeout))
 }
 
+// retryStaleNodes repeats a failed sweep without waiting for a sync, which an adapter syncing only
+// on device drift may never run again. Dropped when a later sync left the things not matching its
+// fetched list: the next sync without errors sweeps instead.
+func (a *adapter) retryStaleNodes() {
+	a.staleRetryArmed.Store(false)
+
+	if a.thingsSynced.Load() {
+		a.excludeStaleNodesOnce()
+	}
+}
+
 func (a *adapter) excludeStaleNodes(client prime.Client) {
-	excluded, err := ExcludeStaleNodes(a, client)
+	excluded, err := excludeStaleNodesWhile(a, client, a.thingsSynced.Load)
 	if err != nil {
 		log.Errorf("[adapter] Exclude stale hub nodes. err: %v", err)
 
-		// A later sync retries; the nodes already excluded are gone from the hub's list by then.
+		// A later sync or the timer retries; the nodes already excluded are gone from the hub's
+		// list by then.
 		a.staleNodesSwept.Store(false)
+
+		// One pending retry at most, or failures of sweeps started by syncs would pile up timers.
+		if a.staleRetryArmed.CompareAndSwap(false, true) {
+			time.AfterFunc(a.staleRetry.Next(), a.retryStaleNodes)
+		}
 	}
 
 	for _, address := range excluded {
@@ -84,9 +110,19 @@ func (a *adapter) excludeStaleNodes(client prime.Client) {
 // Best-effort per address: failures are joined and the addresses that did get excluded are
 // still returned.
 func ExcludeStaleNodes(a Adapter, client prime.Client) ([]string, error) {
+	return excludeStaleNodesWhile(a, client, func() bool { return true })
+}
+
+// excludeStaleNodesWhile asks match again once the hub answered: the request takes up to its
+// timeout, and a sync that began applying meanwhile may be about to recreate a node listed as stale.
+func excludeStaleNodesWhile(a Adapter, client prime.Client, match func() bool) ([]string, error) {
 	devices, err := client.GetDevices()
 	if err != nil {
 		return nil, fmt.Errorf("%w: %w", ErrStaleNodeFetch, err)
+	}
+
+	if !match() {
+		return nil, errThingsChanged
 	}
 
 	var (
