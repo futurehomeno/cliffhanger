@@ -12,6 +12,7 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
+	"github.com/futurehomeno/cliffhanger/backoff"
 	"github.com/futurehomeno/cliffhanger/prime"
 )
 
@@ -76,10 +77,11 @@ func TestExcludeStaleNodes_FailedFetchReleasesClaim(t *testing.T) {
 		lock:        &sync.RWMutex{},
 		things:      map[string]Thing{},
 		initialized: true,
+		staleRetry:  backoff.NewTolerantFixed(0, time.Hour),
 	}
 
 	a.staleNodesSwept.Store(true)
-	a.excludeStaleNodes(hubClient{err: errors.New("timeout")}, time.Hour)
+	a.excludeStaleNodes(hubClient{err: errors.New("timeout")})
 
 	assert.False(t, a.staleNodesSwept.Load(), "a failed hub fetch must leave the sweep retryable")
 }
@@ -115,6 +117,7 @@ func TestExcludeStaleNodes_FailedExclusionReleasesClaim(t *testing.T) {
 		lock:        &sync.RWMutex{},
 		things:      map[string]Thing{},
 		initialized: true,
+		staleRetry:  backoff.NewTolerantFixed(0, time.Hour),
 	}
 
 	devices := prime.Devices{{
@@ -123,7 +126,7 @@ func TestExcludeStaleNodes_FailedExclusionReleasesClaim(t *testing.T) {
 	}}
 
 	a.staleNodesSwept.Store(true)
-	a.excludeStaleNodes(hubClient{devices: devices}, time.Hour)
+	a.excludeStaleNodes(hubClient{devices: devices})
 
 	assert.False(t, a.staleNodesSwept.Load(), "a failed exclusion must leave the sweep retryable")
 }
@@ -142,11 +145,12 @@ func TestExcludeStaleNodes_FailedSweepRetriesAfterDelay(t *testing.T) {
 		mqtt:        &fimpgo.MqttTransport{},
 		// Returning false ends the retry at the predicate, before the hub would be asked.
 		staleNodes: func() bool { predicateCalls.Add(1); return false },
+		staleRetry: backoff.NewTolerantFixed(0, time.Millisecond),
 	}
 
 	a.thingsSynced.Store(true)
 	a.staleNodesSwept.Store(true)
-	a.excludeStaleNodes(hubClient{err: errors.New("timeout")}, time.Millisecond)
+	a.excludeStaleNodes(hubClient{err: errors.New("timeout")})
 
 	assert.Eventually(t, func() bool { return predicateCalls.Load() == 1 }, time.Second, time.Millisecond)
 }
@@ -219,12 +223,26 @@ func TestExcludeStaleNodes_FailedSweepsShareOneRetry(t *testing.T) {
 		initialized: true,
 		mqtt:        &fimpgo.MqttTransport{},
 		staleNodes:  func() bool { predicateCalls.Add(1); return false },
+		staleRetry:  backoff.NewTolerantFixed(0, 10*time.Millisecond),
 	}
 
 	a.thingsSynced.Store(true)
-	a.excludeStaleNodes(hubClient{err: errors.New("timeout")}, 10*time.Millisecond)
-	a.excludeStaleNodes(hubClient{err: errors.New("timeout")}, 10*time.Millisecond)
+	a.excludeStaleNodes(hubClient{err: errors.New("timeout")})
+	a.excludeStaleNodes(hubClient{err: errors.New("timeout")})
 
 	require.Eventually(t, func() bool { return predicateCalls.Load() > 0 }, time.Second, time.Millisecond)
 	assert.Never(t, func() bool { return predicateCalls.Load() > 1 }, 200*time.Millisecond, 5*time.Millisecond)
+}
+
+// TestNewStaleRetry_Schedule pins how a silent hub is asked again: soon after a start that beat
+// Vinculum, then ever more rarely, so a hub that stays silent does not fill the log.
+func TestNewStaleRetry_Schedule(t *testing.T) {
+	t.Parallel()
+
+	a, ok := NewAdapter(nil, nil, nil, nil, "test", "1").(*adapter)
+	require.True(t, ok)
+
+	for i, want := range []time.Duration{time.Minute, 5 * time.Minute, 5 * time.Minute, 15 * time.Minute, 15 * time.Minute} {
+		assert.Equal(t, want, a.staleRetry.Next(), "retry %d", i+1)
+	}
 }

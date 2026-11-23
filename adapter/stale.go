@@ -8,14 +8,18 @@ import (
 	"github.com/futurehomeno/fimpgo"
 	log "github.com/sirupsen/logrus"
 
+	"github.com/futurehomeno/cliffhanger/backoff"
 	"github.com/futurehomeno/cliffhanger/prime"
 )
 
 // staleNodeTimeout bounds the Vinculum request, which runs inline in a device sync.
 const staleNodeTimeout = 10 * time.Second
 
-// staleNodeRetry is how long a failed sweep waits before it tries again on its own.
-const staleNodeRetry = 5 * time.Minute
+// newStaleRetry spaces the retries of a failed sweep: after 1 minute, twice after 5, then every 15,
+// with no end, as a sweep that never ran leaves the stale nodes on the hub.
+func newStaleRetry() backoff.Stateful {
+	return backoff.NewStateful(time.Minute, 5*time.Minute, 15*time.Minute, 1, 2)
+}
 
 // ErrStaleNodeFetch reports that the hub never answered, so no node was examined. A per-node
 // exclusion failure does not wrap it.
@@ -61,7 +65,7 @@ func (a *adapter) excludeStaleNodesOnce() {
 
 	// Asking the hub is a round trip over MQTT: a sweep must never hold up the sync it
 	// is triggered from, nor block it for the full timeout when nothing answers.
-	go a.excludeStaleNodes(prime.NewClient(fimpgo.NewSyncClient(a.mqtt), a.name, staleNodeTimeout), staleNodeRetry)
+	go a.excludeStaleNodes(prime.NewClient(fimpgo.NewSyncClient(a.mqtt), a.name, staleNodeTimeout))
 }
 
 // retryStaleNodes repeats a failed sweep without waiting for a sync, which an adapter syncing only
@@ -75,7 +79,7 @@ func (a *adapter) retryStaleNodes() {
 	}
 }
 
-func (a *adapter) excludeStaleNodes(client prime.Client, retry time.Duration) {
+func (a *adapter) excludeStaleNodes(client prime.Client) {
 	excluded, err := ExcludeStaleNodes(a, client)
 	if err != nil {
 		log.Errorf("[adapter] Exclude stale hub nodes. err: %v", err)
@@ -86,7 +90,7 @@ func (a *adapter) excludeStaleNodes(client prime.Client, retry time.Duration) {
 
 		// One pending retry at most, or failures of sweeps started by syncs would pile up timers.
 		if a.staleRetryArmed.CompareAndSwap(false, true) {
-			time.AfterFunc(retry, a.retryStaleNodes)
+			time.AfterFunc(a.staleRetry.Next(), a.retryStaleNodes)
 		}
 	}
 

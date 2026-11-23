@@ -11,6 +11,7 @@ import (
 	"github.com/futurehomeno/fimpgo/fimptype"
 	log "github.com/sirupsen/logrus"
 
+	"github.com/futurehomeno/cliffhanger/backoff"
 	"github.com/futurehomeno/cliffhanger/event"
 )
 
@@ -82,6 +83,7 @@ func NewAdapter(
 		publisher:  NewPublisher(mqtt, eventManager, resourceName, resourceAddress),
 		lock:       &sync.RWMutex{},
 		staleNodes: func() bool { return true },
+		staleRetry: newStaleRetry(),
 	}
 
 	for _, option := range options {
@@ -105,6 +107,7 @@ type adapter struct {
 
 	staleNodes      func() bool
 	staleNodesSwept atomic.Bool
+	staleRetry      backoff.Stateful
 	staleRetryArmed atomic.Bool
 	thingsSynced    atomic.Bool
 }
