@@ -250,7 +250,7 @@ func (s *service) SetOfferedCurrent(current int) error {
 		return err
 	}
 
-	err = s.validateCurrent(current)
+	err = s.validateCurrent(current, 0)
 	if err != nil {
 		return err
 	}
@@ -273,7 +273,7 @@ func (s *service) SetMaxCurrent(current int) error {
 		return err
 	}
 
-	err = s.validateCurrent(current)
+	err = s.validateCurrent(current, 6)
 	if err != nil {
 		return err
 	}
@@ -644,9 +644,9 @@ func (s *service) normalizeChargingMode(mode string) (string, error) {
 }
 
 // validateCurrent validates provided current.
-func (s *service) validateCurrent(current int) error {
-	if current < 6 {
-		return fmt.Errorf("%s: configured current must be at least 6A, received %dA instead", s.Name(), current)
+func (s *service) validateCurrent(current, minimum int) error {
+	if current < minimum {
+		return fmt.Errorf("%s: configured current must be at least %dA, received %dA instead", s.Name(), minimum, current)
 	}
 
 	maximumCurrent, _ := s.Specification().PropertyInteger(PropertySupportedMaxCurrent)
