@@ -3,9 +3,9 @@
 ### Requirement: Failed Stale Sweep Retried On A Timer
 A failed automatic sweep SHALL, besides releasing its claim, be tried again without waiting for
 another sync, because an adapter that reconciles only on device drift may never sync again in the
-lifetime of the process. The delays SHALL come from a `backoff.Stateful`: 1 minute after the first
-failure, 5 minutes after the second and the third, 15 minutes after every later one, with no limit
-on the number of retries. The retry SHALL pass the same initialization check, predicate
+lifetime of the process. The delays SHALL come from a `backoff.Stateful`: 1 minute after each of
+the first three failures, 5 minutes after each of the next three, 1 hour after every later one, with
+no limit on the number of retries. The retry SHALL pass the same initialization check, predicate
 and claim as a sweep started by a sync, so the two never overlap. A retry that fails SHALL arm the
 next one, and at most one retry SHALL be pending at a time.
 
@@ -20,8 +20,8 @@ recreate a node the hub listed.
 
 #### Scenario: the hub answers only after the adapter started
 - **WHEN** the sweep's hub request fails and no further sync runs
-- **THEN** the sweep is attempted again 1 minute later, and after further failures 5, 5 and then
-  every 15 minutes later
+- **THEN** the sweep is attempted again 1 minute later, and while it keeps failing two more times
+  1 minute apart, three times 5 minutes apart, then once an hour
 
 #### Scenario: sweeps fail while a retry is already pending
 - **WHEN** a sweep started by a sync fails while the retry of an earlier failure is still pending

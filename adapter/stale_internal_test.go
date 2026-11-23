@@ -250,8 +250,14 @@ func TestNewStaleRetry_Schedule(t *testing.T) {
 	a, ok := NewAdapter(nil, nil, nil, nil, "test", "1").(*adapter)
 	require.True(t, ok)
 
-	for i, want := range []time.Duration{time.Minute, 5 * time.Minute, 5 * time.Minute, 15 * time.Minute, 15 * time.Minute} {
-		assert.Equal(t, want, a.staleRetry.Next(), "retry %d", i+1)
+	want := []time.Duration{
+		time.Minute, time.Minute, time.Minute,
+		5 * time.Minute, 5 * time.Minute, 5 * time.Minute,
+		time.Hour, time.Hour,
+	}
+
+	for i, delay := range want {
+		assert.Equal(t, delay, a.staleRetry.Next(), "retry %d", i+1)
 	}
 }
 

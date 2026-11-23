@@ -15,10 +15,11 @@ import (
 // staleNodeTimeout bounds the Vinculum request, which runs inline in a device sync.
 const staleNodeTimeout = 10 * time.Second
 
-// newStaleRetry spaces the retries of a failed sweep: after 1 minute, twice after 5, then every 15,
-// with no end, as a sweep that never ran leaves the stale nodes on the hub.
+// newStaleRetry spaces the retries of a failed sweep: three a minute apart for a hub still
+// starting, three 5 minutes apart, then hourly with no end, as a sweep that never ran leaves the
+// stale nodes on the hub.
 func newStaleRetry() backoff.Stateful {
-	return backoff.NewStateful(time.Minute, 5*time.Minute, 15*time.Minute, 1, 2)
+	return backoff.NewStateful(time.Minute, 5*time.Minute, time.Hour, 3, 3)
 }
 
 // ErrStaleNodeFetch reports that the hub never answered, so no node was examined. A per-node
