@@ -83,6 +83,20 @@ func TestRouteService(t *testing.T) { //nolint:paralleltest
 				},
 			},
 			{
+				Name:     "unsupported unit",
+				TearDown: adapterhelper.TearDownAdapter("../../testdata/adapter/test_adapter"),
+				Setup:    routeSensor(mockednumericsensor.NewReporter(t)),
+				Nodes: []*cliffSuite.Node{
+					{
+						Name:    "unsupported unit returns error",
+						Command: cliffSuite.NewMessageBuilder().StringMessage(sensorCmdTopic, numericsensor.CmdSensorGetReport, sensorService, "invalid").Build(),
+						Expectations: []*cliffSuite.Expectation{
+							cliffSuite.ExpectError(sensorEvtTopic, sensorService).ExpectString("not_supported"),
+						},
+					},
+				},
+			},
+			{
 				Name:     "service not found",
 				TearDown: adapterhelper.TearDownAdapter("../../testdata/adapter/test_adapter"),
 				Setup:    routeSensor(mockednumericsensor.NewReporter(t)),
@@ -100,7 +114,7 @@ func TestRouteService(t *testing.T) { //nolint:paralleltest
 							cliffSuite.ExpectError(
 								"pt:j1/mt:evt/rt:dev/rn:test_adapter/ad:1/sv:sensor_temp/ad:404",
 								sensorService,
-							),
+							).ExpectString("not_found"),
 						},
 					},
 				},
