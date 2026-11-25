@@ -8,6 +8,7 @@ import (
 	"github.com/futurehomeno/fimpgo"
 	"github.com/futurehomeno/fimpgo/fimptype"
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 
 	"github.com/futurehomeno/cliffhanger/adapter"
 	"github.com/futurehomeno/cliffhanger/adapter/service/battery"
@@ -67,7 +68,7 @@ func TestRouteService(t *testing.T) { //nolint:paralleltest
 						Name:    "non-existent thing on level report",
 						Command: suite.NullMessage("pt:j1/mt:cmd/rt:dev/rn:test_adapter/ad:1/sv:battery/ad:3", "cmd.lvl.get_report", "battery"),
 						Expectations: []*suite.Expectation{
-							suite.ExpectError("pt:j1/mt:evt/rt:dev/rn:test_adapter/ad:1/sv:battery/ad:3", "battery"),
+							suite.ExpectError("pt:j1/mt:evt/rt:dev/rn:test_adapter/ad:1/sv:battery/ad:3", "battery").ExpectString("not_found"),
 						},
 					},
 				},
@@ -149,4 +150,20 @@ func TestSpecification(t *testing.T) {
 	}
 
 	assert.Equal(t, want, got)
+}
+
+func TestService_UnlistedEventIsNotSupported(t *testing.T) {
+	t.Parallel()
+
+	svc := battery.NewService(mockedadapter.NewServicePublisher(t), &battery.Config{
+		Specification: battery.Specification("test_adapter", "1", "2", nil, []string{battery.AlarmEventLowBattery}),
+		Reporter:      mockedbattery.NewReporter(t),
+	})
+
+	_, err := svc.SendBatteryAlarmReport("unknown_event", true)
+
+	var coded *router.Error
+
+	require.ErrorAs(t, err, &coded)
+	assert.Equal(t, fimptype.ErrorCodeNotSupported, coded.Code)
 }
