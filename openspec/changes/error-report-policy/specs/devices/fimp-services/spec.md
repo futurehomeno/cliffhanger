@@ -23,10 +23,11 @@ accepts commands, `virtualmeter` included. `Specification(...)` in `chargepoint`
 
 ### Requirement: A Value Outside The Advertised Range Is Rejected
 A command value outside the range a service advertises — `min_lvl`/`max_lvl`, `sup_max_current`,
-`sup_range`/`sup_ranges`, a parameter's `min`/`max` — SHALL be rejected with the code
+`sup_range`/`sup_ranges`, a parameter's `min`/`max`, the media player volume range 0–100 the FIMP
+documentation states — SHALL be rejected with the code
 `out_of_range` before the controller is called. A value not in the list a service advertises —
 `sup_modes`, `sup_setpoints`, `sup_phase_modes`, `sup_charging_modes`, `sup_playback`,
-`sup_scenes`, `sup_units`, `sup_events`, a parameter's options — SHALL be rejected with the code
+`sup_scenes`, `sup_units`, `sup_events`, `sup_components`, a parameter's options — SHALL be rejected with the code
 `not_supported`. A controller that finds a value outside a limit of the device the service does not
 advertise SHALL reject it the same way. Neither the service nor the controller SHALL clamp, cap or
 round such a value into the advertised range or list without rejecting it. Matching a listed value
@@ -52,6 +53,14 @@ requirement "Water Heater Setpoint Normalisation" states.
 #### Scenario: phase mode not in the list
 - **WHEN** `cmd.phase_mode.set` carries a mode absent from `sup_phase_modes`
 - **THEN** the controller is not called and the command is answered with an `evt.error.report` whose value is `not_supported`
+
+#### Scenario: colour component not in the list
+- **WHEN** `cmd.color.set` carries a component absent from `sup_components`
+- **THEN** the controller is not called and the command is answered with an `evt.error.report` whose value is `not_supported`
+
+#### Scenario: volume above 100
+- **WHEN** `cmd.volume.set` carries 101 on a media player
+- **THEN** the controller is not called and the command is answered with an `evt.error.report` whose value is `out_of_range`
 
 #### Scenario: parameter above its maximum
 - **WHEN** `cmd.param.set` carries 120 for an `int` parameter whose `input` widget has `max` 100
