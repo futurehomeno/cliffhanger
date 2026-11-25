@@ -5,7 +5,7 @@ sees it fail for the expected reason, then writes the code.
 
 - [ ] 1.1 fimpgo change `error-codes` merged and released with `fimptype.ErrorCodeT`
 - [ ] 1.2 `go.mod` takes that fimpgo release
-  - For now `go.mod` pins the head of fimpgo branch `spec/error-codes` (pseudo-version); re-pin to the release tag before merge.
+  - For now `go.mod` pins the head of fimpgo branch `spec/error-codes` (pseudo-version); re-pin to the release tag before merge. The pinned head also carries `ErrorCodeRateLimited` (`rate_limited`).
 
 ## 2. Router
 

@@ -11,7 +11,7 @@ The code reuses what exists and adds one type and one function.
 - **Constants stay.** `router.EvtErrorReport`, `router.EvtSuccessReport` and `PropertyMsg`,
   `PropertyCmdTopic`, `PropertyCmdService`, `PropertyCmdType` (`router/routing.go:8-16`) keep their
   names and values.
-- **Codes come from fimpgo.** `fimptype.ErrorCodeT` with the nine constants (fimpgo change
+- **Codes come from fimpgo.** `fimptype.ErrorCodeT` with the ten constants (fimpgo change
   `error-codes`), modelled on `fimptype.ValueTypeT` (`fimptype/value_type.go:3`). Cliffhanger does
   not declare its own copy.
 - **`router.Error`** carries a code, the plain sentence for `msg`, and the cause for the log:

@@ -35,7 +35,7 @@ The policy, nine rules:
    `corid`: the request's `uid`. Properties `cmd_topic`, `cmd_service`, `cmd_type` and `msg`. A
    report on a device resource carries the `skip` storage strategy.
 3. The value type is `string` and the value is an error code: `bad_request`, `out_of_range`,
-   `not_supported`, `not_found`, `busy`, `unauthorized`, `device_refused`, `unavailable`,
+   `not_supported`, `not_found`, `busy`, `unauthorized`, `device_refused`, `unavailable`, `rate_limited`,
    `internal` (fimpgo `fimptype.ErrorCodeT`, change `error-codes`). An adapter may add its own
    lower_snake codes. An error without a code is reported as `internal`, which replaces the fixed
    text "failed to process incoming message".

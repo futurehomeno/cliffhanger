@@ -65,6 +65,7 @@ them anywhere in the error chain. The codes SHALL be the lower_snake values of f
 | `unauthorized` | the vendor cloud refused the adapter's credentials |
 | `device_refused` | the device or vendor cloud received the command and refused it |
 | `unavailable` | the device, the vendor cloud or the requested state cannot be reached or is not known yet |
+| `rate_limited` | the device or the vendor cloud refuses for now because of too many requests (HTTP 429); temporary, the caller may try again later |
 | `internal` | anything else, and every error that carries no code |
 
 An adapter MAY use its own lower_snake code for a refusal none of these names, for example
