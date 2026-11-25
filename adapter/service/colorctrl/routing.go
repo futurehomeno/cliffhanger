@@ -4,6 +4,7 @@ import (
 	"fmt"
 
 	"github.com/futurehomeno/fimpgo"
+	"github.com/futurehomeno/fimpgo/fimptype"
 
 	"github.com/futurehomeno/cliffhanger/adapter"
 	"github.com/futurehomeno/cliffhanger/router"
@@ -37,7 +38,7 @@ func HandleCmdColorSet(serviceRegistry adapter.ServiceRegistry) router.MessageHa
 		router.MessageProcessorFn(func(message *fimpgo.Message) (*fimpgo.FimpMessage, error) {
 			s := serviceRegistry.ServiceByTopic(message.Topic)
 			if s == nil {
-				return nil, fmt.Errorf("service not found under the provided address: %s", message.Addr.ServiceAddress)
+				return nil, router.NewError(fimptype.ErrorCodeNotFound, "service not found under the provided address", nil)
 			}
 
 			colorctrl, ok := s.(Service)
@@ -47,7 +48,7 @@ func HandleCmdColorSet(serviceRegistry adapter.ServiceRegistry) router.MessageHa
 
 			color, err := message.Payload.GetIntMapValue()
 			if err != nil {
-				return nil, fmt.Errorf("failed to parse color: %w", err)
+				return nil, router.NewError(fimptype.ErrorCodeBadRequest, "provided color has an incorrect format", err)
 			}
 
 			err = colorctrl.SetColor(color)
@@ -78,7 +79,7 @@ func HandleCmdColorGetReport(serviceRegistry adapter.ServiceRegistry) router.Mes
 		router.MessageProcessorFn(func(message *fimpgo.Message) (*fimpgo.FimpMessage, error) {
 			s := serviceRegistry.ServiceByTopic(message.Topic)
 			if s == nil {
-				return nil, fmt.Errorf("service not found under the provided address: %s", message.Addr.ServiceAddress)
+				return nil, router.NewError(fimptype.ErrorCodeNotFound, "service not found under the provided address", nil)
 			}
 
 			colorctrl, ok := s.(Service)
