@@ -2,6 +2,7 @@ package router
 
 import (
 	"errors"
+	"fmt"
 	"net/url"
 	"strings"
 
@@ -51,11 +52,11 @@ func errorReport(request *fimpgo.Message, addr *fimpgo.Address, err error) *fimp
 
 	var urlErr *url.Error
 	if errors.As(err, &urlErr) {
-		msg = strings.Replace(msg, urlErr.Error(), urlErr.Op+": "+urlErr.Err.Error(), 1)
+		msg = strings.Replace(msg, urlErr.Error(), urlErr.Op+": "+fmt.Sprint(urlErr.Err), 1)
 	}
 
 	var coded *Error
-	if errors.As(err, &coded) {
+	if errors.As(err, &coded) && coded.Code != "" {
 		code, msg, level = coded.Code, coded.Msg, log.WarnLevel
 	}
 

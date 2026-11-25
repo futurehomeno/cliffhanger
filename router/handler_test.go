@@ -119,6 +119,18 @@ func TestMessageHandler_ErrorCodes(t *testing.T) {
 			wantMsg:   "get light: Get: context deadline exceeded",
 		},
 		{
+			name:      "URL error without a cause",
+			err:       fmt.Errorf("get light: %w", &url.Error{Op: "Get", URL: "https://10.0.0.5/api/KEY/lights/1"}),
+			wantValue: "internal",
+			wantMsg:   "get light: Get: <nil>",
+		},
+		{
+			name:      "error without a code answers internal",
+			err:       &router.Error{Msg: "Eco mode is on.", NoLog: true},
+			wantValue: "internal",
+			wantMsg:   "Eco mode is on.",
+		},
+		{
 			name:      "state not reported yet",
 			err:       fmt.Errorf("sensor: %w", router.ErrNotReported),
 			wantValue: "unavailable",
