@@ -2,6 +2,7 @@ package colorctrl
 
 import (
 	"fmt"
+	"slices"
 	"sync"
 
 	"github.com/futurehomeno/fimpgo"
@@ -9,6 +10,7 @@ import (
 
 	"github.com/futurehomeno/cliffhanger/adapter"
 	"github.com/futurehomeno/cliffhanger/adapter/cache"
+	"github.com/futurehomeno/cliffhanger/router"
 )
 
 const (
@@ -89,6 +91,13 @@ type service struct {
 func (s *service) SetColor(color map[string]int) error {
 	s.lock.Lock()
 	defer s.lock.Unlock()
+
+	supported := s.SupportedComponents()
+	for component := range color {
+		if !slices.Contains(supported, component) {
+			return router.NewError(fimptype.ErrorCodeNotSupported, fmt.Sprintf("color component %s is not supported", component), nil)
+		}
+	}
 
 	err := s.controller.SetColorCtrlColor(color)
 	if err != nil {

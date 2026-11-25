@@ -137,6 +137,13 @@ func TestRouteService(t *testing.T) { //nolint:paralleltest
 				Setup:    routeService(mockedcolorctrl.NewController(t)),
 				Nodes: []*suite.Node{
 					{
+						Name:    "set color with an unsupported component",
+						Command: suite.IntMapMessage("pt:j1/mt:cmd/rt:dev/rn:test_adapter/ad:1/sv:color_ctrl/ad:2", "cmd.color.set", "color_ctrl", map[string]int{"red": 255, "white": 10}),
+						Expectations: []*suite.Expectation{
+							suite.ExpectError("pt:j1/mt:evt/rt:dev/rn:test_adapter/ad:1/sv:color_ctrl/ad:2", "color_ctrl").ExpectString("not_supported"),
+						},
+					},
+					{
 						Name:    "set color with wrong payload type",
 						Command: suite.StringMessage("pt:j1/mt:cmd/rt:dev/rn:test_adapter/ad:1/sv:color_ctrl/ad:2", "cmd.color.set", "color_ctrl", "red"),
 						Expectations: []*suite.Expectation{
