@@ -77,6 +77,13 @@ func TestRouteService(t *testing.T) { //nolint:paralleltest
 						},
 					},
 					{
+						Name:    "Switch binary on - not a boolean",
+						Command: suite.StringMessage("pt:j1/mt:cmd/rt:dev/rn:test_adapter/ad:1/sv:out_bin_switch/ad:2", "cmd.binary.set", "out_bin_switch", "on"),
+						Expectations: []*suite.Expectation{
+							suite.ExpectError("pt:j1/mt:evt/rt:dev/rn:test_adapter/ad:1/sv:out_bin_switch/ad:2", "out_bin_switch").ExpectString("bad_request"),
+						},
+					},
+					{
 						Name:    "Switch binary on - report error",
 						Command: suite.BoolMessage("pt:j1/mt:cmd/rt:dev/rn:test_adapter/ad:1/sv:out_bin_switch/ad:2", "cmd.binary.set", "out_bin_switch", true),
 						Expectations: []*suite.Expectation{
