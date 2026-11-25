@@ -110,6 +110,48 @@ func TestRouteService(t *testing.T) { //nolint:paralleltest
 				},
 			},
 			{
+				Name:     "unsupported unit",
+				TearDown: adapterhelper.TearDownAdapter("../../testdata/adapter/test_adapter"),
+				Setup:    routeMeter(mockednumericmeter.NewReporter(t)),
+				Nodes: []*cliffSuite.Node{
+					{
+						Name:    "unsupported unit returns error",
+						Command: cliffSuite.NewMessageBuilder().StringMessage(meterCmdTopic, numericmeter.CmdMeterGetReport, numericmeter.MeterElec, "invalid").Build(),
+						Expectations: []*cliffSuite.Expectation{
+							cliffSuite.ExpectError(meterEvtTopic, numericmeter.MeterElec).ExpectString("not_supported"),
+						},
+					},
+				},
+			},
+			{
+				Name:     "wrong value type",
+				TearDown: adapterhelper.TearDownAdapter("../../testdata/adapter/test_adapter"),
+				Setup:    routeMeter(mockednumericmeter.NewReporter(t)),
+				Nodes: []*cliffSuite.Node{
+					{
+						Name:    "wrong value type returns error",
+						Command: cliffSuite.NewMessageBuilder().BoolMessage(meterCmdTopic, numericmeter.CmdMeterGetReport, numericmeter.MeterElec, true).Build(),
+						Expectations: []*cliffSuite.Expectation{
+							cliffSuite.ExpectError(meterEvtTopic, numericmeter.MeterElec).ExpectString("bad_request"),
+						},
+					},
+				},
+			},
+			{
+				Name:     "reset not supported",
+				TearDown: adapterhelper.TearDownAdapter("../../testdata/adapter/test_adapter"),
+				Setup:    routeMeter(mockednumericmeter.NewReporter(t)),
+				Nodes: []*cliffSuite.Node{
+					{
+						Name:    "reset not supported returns error",
+						Command: cliffSuite.NewMessageBuilder().NullMessage(meterCmdTopic, numericmeter.CmdMeterReset, numericmeter.MeterElec).Build(),
+						Expectations: []*cliffSuite.Expectation{
+							cliffSuite.ExpectError(meterEvtTopic, numericmeter.MeterElec).ExpectString("not_supported"),
+						},
+					},
+				},
+			},
+			{
 				Name:     "service not found",
 				TearDown: adapterhelper.TearDownAdapter("../../testdata/adapter/test_adapter"),
 				Setup:    routeMeter(mockednumericmeter.NewReporter(t)),
@@ -127,7 +169,7 @@ func TestRouteService(t *testing.T) { //nolint:paralleltest
 							cliffSuite.ExpectError(
 								"pt:j1/mt:evt/rt:dev/rn:test_adapter/ad:1/sv:meter_elec/ad:404",
 								numericmeter.MeterElec,
-							),
+							).ExpectString("not_found"),
 						},
 					},
 				},

@@ -6,6 +6,8 @@ import (
 	"sync"
 	"time"
 
+	"github.com/futurehomeno/cliffhanger/router"
+
 	"github.com/futurehomeno/fimpgo"
 	"github.com/futurehomeno/fimpgo/fimptype"
 
@@ -128,7 +130,7 @@ func (s *service) SendMeterReport(unit Unit, force bool) (bool, error) {
 
 	normalizedUnit, ok := s.normalizeUnit(unit, s.SupportedUnits())
 	if !ok {
-		return false, fmt.Errorf("%s: unit is unsupported: %s", s.Name(), unit)
+		return false, router.NewError(fimptype.ErrorCodeNotSupported, fmt.Sprintf("unit %s is not supported", unit), nil)
 	}
 
 	value, err := s.reporter.MeterReport(normalizedUnit)
@@ -174,7 +176,7 @@ func (s *service) SendMeterExportReport(unit Unit, force bool) (bool, error) {
 
 	normalizedUnit, ok := s.normalizeUnit(unit, s.SupportedExportUnits())
 	if !ok {
-		return false, fmt.Errorf("%s: unit is unsupported: %s", s.Name(), unit)
+		return false, router.NewError(fimptype.ErrorCodeNotSupported, fmt.Sprintf("unit %s is not supported", unit), nil)
 	}
 
 	value, err := exportReporter.MeterExportReport(normalizedUnit)
@@ -297,11 +299,11 @@ func (s *service) SupportsExportReport() bool {
 func (s *service) exportReporter() (ExportReporter, error) {
 	reporter, ok := s.reporter.(ExportReporter)
 	if !ok {
-		return nil, fmt.Errorf("%s: export meter report is not supported", s.Name())
+		return nil, router.NewError(fimptype.ErrorCodeNotSupported, "export meter report is not supported", nil)
 	}
 
 	if len(s.SupportedExportUnits()) == 0 {
-		return nil, fmt.Errorf("%s: export meter report is not supported", s.Name())
+		return nil, router.NewError(fimptype.ErrorCodeNotSupported, "export meter report is not supported", nil)
 	}
 
 	return reporter, nil
@@ -318,11 +320,11 @@ func (s *service) SupportsExtendedReport() bool {
 func (s *service) extendedReporter() (ExtendedReporter, error) {
 	reporter, ok := s.reporter.(ExtendedReporter)
 	if !ok {
-		return nil, fmt.Errorf("%s: extended meter report is not supported", s.Name())
+		return nil, router.NewError(fimptype.ErrorCodeNotSupported, "extended meter report is not supported", nil)
 	}
 
 	if len(s.SupportedExtendedValues()) == 0 {
-		return nil, fmt.Errorf("%s: extended meter report is not supported", s.Name())
+		return nil, router.NewError(fimptype.ErrorCodeNotSupported, "extended meter report is not supported", nil)
 	}
 
 	return reporter, nil
@@ -339,7 +341,7 @@ func (s *service) SupportsMeterReset() bool {
 func (s *service) resettableReporter() (ResettableReporter, error) {
 	reporter, ok := s.reporter.(ResettableReporter)
 	if !ok {
-		return nil, fmt.Errorf("%s: meter reset is not supported", s.Name())
+		return nil, router.NewError(fimptype.ErrorCodeNotSupported, "meter reset is not supported", nil)
 	}
 
 	return reporter, nil
@@ -358,7 +360,7 @@ func (s *service) normalizeExtendedValues(values Values) (Values, error) {
 	for i, v := range values {
 		normalizedValue, ok := s.normalizeValue(v, supported)
 		if !ok {
-			return nil, fmt.Errorf("%s: extended value %s is unsupported", s.Name(), v)
+			return nil, router.NewError(fimptype.ErrorCodeNotSupported, fmt.Sprintf("extended value %s is not supported", v), nil)
 		}
 
 		normalizedValues[i] = normalizedValue
