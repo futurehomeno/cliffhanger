@@ -18,7 +18,7 @@ sees it fail for the expected reason, then writes the code.
 ## 3. Services
 
 - [x] 3.1 Failing tests per service package, checking the reply's value (the level limit of `outlvlswitch` and the step rounding of `waterheater` stay and keep their tests): unknown address `not_found`; wrong value type `bad_request`; missing capability, unlisted mode, phase mode, charging mode, unit, event, scene, playback `not_supported`; current above `sup_max_current`, setpoint outside `sup_range`, parameter outside `min`/`max` `out_of_range`
-- [x] 3.2 Coded errors in `adapter/routing.go` and `adapter/service/*`
+  - `mediaplayer` answers `out_of_range` for a volume outside 0–100; `colorctrl` advertises no range for colour, so it answers no `out_of_range` (issue 9).
   - `mediaplayer` and `colorctrl` advertise no range for volume and colour, so they answer no `out_of_range` (issue 9).
 - [x] 3.3 Failing test: `virtualmeter.Specification` declares `out evt.error.report string`
 - [x] 3.4 `evt.error.report` in `virtualmeter` `requiredInterfaces`
