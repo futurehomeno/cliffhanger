@@ -4,6 +4,7 @@ import (
 	"fmt"
 
 	"github.com/futurehomeno/fimpgo"
+	"github.com/futurehomeno/fimpgo/fimptype"
 
 	"github.com/futurehomeno/cliffhanger/adapter"
 	"github.com/futurehomeno/cliffhanger/router"
@@ -37,7 +38,7 @@ func handleCmdOTAUpdateStart(serviceRegistry adapter.ServiceRegistry) router.Mes
 		router.MessageProcessorFn(func(message *fimpgo.Message) (*fimpgo.FimpMessage, error) {
 			s := serviceRegistry.ServiceByTopic(message.Topic)
 			if s == nil {
-				return nil, fmt.Errorf("service not found under the provided address: %s", message.Addr.ServiceAddress)
+				return nil, router.NewError(fimptype.ErrorCodeNotFound, "service not found under the provided address", nil)
 			}
 
 			ota, ok := s.(Service)
@@ -47,7 +48,7 @@ func handleCmdOTAUpdateStart(serviceRegistry adapter.ServiceRegistry) router.Mes
 
 			firmwarePath, err := message.Payload.GetStringValue()
 			if err != nil {
-				return nil, fmt.Errorf("failed to get firmware path from payload: %w", err)
+				return nil, router.NewError(fimptype.ErrorCodeBadRequest, "provided firmware path has an incorrect format", err)
 			}
 
 			if err = ota.StartUpdate(firmwarePath); err != nil {
