@@ -6,7 +6,8 @@ When the `MessageProcessor` returns an error, the handler SHALL reply with exact
 as value, the error code found in the error chain (requirement "Coded Errors"), or `internal` when
 the chain carries no code. It SHALL carry the properties `msg`, `cmd_topic`, `cmd_service` and
 `cmd_type`, the last three always set from the request's topic, service and interface. `msg` of a
-coded error SHALL be the error's own plain sentence, with no URL, identifier, key or response body.
+coded error SHALL be the error's own plain sentence, with no URL, serial number, credential or
+response body; it MAY name the rejected value the command itself carried.
 `msg` of an `internal` error SHALL be the error chain's text with the URL of the first `*url.Error`
 in the chain removed: that error SHALL be rendered as its operation and its cause, without its URL.
 A URL written into an error's own text stays the adapter's to remove. The reply's
@@ -96,8 +97,10 @@ cloud refuses later, SHALL be answered with one `evt.error.report` built from th
 by the same rules as requirement "Error Reporting Contract": the request's service, topic resolution,
 `cmd_*` properties, code, `msg` and the request's UID as correlation ID. The framework SHALL provide
 one function that builds this report from the stored request and the error, so the adapter only
-publishes it. No `evt.error.report` SHALL be published without a correlation ID, and a late failure
-SHALL NOT be answered with a report that looks like success.
+publishes it. Its correlation ID SHALL be the request's UID, empty only when the request carried
+none, and a late failure SHALL NOT be answered with a report that looks like success. When the
+request's `resp_to` cannot be parsed the function SHALL log the failure and return no report, as the
+router sends no reply then either.
 
 #### Scenario: deferred write refused
 - **WHEN** a handler accepted `cmd.max_current.set` and, after it returned, the vendor cloud refuses the write
@@ -107,6 +110,10 @@ SHALL NOT be answered with a report that looks like success.
 #### Scenario: late failure with a response topic
 - **WHEN** the stored request set `resp_to`
 - **THEN** the late error report is published to the `resp_to` address
+
+#### Scenario: late failure with an invalid response topic
+- **WHEN** the stored request set a `resp_to` that is not a valid address
+- **THEN** no report is returned and the failure is logged once at error level
 
 ### Requirement: One Log Line Per Failure
 A failure answered with `evt.error.report` SHALL be logged exactly once, by the router or by the

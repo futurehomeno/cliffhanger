@@ -58,7 +58,7 @@ The code reuses what exists and adds one type and one function.
 
   It logs the failure once (as `handleError` does) and returns the report with `Addr` already
   resolved: the parsed `request.Payload.ResponseToTopic` when set, otherwise the request's address
-  with message type `evt` (the rule `router/router.go:202-230` and `handler.go:201-217` apply
+  with message type `evt`; nil when `resp_to` does not parse, as the router then replies nothing (the rule `router/router.go:202-230` and `handler.go:201-217` apply
   together today). The payload is built with `fimpgo.NewMessage(..., request.Payload)`, which sets
   the correlation ID to the request's UID (fimpgo `message.go:364-366`), and gets the skip storage
   strategy on a device resource. The adapter keeps the `*fimpgo.Message` of the accepted command and,

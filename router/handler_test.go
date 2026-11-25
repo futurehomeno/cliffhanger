@@ -214,6 +214,18 @@ func TestNewErrorReport(t *testing.T) {
 	}
 }
 
+func TestNewErrorReport_InvalidResponseTopic(t *testing.T) {
+	hook := logtest.NewGlobal()
+	defer log.StandardLogger().ReplaceHooks(make(log.LevelHooks))
+
+	request := newHandlerRequest(t, "pt:j1/mt:cmd/rt:dev/rn:test/ad:1/sv:test_service/ad:2")
+	request.Payload.ResponseToTopic = "pt:j1/mt:rsp/garbage"
+
+	assert.Nil(t, router.NewErrorReport(request, router.NewError(fimptype.ErrorCodeDeviceRefused, "The cloud refused the write.", nil)))
+	require.Len(t, hook.AllEntries(), 1)
+	assert.Equal(t, log.ErrorLevel, hook.LastEntry().Level)
+}
+
 func TestMessageHandler_ErrorLogLevel(t *testing.T) {
 	hook := logtest.NewGlobal()
 	defer log.StandardLogger().ReplaceHooks(make(log.LevelHooks))
