@@ -457,15 +457,14 @@ func HandleCmdAuthLogin(
 
 			if err = app.Login(credentials); err != nil {
 				log.Errorf("[app] Login err: %v", err)
-
-				report.ErrorText = "failed to login"
 			}
 
-			// Compatibility hack for FHX which implemented login flow not in accordance with the
-			// specification. Restricted to outcomes that actually failed: an app whose login starts
-			// an asynchronous second step is not authenticated yet, and reporting that as an error
-			// would fail a flow that is still running.
+			// Only outcomes that actually failed: an app whose login starts an asynchronous second
+			// step is not authenticated yet, and reporting that as an error would fail a flow that
+			// is still running. Errors is a compatibility hack for FHX, which implemented the login
+			// flow not in accordance with the specification.
 			if err != nil || failedAuthStates[appLifecycle.AuthState()] {
+				report.ErrorText = "failed to login"
 				report.Errors = "failed to login"
 			}
 
@@ -533,7 +532,9 @@ func HandleCmdAuthSetTokens(
 
 			if err = app.Authorize(credentials); err != nil {
 				log.Errorf("[app] Authorize err: %v", err)
+			}
 
+			if err != nil || failedAuthStates[appLifecycle.AuthState()] {
 				report.ErrorText = "failed to authorize"
 			}
 

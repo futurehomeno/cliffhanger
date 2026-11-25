@@ -180,6 +180,7 @@ func TestHandleCmdAuthLogin_FHXErrorsField(t *testing.T) {
 			require.True(t, ok, "expected *app.AuthenticationReport payload, got %T", reply.Payload.Value)
 
 			assert.Equal(t, tc.want, report.Errors)
+			assert.Equal(t, tc.want, report.ErrorText)
 			assert.Equal(t, string(tc.state), report.Status)
 		})
 	}

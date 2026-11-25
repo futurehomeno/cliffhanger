@@ -1,6 +1,7 @@
 package app_test
 
 import (
+	"encoding/json"
 	"errors"
 	"testing"
 
@@ -387,6 +388,35 @@ func TestHandleCmdAuthSetTokens(t *testing.T) {
 		assert.Empty(t, report.Errors)
 		require.NotNil(t, application.authorizeArg)
 		assert.Equal(t, "at", application.authorizeArg.AccessToken)
+	})
+
+	for state, want := range map[lifecycle.State]string{
+		lifecycle.AuthStateNotAuthenticated: "failed to authorize",
+		lifecycle.AuthStateError:            "failed to authorize",
+		lifecycle.AuthStateLost:             "failed to authorize",
+		lifecycle.AuthStateInProgress:       "",
+		lifecycle.AuthStateAuthenticated:    "",
+	} {
+		t.Run("authorize returns no error, state "+string(state), func(t *testing.T) {
+			t.Parallel()
+
+			lc := lifecycle.New(nil)
+			lc.SetAuthState(state)
+
+			report := requireReply[*app.AuthenticationReport](t, app.HandleCmdAuthSetTokens(testDiagService, lc, nil, &recordingApp{}).
+				Handle(newRequest(t, app.CmdAuthSetTokens, auth.OAuth2TokenResponse{AccessToken: "at"})), app.EvtAuthStatusReport)
+
+			assert.Equal(t, want, report.ErrorText)
+			assert.Equal(t, string(state), report.Status)
+		})
+	}
+
+	t.Run("report field names", func(t *testing.T) {
+		t.Parallel()
+
+		b, err := json.Marshal(app.AuthenticationReport{Status: "s", ErrorText: "t", ErrorCode: "c", Errors: "e"})
+		require.NoError(t, err)
+		assert.JSONEq(t, `{"status":"s","error_text":"t","error_code":"c","errors":"e"}`, string(b))
 	})
 
 	t.Run("invalid payload", func(t *testing.T) {
