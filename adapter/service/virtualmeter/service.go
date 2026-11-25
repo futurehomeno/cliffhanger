@@ -5,6 +5,8 @@ import (
 	"slices"
 	"sync"
 
+	"github.com/futurehomeno/cliffhanger/router"
+
 	"github.com/futurehomeno/fimpgo"
 	"github.com/futurehomeno/fimpgo/fimptype"
 
@@ -115,16 +117,16 @@ func (s *service) AddMeter(modes map[string]float64, unit string) error {
 
 	supportedUnits := s.Specification().PropertyStrings(PropertySupportedUnits)
 	if !slices.Contains(supportedUnits, unit) {
-		return fmt.Errorf("service: %s: unsupported unit is provided: %s. Supported: %v", s.Name(), unit, supportedUnits)
+		return router.NewError(fimptype.ErrorCodeNotSupported, fmt.Sprintf("unit %s is not supported", unit), nil)
 	}
 
 	if len(modes) != len(s.Specification().PropertyStrings(PropertySupportedModes)) {
-		return fmt.Errorf("service: %s: number of modes is not equal to the number of supported modes", s.Name())
+		return router.NewError(fimptype.ErrorCodeBadRequest, "number of modes is not equal to the number of supported modes", nil)
 	}
 
 	for mode := range modes {
 		if !slices.Contains(s.Specification().PropertyStrings(PropertySupportedModes), mode) {
-			return fmt.Errorf("service: %s: unsupported mode is provided: %s. Supported: %v", s.Name(), mode, s.Specification().PropertyStrings(PropertySupportedModes))
+			return router.NewError(fimptype.ErrorCodeNotSupported, fmt.Sprintf("mode %s is not supported", mode), nil)
 		}
 	}
 
