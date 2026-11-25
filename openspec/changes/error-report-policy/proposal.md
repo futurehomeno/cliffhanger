@@ -45,15 +45,18 @@ The policy, nine rules:
 5. A failure found after the command was accepted is answered with an error report carrying the
    command's `corid`. No error report is sent without a `corid`.
 6. A value outside the advertised range is rejected with `out_of_range`, a value outside the
-   advertised list with `not_supported`; it is never clamped, capped or rounded silently.
+   advertised list with `not_supported`; it is never clamped, capped or rounded silently. Two
+   exceptions (user, 2026-11-25): a level of `out_lvl_switch` is limited to `[min_lvl, max_lvl]`, and
+   a value may be rounded to the supported step; the report then carries the value that was set.
 7. App flows keep their typed reports and field names (`evt.app.config_report`,
    `evt.app.uninstall_report`, `evt.app.config_action_report`, `evt.auth.status_report`). Additive
    only: the error text field is filled whenever the outcome is a failure. `evt.error.report` stays
    for a malformed payload and a busy lock.
 8. Every device service that accepts commands and every app manifest declares
    `out evt.error.report string`.
-9. A failure is logged once, by the router: expected refusals at warning level, the rest at error
-   level.
+9. A failure is logged once, by the router: a coded failure at warning level, an uncoded one
+   (`internal`) at error level. An adapter may limit the log line of a repeated refusal to once per
+   period; the report is still sent for every command.
 
 Spec deltas:
 
@@ -66,7 +69,8 @@ Spec deltas:
 - `app/app-service`: ADDED "A Failed Outcome Fills The Error Text".
 
 Proposed only, not part of the deltas (see `design.md`): a handler panic answered with `internal`; a
-command no route matches stays unanswered. Open points are listed in `design.md`.
+command no route matches stays unanswered. The decided exceptions and the remaining open points are
+listed in `design.md`.
 
 ## Impact
 

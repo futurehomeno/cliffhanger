@@ -31,9 +31,19 @@ A command value outside the range a service advertises — `min_lvl`/`max_lvl`, 
 advertise SHALL reject it the same way. Neither the service nor the controller SHALL clamp, cap or
 round such a value into the advertised range or list without rejecting it. Matching a listed value
 case-insensitively and passing on its advertised spelling does not change the value and stays
-allowed. Two existing behaviours are open points of change `error-report-policy` and stay as they
-are until decided: the level clamp of requirement "Level Switch Commands" and the step rounding
-before the range check of requirement "Water Heater Setpoint Normalisation".
+allowed. Two exceptions SHALL hold. A level of the `out_lvl_switch` service is limited to
+`[min_lvl, max_lvl]` instead of rejected, and the level report that follows carries the level that
+was set, as requirement "Level Switch Commands" states. A value MAY be rounded to the step the
+service supports before the range check, and the report that follows carries the stored value, as
+requirement "Water Heater Setpoint Normalisation" states.
+
+#### Scenario: level above the maximum is limited
+- **WHEN** `cmd.lvl.set` carries 150 on a switch with `min_lvl` 0 and `max_lvl` 100
+- **THEN** no `evt.error.report` is published and the forced `evt.lvl.report` carries the level the controller set
+
+#### Scenario: setpoint rounded to the step
+- **WHEN** a water heater setpoint of 52.3 is set with `sup_step` 0.5 inside the supported range
+- **THEN** no `evt.error.report` is published and the setpoint report carries 52.5
 
 #### Scenario: max current above the maximum
 - **WHEN** `cmd.max_current.set` requests 40 A on a chargepoint whose `sup_max_current` is 32

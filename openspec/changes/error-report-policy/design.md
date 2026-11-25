@@ -38,9 +38,11 @@ The code reuses what exists and adds one type and one function.
     `*url.Error` found with `errors.As` is rendered again as `Op: Err` and that text replaces the
     original in the chain's text. Only the first `*url.Error` of the chain is rewritten; a URL an
     adapter writes into its own error text is the adapter's to remove (adapter plan);
-  - the log level at `:161-164`: warning for `ErrNotReported` (as today) and for the expected
-    refusals (`bad_request`, `out_of_range`, `not_supported`, `not_found`, `busy`, an adapter's own
-    code), error for the rest. The log line at `:166-169` gains the code and keeps the full chain.
+  - the log level at `:161-164`: warning for every coded error (`ErrNotReported` included, as
+    today), error for `internal`. The log line at `:166-169` gains the code and keeps the full
+    chain. zaptec's log line limited to once per period needs the router to skip the line for a
+    repeated refusal while still sending the report; the smallest shape (for example a field on
+    `router.Error` the adapter sets) is chosen with the code.
 - **Busy lock.** `Handle` (`router/handler.go:112-126`) returns
   `NewError(fimptype.ErrorCodeBusy, "another operation is already running, skipping message", nil)`
   at `:115` instead of the plain `fmt.Errorf`.
@@ -98,10 +100,10 @@ The code reuses what exists and adds one type and one function.
 | 3 value is a code, `internal` by default | fixed text at `handler.go:181` | new: `router.Error`, `errors.As` in `handleError`; coded service validations |
 | 4 `msg`: sentence, or chain without URLs | `err.Error()` at `handler.go:183` | new: `router.Error.Msg`; `*url.Error` rewritten |
 | 5 late failure with the command's `corid` | nothing | new: `router.NewErrorReport` |
-| 6 out of range rejected, not clamped | `chargepoint/service.go:646-658` rejects; `waterheater/service.go:309-322` rounds, then rejects; `outlvlswitch/service.go:177-181` clamps | codes new; clamp and rounding are open points |
+| 6 out of range rejected, not clamped | `chargepoint/service.go:646-658` rejects; `waterheater/service.go:309-322` rounds to the step, then rejects; `outlvlswitch/service.go:177-181` limits the level | codes new; level limit and step rounding stay (decided exceptions) |
 | 7 typed app reports unchanged, error text filled | `app/model.go:12,18`; `manifest/manifest.go:99`; `app/routing.go:393-426` (`op_error` `:412`), reset `:282-301`, login `:441-475`, set_tokens `:517-543`, logout `:558-577` | new: `error_text` on a failed auth state after login and set_tokens |
 | 8 every service and manifest declares the report | 18 of 19 service packages | new: `virtualmeter/specification.go:40-67`; manifests in six adapters |
-| 9 logged once, warning for expected refusals | `handler.go:161-169` (warning only for `ErrNotReported`) | new: level by code; adapters stop logging what they return |
+| 9 logged once, warning when coded, error when `internal` | `handler.go:161-169` (warning only for `ErrNotReported`) | new: level by code; adapters stop logging what they return |
 
 ## Proposed only, no decision
 
@@ -117,34 +119,27 @@ These are for the reviewer. They are not requirements of this change.
   the broker and subscribe to wildcard topics, so a router cannot know that no other process handles
   the command; answering would send false errors.
 
+## Decided exceptions (user, 2026-11-25)
+
+- **Level switch clamp stays.** `adapter/service/outlvlswitch/service.go:177-181` limits the level to
+  `[min_lvl, max_lvl]` and the forced level report carries the level that was set. A level is a
+  relative scale, and callers send it without knowing the device's range. Requirement "Level Switch
+  Commands" is unchanged; the range requirement names this exception.
+- **Water heater step rounding stays.** `waterheater/service.go:309-312` rounds to `sup_step`, then
+  `:314-322` checks the range; the report carries the stored value. Requirement "Water Heater Setpoint
+  Normalisation" is unchanged; the range requirement allows rounding to the supported step.
+- **zaptec refusals follow rule 1.** Every write refused by eco mode or scheduled power management is
+  answered with an `evt.error.report` carrying the command's `corid` and the adapter's code; only the
+  log line is limited to once per period.
+- **Log level by code.** A coded failure is a warning, `unauthorized` included; an uncoded one
+  (`internal`) is an error.
+- **`ErrNotReported` is `unavailable`**, logged at warning level.
+
 ## Open points
 
-- **`outlvlswitch` level clamp against rule 6.** `adapter/service/outlvlswitch/service.go:177-181`
-  clamps the level into `[min_lvl, max_lvl]`. Its comment gives the reason: "a controller reached by
-  an out of range level bounds it itself (edge-hue clamps into [0, max]), so rejecting would turn a
-  command that used to change the device into an error and no action at all." Spec requirement
-  "Level Switch Commands" pins it with scenario "level above the maximum" (150 → 100). Rule 6 says
-  reject with `out_of_range`. Undecided: reject, or keep the clamp as a written exception.
-- **Water heater step rounding before the range check.** `waterheater/service.go:309-312` rounds to
-  `sup_step` before the range check at `:314-322`, so 80.2 with `sup_range` up to 80 and step 0.5 is
-  accepted as 80. Spec requirement "Water Heater Setpoint Normalisation" pins the rounding. Rule 6
-  would reject 80.2; whether rounding a value inside the range to the step counts as "rounded
-  silently" is also open.
-- **zaptec "reported once per episode".** zaptec's spec `charging-control` treats Zaptec's `527`
-  refusals (eco mode, scheduled power management) of an offered-current write as "not a command
-  failure": the command returns no error and the adapter publishes one hand-built `evt.error.report`
-  (`eco_mode`, `scheduled_power_management`) per episode, until the next accepted write. Rule 1 asks
-  for one report per failed command and rule 5 for the command's `corid`. Undecided: whether every
-  refused write is answered through the router with its `corid` (a refusal repeated in one episode
-  answered each time), or whether these refusals stay outside rule 1 because the charger keeps
-  charging.
 - **Producers outside cliffhanger's router.** zigbee-ad, ecollector, CloudBridge and fhbutler send
   free text in the value. Consumers must keep accepting any string in the value; the FIMP
   documentation PR carries a compatibility note. These producers are outside this pass.
-- **Which codes count as expected refusals** (warning level). This design picks `bad_request`,
-  `out_of_range`, `not_supported`, `not_found`, `busy`, an adapter's own codes and `ErrNotReported`.
-- **`ErrNotReported` reported as `unavailable`.** Without a code it would be `internal`, which reads
-  like a bug.
 - **Chargepoint minimum current.** Spec requirement "Chargepoint Command Validation" says "reject a
   requested current below 6 A", but the code applies 6 A only to `cmd.max_current.set`
   (`chargepoint/service.go:276`); the offered current accepts anything from 0 (`:253`). Energy guard,
@@ -161,9 +156,10 @@ test (energy guard issue 086 asks for adapter conformance suites).
 | all ten adapters | codes and plain sentences for their main failures; no URL, serial or body in error text; failures logged once |
 | zaptec, mill, hoiax, tibber, adax, sensibo | manifest declares `evt.error.report` |
 | mill, hoiax, netatmo, tibber, sonos, sensibo | `error_text` filled when the check after authorizing fails |
-| zaptec | three hand-built reports go through the router with `corid`; current above the maximum rejected, not capped; own reports not at debug level |
+| zaptec | three hand-built reports go through the router with `corid`; every write refused by eco mode or scheduled power management answered with the command's `corid` and `eco_mode` / `scheduled_power_management`, only the log line limited to once per period; current above the maximum rejected, not capped; own reports not at debug level |
 | easee | a refused deferred write answered with the command's `corid`; HTTP failures logged once |
-| mill, adax, sensibo | setpoint out of range rejected, not clamped or rounded |
+| mill, adax | thermostat setpoint out of range rejected, not clamped (a setpoint is an absolute quantity, unlike a level) |
+| sensibo | rounding to whole degrees stays (rounding to the supported step is allowed); a setpoint out of range rejected |
 | hoiax | response body in `msg` bounded |
 | energy guard | `thing-charger` spec: the wrong "cliffhanger rejects under 6 A" statement, the rule for a current above the maximum; `get_schedule_report` failure |
 | easee, zaptec | the same wrong "under 6 A" comment and spec text |

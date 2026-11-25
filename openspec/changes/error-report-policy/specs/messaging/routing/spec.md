@@ -110,14 +110,19 @@ SHALL NOT be answered with a report that looks like success.
 A failure answered with `evt.error.report` SHALL be logged exactly once, by the router or by the
 late-failure function, with the request topic, service, type, the code and the full error chain,
 URLs included. A handler, service or controller SHALL return the error, wrapped with what it was
-doing, and SHALL NOT log it as well. The line SHALL be at warning level for an expected refusal —
-the codes `bad_request`, `out_of_range`, `not_supported`, `not_found` and `busy`, an adapter's own
-code, and an error wrapping `router.ErrNotReported` — and at error level for every other code.
+doing, and SHALL NOT log it as well. A failure with a code, an adapter's own code and an error
+wrapping `router.ErrNotReported` included, SHALL be logged at warning level; a failure without a
+code (`internal`) SHALL be logged at error level. An adapter MAY limit the log line of a refusal
+that repeats to once per period; the `evt.error.report` is still sent for every failed command.
 
-#### Scenario: value out of range is a warning
-- **WHEN** a processor returns an error coded `out_of_range`
-- **THEN** exactly one log line is written for it, at warning level
+#### Scenario: coded failure is a warning
+- **WHEN** a processor returns an error coded `unavailable` or `unauthorized`
+- **THEN** exactly one log line is written for it, at warning level, carrying the full error chain
 
-#### Scenario: cloud outage is an error
-- **WHEN** a processor returns an error coded `unavailable` that does not wrap `router.ErrNotReported`
+#### Scenario: uncoded failure is an error
+- **WHEN** a processor returns an error that carries no code
 - **THEN** exactly one log line is written for it, at error level, carrying the full error chain
+
+#### Scenario: repeated refusal
+- **WHEN** an adapter receives the same refusal for three commands within its log period
+- **THEN** three `evt.error.report` messages are published, each with its command's correlation ID, and one log line is written
