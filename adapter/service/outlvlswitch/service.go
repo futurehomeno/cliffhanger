@@ -11,6 +11,7 @@ import (
 
 	"github.com/futurehomeno/cliffhanger/adapter"
 	"github.com/futurehomeno/cliffhanger/adapter/cache"
+	"github.com/futurehomeno/cliffhanger/router"
 	"github.com/futurehomeno/cliffhanger/utils"
 )
 
@@ -207,11 +208,11 @@ func (s *service) StartLevelTransition(value string, params LevelTransitionParam
 	defer s.lock.Unlock()
 
 	if !s.supportsLevelTransition() {
-		return fmt.Errorf("level transition isn't supported, can't start")
+		return router.NewError(fimptype.ErrorCodeNotSupported, "level transition is not supported", nil)
 	}
 
 	if value != TransitionUp && value != TransitionDown {
-		return fmt.Errorf("received incorrect value to start level transition. Received: %s Supported: %s, %s", value, TransitionUp, TransitionDown)
+		return router.NewError(fimptype.ErrorCodeNotSupported, fmt.Sprintf("level transition %s is not supported", value), nil)
 	}
 
 	err := s.validateStartLevelOption(params.StartLvl)
@@ -245,7 +246,7 @@ func (s *service) StopLevelTransition() error {
 	defer s.lock.Unlock()
 
 	if !s.supportsLevelTransition() {
-		return fmt.Errorf("level transition isn't supported, can't stop")
+		return router.NewError(fimptype.ErrorCodeNotSupported, "level transition is not supported", nil)
 	}
 
 	ctr, ok := s.controller.(LevelTransitionController)
@@ -279,7 +280,7 @@ func (s *service) validateStartLevelOption(startLvl *int) error {
 	// Rejected rather than clamped, unlike cmd.lvl.set: an out of range start_lvl has always been
 	// an error and nothing downstream compensates for it.
 	if *startLvl < lvlMin || lvlMax < *startLvl {
-		return fmt.Errorf("invalid startLvl received: level %d is out of the supported range: %d - %d", *startLvl, lvlMin, lvlMax)
+		return router.NewError(fimptype.ErrorCodeOutOfRange, fmt.Sprintf("start level must be between %d and %d", lvlMin, lvlMax), fmt.Errorf("received %d", *startLvl))
 	}
 
 	return nil

@@ -122,11 +122,11 @@ func TestService_StartLevelTransitionRejectsInvalidInput(t *testing.T) {
 
 	svc := newSwitch(nil, transitionCtrl, outlvlswitch.WithSupportedStartLevel())
 
-	assert.ErrorContains(t, svc.StartLevelTransition("sideways", outlvlswitch.LevelTransitionParams{}), "incorrect value")
-	assert.ErrorContains(t, svc.StartLevelTransition(outlvlswitch.TransitionDown, outlvlswitch.LevelTransitionParams{StartLvl: utils.Ptr(101)}), "out of the supported range")
+	assert.ErrorContains(t, svc.StartLevelTransition("sideways", outlvlswitch.LevelTransitionParams{}), "level transition sideways is not supported")
+	assert.ErrorContains(t, svc.StartLevelTransition(outlvlswitch.TransitionDown, outlvlswitch.LevelTransitionParams{StartLvl: utils.Ptr(101)}), "start level must be between")
 
 	plain := newSwitch(nil, mockedoutlvlswitch.NewController(t))
 
-	assert.ErrorContains(t, plain.StartLevelTransition(outlvlswitch.TransitionUp, outlvlswitch.LevelTransitionParams{}), "isn't supported")
-	assert.ErrorContains(t, plain.StopLevelTransition(), "isn't supported")
+	assert.ErrorContains(t, plain.StartLevelTransition(outlvlswitch.TransitionUp, outlvlswitch.LevelTransitionParams{}), "is not supported")
+	assert.ErrorContains(t, plain.StopLevelTransition(), "is not supported")
 }
