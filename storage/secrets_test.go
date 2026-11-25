@@ -1,10 +1,13 @@
 package storage_test
 
 import (
+	"fmt"
 	"os"
 	"path/filepath"
 	"testing"
+	"time"
 
+	logtest "github.com/sirupsen/logrus/hooks/test"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
@@ -122,14 +125,60 @@ func TestNew_ConfigFileMode(t *testing.T) {
 	assert.Equal(t, os.FileMode(0o644), info.Mode().Perm(), "save should tighten permissions of pre-existing files")
 }
 
+type typedSecrets struct {
+	AccessToken string
+	PIN         int
+	Quoted      int `json:",string"`
+	ExpiresAt   time.Time
+}
+
 func TestNewSecrets_LoadErrorOmitsFileContents(t *testing.T) {
 	t.Parallel()
 
+	tcs := []struct {
+		name, body, secret, kind string
+	}{
+		{"cut short", `{"AccessToken": "s3cr3t"`, "s3cr3t", "not valid JSON"},
+		{"number overflow", `{"PIN": 98765432109876543210}`, "98765432109876543210", "a value does not fit the model"},
+		{"string tag", `{"Quoted": "FAKE-SECRET-1"}`, "FAKE-SECRET-1", "a value does not fit the model"},
+		{"time field", `{"ExpiresAt": "FAKE-SECRET-2"}`, "FAKE-SECRET-2", "a value does not fit the model"},
+	}
+
+	for _, tc := range tcs {
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+
+			workDir := t.TempDir()
+			path := filepath.Join(workDir, "data", "secrets.json")
+			require.NoError(t, os.MkdirAll(filepath.Join(workDir, "data"), 0o750))
+			require.NoError(t, os.WriteFile(path, []byte(tc.body), 0o600))
+
+			err := storage.NewSecrets(&typedSecrets{}, workDir, "secrets.json").Load()
+			require.Error(t, err)
+			assert.NotContains(t, err.Error(), tc.secret, "a load error ends up in logs, so it must not carry the file's contents")
+			assert.Equal(t, fmt.Sprintf("storage: cannot unmarshal the secrets file at path %s (%d bytes): %s", path, len(tc.body), tc.kind), err.Error())
+		})
+	}
+}
+
+func TestNewSecrets_BackupFallbackLogOmitsFileContents(t *testing.T) {
+	hook := logtest.NewGlobal()
+	defer hook.Reset()
+
 	workDir := t.TempDir()
 	require.NoError(t, os.MkdirAll(filepath.Join(workDir, "data"), 0o750))
-	require.NoError(t, os.WriteFile(filepath.Join(workDir, "data", "secrets.json"), []byte(`{"AccessToken": "s3cr3t"`), 0o600))
+	require.NoError(t, os.WriteFile(filepath.Join(workDir, "data", "secrets.json"), []byte(`{"ExpiresAt": "FAKE-SECRET-3"}`), 0o600))
+	require.NoError(t, os.WriteFile(filepath.Join(workDir, "data", "secrets.json.bak"), []byte(`{"AccessToken": "token"}`), 0o600))
 
-	err := storage.NewSecrets(&secrets{}, workDir, "secrets.json").Load()
-	require.Error(t, err)
-	assert.NotContains(t, err.Error(), "s3cr3t", "a load error ends up in logs, so it must not carry the file's contents")
+	s := storage.NewSecrets(&typedSecrets{}, workDir, "secrets.json")
+	require.NoError(t, s.Load())
+	assert.Equal(t, "token", s.Model().AccessToken)
+
+	require.NotEmpty(t, hook.AllEntries())
+
+	for _, entry := range hook.AllEntries() {
+		line, err := entry.String()
+		require.NoError(t, err)
+		assert.NotContains(t, line, "FAKE-SECRET-3")
+	}
 }
