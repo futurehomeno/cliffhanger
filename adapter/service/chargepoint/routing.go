@@ -4,6 +4,7 @@ import (
 	"fmt"
 
 	"github.com/futurehomeno/fimpgo"
+	"github.com/futurehomeno/fimpgo/fimptype"
 	log "github.com/sirupsen/logrus"
 
 	"github.com/futurehomeno/cliffhanger/adapter"
@@ -152,7 +153,7 @@ func handleCmdCableLockSet(serviceRegistry adapter.ServiceRegistry) router.Messa
 
 			value, err := message.Payload.GetBoolValue()
 			if err != nil {
-				return nil, fmt.Errorf("provided cable lock value has an incorrect format: %w", err)
+				return nil, router.NewError(fimptype.ErrorCodeBadRequest, "provided cable lock value has an incorrect format", err)
 			}
 
 			err = chargepoint.SetCableLock(value)
@@ -240,7 +241,7 @@ func handleCmdCurrentSessionSetCurrent(serviceRegistry adapter.ServiceRegistry) 
 
 			current, err := message.Payload.GetIntValue()
 			if err != nil {
-				return nil, fmt.Errorf("provided current value has an incorrect format: %w", err)
+				return nil, router.NewError(fimptype.ErrorCodeBadRequest, "provided current value has an incorrect format", err)
 			}
 
 			err = chargepoint.SetOfferedCurrent(current)
@@ -302,7 +303,7 @@ func handleCmdMaxCurrentSet(serviceRegistry adapter.ServiceRegistry) router.Mess
 
 			current, err := message.Payload.GetIntValue()
 			if err != nil {
-				return nil, fmt.Errorf("provided current value has an incorrect format: %w", err)
+				return nil, router.NewError(fimptype.ErrorCodeBadRequest, "provided current value has an incorrect format", err)
 			}
 
 			err = chargepoint.SetMaxCurrent(current)
@@ -364,7 +365,7 @@ func handleCmdPhaseModeSet(serviceRegistry adapter.ServiceRegistry) router.Messa
 
 			phaseMode, err := message.Payload.GetStringValue()
 			if err != nil {
-				return nil, fmt.Errorf("provided phase mode has an incorrect format: %w", err)
+				return nil, router.NewError(fimptype.ErrorCodeBadRequest, "provided phase mode has an incorrect format", err)
 			}
 
 			err = chargepoint.SetPhaseMode(types.PhaseMode(phaseMode))
@@ -412,7 +413,7 @@ func handleCmdPhaseModeGetReport(serviceRegistry adapter.ServiceRegistry) router
 func getService(serviceRegistry adapter.ServiceRegistry, message *fimpgo.Message) (Service, error) {
 	s := serviceRegistry.ServiceByTopic(message.Topic)
 	if s == nil {
-		return nil, fmt.Errorf("service not found under the provided address: %s", message.Addr.ServiceAddress)
+		return nil, router.NewError(fimptype.ErrorCodeNotFound, "service not found under the provided address", nil)
 	}
 
 	chargepoint, ok := s.(Service)
