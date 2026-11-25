@@ -177,7 +177,7 @@ func HandleCmdAppGetManifest[C any](
 
 				mode, err = message.Payload.GetStringValue()
 				if err != nil {
-					return nil, fmt.Errorf("provided value has an incorrect format: %w", err)
+					return nil, router.NewError(fimptype.ErrorCodeBadRequest, "provided value has an incorrect format", err)
 				}
 			}
 
@@ -450,7 +450,7 @@ func HandleCmdAuthLogin(
 
 			err := message.Payload.GetObjectValue(credentials)
 			if err != nil {
-				return nil, fmt.Errorf("provided login credentials have an invalid format: %w", err)
+				return nil, router.NewError(fimptype.ErrorCodeBadRequest, "provided login credentials have an invalid format", err)
 			}
 
 			report := &AuthenticationReport{}
@@ -525,7 +525,7 @@ func HandleCmdAuthSetTokens(
 
 			err := message.Payload.GetObjectValue(credentials)
 			if err != nil {
-				return nil, fmt.Errorf("provided authorization credentials have an invalid format: %w", err)
+				return nil, router.NewError(fimptype.ErrorCodeBadRequest, "provided authorization credentials have an invalid format", err)
 			}
 
 			report := &AuthenticationReport{}

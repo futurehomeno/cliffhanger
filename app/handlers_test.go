@@ -6,6 +6,7 @@ import (
 	"testing"
 
 	"github.com/futurehomeno/fimpgo"
+	"github.com/futurehomeno/fimpgo/fimptype"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
@@ -113,11 +114,12 @@ func requireReply[T any](t *testing.T, reply *fimpgo.Message, wantType string) T
 	return v
 }
 
-func requireErrorReport(t *testing.T, reply *fimpgo.Message, wantMsg string) {
+func requireErrorReport(t *testing.T, reply *fimpgo.Message, wantCode fimptype.ErrorCodeT, wantMsg string) {
 	t.Helper()
 
 	require.NotNil(t, reply)
 	assert.Equal(t, router.EvtErrorReport, reply.Payload.Interface)
+	assert.Equal(t, wantCode.Str(), reply.Payload.Value)
 	assert.Contains(t, reply.Payload.Properties[router.PropertyMsg], wantMsg)
 }
 
@@ -172,7 +174,7 @@ func TestHandleCmdAppGetManifest_Errors(t *testing.T) {
 
 		handler := app.HandleCmdAppGetManifest[*handlerConfig](testDiagService, lifecycle.New(nil), st, &recordingApp{})
 
-		requireErrorReport(t, handler.Handle(newRequest(t, app.CmdAppGetManifest, map[string]string{"a": "b"})), "provided value has an incorrect format")
+		requireErrorReport(t, handler.Handle(newRequest(t, app.CmdAppGetManifest, map[string]string{"a": "b"})), fimptype.ErrorCodeBadRequest, "provided value has an incorrect format")
 	})
 
 	t.Run("manifest retrieval fails", func(t *testing.T) {
@@ -180,7 +182,7 @@ func TestHandleCmdAppGetManifest_Errors(t *testing.T) {
 
 		handler := app.HandleCmdAppGetManifest[*handlerConfig](testDiagService, lifecycle.New(nil), st, &recordingApp{manifestErr: errors.New("boom")})
 
-		requireErrorReport(t, handler.Handle(newRequest(t, app.CmdAppGetManifest, "full")), "failed to retrieve the manifest")
+		requireErrorReport(t, handler.Handle(newRequest(t, app.CmdAppGetManifest, "full")), fimptype.ErrorCodeInternal, "failed to retrieve the manifest")
 	})
 }
 
@@ -350,7 +352,7 @@ func TestMutatingHandlers_RejectedWhileLocked(t *testing.T) {
 	}
 
 	for msgType, handler := range handlers {
-		requireErrorReport(t, handler.Handle(newRequest(t, msgType, handlerConfig{})), "another operation is already running")
+		requireErrorReport(t, handler.Handle(newRequest(t, msgType, handlerConfig{})), fimptype.ErrorCodeBusy, "another operation is already running")
 	}
 
 	assert.Empty(t, application.configured)
@@ -425,7 +427,7 @@ func TestHandleCmdAuthSetTokens(t *testing.T) {
 		application := &recordingApp{}
 		handler := app.HandleCmdAuthSetTokens(testDiagService, lifecycle.New(nil), nil, application)
 
-		requireErrorReport(t, handler.Handle(newRequest(t, app.CmdAuthSetTokens, "token")), "provided authorization credentials have an invalid format")
+		requireErrorReport(t, handler.Handle(newRequest(t, app.CmdAuthSetTokens, "token")), fimptype.ErrorCodeBadRequest, "provided authorization credentials have an invalid format")
 		assert.Nil(t, application.authorizeArg)
 	})
 }
@@ -454,7 +456,7 @@ func TestHandleCmdAuthLogin_InvalidCredentials(t *testing.T) {
 
 	handler := app.HandleCmdAuthLogin(testDiagService, lifecycle.New(nil), nil, stubDualApp{})
 
-	requireErrorReport(t, handler.Handle(newRequest(t, app.CmdAuthLogin, []int{1})), "provided login credentials have an invalid format")
+	requireErrorReport(t, handler.Handle(newRequest(t, app.CmdAuthLogin, []int{1})), fimptype.ErrorCodeBadRequest, "provided login credentials have an invalid format")
 }
 
 type logoutFunc func() error
