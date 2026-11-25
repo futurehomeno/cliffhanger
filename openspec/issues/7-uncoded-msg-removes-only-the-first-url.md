@@ -1,4 +1,4 @@
-# 6. An uncoded msg loses only the first URL of its chain
+# 7. An uncoded msg loses only the first URL of its chain
 
 ## What happened
 

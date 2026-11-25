@@ -152,7 +152,7 @@ func TestError(t *testing.T) {
 
 func TestNewErrorReport(t *testing.T) {
 	hook := logtest.NewGlobal()
-	defer hook.Reset()
+	defer log.StandardLogger().ReplaceHooks(make(log.LevelHooks))
 
 	tcs := []struct {
 		name      string
@@ -204,7 +204,7 @@ func TestNewErrorReport(t *testing.T) {
 
 func TestMessageHandler_ErrorLogLevel(t *testing.T) {
 	hook := logtest.NewGlobal()
-	defer hook.Reset()
+	defer log.StandardLogger().ReplaceHooks(make(log.LevelHooks))
 
 	tcs := []struct {
 		name string
@@ -234,7 +234,7 @@ func TestMessageHandler_ErrorLogLevel(t *testing.T) {
 
 func TestMessageHandler_RepeatedRefusalNotLogged(t *testing.T) {
 	hook := logtest.NewGlobal()
-	defer hook.Reset()
+	defer log.StandardLogger().ReplaceHooks(make(log.LevelHooks))
 
 	err := router.NewError("eco_mode", "Eco mode is on.", nil)
 	err.NoLog = true
