@@ -17,3 +17,8 @@ from a message processor: `msg` still holds `https://b`.
 Either the delta says "the URL of the first `*url.Error` in the chain" (what the design decided), or the
 router walks every `*url.Error` in the chain. A URL in an adapter's own text stays the adapter's to
 remove (adapter plan).
+
+## Status 2026-11-25
+
+Closed by the user's decision: the router keeps removing the URL of the first `*url.Error` only, and the
+delta of `error-report-policy` (`messaging/routing`, "Error Reporting Contract") now says so.

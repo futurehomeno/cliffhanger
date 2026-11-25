@@ -7,8 +7,9 @@ as value, the error code found in the error chain (requirement "Coded Errors"), 
 the chain carries no code. It SHALL carry the properties `msg`, `cmd_topic`, `cmd_service` and
 `cmd_type`, the last three always set from the request's topic, service and interface. `msg` of a
 coded error SHALL be the error's own plain sentence, with no URL, identifier, key or response body.
-`msg` of an `internal` error SHALL be the error chain's text with every URL removed: a `*url.Error`
-in the chain SHALL be rendered as its operation and its cause, without its URL. The reply's
+`msg` of an `internal` error SHALL be the error chain's text with the URL of the first `*url.Error`
+in the chain removed: that error SHALL be rendered as its operation and its cause, without its URL.
+A URL written into an error's own text stays the adapter's to remove. The reply's
 correlation ID SHALL be the request's UID. The reply SHALL be published to the request's
 `resp_to` topic when it has one, and otherwise to the request's address (or the handler's default
 address) with message type `evt`, as requirement "Reply Address Resolution" states. An error reply
