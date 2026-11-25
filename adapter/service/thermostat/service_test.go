@@ -4,10 +4,13 @@ import (
 	"encoding/json"
 	"testing"
 
+	"github.com/futurehomeno/fimpgo/fimptype"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
+	"github.com/stretchr/testify/require"
 
 	"github.com/futurehomeno/cliffhanger/adapter/service/thermostat"
+	"github.com/futurehomeno/cliffhanger/router"
 	mockedadapter "github.com/futurehomeno/cliffhanger/test/mocks/adapter"
 	mockedthermostat "github.com/futurehomeno/cliffhanger/test/mocks/adapter/service/thermostat"
 )
@@ -69,4 +72,22 @@ func TestService_SetpointReportIsRepublishedOnUnitChange(t *testing.T) {
 	sent, err = svc.SendSetpointReport("heat", false)
 	assert.NoError(t, err)
 	assert.True(t, sent, "a setpoint whose unit changed must be reported again")
+}
+
+func TestService_UnlistedModeIsNotSupported(t *testing.T) {
+	t.Parallel()
+
+	svc := thermostat.NewService(mockedadapter.NewServicePublisher(t), &thermostat.Config{
+		Specification: thermostat.Specification("test_adapter", "1", "2", nil, []string{"heat"}, []string{"heat"}, []string{thermostat.StateHeat}),
+		Controller:    mockedthermostat.NewController(t),
+	})
+
+	_, reportErr := svc.SendSetpointReport("cool", true)
+
+	for _, err := range []error{svc.SetMode("cool"), svc.SetSetpoint("cool", 21, "C"), reportErr} {
+		var coded *router.Error
+
+		require.ErrorAs(t, err, &coded)
+		assert.Equal(t, fimptype.ErrorCodeNotSupported, coded.Code)
+	}
 }
