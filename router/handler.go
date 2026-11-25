@@ -173,6 +173,10 @@ func (m *messageHandler) getResponseAddress(requestAddress *fimpgo.Address) *fim
 }
 
 func evtAddress(a *fimpgo.Address) *fimpgo.Address {
+	if a == nil {
+		a = &fimpgo.Address{}
+	}
+
 	return &fimpgo.Address{
 		PayloadType:     a.PayloadType,
 		MsgType:         fimptype.MsgTypeEvt,

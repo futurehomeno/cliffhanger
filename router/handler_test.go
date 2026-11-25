@@ -253,6 +253,10 @@ func TestMessageHandler_SilentErrors(t *testing.T) {
 	handler := router.NewMessageHandler(failingProcessor(errors.New("boom")), router.WithSilentErrors())
 
 	assert.Nil(t, handler.Handle(request))
+
+	request.Addr = nil
+
+	assert.Nil(t, handler.Handle(request), "a silent failure needs no address to answer to")
 }
 
 func TestMessageHandler_DefaultAddress(t *testing.T) {
