@@ -206,6 +206,20 @@ func TestRouteService(t *testing.T) { //nolint:paralleltest
 						},
 					},
 					{
+						Name:    "set volume - above 100",
+						Command: suite.IntMessage("pt:j1/mt:cmd/rt:dev/rn:test_adapter/ad:1/sv:media_player/ad:3", "cmd.volume.set", "media_player", 101),
+						Expectations: []*suite.Expectation{
+							suite.ExpectError("pt:j1/mt:evt/rt:dev/rn:test_adapter/ad:1/sv:media_player/ad:3", "media_player").ExpectString("out_of_range"),
+						},
+					},
+					{
+						Name:    "set volume - below 0",
+						Command: suite.IntMessage("pt:j1/mt:cmd/rt:dev/rn:test_adapter/ad:1/sv:media_player/ad:3", "cmd.volume.set", "media_player", -1),
+						Expectations: []*suite.Expectation{
+							suite.ExpectError("pt:j1/mt:evt/rt:dev/rn:test_adapter/ad:1/sv:media_player/ad:3", "media_player").ExpectString("out_of_range"),
+						},
+					},
+					{
 						Name:    "set volume - errored service",
 						Command: suite.IntMessage("pt:j1/mt:cmd/rt:dev/rn:test_adapter/ad:1/sv:media_player/ad:3", "cmd.volume.set", "media_player", 10),
 						Expectations: []*suite.Expectation{

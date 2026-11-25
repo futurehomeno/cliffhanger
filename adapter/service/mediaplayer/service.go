@@ -247,6 +247,10 @@ func (s *service) SetVolume(level int) error {
 	s.lock.Lock()
 	defer s.lock.Unlock()
 
+	if level < 0 || level > 100 {
+		return router.NewError(fimptype.ErrorCodeOutOfRange, "volume must be between 0 and 100", fmt.Errorf("received %d", level))
+	}
+
 	err := s.controller.SetVolume(level)
 	if err != nil {
 		return fmt.Errorf("mediaplayer: failed to set volume: %w", err)
