@@ -5,26 +5,28 @@ sees it fail for the expected reason, then writes the code.
 
 - [ ] 1.1 fimpgo change `error-codes` merged and released with `fimptype.ErrorCodeT`
 - [ ] 1.2 `go.mod` takes that fimpgo release
+  - For now `go.mod` pins the head of fimpgo branch `spec/error-codes` (pseudo-version); re-pin to the release tag before merge.
 
 ## 2. Router
 
-- [ ] 2.1 Failing tests in `router/handler_test.go`: an uncoded error answers `internal` with `msg` `boom` (replaces the assertion at `:69`); a coded error answers its code and sentence; a code wrapped twice is found; an uncoded `*url.Error` loses its URL in `msg`; `ErrNotReported` answers `unavailable` at warning level; a busy lock answers `busy`; the reply's correlation ID is the request's UID
-- [ ] 2.2 `router.Error`, `router.NewError`; `handleError` finds the code with `errors.As`, builds `msg`, picks the log level by code; `Handle` returns a `busy` error on a held lock
-- [ ] 2.3 Failing test: exactly one log line per failure, at warning for a coded failure (`unauthorized` included) and at error for `internal`
-- [ ] 2.4 Failing tests for `router.NewErrorReport`: `corid` is the stored request's UID; `resp_to` wins over the request address; skip storage on a device resource; one log line
-- [ ] 2.5 `router.NewErrorReport`, sharing the payload builder with `handleError`
+- [x] 2.1 Failing tests in `router/handler_test.go`: an uncoded error answers `internal` with `msg` `boom` (replaces the assertion at `:69`); a coded error answers its code and sentence; a code wrapped twice is found; an uncoded `*url.Error` loses its URL in `msg`; `ErrNotReported` answers `unavailable` at warning level; a busy lock answers `busy`; the reply's correlation ID is the request's UID
+- [x] 2.2 `router.Error`, `router.NewError`; `handleError` finds the code with `errors.As`, builds `msg`, picks the log level by code; `Handle` returns a `busy` error on a held lock
+- [x] 2.3 Failing test: exactly one log line per failure, at warning for a coded failure (`unauthorized` included) and at error for `internal`
+- [x] 2.4 Failing tests for `router.NewErrorReport`: `corid` is the stored request's UID; `resp_to` wins over the request address; skip storage on a device resource; one log line
+- [x] 2.5 `router.NewErrorReport`, sharing the payload builder with `handleError`
 
 ## 3. Services
 
 - [ ] 3.1 Failing tests per service package, checking the reply's value (the level limit of `outlvlswitch` and the step rounding of `waterheater` stay and keep their tests): unknown address `not_found`; wrong value type `bad_request`; missing capability, unlisted mode, phase mode, charging mode, unit, event, scene, playback `not_supported`; current above `sup_max_current`, setpoint outside `sup_range`, parameter outside `min`/`max` `out_of_range`
 - [ ] 3.2 Coded errors in `adapter/routing.go` and `adapter/service/*`
-- [ ] 3.3 Failing test: `virtualmeter.Specification` declares `out evt.error.report string`
-- [ ] 3.4 `evt.error.report` in `virtualmeter` `requiredInterfaces`
+  - Done for `adapter/routing.go`, `chargepoint`, `parameters`, `waterheater`, `thermostat`. Still to do: `alarm`, `battery`, `colorctrl`, `devsys`, `diagnostic`, `fanctrl`, `mediaplayer`, `numericmeter`, `numericsensor`, `ota`, `outbinswitch`, `outlvlswitch`, `presence`, `scenectrl`, `virtualmeter`, and `bad_request` for the unreadable payloads in `app/routing.go`.
+- [x] 3.3 Failing test: `virtualmeter.Specification` declares `out evt.error.report string`
+- [x] 3.4 `evt.error.report` in `virtualmeter` `requiredInterfaces`
 
 ## 4. App flows
 
-- [ ] 4.1 Failing tests: set_tokens and login with no error but a failed auth state fill `error_text`; `IN_PROGRESS` leaves it empty; report field names unchanged
-- [ ] 4.2 `error_text` from `failedAuthStates` in `HandleCmdAuthLogin` and `HandleCmdAuthSetTokens`
+- [x] 4.1 Failing tests: set_tokens and login with no error but a failed auth state fill `error_text`; `IN_PROGRESS` leaves it empty; report field names unchanged
+- [x] 4.2 `error_text` from `failedAuthStates` in `HandleCmdAuthLogin` and `HandleCmdAuthSetTokens`
 
 ## 5. Release
 
