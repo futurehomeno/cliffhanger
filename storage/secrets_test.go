@@ -7,6 +7,7 @@ import (
 	"testing"
 	"time"
 
+	log "github.com/sirupsen/logrus"
 	logtest "github.com/sirupsen/logrus/hooks/test"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -163,7 +164,7 @@ func TestNewSecrets_LoadErrorOmitsFileContents(t *testing.T) {
 
 func TestNewSecrets_BackupFallbackLogOmitsFileContents(t *testing.T) {
 	hook := logtest.NewGlobal()
-	defer hook.Reset()
+	defer log.StandardLogger().ReplaceHooks(make(log.LevelHooks))
 
 	workDir := t.TempDir()
 	require.NoError(t, os.MkdirAll(filepath.Join(workDir, "data"), 0o750))
@@ -175,6 +176,7 @@ func TestNewSecrets_BackupFallbackLogOmitsFileContents(t *testing.T) {
 	assert.Equal(t, "token", s.Model().AccessToken)
 
 	require.NotEmpty(t, hook.AllEntries())
+	assert.Contains(t, hook.LastEntry().Message, "(30 bytes): a value does not fit the model")
 
 	for _, entry := range hook.AllEntries() {
 		line, err := entry.String()
