@@ -11,6 +11,7 @@ import (
 
 	"github.com/futurehomeno/cliffhanger/adapter"
 	"github.com/futurehomeno/cliffhanger/adapter/cache"
+	"github.com/futurehomeno/cliffhanger/router"
 )
 
 const (
@@ -350,7 +351,7 @@ func (s *service) validatePlaybackAction(action string) error {
 	supportedActions := s.Specification().PropertyStrings(PropertySupportedPlayback)
 
 	if !slices.Contains(supportedActions, action) {
-		return fmt.Errorf("mediaplayer: unsupported playback action: %s", action)
+		return router.NewError(fimptype.ErrorCodeNotSupported, fmt.Sprintf("playback action %s is not supported", action), nil)
 	}
 
 	return nil
@@ -361,7 +362,7 @@ func (s *service) validateMode(mode map[string]bool) error {
 
 	for mode := range mode {
 		if !slices.Contains(supportedModes, mode) {
-			return fmt.Errorf("mediaplayer: unsupported playback mode: %s", mode)
+			return router.NewError(fimptype.ErrorCodeNotSupported, fmt.Sprintf("playback mode %s is not supported", mode), nil)
 		}
 	}
 
