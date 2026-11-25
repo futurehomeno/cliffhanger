@@ -3,9 +3,12 @@ package parameters_test
 import (
 	"testing"
 
+	"github.com/futurehomeno/fimpgo/fimptype"
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 
 	"github.com/futurehomeno/cliffhanger/adapter/service/parameters"
+	"github.com/futurehomeno/cliffhanger/router"
 )
 
 func TestParameterSpecification_ValidateParameter(t *testing.T) {
@@ -350,5 +353,30 @@ func TestParameter_Validate(t *testing.T) {
 
 			assert.NoError(t, err)
 		})
+	}
+}
+
+func TestParameterSpecification_ValidateParameter_Codes(t *testing.T) {
+	t.Parallel()
+
+	input := (&parameters.ParameterSpecification{ID: "1", WidgetType: parameters.WidgetTypeInput, ValueType: parameters.ValueTypeInt}).WithMin(0).WithMax(100)
+	selection := &parameters.ParameterSpecification{
+		ID: "1", WidgetType: parameters.WidgetTypeSelect, ValueType: parameters.ValueTypeInt, Options: parameters.SelectOptions{{Value: 1}},
+	}
+
+	for name, tc := range map[string]struct {
+		err  error
+		want fimptype.ErrorCodeT
+	}{
+		"above maximum":    {input.ValidateParameter(parameters.NewIntParameter("1", 120)), fimptype.ErrorCodeOutOfRange},
+		"below minimum":    {input.ValidateParameter(parameters.NewIntParameter("1", -1)), fimptype.ErrorCodeOutOfRange},
+		"not an option":    {selection.ValidateParameter(parameters.NewIntParameter("1", 4)), fimptype.ErrorCodeNotSupported},
+		"wrong value type": {input.ValidateParameter(parameters.NewStringParameter("1", "x")), fimptype.ErrorCodeBadRequest},
+		"empty id":         {parameters.NewIntParameter("", 5).Validate(), fimptype.ErrorCodeBadRequest},
+	} {
+		var coded *router.Error
+
+		require.ErrorAs(t, tc.err, &coded, name)
+		assert.Equal(t, tc.want, coded.Code, name)
 	}
 }

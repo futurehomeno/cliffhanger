@@ -9,6 +9,7 @@ import (
 
 	"github.com/futurehomeno/cliffhanger/adapter"
 	"github.com/futurehomeno/cliffhanger/adapter/cache"
+	"github.com/futurehomeno/cliffhanger/router"
 )
 
 // Controller is an interface representing a device holding parameters.
@@ -82,7 +83,7 @@ func (s *service) SetParameter(p *Parameter) error {
 	}
 
 	if spec.ReadOnly {
-		return fmt.Errorf("%s: parameter is read only", s.Name())
+		return router.NewError(fimptype.ErrorCodeNotSupported, "parameter is read only", nil)
 	}
 
 	if err = spec.ValidateParameter(p); err != nil {
@@ -106,7 +107,7 @@ func (s *service) SendParameterReport(id string, force bool) (bool, error) {
 	}
 
 	if parameter == nil {
-		return false, fmt.Errorf("%s: parameter not found: %s", s.Name(), id)
+		return false, router.NewError(fimptype.ErrorCodeNotFound, "parameter not found", fmt.Errorf("id %s", id))
 	}
 
 	if !force && !s.reportingCache.ReportRequired(s.reportingStrategy, EvtParamReport, id, parameter) {
@@ -175,5 +176,5 @@ func (s *service) getParameterSpecification(id string) (*ParameterSpecification,
 		}
 	}
 
-	return nil, fmt.Errorf("parameter specification id '%s' not found", id)
+	return nil, router.NewError(fimptype.ErrorCodeNotFound, "parameter not found", fmt.Errorf("id %s", id))
 }
