@@ -11,6 +11,7 @@ import (
 
 	"github.com/futurehomeno/cliffhanger/adapter"
 	"github.com/futurehomeno/cliffhanger/adapter/cache"
+	"github.com/futurehomeno/cliffhanger/router"
 	"github.com/futurehomeno/cliffhanger/utils"
 )
 
@@ -93,7 +94,7 @@ func (s *service) SetMode(mode string) error {
 
 	normalizedMode, ok := utils.Normalize(mode, s.SupportedModes())
 	if !ok {
-		return fmt.Errorf("mode %s is not supported", mode)
+		return router.NewError(fimptype.ErrorCodeNotSupported, fmt.Sprintf("mode %s is not supported", mode), nil)
 	}
 
 	err := s.controller.SetFanCtrlMode(normalizedMode)
