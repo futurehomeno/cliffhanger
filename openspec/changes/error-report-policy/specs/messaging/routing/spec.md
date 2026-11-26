@@ -113,8 +113,8 @@ A failure answered with `evt.error.report` SHALL be logged exactly once, by the 
 late-failure function, with the request topic, service, type, the code and the full error chain,
 URLs included. A handler, service or controller SHALL return the error, wrapped with what it was
 doing, and SHALL NOT log it as well. A failure with a code, an adapter's own code and an error
-wrapping `router.ErrNotReported` included, SHALL be logged at warning level; a failure without a
-code (`internal`) SHALL be logged at error level. An adapter MAY limit the log line of a refusal
+wrapping `router.ErrNotReported` included, SHALL be logged at warning level; a failure answered
+`internal`, without a code or coded `internal`, SHALL be logged at error level. An adapter MAY limit the log line of a refusal
 that repeats to once per period; the `evt.error.report` is still sent for every failed command.
 
 #### Scenario: coded failure is a warning
@@ -123,6 +123,10 @@ that repeats to once per period; the `evt.error.report` is still sent for every 
 
 #### Scenario: uncoded failure is an error
 - **WHEN** a processor returns an error that carries no code
+- **THEN** exactly one log line is written for it, at error level, carrying the full error chain
+
+#### Scenario: coded internal failure is an error
+- **WHEN** a processor returns an error coded `internal` to keep a URL out of `msg`
 - **THEN** exactly one log line is written for it, at error level, carrying the full error chain
 
 #### Scenario: repeated refusal

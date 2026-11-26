@@ -226,6 +226,7 @@ func TestMessageHandler_ErrorLogLevel(t *testing.T) {
 		{name: "not reported yet is a warning", err: fmt.Errorf("sensor: %w", router.ErrNotReported), want: log.WarnLevel},
 		{name: "unauthorized is a warning", err: router.NewError(fimptype.ErrorCodeUnauthorized, "The cloud refused the credentials.", errors.New("401")), want: log.WarnLevel},
 		{name: "other failure is an error", err: errors.New("boom"), want: log.ErrorLevel},
+		{name: "coded internal is an error", err: router.NewError(fimptype.ErrorCodeInternal, "The cloud request failed.", errors.New("400")), want: log.ErrorLevel},
 	}
 
 	for _, tc := range tcs {

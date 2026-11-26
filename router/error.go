@@ -57,7 +57,10 @@ func errorReport(request *fimpgo.Message, addr *fimpgo.Address, err error) *fimp
 
 	var coded *Error
 	if errors.As(err, &coded) && coded.Code != "" {
-		code, msg, level = coded.Code, coded.Msg, log.WarnLevel
+		code, msg = coded.Code, coded.Msg
+		if code != fimptype.ErrorCodeInternal {
+			level = log.WarnLevel
+		}
 	}
 
 	if coded == nil || !coded.NoLog {
