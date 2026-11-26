@@ -133,42 +133,42 @@ func TestRouteDiagnostic(t *testing.T) { //nolint:paralleltest
 						Name:    "LQI unsupported",
 						Command: suite.NullMessage("pt:j1/mt:cmd/rt:dev/rn:test_adapter/ad:1/sv:diagnostic/ad:2", "cmd.lqi.get_report", "diagnostic"),
 						Expectations: []*suite.Expectation{
-							suite.ExpectError("pt:j1/mt:evt/rt:dev/rn:test_adapter/ad:1/sv:diagnostic/ad:2", "diagnostic"),
+							suite.ExpectError("pt:j1/mt:evt/rt:dev/rn:test_adapter/ad:1/sv:diagnostic/ad:2", "diagnostic").ExpectString("not_supported"),
 						},
 					},
 					{
 						Name:    "RSSI unsupported",
 						Command: suite.NullMessage("pt:j1/mt:cmd/rt:dev/rn:test_adapter/ad:1/sv:diagnostic/ad:2", "cmd.rssi.get_report", "diagnostic"),
 						Expectations: []*suite.Expectation{
-							suite.ExpectError("pt:j1/mt:evt/rt:dev/rn:test_adapter/ad:1/sv:diagnostic/ad:2", "diagnostic"),
+							suite.ExpectError("pt:j1/mt:evt/rt:dev/rn:test_adapter/ad:1/sv:diagnostic/ad:2", "diagnostic").ExpectString("not_supported"),
 						},
 					},
 					{
 						Name:    "reboot reason unsupported",
 						Command: suite.NullMessage("pt:j1/mt:cmd/rt:dev/rn:test_adapter/ad:1/sv:diagnostic/ad:2", "cmd.reboot_reason.get_report", "diagnostic"),
 						Expectations: []*suite.Expectation{
-							suite.ExpectError("pt:j1/mt:evt/rt:dev/rn:test_adapter/ad:1/sv:diagnostic/ad:2", "diagnostic"),
+							suite.ExpectError("pt:j1/mt:evt/rt:dev/rn:test_adapter/ad:1/sv:diagnostic/ad:2", "diagnostic").ExpectString("not_supported"),
 						},
 					},
 					{
 						Name:    "reboots count unsupported",
 						Command: suite.NullMessage("pt:j1/mt:cmd/rt:dev/rn:test_adapter/ad:1/sv:diagnostic/ad:2", "cmd.reboots_count.get_report", "diagnostic"),
 						Expectations: []*suite.Expectation{
-							suite.ExpectError("pt:j1/mt:evt/rt:dev/rn:test_adapter/ad:1/sv:diagnostic/ad:2", "diagnostic"),
+							suite.ExpectError("pt:j1/mt:evt/rt:dev/rn:test_adapter/ad:1/sv:diagnostic/ad:2", "diagnostic").ExpectString("not_supported"),
 						},
 					},
 					{
 						Name:    "uptime unsupported",
 						Command: suite.NullMessage("pt:j1/mt:cmd/rt:dev/rn:test_adapter/ad:1/sv:diagnostic/ad:2", "cmd.uptime.get_report", "diagnostic"),
 						Expectations: []*suite.Expectation{
-							suite.ExpectError("pt:j1/mt:evt/rt:dev/rn:test_adapter/ad:1/sv:diagnostic/ad:2", "diagnostic"),
+							suite.ExpectError("pt:j1/mt:evt/rt:dev/rn:test_adapter/ad:1/sv:diagnostic/ad:2", "diagnostic").ExpectString("not_supported"),
 						},
 					},
 					{
 						Name:    "errors unsupported",
 						Command: suite.NullMessage("pt:j1/mt:cmd/rt:dev/rn:test_adapter/ad:1/sv:diagnostic/ad:2", "cmd.errors.get_report", "diagnostic"),
 						Expectations: []*suite.Expectation{
-							suite.ExpectError("pt:j1/mt:evt/rt:dev/rn:test_adapter/ad:1/sv:diagnostic/ad:2", "diagnostic"),
+							suite.ExpectError("pt:j1/mt:evt/rt:dev/rn:test_adapter/ad:1/sv:diagnostic/ad:2", "diagnostic").ExpectString("not_supported"),
 						},
 					},
 				},
@@ -226,7 +226,7 @@ func TestRouteDiagnostic(t *testing.T) { //nolint:paralleltest
 						Name:    "service not found under the provided address",
 						Command: suite.NullMessage("pt:j1/mt:cmd/rt:dev/rn:test_adapter/ad:1/sv:diagnostic/ad:3", "cmd.lqi.get_report", "diagnostic"),
 						Expectations: []*suite.Expectation{
-							suite.ExpectError("pt:j1/mt:evt/rt:dev/rn:test_adapter/ad:1/sv:diagnostic/ad:3", "diagnostic"),
+							suite.ExpectError("pt:j1/mt:evt/rt:dev/rn:test_adapter/ad:1/sv:diagnostic/ad:3", "diagnostic").ExpectString("not_found"),
 						},
 					},
 				},

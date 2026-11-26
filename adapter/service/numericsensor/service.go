@@ -5,6 +5,8 @@ import (
 	"sync"
 	"time"
 
+	"github.com/futurehomeno/cliffhanger/router"
+
 	"github.com/futurehomeno/fimpgo"
 	"github.com/futurehomeno/fimpgo/fimptype"
 
@@ -100,10 +102,10 @@ func (s *service) SendSensorReport(unit string, force bool) (bool, error) {
 
 	normalizedUnit, ok := s.normalizeUnit(unit)
 	if !ok {
-		return false, fmt.Errorf("%s: unit is unsupported: %s", s.Name(), unit)
+		return false, router.NewError(fimptype.ErrorCodeNotSupported, fmt.Sprintf("unit %s is not supported", unit), nil)
 	}
 
-	value, err := s.sensor.NumericSensorReport(unit)
+	value, err := s.sensor.NumericSensorReport(normalizedUnit)
 	if err != nil {
 		return false, fmt.Errorf("%s: failed to retrieve sensor report: %w", s.Name(), err)
 	}

@@ -6,6 +6,7 @@ import (
 	"github.com/futurehomeno/cliffhanger/adapter"
 	"github.com/futurehomeno/cliffhanger/router"
 	"github.com/futurehomeno/fimpgo"
+	"github.com/futurehomeno/fimpgo/fimptype"
 )
 
 const (
@@ -35,7 +36,7 @@ func handleCmdLevelGetReport(serviceRegistry adapter.ServiceRegistry) router.Mes
 		router.MessageProcessorFn(func(message *fimpgo.Message) (*fimpgo.FimpMessage, error) {
 			s := serviceRegistry.ServiceByTopic(message.Topic)
 			if s == nil {
-				return nil, fmt.Errorf("service not found under the provided address: %s", message.Addr.ServiceAddress)
+				return nil, router.NewError(fimptype.ErrorCodeNotFound, "service not found under the provided address", nil)
 			}
 
 			battery, ok := s.(Service)

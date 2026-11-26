@@ -56,7 +56,7 @@ func TestRouteCarCharger(t *testing.T) { //nolint:paralleltest
 						Name:    "reboot is unsupported",
 						Command: suite.NullMessage("pt:j1/mt:cmd/rt:dev/rn:test_adapter/ad:1/sv:dev_sys/ad:2", "cmd.thing.reboot", "dev_sys"),
 						Expectations: []*suite.Expectation{
-							suite.ExpectError("pt:j1/mt:evt/rt:dev/rn:test_adapter/ad:1/sv:dev_sys/ad:2", "dev_sys"),
+							suite.ExpectError("pt:j1/mt:evt/rt:dev/rn:test_adapter/ad:1/sv:dev_sys/ad:2", "dev_sys").ExpectString("not_supported"),
 						},
 					},
 				},
@@ -80,7 +80,7 @@ func TestRouteCarCharger(t *testing.T) { //nolint:paralleltest
 						Name:    "reboot failed - service not found",
 						Command: suite.NullMessage("pt:j1/mt:cmd/rt:dev/rn:test_adapter/ad:1/sv:dev_sys/ad:3", "cmd.thing.reboot", "dev_sys"),
 						Expectations: []*suite.Expectation{
-							suite.ExpectError("pt:j1/mt:evt/rt:dev/rn:test_adapter/ad:1/sv:dev_sys/ad:3", "dev_sys"),
+							suite.ExpectError("pt:j1/mt:evt/rt:dev/rn:test_adapter/ad:1/sv:dev_sys/ad:3", "dev_sys").ExpectString("not_found"),
 						},
 					},
 				},

@@ -9,6 +9,7 @@ import (
 
 	"github.com/futurehomeno/cliffhanger/adapter"
 	"github.com/futurehomeno/cliffhanger/adapter/cache"
+	"github.com/futurehomeno/cliffhanger/router"
 	"github.com/futurehomeno/cliffhanger/utils"
 )
 
@@ -122,7 +123,7 @@ func (s *service) SendAlarmReport(event string, force bool) (bool, error) {
 
 	normalizedEvent, ok := s.normalizeEvent(event)
 	if !ok {
-		return false, fmt.Errorf("%s: event is unsupported: %s", s.Name(), event)
+		return false, router.NewError(fimptype.ErrorCodeNotSupported, fmt.Sprintf("event %s is not supported", event), nil)
 	}
 
 	report, err := s.reporter.AlarmReport(normalizedEvent)

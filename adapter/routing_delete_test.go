@@ -313,7 +313,7 @@ func TestRouteAdapter_ThingDeleteErrorPaths(t *testing.T) { //nolint:paralleltes
 						Timeout: 500 * time.Millisecond,
 						Command: deleteThingCommand(""),
 						Expectations: []*suite.Expectation{
-							suite.ExpectError(testAdapterEvtTopic, testAdapterName).ExactlyOnce(),
+							suite.ExpectError(testAdapterEvtTopic, testAdapterName).ExpectString("bad_request").ExactlyOnce(),
 							expectAnyExclusion().Never(),
 						},
 					},
@@ -327,7 +327,7 @@ func TestRouteAdapter_ThingDeleteErrorPaths(t *testing.T) { //nolint:paralleltes
 							map[string]string{},
 						),
 						Expectations: []*suite.Expectation{
-							suite.ExpectError(testAdapterEvtTopic, testAdapterName).ExactlyOnce(),
+							suite.ExpectError(testAdapterEvtTopic, testAdapterName).ExpectString("bad_request").ExactlyOnce(),
 							expectAnyExclusion().Never(),
 						},
 					},
@@ -341,7 +341,7 @@ func TestRouteAdapter_ThingDeleteErrorPaths(t *testing.T) { //nolint:paralleltes
 							testThingAddressB,
 						),
 						Expectations: []*suite.Expectation{
-							suite.ExpectError(testAdapterEvtTopic, testAdapterName).ExactlyOnce(),
+							suite.ExpectError(testAdapterEvtTopic, testAdapterName).ExpectString("bad_request").ExactlyOnce(),
 							expectAnyExclusion().Never(),
 						},
 					},

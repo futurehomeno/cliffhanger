@@ -31,7 +31,7 @@ func TestRouteService(t *testing.T) { //nolint:paralleltest
 			{
 				Name:     "Happy paths",
 				TearDown: adapterhelper.TearDownAdapter(workdir),
-				Setup:    routeService(0, time.Second),
+				Setup:    routeService(0, adapter.ConnStatusUp),
 				Nodes: []*suite.Node{
 					{
 						Name: "Cmd meter add",
@@ -142,7 +142,7 @@ func TestRouteService(t *testing.T) { //nolint:paralleltest
 			{
 				Name:     "Error paths",
 				TearDown: adapterhelper.TearDownAdapter(workdir),
-				Setup:    routeService(0, time.Second),
+				Setup:    routeService(0, adapter.ConnStatusUp),
 				Nodes: []*suite.Node{
 					{
 						Name: "Error when unsupported unit property provided",
@@ -156,7 +156,7 @@ func TestRouteService(t *testing.T) { //nolint:paralleltest
 							AddProperty(virtualmeter.PropertyNameUnit, "invalid").
 							Build(),
 						Expectations: []*suite.Expectation{
-							suite.ExpectError("pt:j1/mt:evt/rt:dev/rn:test_adapter/ad:1/sv:virtual_meter_elec/ad:2", "virtual_meter_elec"),
+							suite.ExpectError("pt:j1/mt:evt/rt:dev/rn:test_adapter/ad:1/sv:virtual_meter_elec/ad:2", "virtual_meter_elec").ExpectString("not_supported"),
 						},
 					},
 					{
@@ -170,7 +170,7 @@ func TestRouteService(t *testing.T) { //nolint:paralleltest
 							).
 							Build(),
 						Expectations: []*suite.Expectation{
-							suite.ExpectError("pt:j1/mt:evt/rt:dev/rn:test_adapter/ad:1/sv:virtual_meter_elec/ad:2", "virtual_meter_elec"),
+							suite.ExpectError("pt:j1/mt:evt/rt:dev/rn:test_adapter/ad:1/sv:virtual_meter_elec/ad:2", "virtual_meter_elec").ExpectString("bad_request"),
 						},
 					},
 					{
@@ -185,7 +185,16 @@ func TestRouteService(t *testing.T) { //nolint:paralleltest
 							AddProperty(virtualmeter.PropertyNameUnit, "W").
 							Build(),
 						Expectations: []*suite.Expectation{
-							suite.ExpectError("pt:j1/mt:evt/rt:dev/rn:test_adapter/ad:1/sv:virtual_meter_elec/ad:2", "virtual_meter_elec"),
+							suite.ExpectError("pt:j1/mt:evt/rt:dev/rn:test_adapter/ad:1/sv:virtual_meter_elec/ad:2", "virtual_meter_elec").ExpectString("bad_request"),
+						},
+					},
+					{
+						Name: "Error when service not found",
+						Command: suite.NewMessageBuilder().
+							NullMessage("pt:j1/mt:cmd/rt:dev/rn:test_adapter/ad:1/sv:virtual_meter_elec/ad:404", "cmd.meter.get_report", "virtual_meter_elec").
+							Build(),
+						Expectations: []*suite.Expectation{
+							suite.ExpectError("pt:j1/mt:evt/rt:dev/rn:test_adapter/ad:1/sv:virtual_meter_elec/ad:404", "virtual_meter_elec").ExpectString("not_found"),
 						},
 					},
 				},
@@ -196,11 +205,11 @@ func TestRouteService(t *testing.T) { //nolint:paralleltest
 	s.Run(t)
 }
 
-func routeService(duration, recalculatingPeriod time.Duration) suite.BaseSetup {
+func routeService(duration time.Duration, status adapter.ConnStatusT) suite.BaseSetup {
 	return func(t *testing.T, mqtt *fimpgo.MqttTransport) ([]*router.Routing, []*task.Task, []suite.Mock) {
 		t.Helper()
 
-		return setupService(t, mqtt, duration, recalculatingPeriod)
+		return setupService(t, mqtt, duration, status)
 	}
 }
 
@@ -208,7 +217,7 @@ func setupService(
 	t *testing.T,
 	mqtt *fimpgo.MqttTransport,
 	duration time.Duration,
-	recalculatingPeriod time.Duration,
+	status adapter.ConnStatusT,
 ) ([]*router.Routing, []*task.Task, []suite.Mock) {
 	t.Helper()
 
@@ -218,13 +227,21 @@ func setupService(
 			Address: "2",
 			Groups:  []string{"ch1"},
 		},
-		Connector: mockedadapter.NewConnector(t),
+		Connector: mockedadapter.NewConnector(t).MockConnectivity(&adapter.ConnectivityDetails{ConnStatus: status}, false),
+	}
+
+	controller := mockedoutlvlswitch.NewController(t)
+	levelReport := controller.On("LevelSwitchLevelReport").Return(1, nil)
+
+	if status == adapter.ConnStatusDown {
+		levelReport.Maybe()
+		t.Cleanup(func() { controller.AssertNotCalled(t, "LevelSwitchLevelReport") })
 	}
 
 	db, err := database.NewDatabase(workdir)
 	assert.NoError(t, err, "should create database")
 
-	managerWrapper := virtualmeter.NewManager(db, recalculatingPeriod, time.Hour)
+	managerWrapper := virtualmeter.NewManager(db, time.Second, time.Hour)
 	seed := &adapter.ThingSeed{ID: "B", CustomAddress: "2"}
 
 	factory := adapterhelper.FactoryHelper(func(a adapter.Adapter, publisher adapter.Publisher, thingState adapter.ThingState) (adapter.Thing, error) {
@@ -241,8 +258,7 @@ func setupService(
 			publisher,
 			&outlvlswitch.Config{
 				Specification: outLvlSwitchSpec,
-				Controller: mockedoutlvlswitch.NewController(t).
-					MockLevelSwitchLevelReport(1, nil, false),
+				Controller:    controller,
 			},
 		)
 

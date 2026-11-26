@@ -10,6 +10,8 @@ import (
 
 	"github.com/futurehomeno/cliffhanger/adapter"
 	"github.com/futurehomeno/cliffhanger/adapter/cache"
+	"github.com/futurehomeno/cliffhanger/adapter/service/thermostat"
+	"github.com/futurehomeno/cliffhanger/router"
 	"github.com/futurehomeno/cliffhanger/utils"
 )
 
@@ -125,7 +127,7 @@ func (s *service) SetMode(mode string) error {
 
 	normalizedMode, ok := s.normalizeMode(mode)
 	if !ok {
-		return fmt.Errorf("%s: mode is unsupported: %s", s.Name(), mode)
+		return router.NewError(fimptype.ErrorCodeNotSupported, fmt.Sprintf("mode %s is not supported", mode), nil)
 	}
 
 	err := s.controller.SetWaterHeaterMode(normalizedMode)
@@ -143,10 +145,10 @@ func (s *service) SetSetpoint(mode string, value float64, unit string) error {
 
 	normalizedMode, ok := s.normalizeSetpoint(mode)
 	if !ok {
-		return fmt.Errorf("%s: setpoint mode is unsupported: %s", s.Name(), mode)
+		return router.NewError(fimptype.ErrorCodeNotSupported, fmt.Sprintf("setpoint %s is not supported", mode), nil)
 	}
 
-	normalizedValue, err := s.normalizeValue(mode, value)
+	normalizedValue, err := s.normalizeValue(normalizedMode, value)
 	if err != nil {
 		return fmt.Errorf("%s: setpoint value is incorrect: %w", s.Name(), err)
 	}
@@ -203,7 +205,7 @@ func (s *service) SendSetpointReport(mode string, force bool) (bool, error) {
 
 	normalizedMode, ok := s.normalizeSetpoint(mode)
 	if !ok {
-		return false, fmt.Errorf("%s: setpoint mode is unsupported: %s", s.Name(), mode)
+		return false, router.NewError(fimptype.ErrorCodeNotSupported, fmt.Sprintf("setpoint %s is not supported", mode), nil)
 	}
 
 	value, unit, err := s.controller.WaterHeaterSetpointReport(normalizedMode)
@@ -211,14 +213,16 @@ func (s *service) SendSetpointReport(mode string, force bool) (bool, error) {
 		return false, fmt.Errorf("%s: failed to retrieve setpoint report for mode %s: %w", s.Name(), normalizedMode, err)
 	}
 
-	if !force && !s.reportingCache.ReportRequired(s.reportingStrategy, EvtSetpointReport, mode, value) {
+	setpoint := NewSetpoint(normalizedMode, value, unit)
+
+	if !force && !s.reportingCache.ReportRequired(s.reportingStrategy, EvtSetpointReport, normalizedMode, *setpoint) {
 		return false, nil
 	}
 
 	message := fimpgo.NewObjectMessage(
 		EvtSetpointReport,
 		s.Name(),
-		NewSetpoint(normalizedMode, value, unit),
+		setpoint,
 		nil,
 		nil,
 		nil,
@@ -229,7 +233,7 @@ func (s *service) SendSetpointReport(mode string, force bool) (bool, error) {
 		return false, fmt.Errorf("%s: failed to send state report: %w", s.Name(), err)
 	}
 
-	s.reportingCache.Reported(EvtSetpointReport, mode, value)
+	s.reportingCache.Reported(EvtSetpointReport, normalizedMode, *setpoint)
 
 	return true, nil
 }
@@ -314,9 +318,8 @@ func (s *service) normalizeValue(mode string, value float64) (float64, error) {
 	}
 
 	if value < supportedRange.Min || value > supportedRange.Max {
-		return 0, fmt.Errorf("%s: value %.01f is out of range %.01f - %.01f for mode %s",
-			s.Name(), value, supportedRange.Min, supportedRange.Max, mode,
-		)
+		return 0, router.NewError(fimptype.ErrorCodeOutOfRange,
+			fmt.Sprintf("setpoint is out of range %.01f - %.01f", supportedRange.Min, supportedRange.Max), fmt.Errorf("received %.01f", value))
 	}
 
 	return value, nil
@@ -343,18 +346,8 @@ func (s *service) supportedRange(mode string) *Range {
 	return nil
 }
 
-// Setpoint is an object representing a water heater setpoint.
-type Setpoint struct {
-	Type        string  `json:"type"`
-	Temperature float64 `json:"temp"`
-	Unit        string  `json:"unit"`
-}
+type Setpoint = thermostat.Setpoint
 
-// NewSetpoint create a new setpoint object.
 func NewSetpoint(mode string, temp float64, unit string) *Setpoint {
-	return &Setpoint{
-		Type:        mode,
-		Temperature: temp,
-		Unit:        unit,
-	}
+	return thermostat.NewSetpoint(mode, temp, unit)
 }

@@ -7,9 +7,7 @@ network blip or rate limit. `app.ConnectivityChecker` implements `app.CheckableA
 caller-supplied probe and mapping its outcome onto the lifecycle auth and connectivity axes, with
 backoff, a failure threshold, and teardown-safe cancellation. Every transition it makes re-announces
 all things to the hub so node availability follows the app state.
-
 ## Requirements
-
 ### Requirement: Probe Contract And Error Classification
 `NewConnectivityChecker(probe, lifecycle, reporter, cfg)` SHALL accept a `func() error` probe whose
 returned error classifies the outcome. The checker SHALL classify with `errors.Is`, so the probe MAY
@@ -49,12 +47,18 @@ A probe returning `nil` SHALL first settle the checker — clearing the failure 
 recheck timer and the throttled warning memory — and then, only if the `Authorized` gate returns
 true, set `AUTH_STATE=AUTHENTICATED` and `CONN_STATE=CONNECTED` and repair the app health. The
 `Authorized` gate exists so a `Logout`/`Reset` that cleared credentials mid-probe cannot be undone by
-a success landing afterwards.
+a success landing afterwards. The restore SHALL re-check cancellation under the lock `Cancel` takes
+and hold it across the lifecycle writes, so a `Cancel` landing after the gate discards the success;
+the connectivity report SHALL be sent after that lock is released.
 
 #### Scenario: successful probe while gate denies
 - **WHEN** the probe succeeds but `Authorized()` returns false
 - **THEN** no lifecycle state is changed and no connectivity report is sent
 - **AND** the failure streak and any pending recheck are still cleared
+
+#### Scenario: logout lands after the gate
+- **WHEN** the probe succeeds, `Authorized()` returns true and a logout calls `Cancel` before the restore
+- **THEN** the lifecycle is left as the logout set it and no connectivity report is sent
 
 ### Requirement: App Health Repair On Success
 `repairAppHealth` SHALL set `APP_HEALTH=RUNNING` and `CONFIG_STATE=CONFIGURED` after a successful,
@@ -177,8 +181,9 @@ check callback of `app.Authorize`.
 ### Requirement: Cancellation Discards In-Flight Results
 `Cancel()` SHALL mark the checker cancelled and settle any pending recheck, and SHALL be used as the
 teardown hook of logout and factory reset. A probe that was already running when `Cancel()` landed
-SHALL have its result discarded — the checker re-reads the cancelled flag after the probe returns and
-applies no lifecycle state and sends no report. The checker's own post-probe cleanup SHALL use
+SHALL have its result discarded — the checker re-reads the cancelled flag after the probe returns,
+and again under the `Cancel` lock while writing any outcome's lifecycle states, and applies no
+lifecycle state and sends no report. The checker's own post-probe cleanup SHALL use
 settling rather than cancellation, so the cancelled flag keeps meaning "torn down" and cannot be
 cleared by the checker itself.
 
@@ -205,3 +210,19 @@ and probing back to back — and SHALL compare timer identity so a timer that fi
 #### Scenario: cancel racing a firing timer
 - **WHEN** `Cancel()` clears the timer just as it fires
 - **THEN** the callback observes the identity mismatch and performs no probe
+
+### Requirement: Cancelled Checker Never Probes Or Re-Arms
+The checker SHALL re-read the cancelled flag immediately before calling the probe, so a `Cancel`
+landing after a periodic `Check` passed its skip test, or after a recheck timer fired and released
+its lock, never reaches the third party API. `schedule` SHALL refuse to arm a recheck timer while
+the checker is cancelled, so a failing or rate-limited probe whose result was applied just before a
+`Cancel` cannot resume a torn-down checker; only `CheckNow` SHALL resume it.
+
+#### Scenario: cancel before the probe starts
+- **WHEN** `Cancel()` lands between the pending-timer check and the probe call
+- **THEN** the probe is not called and no state is applied
+
+#### Scenario: schedule after cancel
+- **WHEN** a recheck would be scheduled after `Cancel()` has run
+- **THEN** no timer is armed and no further probe runs until `CheckNow()`
+

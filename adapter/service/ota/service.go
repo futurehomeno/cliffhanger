@@ -8,6 +8,7 @@ import (
 	"github.com/futurehomeno/fimpgo/fimptype"
 
 	"github.com/futurehomeno/cliffhanger/adapter"
+	"github.com/futurehomeno/cliffhanger/router"
 )
 
 // Controller is an interface representing a device capable of OTA firmware update.
@@ -68,7 +69,7 @@ func (s *service) StartUpdate(firmwarePath string) error {
 	defer s.lock.Unlock()
 
 	if firmwarePath == "" {
-		return fmt.Errorf("firmware path is empty")
+		return router.NewError(fimptype.ErrorCodeBadRequest, "firmware path is empty", nil)
 	}
 
 	if err := s.controller.StartOTAUpdate(firmwarePath); err != nil {

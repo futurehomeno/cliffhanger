@@ -25,7 +25,7 @@ func Tasks(
 
 	return task.Combine(
 		task.New(handleReporting(serviceRegistry), reportingInterval, voters...),
-		task.New(handleStatePolling(serviceRegistry), pollingInterval, voters...),
+		outlvlswitch.TaskReporting(serviceRegistry, pollingInterval, voters...),
 		task.New(handleGarbageCleaning(serviceRegistry, mr), cleaningInterval, voters...),
 	)
 }
@@ -39,25 +39,8 @@ func handleReporting(serviceRegistry adapter.ServiceRegistry) func() {
 				continue
 			}
 
-			if _, err := vmeter.SendModesReport(false); err != nil {
+			if _, err := vmeter.SendModesReport(false); adapter.ReportFailed(err) {
 				log.Errorf("[cliff] Send modes report. err: %v", err)
-			}
-		}
-	}
-}
-
-// handleStatePolling uses controller to get the level and the current mode of the device to update the virtual meter manager.
-func handleStatePolling(sr adapter.ServiceRegistry) func() {
-	return func() {
-		for _, s := range sr.Services(outlvlswitch.OutLvlSwitch) {
-			levelSwitch, ok := s.(outlvlswitch.Service)
-			if !ok {
-				continue
-			}
-
-			_, err := levelSwitch.SendLevelReport(false)
-			if err != nil {
-				log.Errorf("[cliff] Send level report. err: %v", err)
 			}
 		}
 	}

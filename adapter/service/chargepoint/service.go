@@ -11,6 +11,7 @@ import (
 
 	"github.com/futurehomeno/cliffhanger/adapter"
 	"github.com/futurehomeno/cliffhanger/adapter/cache"
+	"github.com/futurehomeno/cliffhanger/router"
 	"github.com/futurehomeno/cliffhanger/types"
 )
 
@@ -250,7 +251,7 @@ func (s *service) SetOfferedCurrent(current int) error {
 		return err
 	}
 
-	err = s.validateCurrent(current)
+	err = s.validateCurrent(current, 0)
 	if err != nil {
 		return err
 	}
@@ -273,7 +274,7 @@ func (s *service) SetMaxCurrent(current int) error {
 		return err
 	}
 
-	err = s.validateCurrent(current)
+	err = s.validateCurrent(current, 6)
 	if err != nil {
 		return err
 	}
@@ -540,12 +541,12 @@ func (s *service) IsCableLockAware() bool {
 func (s *service) adjustableMaxCurrentController() (AdjustableMaxCurrentController, error) {
 	_, ok := s.Specification().PropertyInteger(PropertySupportedMaxCurrent)
 	if !ok {
-		return nil, fmt.Errorf("%s: adjusting max current is not supported", s.Name())
+		return nil, router.NewError(fimptype.ErrorCodeNotSupported, "adjusting max current is not supported", nil)
 	}
 
 	controller, ok := s.controller.(AdjustableMaxCurrentController)
 	if !ok {
-		return nil, fmt.Errorf("%s: adjusting max current is not supported", s.Name())
+		return nil, router.NewError(fimptype.ErrorCodeNotSupported, "adjusting max current is not supported", nil)
 	}
 
 	return controller, nil
@@ -555,12 +556,12 @@ func (s *service) adjustableMaxCurrentController() (AdjustableMaxCurrentControll
 func (s *service) adjustableOfferedCurrentController() (AdjustableOfferedCurrentController, error) {
 	_, ok := s.Specification().PropertyInteger(PropertySupportedMaxCurrent)
 	if !ok {
-		return nil, fmt.Errorf("%s: adjusting offered current is not supported", s.Name())
+		return nil, router.NewError(fimptype.ErrorCodeNotSupported, "adjusting offered current is not supported", nil)
 	}
 
 	controller, ok := s.controller.(AdjustableOfferedCurrentController)
 	if !ok {
-		return nil, fmt.Errorf("%s: adjusting offered current is not supported", s.Name())
+		return nil, router.NewError(fimptype.ErrorCodeNotSupported, "adjusting offered current is not supported", nil)
 	}
 
 	return controller, nil
@@ -575,7 +576,7 @@ func (s *service) adjustablePhaseModeController() (AdjustablePhaseModeController
 
 	controller, ok := s.controller.(AdjustablePhaseModeController)
 	if !ok {
-		return nil, fmt.Errorf("%s: adjusting phase modes is not supported", s.Name())
+		return nil, router.NewError(fimptype.ErrorCodeNotSupported, "adjusting phase modes is not supported", nil)
 	}
 
 	return controller, nil
@@ -585,12 +586,12 @@ func (s *service) adjustablePhaseModeController() (AdjustablePhaseModeController
 func (s *service) phaseModeAwareController() (PhaseModeAwareController, error) {
 	phaseModes := s.Specification().PropertyStrings(PropertySupportedPhaseModes)
 	if len(phaseModes) == 0 {
-		return nil, fmt.Errorf("%s: aware phase modes is not supported", s.Name())
+		return nil, router.NewError(fimptype.ErrorCodeNotSupported, "phase modes are not supported", nil)
 	}
 
 	controller, ok := s.controller.(PhaseModeAwareController)
 	if !ok {
-		return nil, fmt.Errorf("%s: aware phase modes is not supported", s.Name())
+		return nil, router.NewError(fimptype.ErrorCodeNotSupported, "phase modes are not supported", nil)
 	}
 
 	return controller, nil
@@ -605,7 +606,7 @@ func (s *service) adjustableCableLockController() (AdjustableCableLockController
 
 	controller, ok := s.controller.(AdjustableCableLockController)
 	if !ok {
-		return nil, fmt.Errorf("%s: adjusting cable lock is not supported", s.Name())
+		return nil, router.NewError(fimptype.ErrorCodeNotSupported, "adjusting cable lock is not supported", nil)
 	}
 
 	return controller, nil
@@ -615,7 +616,7 @@ func (s *service) adjustableCableLockController() (AdjustableCableLockController
 func (s *service) cableLockAwareController() (CableLockAwareController, error) {
 	controller, ok := s.controller.(CableLockAwareController)
 	if !ok {
-		return nil, fmt.Errorf("%s: aware cable lock is not supported", s.Name())
+		return nil, router.NewError(fimptype.ErrorCodeNotSupported, "cable lock is not supported", nil)
 	}
 
 	return controller, nil
@@ -640,19 +641,19 @@ func (s *service) normalizeChargingMode(mode string) (string, error) {
 		}
 	}
 
-	return "", fmt.Errorf("unsupported mode: %s: supported modes: %v", m, supportedModes)
+	return "", router.NewError(fimptype.ErrorCodeNotSupported, fmt.Sprintf("charging mode %s is not supported", m), nil)
 }
 
 // validateCurrent validates provided current.
-func (s *service) validateCurrent(current int) error {
-	if current < 6 {
-		return fmt.Errorf("%s: configured current must be at least 6A, received %dA instead", s.Name(), current)
+func (s *service) validateCurrent(current, minimum int) error {
+	if current < minimum {
+		return router.NewError(fimptype.ErrorCodeOutOfRange, fmt.Sprintf("current must be at least %d A", minimum), fmt.Errorf("received %d A", current))
 	}
 
 	maximumCurrent, _ := s.Specification().PropertyInteger(PropertySupportedMaxCurrent)
 
 	if current > maximumCurrent {
-		return fmt.Errorf("%s: configured current must not exceed %dA, received %dA instead", s.Name(), maximumCurrent, current)
+		return router.NewError(fimptype.ErrorCodeOutOfRange, fmt.Sprintf("current must not exceed %d A", maximumCurrent), fmt.Errorf("received %d A", current))
 	}
 
 	return nil
@@ -668,5 +669,5 @@ func (s *service) validatePhaseMode(mode types.PhaseMode) error {
 		}
 	}
 
-	return fmt.Errorf("%s: unsupported phase mode: %s", s.Name(), mode.Str())
+	return router.NewError(fimptype.ErrorCodeNotSupported, fmt.Sprintf("phase mode %s is not supported", mode.Str()), nil)
 }

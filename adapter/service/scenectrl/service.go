@@ -11,6 +11,7 @@ import (
 
 	"github.com/futurehomeno/cliffhanger/adapter"
 	"github.com/futurehomeno/cliffhanger/adapter/cache"
+	"github.com/futurehomeno/cliffhanger/router"
 )
 
 const (
@@ -89,7 +90,7 @@ func (s *service) SetScene(scene string) error {
 	defer s.lock.Unlock()
 
 	if !s.isSceneSupported(scene) {
-		return fmt.Errorf("scene %s is not supported", scene)
+		return router.NewError(fimptype.ErrorCodeNotSupported, fmt.Sprintf("scene %s is not supported", scene), nil)
 	}
 
 	if err := s.controller.SetSceneCtrlScene(scene); err != nil {

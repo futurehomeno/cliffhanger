@@ -122,7 +122,9 @@ func TestRouteService(t *testing.T) { //nolint:paralleltest
 							MockSetChargepointMaxCurrent(16, nil, true).
 							MockChargepointMaxCurrentReport(16, nil, false),
 						mockedchargepoint.NewAdjustableOfferedCurrentController(t).
-							MockSetChargepointOfferedCurrent(10, nil, true),
+							MockSetChargepointOfferedCurrent(10, nil, true).
+							MockSetChargepointOfferedCurrent(5, nil, true).
+							MockSetChargepointOfferedCurrent(0, nil, true),
 						mockedchargepoint.NewAdjustablePhaseModeController(t).
 							MockSetChargepointPhaseMode(types.PhaseModeNL1L2L3, nil, true).
 							MockChargepointPhaseModeReport(types.PhaseModeNL1L2L3, nil, false),
@@ -171,6 +173,24 @@ func TestRouteService(t *testing.T) { //nolint:paralleltest
 					{
 						Name:    "set offered current",
 						Command: suite.IntMessage("pt:j1/mt:cmd/rt:dev/rn:test_adapter/ad:1/sv:chargepoint/ad:2", "cmd.current_session.set_current", "chargepoint", 10),
+						Expectations: []*suite.Expectation{
+							suite.ExpectFloat("pt:j1/mt:evt/rt:dev/rn:test_adapter/ad:1/sv:chargepoint/ad:2", "evt.current_session.report", "chargepoint", 1.74).
+								ExpectProperty("offered_current", "10").
+								ExpectProperty("previous_session", "4.50"),
+						},
+					},
+					{
+						Name:    "set offered current below 6A",
+						Command: suite.IntMessage("pt:j1/mt:cmd/rt:dev/rn:test_adapter/ad:1/sv:chargepoint/ad:2", "cmd.current_session.set_current", "chargepoint", 5),
+						Expectations: []*suite.Expectation{
+							suite.ExpectFloat("pt:j1/mt:evt/rt:dev/rn:test_adapter/ad:1/sv:chargepoint/ad:2", "evt.current_session.report", "chargepoint", 1.74).
+								ExpectProperty("offered_current", "10").
+								ExpectProperty("previous_session", "4.50"),
+						},
+					},
+					{
+						Name:    "set offered current to zero",
+						Command: suite.IntMessage("pt:j1/mt:cmd/rt:dev/rn:test_adapter/ad:1/sv:chargepoint/ad:2", "cmd.current_session.set_current", "chargepoint", 0),
 						Expectations: []*suite.Expectation{
 							suite.ExpectFloat("pt:j1/mt:evt/rt:dev/rn:test_adapter/ad:1/sv:chargepoint/ad:2", "evt.current_session.report", "chargepoint", 1.74).
 								ExpectProperty("offered_current", "10").
@@ -236,15 +256,36 @@ func TestRouteService(t *testing.T) { //nolint:paralleltest
 				TearDown: adapterhelper.TearDownAdapter("../../testdata/adapter/test_adapter"),
 				Setup: routeService(
 					mockedchargepoint.NewController(t).
-						MockStartChargepointCharging(&chargepoint.ChargingSettings{}, errTest, true),
+						MockStartChargepointCharging(&chargepoint.ChargingSettings{}, errTest, true).
+						MockChargepointStateReport(chargepoint.StateReadyToCharge, nil, true),
 					nil,
 				),
 				Nodes: []*suite.Node{
 					{
-						Name:    "start charging",
+						Name:    "cmd.charge.start",
 						Command: suite.NullMessage("pt:j1/mt:cmd/rt:dev/rn:test_adapter/ad:1/sv:chargepoint/ad:2", "cmd.charge.start", "chargepoint"),
 						Expectations: []*suite.Expectation{
-							suite.ExpectError("pt:j1/mt:evt/rt:dev/rn:test_adapter/ad:1/sv:chargepoint/ad:2", "chargepoint"),
+							suite.ExpectString("pt:j1/mt:evt/rt:dev/rn:test_adapter/ad:1/sv:chargepoint/ad:2", "evt.state.report", "chargepoint", "ready_to_charge"),
+							suite.ExpectError("pt:j1/mt:evt/rt:dev/rn:test_adapter/ad:1/sv:chargepoint/ad:2", "chargepoint").ExpectProperty("msg", "failed to start charging: chargepoint: failed to start charging: test"),
+						},
+					},
+				},
+			},
+			{
+				Name:     "failed start charging routing - starting error and state report error",
+				TearDown: adapterhelper.TearDownAdapter("../../testdata/adapter/test_adapter"),
+				Setup: routeService(
+					mockedchargepoint.NewController(t).
+						MockStartChargepointCharging(&chargepoint.ChargingSettings{}, errTest, true).
+						MockChargepointStateReport("", errTest, true),
+					nil,
+				),
+				Nodes: []*suite.Node{
+					{
+						Name:    "cmd.charge.start",
+						Command: suite.NullMessage("pt:j1/mt:cmd/rt:dev/rn:test_adapter/ad:1/sv:chargepoint/ad:2", "cmd.charge.start", "chargepoint"),
+						Expectations: []*suite.Expectation{
+							suite.ExpectError("pt:j1/mt:evt/rt:dev/rn:test_adapter/ad:1/sv:chargepoint/ad:2", "chargepoint").ExpectProperty("msg", "failed to start charging: chargepoint: failed to start charging: test"),
 						},
 					},
 				},
@@ -292,7 +333,8 @@ func TestRouteService(t *testing.T) { //nolint:paralleltest
 				Name:     "failed start charging routing - unsupported charging mode",
 				TearDown: adapterhelper.TearDownAdapter("../../testdata/adapter/test_adapter"),
 				Setup: routeService(
-					mockedchargepoint.NewController(t),
+					mockedchargepoint.NewController(t).
+						MockChargepointStateReport(chargepoint.StateReadyToCharge, nil, true),
 					[]adapter.SpecificationOption{chargepoint.WithChargingModes(evChargerChargingTestModes...)},
 				),
 				Nodes: []*suite.Node{
@@ -303,7 +345,8 @@ func TestRouteService(t *testing.T) { //nolint:paralleltest
 							AddProperty(chargepoint.PropertyChargingMode, "dummy").
 							Build(),
 						Expectations: []*suite.Expectation{
-							suite.ExpectError("pt:j1/mt:evt/rt:dev/rn:test_adapter/ad:1/sv:chargepoint/ad:2", "chargepoint"),
+							suite.ExpectString("pt:j1/mt:evt/rt:dev/rn:test_adapter/ad:1/sv:chargepoint/ad:2", "evt.state.report", "chargepoint", "ready_to_charge"),
+							suite.ExpectError("pt:j1/mt:evt/rt:dev/rn:test_adapter/ad:1/sv:chargepoint/ad:2", "chargepoint").ExpectString("not_supported"),
 						},
 					},
 				},
@@ -313,15 +356,36 @@ func TestRouteService(t *testing.T) { //nolint:paralleltest
 				TearDown: adapterhelper.TearDownAdapter("../../testdata/adapter/test_adapter"),
 				Setup: routeService(
 					mockedchargepoint.NewController(t).
-						MockStopChargepointCharging(errTest, true),
+						MockStopChargepointCharging(errTest, true).
+						MockChargepointStateReport(chargepoint.StateCharging, nil, true),
 					nil,
 				),
 				Nodes: []*suite.Node{
 					{
-						Name:    "stop charging",
+						Name:    "cmd.charge.stop",
 						Command: suite.NullMessage("pt:j1/mt:cmd/rt:dev/rn:test_adapter/ad:1/sv:chargepoint/ad:2", "cmd.charge.stop", "chargepoint"),
 						Expectations: []*suite.Expectation{
-							suite.ExpectError("pt:j1/mt:evt/rt:dev/rn:test_adapter/ad:1/sv:chargepoint/ad:2", "chargepoint"),
+							suite.ExpectString("pt:j1/mt:evt/rt:dev/rn:test_adapter/ad:1/sv:chargepoint/ad:2", "evt.state.report", "chargepoint", "charging"),
+							suite.ExpectError("pt:j1/mt:evt/rt:dev/rn:test_adapter/ad:1/sv:chargepoint/ad:2", "chargepoint").ExpectProperty("msg", "failed to stop charging: chargepoint: failed to stop charging: test"),
+						},
+					},
+				},
+			},
+			{
+				Name:     "failed stop charging routing - stopping error and state report error",
+				TearDown: adapterhelper.TearDownAdapter("../../testdata/adapter/test_adapter"),
+				Setup: routeService(
+					mockedchargepoint.NewController(t).
+						MockStopChargepointCharging(errTest, true).
+						MockChargepointStateReport("", errTest, true),
+					nil,
+				),
+				Nodes: []*suite.Node{
+					{
+						Name:    "cmd.charge.stop",
+						Command: suite.NullMessage("pt:j1/mt:cmd/rt:dev/rn:test_adapter/ad:1/sv:chargepoint/ad:2", "cmd.charge.stop", "chargepoint"),
+						Expectations: []*suite.Expectation{
+							suite.ExpectError("pt:j1/mt:evt/rt:dev/rn:test_adapter/ad:1/sv:chargepoint/ad:2", "chargepoint").ExpectProperty("msg", "failed to stop charging: chargepoint: failed to stop charging: test"),
 						},
 					},
 				},
@@ -537,7 +601,7 @@ func TestRouteService(t *testing.T) { //nolint:paralleltest
 					{
 						Command: suite.StringMessage("pt:j1/mt:cmd/rt:dev/rn:test_adapter/ad:1/sv:chargepoint/ad:2", "cmd.phase_mode.set", "chargepoint", "L1L2"),
 						Expectations: []*suite.Expectation{
-							suite.ExpectError("pt:j1/mt:evt/rt:dev/rn:test_adapter/ad:1/sv:chargepoint/ad:2", "chargepoint"),
+							suite.ExpectError("pt:j1/mt:evt/rt:dev/rn:test_adapter/ad:1/sv:chargepoint/ad:2", "chargepoint").ExpectString("not_supported"),
 						},
 					},
 				},
@@ -627,7 +691,7 @@ func TestRouteService(t *testing.T) { //nolint:paralleltest
 						Name:    "set phase mode",
 						Command: suite.StringMessage("pt:j1/mt:cmd/rt:dev/rn:test_adapter/ad:1/sv:chargepoint/ad:2", "cmd.phase_mode.set", "chargepoint", "NL1"),
 						Expectations: []*suite.Expectation{
-							suite.ExpectError("pt:j1/mt:evt/rt:dev/rn:test_adapter/ad:1/sv:chargepoint/ad:2", "chargepoint"),
+							suite.ExpectError("pt:j1/mt:evt/rt:dev/rn:test_adapter/ad:1/sv:chargepoint/ad:2", "chargepoint").ExpectString("not_supported"),
 						},
 					},
 					{
@@ -705,98 +769,98 @@ func TestRouteService(t *testing.T) { //nolint:paralleltest
 						Name:    "non-existent thing on start charging",
 						Command: suite.NullMessage("pt:j1/mt:cmd/rt:dev/rn:test_adapter/ad:1/sv:chargepoint/ad:3", "cmd.charge.start", "chargepoint"),
 						Expectations: []*suite.Expectation{
-							suite.ExpectError("pt:j1/mt:evt/rt:dev/rn:test_adapter/ad:1/sv:chargepoint/ad:3", "chargepoint"),
+							suite.ExpectError("pt:j1/mt:evt/rt:dev/rn:test_adapter/ad:1/sv:chargepoint/ad:3", "chargepoint").ExpectString("not_found"),
 						},
 					},
 					{
 						Name:    "non-existent thing on stop charging",
 						Command: suite.NullMessage("pt:j1/mt:cmd/rt:dev/rn:test_adapter/ad:1/sv:chargepoint/ad:3", "cmd.charge.stop", "chargepoint"),
 						Expectations: []*suite.Expectation{
-							suite.ExpectError("pt:j1/mt:evt/rt:dev/rn:test_adapter/ad:1/sv:chargepoint/ad:3", "chargepoint"),
+							suite.ExpectError("pt:j1/mt:evt/rt:dev/rn:test_adapter/ad:1/sv:chargepoint/ad:3", "chargepoint").ExpectString("not_found"),
 						},
 					},
 					{
 						Name:    "non-existent thing on setting cable lock",
 						Command: suite.NullMessage("pt:j1/mt:cmd/rt:dev/rn:test_adapter/ad:1/sv:chargepoint/ad:3", "cmd.cable_lock.set", "chargepoint"),
 						Expectations: []*suite.Expectation{
-							suite.ExpectError("pt:j1/mt:evt/rt:dev/rn:test_adapter/ad:1/sv:chargepoint/ad:3", "chargepoint"),
+							suite.ExpectError("pt:j1/mt:evt/rt:dev/rn:test_adapter/ad:1/sv:chargepoint/ad:3", "chargepoint").ExpectString("not_found"),
 						},
 					},
 					{
 						Name:    "non-existent thing on state report",
 						Command: suite.NullMessage("pt:j1/mt:cmd/rt:dev/rn:test_adapter/ad:1/sv:chargepoint/ad:3", "cmd.state.get_report", "chargepoint"),
 						Expectations: []*suite.Expectation{
-							suite.ExpectError("pt:j1/mt:evt/rt:dev/rn:test_adapter/ad:1/sv:chargepoint/ad:3", "chargepoint"),
+							suite.ExpectError("pt:j1/mt:evt/rt:dev/rn:test_adapter/ad:1/sv:chargepoint/ad:3", "chargepoint").ExpectString("not_found"),
 						},
 					},
 					{
 						Name:    "non-existent thing on current session report",
 						Command: suite.NullMessage("pt:j1/mt:cmd/rt:dev/rn:test_adapter/ad:1/sv:chargepoint/ad:3", "cmd.current_session.get_report", "chargepoint"),
 						Expectations: []*suite.Expectation{
-							suite.ExpectError("pt:j1/mt:evt/rt:dev/rn:test_adapter/ad:1/sv:chargepoint/ad:3", "chargepoint"),
+							suite.ExpectError("pt:j1/mt:evt/rt:dev/rn:test_adapter/ad:1/sv:chargepoint/ad:3", "chargepoint").ExpectString("not_found"),
 						},
 					},
 					{
 						Name:    "non-existent thing on cable lock report",
 						Command: suite.NullMessage("pt:j1/mt:cmd/rt:dev/rn:test_adapter/ad:1/sv:chargepoint/ad:3", "cmd.cable_lock.get_report", "chargepoint"),
 						Expectations: []*suite.Expectation{
-							suite.ExpectError("pt:j1/mt:evt/rt:dev/rn:test_adapter/ad:1/sv:chargepoint/ad:3", "chargepoint"),
+							suite.ExpectError("pt:j1/mt:evt/rt:dev/rn:test_adapter/ad:1/sv:chargepoint/ad:3", "chargepoint").ExpectString("not_found"),
 						},
 					},
 					{
 						Name:    "non-existent thing on max current report",
 						Command: suite.NullMessage("pt:j1/mt:cmd/rt:dev/rn:test_adapter/ad:1/sv:chargepoint/ad:3", "cmd.max_current.get_report", "chargepoint"),
 						Expectations: []*suite.Expectation{
-							suite.ExpectError("pt:j1/mt:evt/rt:dev/rn:test_adapter/ad:1/sv:chargepoint/ad:3", "chargepoint"),
+							suite.ExpectError("pt:j1/mt:evt/rt:dev/rn:test_adapter/ad:1/sv:chargepoint/ad:3", "chargepoint").ExpectString("not_found"),
 						},
 					},
 					{
 						Name:    "non-boolean value on setting cable lock",
 						Command: suite.StringMessage("pt:j1/mt:cmd/rt:dev/rn:test_adapter/ad:1/sv:chargepoint/ad:2", "cmd.cable_lock.set", "chargepoint", "true"),
 						Expectations: []*suite.Expectation{
-							suite.ExpectError("pt:j1/mt:evt/rt:dev/rn:test_adapter/ad:1/sv:chargepoint/ad:2", "chargepoint"),
+							suite.ExpectError("pt:j1/mt:evt/rt:dev/rn:test_adapter/ad:1/sv:chargepoint/ad:2", "chargepoint").ExpectString("bad_request"),
 						},
 					},
 					{
 						Name:    "non-integer value on setting offered current",
 						Command: suite.StringMessage("pt:j1/mt:cmd/rt:dev/rn:test_adapter/ad:1/sv:chargepoint/ad:2", "cmd.current_session.set_current", "chargepoint", "10"),
 						Expectations: []*suite.Expectation{
-							suite.ExpectError("pt:j1/mt:evt/rt:dev/rn:test_adapter/ad:1/sv:chargepoint/ad:2", "chargepoint"),
+							suite.ExpectError("pt:j1/mt:evt/rt:dev/rn:test_adapter/ad:1/sv:chargepoint/ad:2", "chargepoint").ExpectString("bad_request"),
 						},
 					},
 					{
 						Name:    "non-integer value on setting max current",
 						Command: suite.StringMessage("pt:j1/mt:cmd/rt:dev/rn:test_adapter/ad:1/sv:chargepoint/ad:2", "cmd.max_current.set", "chargepoint", "10"),
 						Expectations: []*suite.Expectation{
-							suite.ExpectError("pt:j1/mt:evt/rt:dev/rn:test_adapter/ad:1/sv:chargepoint/ad:2", "chargepoint"),
+							suite.ExpectError("pt:j1/mt:evt/rt:dev/rn:test_adapter/ad:1/sv:chargepoint/ad:2", "chargepoint").ExpectString("bad_request"),
 						},
 					},
 					{
 						Name:    "too-high value on setting offered current",
 						Command: suite.IntMessage("pt:j1/mt:cmd/rt:dev/rn:test_adapter/ad:1/sv:chargepoint/ad:2", "cmd.current_session.set_current", "chargepoint", 32),
 						Expectations: []*suite.Expectation{
-							suite.ExpectError("pt:j1/mt:evt/rt:dev/rn:test_adapter/ad:1/sv:chargepoint/ad:2", "chargepoint"),
+							suite.ExpectError("pt:j1/mt:evt/rt:dev/rn:test_adapter/ad:1/sv:chargepoint/ad:2", "chargepoint").ExpectString("out_of_range"),
 						},
 					},
 					{
-						Name:    "too-small value on setting offered current",
-						Command: suite.IntMessage("pt:j1/mt:cmd/rt:dev/rn:test_adapter/ad:1/sv:chargepoint/ad:2", "cmd.current_session.set_current", "chargepoint", 5),
+						Name:    "negative value on setting offered current",
+						Command: suite.IntMessage("pt:j1/mt:cmd/rt:dev/rn:test_adapter/ad:1/sv:chargepoint/ad:2", "cmd.current_session.set_current", "chargepoint", -1),
 						Expectations: []*suite.Expectation{
-							suite.ExpectError("pt:j1/mt:evt/rt:dev/rn:test_adapter/ad:1/sv:chargepoint/ad:2", "chargepoint"),
+							suite.ExpectError("pt:j1/mt:evt/rt:dev/rn:test_adapter/ad:1/sv:chargepoint/ad:2", "chargepoint").ExpectString("out_of_range"),
 						},
 					},
 					{
 						Name:    "too-high value on setting max current",
 						Command: suite.IntMessage("pt:j1/mt:cmd/rt:dev/rn:test_adapter/ad:1/sv:chargepoint/ad:2", "cmd.max_current.set", "chargepoint", 32),
 						Expectations: []*suite.Expectation{
-							suite.ExpectError("pt:j1/mt:evt/rt:dev/rn:test_adapter/ad:1/sv:chargepoint/ad:2", "chargepoint"),
+							suite.ExpectError("pt:j1/mt:evt/rt:dev/rn:test_adapter/ad:1/sv:chargepoint/ad:2", "chargepoint").ExpectString("out_of_range"),
 						},
 					},
 					{
 						Name:    "too-small value on setting max current",
 						Command: suite.IntMessage("pt:j1/mt:cmd/rt:dev/rn:test_adapter/ad:1/sv:chargepoint/ad:2", "cmd.max_current.set", "chargepoint", 5),
 						Expectations: []*suite.Expectation{
-							suite.ExpectError("pt:j1/mt:evt/rt:dev/rn:test_adapter/ad:1/sv:chargepoint/ad:2", "chargepoint"),
+							suite.ExpectError("pt:j1/mt:evt/rt:dev/rn:test_adapter/ad:1/sv:chargepoint/ad:2", "chargepoint").ExpectString("out_of_range"),
 						},
 					},
 				},

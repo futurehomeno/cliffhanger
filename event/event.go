@@ -60,7 +60,7 @@ type Filter interface {
 type FilterFn func(event Event) bool
 
 func (f FilterFn) Filter(event Event) bool {
-	return f(event)
+	return f == nil || f(event)
 }
 
 func Or(filter ...Filter) Filter {

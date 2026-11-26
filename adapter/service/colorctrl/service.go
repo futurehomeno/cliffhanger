@@ -2,6 +2,7 @@ package colorctrl
 
 import (
 	"fmt"
+	"slices"
 	"sync"
 
 	"github.com/futurehomeno/fimpgo"
@@ -9,6 +10,7 @@ import (
 
 	"github.com/futurehomeno/cliffhanger/adapter"
 	"github.com/futurehomeno/cliffhanger/adapter/cache"
+	"github.com/futurehomeno/cliffhanger/router"
 )
 
 const (
@@ -40,8 +42,8 @@ type Service interface {
 	SendColorReport(force bool) (bool, error)
 	// SupportedComponents returns a list of supported color components.
 	SupportedComponents() []string
-	// SupportedDurations returns a list of supported durations.
-	SupportedDurations() []int
+	// SupportedDurations returns the supported durations map.
+	SupportedDurations() map[string]int
 }
 
 // Config represents a service configuration.
@@ -89,6 +91,13 @@ type service struct {
 func (s *service) SetColor(color map[string]int) error {
 	s.lock.Lock()
 	defer s.lock.Unlock()
+
+	supported := s.SupportedComponents()
+	for component := range color {
+		if !slices.Contains(supported, component) {
+			return router.NewError(fimptype.ErrorCodeNotSupported, fmt.Sprintf("color component %s is not supported", component), nil)
+		}
+	}
 
 	err := s.controller.SetColorCtrlColor(color)
 	if err != nil {
@@ -138,7 +147,11 @@ func (s *service) SupportedComponents() []string {
 	return s.Service.Specification().PropertyStrings(PropertySupportedComponents)
 }
 
-// SupportedDurations returns a list of supported durations.
-func (s *service) SupportedDurations() []int {
-	return s.Service.Specification().PropertyIntegers(PropertySupportedDurations)
+// SupportedDurations returns the supported durations map.
+func (s *service) SupportedDurations() map[string]int {
+	var durations map[string]int
+
+	_ = s.Service.Specification().PropertyObject(PropertySupportedDurations, &durations)
+
+	return durations
 }

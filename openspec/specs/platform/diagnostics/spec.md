@@ -5,9 +5,7 @@ Defines how an adapter writes, rotates and remotely controls its log file on the
 recent warnings and errors for the app diagnostic report, and how it surfaces operational signals to
 the user. The hub stores logs on eMMC, so log writing is batched rather than line-by-line, and
 verbose levels are a bounded, self-reverting operator window instead of a permanent setting.
-
 ## Requirements
-
 ### Requirement: Logger Initialization And Rollback
 `debug.InitializeLogger(store)` SHALL apply the persisted format and level, then validate and wire a
 new buffered file output before tearing down any previous log manager. When the new output cannot be
@@ -181,8 +179,35 @@ the given properties to the FIMP message.
 `notification.Timeline` SHALL publish `cmd.timeline.set` string-map messages to
 `pt:j1/mt:cmd/rt:app/rn:time_owl/ad:1`. `Event` SHALL carry `EventName`, `MessageContent`,
 `DeviceId`, `DeviceName`, `RoomName` and `AreaName`, with zero IDs rendered as an empty string, and
-`Message` SHALL carry `sender`, `message_en` and `message_no` for a pre-translated entry.
+`Message` SHALL carry `sender`, `message_en` and `message_no` for a pre-translated entry. `Event`
+SHALL send the service name `kind_owl` and `Message` the service name `time_owl`; the `kind_owl`
+value is deliberate and matches what core-device-monitor sends for the same command.
 
 #### Scenario: localized timeline message
 - **WHEN** `Message` is called with English and Norwegian texts
 - **THEN** a single `cmd.timeline.set` message carrying both translations and the sender is published
+
+#### Scenario: timeline event service name
+- **WHEN** `Event` is published
+- **THEN** the `cmd.timeline.set` message carries the service name `kind_owl`
+
+### Requirement: Log Control Command Validation
+`cmd.log.set_level` SHALL reject a value that logrus cannot parse with an error reply, leaving the
+applied and persisted level unchanged, and on success SHALL reply with the persisted level.
+`cmd.log.set_revert_timeout` SHALL reject a value that `time.ParseDuration` cannot parse, and a zero
+or negative duration, with an error reply that leaves the persisted timeout unchanged; on success it
+SHALL reply with the normalised duration string. No configuration-change event SHALL be published
+for a rejected set.
+
+#### Scenario: unknown level
+- **WHEN** `cmd.log.set_level` carries `"verbose"`
+- **THEN** an error is returned and the level stays what it was
+
+#### Scenario: non-positive revert timeout
+- **WHEN** `cmd.log.set_revert_timeout` carries `"0s"` or `"-1h"`
+- **THEN** an error is returned and the persisted revert timeout is unchanged
+
+#### Scenario: revert timeout changed during an armed debug window
+- **WHEN** `SetRevertTimeout(1h)` is called while a revert deadline is armed
+- **THEN** the deadline is recomputed as now plus one hour
+

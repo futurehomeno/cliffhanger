@@ -83,11 +83,11 @@ func TearDownAdapter(path string) []suite.Callback {
 		func(t *testing.T) {
 			t.Helper()
 			pathDB := filepath.Join(path, "data.db")
-			path = filepath.Join(path, "data")
+			dataDir := filepath.Join(path, "data")
 
-			err := os.RemoveAll(path)
+			err := os.RemoveAll(dataDir)
 			if err != nil {
-				t.Fatal(fmt.Errorf("adapter helpers: failed to remove adapter data directory at path %s: %w", path, err))
+				t.Fatal(fmt.Errorf("adapter helpers: failed to remove adapter data directory at path %s: %w", dataDir, err))
 			}
 
 			err = os.RemoveAll(pathDB)

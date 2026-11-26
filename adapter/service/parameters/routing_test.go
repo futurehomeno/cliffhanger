@@ -119,7 +119,7 @@ func TestRouteService(t *testing.T) { //nolint:paralleltest
 						Name:    "set parameter",
 						Command: suite.ObjectMessage("pt:j1/mt:cmd/rt:dev/rn:test_adapter/ad:1/sv:parameters/ad:2", "cmd.param.set", "parameters", testReadOnlyParameter(t)),
 						Expectations: []*suite.Expectation{
-							suite.ExpectError("pt:j1/mt:evt/rt:dev/rn:test_adapter/ad:1/sv:parameters/ad:2", "parameters"),
+							suite.ExpectError("pt:j1/mt:evt/rt:dev/rn:test_adapter/ad:1/sv:parameters/ad:2", "parameters").ExpectString("not_supported"),
 						},
 					},
 				},

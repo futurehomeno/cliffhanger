@@ -54,10 +54,7 @@ func handleCmdMeterGetReport(serviceRegistry adapter.ServiceRegistry) router.Mes
 			}
 
 			if message.Payload.ValueType != fimptype.VTypeString && message.Payload.ValueType != fimptype.VTypeNull {
-				return nil, fmt.Errorf(
-					"provided message value has an invalid type, received %s instead of %s or %s",
-					message.Payload.ValueType, fimptype.VTypeString, fimptype.VTypeNull,
-				)
+				return nil, router.NewError(fimptype.ErrorCodeBadRequest, "provided message value has an invalid type", fmt.Errorf("received %s", message.Payload.ValueType))
 			}
 
 			units, err := unitsToReport(message, meter.SupportedUnits())
@@ -94,10 +91,7 @@ func handleCmdMeterExportGetReport(serviceRegistry adapter.ServiceRegistry) rout
 			}
 
 			if message.Payload.ValueType != fimptype.VTypeString && message.Payload.ValueType != fimptype.VTypeNull {
-				return nil, fmt.Errorf(
-					"provided message value has an invalid type, received %s instead of %s or %s",
-					message.Payload.ValueType, fimptype.VTypeString, fimptype.VTypeNull,
-				)
+				return nil, router.NewError(fimptype.ErrorCodeBadRequest, "provided message value has an invalid type", fmt.Errorf("received %s", message.Payload.ValueType))
 			}
 
 			units, err := unitsToReport(message, meter.SupportedExportUnits())
@@ -134,10 +128,7 @@ func handleCmdMeterExtGetReport(serviceRegistry adapter.ServiceRegistry) router.
 			}
 
 			if message.Payload.ValueType != fimptype.VTypeStrArray && message.Payload.ValueType != fimptype.VTypeNull {
-				return nil, fmt.Errorf(
-					"provided message value has an invalid type, received %s instead of %s or %s",
-					message.Payload.ValueType, fimptype.VTypeStrArray, fimptype.VTypeNull,
-				)
+				return nil, router.NewError(fimptype.ErrorCodeBadRequest, "provided message value has an invalid type", fmt.Errorf("received %s", message.Payload.ValueType))
 			}
 
 			values, err := valuesToReport(message, meter.SupportedExtendedValues())
@@ -189,7 +180,7 @@ func unitsToReport(message *fimpgo.Message, supportedUnits Units) (Units, error)
 
 	unit, err := message.Payload.GetStringValue()
 	if err != nil {
-		return nil, fmt.Errorf("provided unit has an incorrect format: %w", err)
+		return nil, router.NewError(fimptype.ErrorCodeBadRequest, "provided unit has an incorrect format", err)
 	}
 
 	if unit == "" {
@@ -207,7 +198,7 @@ func valuesToReport(message *fimpgo.Message, supportedValues Values) (Values, er
 
 	values, err := message.Payload.GetStrArrayValue()
 	if err != nil {
-		return nil, fmt.Errorf("provided value has an incorrect format: %w", err)
+		return nil, router.NewError(fimptype.ErrorCodeBadRequest, "provided value has an incorrect format", err)
 	}
 
 	if len(values) == 0 {
@@ -221,7 +212,7 @@ func valuesToReport(message *fimpgo.Message, supportedValues Values) (Values, er
 func getService(serviceRegistry adapter.ServiceRegistry, message *fimpgo.Message) (Service, error) {
 	s := serviceRegistry.ServiceByTopic(message.Topic)
 	if s == nil {
-		return nil, fmt.Errorf("service not found under the provided address: %s", message.Addr.ServiceAddress)
+		return nil, router.NewError(fimptype.ErrorCodeNotFound, "service not found under the provided address", nil)
 	}
 
 	numericMeter, ok := s.(Service)

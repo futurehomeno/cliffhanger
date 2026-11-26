@@ -2,6 +2,7 @@ package storage
 
 import (
 	"encoding/json"
+	"errors"
 	"fmt"
 	"os"
 	"path"
@@ -350,8 +351,18 @@ func (s *storage[T]) loadFile(path string) error {
 	}
 
 	err = json.Unmarshal(body, s.model)
+	if err != nil && s.isSecret() {
+		// Some json and UnmarshalJSON errors quote the value they failed on.
+		kind := "a value does not fit the model"
+		if errors.As(err, new(*json.SyntaxError)) {
+			kind = "not valid JSON"
+		}
+
+		return fmt.Errorf("storage: cannot unmarshal the secrets file at path %s (%d bytes): %s", path, len(body), kind)
+	}
+
 	if err != nil {
-		return fmt.Errorf("storage: cannot unmarshal a configuration file from path %s with contents '%s': %w", path, body, err)
+		return fmt.Errorf("storage: cannot unmarshal a configuration file from path %s: %w", path, err)
 	}
 
 	return nil

@@ -8,6 +8,7 @@ import (
 	"github.com/futurehomeno/fimpgo/fimptype"
 
 	"github.com/futurehomeno/cliffhanger/adapter"
+	"github.com/futurehomeno/cliffhanger/router"
 )
 
 type Controller any
@@ -113,7 +114,7 @@ func (s *service) SendLQIReport() error {
 
 	controller, ok := s.controller.(LQIReporter)
 	if !ok {
-		return fmt.Errorf("%s: LQI reporting is not supported", s.Name())
+		return router.NewError(fimptype.ErrorCodeNotSupported, "LQI reporting is not supported", nil)
 	}
 
 	value, err := controller.LQIReport()
@@ -134,7 +135,7 @@ func (s *service) SendRSSIReport() error {
 
 	controller, ok := s.controller.(RSSIReporter)
 	if !ok {
-		return fmt.Errorf("%s: RSSI reporting is not supported", s.Name())
+		return router.NewError(fimptype.ErrorCodeNotSupported, "RSSI reporting is not supported", nil)
 	}
 
 	value, err := controller.RSSIReport()
@@ -155,7 +156,7 @@ func (s *service) SendRebootReasonReport() error {
 
 	controller, ok := s.controller.(RebootReasonReporter)
 	if !ok {
-		return fmt.Errorf("%s: reboot reason reporting is not supported", s.Name())
+		return router.NewError(fimptype.ErrorCodeNotSupported, "reboot reason reporting is not supported", nil)
 	}
 
 	value, err := controller.RebootReasonReport()
@@ -176,7 +177,7 @@ func (s *service) SendRebootsCountReport() error {
 
 	controller, ok := s.controller.(RebootsCountReporter)
 	if !ok {
-		return fmt.Errorf("%s: reboots count reporting is not supported", s.Name())
+		return router.NewError(fimptype.ErrorCodeNotSupported, "reboots count reporting is not supported", nil)
 	}
 
 	value, err := controller.RebootsCountReport()
@@ -197,7 +198,7 @@ func (s *service) SendUptimeReport() error {
 
 	controller, ok := s.controller.(UptimeReporter)
 	if !ok {
-		return fmt.Errorf("%s: uptime reporting is not supported", s.Name())
+		return router.NewError(fimptype.ErrorCodeNotSupported, "uptime reporting is not supported", nil)
 	}
 
 	value, err := controller.UptimeReport()
@@ -218,7 +219,7 @@ func (s *service) SendErrorsReport() error {
 
 	controller, ok := s.controller.(ErrorsReporter)
 	if !ok {
-		return fmt.Errorf("%s: errors reporting is not supported", s.Name())
+		return router.NewError(fimptype.ErrorCodeNotSupported, "errors reporting is not supported", nil)
 	}
 
 	value, err := controller.ErrorsReport()

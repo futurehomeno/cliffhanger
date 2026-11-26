@@ -4,6 +4,7 @@ import (
 	"fmt"
 
 	"github.com/futurehomeno/fimpgo"
+	"github.com/futurehomeno/fimpgo/fimptype"
 
 	"github.com/futurehomeno/cliffhanger/adapter"
 	"github.com/futurehomeno/cliffhanger/router"
@@ -37,7 +38,7 @@ func HandleCmdModeSet(serviceRegistry adapter.ServiceRegistry) router.MessageHan
 		router.MessageProcessorFn(func(message *fimpgo.Message) (*fimpgo.FimpMessage, error) {
 			s := serviceRegistry.ServiceByTopic(message.Topic)
 			if s == nil {
-				return nil, fmt.Errorf("service not found under the provided address: %s", message.Addr.ServiceAddress)
+				return nil, router.NewError(fimptype.ErrorCodeNotFound, "service not found under the provided address", nil)
 			}
 
 			fanctrl, ok := s.(Service)
@@ -47,7 +48,7 @@ func HandleCmdModeSet(serviceRegistry adapter.ServiceRegistry) router.MessageHan
 
 			mode, err := message.Payload.GetStringValue()
 			if err != nil {
-				return nil, fmt.Errorf("failed to parse mode: %w", err)
+				return nil, router.NewError(fimptype.ErrorCodeBadRequest, "provided mode has an incorrect format", err)
 			}
 
 			err = fanctrl.SetMode(mode)
@@ -78,7 +79,7 @@ func HandleCmdModeGetReport(serviceRegistry adapter.ServiceRegistry) router.Mess
 		router.MessageProcessorFn(func(message *fimpgo.Message) (*fimpgo.FimpMessage, error) {
 			s := serviceRegistry.ServiceByTopic(message.Topic)
 			if s == nil {
-				return nil, fmt.Errorf("service not found under the provided address: %s", message.Addr.ServiceAddress)
+				return nil, router.NewError(fimptype.ErrorCodeNotFound, "service not found under the provided address", nil)
 			}
 
 			modectrl, ok := s.(Service)

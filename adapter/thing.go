@@ -55,6 +55,8 @@ type ThingSeed struct {
 	ID            string
 	Info          any
 	CustomAddress string
+
+	keep bool
 }
 
 type ThingConfig struct {
@@ -126,6 +128,11 @@ type thing struct {
 	inclusionReport               *fimptype.ThingInclusionReport
 	services                      map[string]Service
 	lock                          *sync.RWMutex
+	// connectorLock, not lock, serialises Connectivity and Ping calls and the reporting cache, so a slow
+	// connector does not stall the thing and a stale connectivity report never follows a fresher one.
+	// Connect and Disconnect run outside it: a connector's Disconnect may wait for work that itself
+	// reports connectivity.
+	connectorLock sync.Mutex
 }
 
 func (t *thing) Address() string {
@@ -218,11 +225,13 @@ func (t *thing) SendInclusionReport(force bool) (bool, error) {
 }
 
 func (t *thing) ConnectivityReport() *ConnectivityReport {
-	t.lock.Lock()
-	defer t.lock.Unlock()
+	t.connectorLock.Lock()
+	defer t.connectorLock.Unlock()
 
-	connectivityDetails := t.connector.Connectivity()
+	return t.connectivityReport()
+}
 
+func (t *thing) connectivityReport() *ConnectivityReport {
 	report := &ConnectivityReport{
 		Address:             t.Address(),
 		Hash:                t.inclusionReport.ProductHash,
@@ -230,7 +239,7 @@ func (t *thing) ConnectivityReport() *ConnectivityReport {
 		PowerSource:         t.inclusionReport.PowerSource,
 		WakeupInterval:      t.inclusionReport.WakeUpInterval,
 		CommTechnology:      t.inclusionReport.CommTechnology,
-		ConnectivityDetails: connectivityDetails,
+		ConnectivityDetails: t.connector.Connectivity(),
 	}
 
 	report.sanitize()
@@ -240,10 +249,10 @@ func (t *thing) ConnectivityReport() *ConnectivityReport {
 
 // If force is true, report is sent even if it did not change from previously sent one.
 func (t *thing) SendConnectivityReport(force bool) (bool, error) {
-	report := t.ConnectivityReport()
+	t.connectorLock.Lock()
+	defer t.connectorLock.Unlock()
 
-	t.lock.Lock()
-	defer t.lock.Unlock()
+	report := t.connectivityReport()
 
 	t.publisher.PublishThingEvent(newConnectivityEvent(t, report.ConnectivityDetails))
 
@@ -271,14 +280,7 @@ func (t *thing) SendConnectivityReport(force bool) (bool, error) {
 }
 
 func (t *thing) SendPingReport() error {
-	t.lock.RLock()
-	defer t.lock.RUnlock()
-
-	ts := time.Now()
-
-	pingDetails := t.connector.Ping()
-
-	delay := int(time.Since(ts).Truncate(time.Millisecond) / time.Millisecond)
+	delay, pingDetails := t.ping()
 
 	report := &PingReport{
 		Address:     t.Address(),
@@ -301,6 +303,16 @@ func (t *thing) SendPingReport() error {
 	}
 
 	return nil
+}
+
+func (t *thing) ping() (int, *PingDetails) {
+	t.connectorLock.Lock()
+	defer t.connectorLock.Unlock()
+
+	ts := time.Now()
+	pingDetails := t.connector.Ping()
+
+	return int(time.Since(ts).Truncate(time.Millisecond) / time.Millisecond), pingDetails
 }
 
 // If the thing is already connected, this method does nothing.

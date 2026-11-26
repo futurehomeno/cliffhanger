@@ -8,23 +8,39 @@ import (
 	"github.com/futurehomeno/fimpgo"
 	log "github.com/sirupsen/logrus"
 
+	"github.com/futurehomeno/cliffhanger/backoff"
 	"github.com/futurehomeno/cliffhanger/prime"
 )
 
 // staleNodeTimeout bounds the Vinculum request, which runs inline in a device sync.
 const staleNodeTimeout = 10 * time.Second
 
+// newStaleRetry spaces the retries of a failed sweep: three a minute apart for a hub still
+// starting, three 5 minutes apart, then hourly with no end, as a sweep that never ran leaves the
+// stale nodes on the hub.
+func newStaleRetry() backoff.Stateful {
+	return backoff.NewStateful(time.Minute, 5*time.Minute, time.Hour, 3, 3)
+}
+
+// ErrStaleNodeFetch reports that the hub never answered, so no node was examined. A per-node
+// exclusion failure does not wrap it.
+var ErrStaleNodeFetch = errors.New("adapter: fetch hub devices")
+
+var errThingsChanged = errors.New("adapter: a sync started applying during the hub request")
+
 // Option configures an adapter at construction time.
 type Option func(*adapter)
 
 // WithStaleNodeExclusion overrides the stale node sweep, which is enabled by default. The
-// predicate is evaluated on every successful sync; the sweep itself still runs at most once
-// per process, so a runtime configuration flag can enable it after an earlier sync skipped it.
+// predicate is evaluated on every successful sync; the sweep runs until it has succeeded once per
+// process (a failed sweep is retried by the next successful sync), so a runtime configuration
+// flag can enable it after an earlier sync skipped it.
 func WithStaleNodeExclusion(enabled func() bool) Option {
 	return func(a *adapter) { a.staleNodes = enabled }
 }
 
-// excludeStaleNodesOnce sweeps stale hub nodes at most once per process, and is called from
+// excludeStaleNodesOnce sweeps stale hub nodes until a sweep has succeeded once per process (a
+// failed sweep is retried by the next successful sync), and is called from
 // SyncThings once a device list was successfully fetched and applied - the only moment the
 // adapter's things are known to match the service's, so that a node the sync is about to
 // recreate can never be excluded first. Failures are logged: a sweep must not break a sync.
@@ -39,22 +55,46 @@ func (a *adapter) excludeStaleNodesOnce() {
 	}
 
 	// Predicate is checked on every sync so a runtime toggle can still enable the sweep after
-	// an earlier sync ran while it was off; only the sweep itself is once-per-process.
+	// an earlier sync ran while it was off; only a successful sweep is once-per-process.
 	if a.mqtt == nil || a.staleNodes == nil || !a.staleNodes() {
 		return
 	}
 
-	a.staleNodesOnce.Do(func() {
-		// Asking the hub is a round trip over MQTT: a sweep must never hold up the sync it
-		// is triggered from, nor block it for the full timeout when nothing answers.
-		go a.excludeStaleNodes()
-	})
+	// Claimed rather than done once: a failed sweep releases the claim so the next successful
+	// sync retries it, while the claim still keeps two sweeps from overlapping.
+	if !a.staleNodesSwept.CompareAndSwap(false, true) {
+		return
+	}
+
+	// Asking the hub is a round trip over MQTT: a sweep must never hold up the sync it
+	// is triggered from, nor block it for the full timeout when nothing answers.
+	go a.excludeStaleNodes(prime.NewClient(fimpgo.NewSyncClient(a.mqtt), a.name, staleNodeTimeout))
 }
 
-func (a *adapter) excludeStaleNodes() {
-	excluded, err := ExcludeStaleNodes(a, prime.NewClient(fimpgo.NewSyncClient(a.mqtt), a.name, staleNodeTimeout))
+// retryStaleNodes repeats a failed sweep without waiting for a sync, which an adapter syncing only
+// on device drift may never run again. Dropped when a later sync left the things not matching its
+// fetched list: the next sync without errors sweeps instead.
+func (a *adapter) retryStaleNodes() {
+	a.staleRetryArmed.Store(false)
+
+	if a.thingsSynced.Load() {
+		a.excludeStaleNodesOnce()
+	}
+}
+
+func (a *adapter) excludeStaleNodes(client prime.Client) {
+	excluded, err := excludeStaleNodesWhile(a, client, a.thingsSynced.Load)
 	if err != nil {
 		log.Errorf("[adapter] Exclude stale hub nodes. err: %v", err)
+
+		// A later sync or the timer retries; the nodes already excluded are gone from the hub's
+		// list by then.
+		a.staleNodesSwept.Store(false)
+
+		// One pending retry at most, or failures of sweeps started by syncs would pile up timers.
+		if a.staleRetryArmed.CompareAndSwap(false, true) {
+			time.AfterFunc(a.staleRetry.Next(), a.retryStaleNodes)
+		}
 	}
 
 	for _, address := range excluded {
@@ -71,9 +111,19 @@ func (a *adapter) excludeStaleNodes() {
 // Best-effort per address: failures are joined and the addresses that did get excluded are
 // still returned.
 func ExcludeStaleNodes(a Adapter, client prime.Client) ([]string, error) {
+	return excludeStaleNodesWhile(a, client, func() bool { return true })
+}
+
+// excludeStaleNodesWhile asks match again once the hub answered: the request takes up to its
+// timeout, and a sync that began applying meanwhile may be about to recreate a node listed as stale.
+func excludeStaleNodesWhile(a Adapter, client prime.Client, match func() bool) ([]string, error) {
 	devices, err := client.GetDevices()
 	if err != nil {
-		return nil, fmt.Errorf("adapter: fetch hub devices: %w", err)
+		return nil, fmt.Errorf("%w: %w", ErrStaleNodeFetch, err)
+	}
+
+	if !match() {
+		return nil, errThingsChanged
 	}
 
 	var (
@@ -126,11 +176,14 @@ func staleAddresses(a Adapter, devices prime.Devices) []string {
 
 // belongsToAdapter reports whether the hub attributes the device to this adapter. The resource
 // name and instance are taken from a service topic rather than from device.FIMP.Adapter, which
-// carries the service name - the two differ for technologies such as zwave.
+// carries the service name - the two differ for technologies such as zwave. Every named service must
+// agree: excluding a node is destructive, so a device mixing adapters is never claimed.
 func belongsToAdapter(a Adapter, device *prime.Device) bool {
 	if device.FIMP.AdapterAddress != "" && device.FIMP.AdapterAddress != a.Address() {
 		return false
 	}
+
+	owned := false
 
 	for _, service := range device.Services {
 		address, err := fimpgo.NewAddressFromString(service.Addr)
@@ -138,9 +191,13 @@ func belongsToAdapter(a Adapter, device *prime.Device) bool {
 			continue
 		}
 
-		return address.ResourceName == a.Name() &&
-			(address.ResourceAddress == "" || address.ResourceAddress == a.Address())
+		if address.ResourceName != a.Name() ||
+			(address.ResourceAddress != "" && address.ResourceAddress != a.Address()) {
+			return false
+		}
+
+		owned = true
 	}
 
-	return false
+	return owned
 }

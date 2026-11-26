@@ -52,7 +52,7 @@ func TestRouteService(t *testing.T) { //nolint:paralleltest
 						Name:    "Wrong topic",
 						Command: suite.NullMessage("pt:j1/mt:cmd/rt:dev/rn:test_adapter/ad:1/sv:out_bin_switch/ad:666", "cmd.binary.get_report", "out_bin_switch"),
 						Expectations: []*suite.Expectation{
-							suite.ExpectError("pt:j1/mt:evt/rt:dev/rn:test_adapter/ad:1/sv:out_bin_switch/ad:666", "out_bin_switch"),
+							suite.ExpectError("pt:j1/mt:evt/rt:dev/rn:test_adapter/ad:1/sv:out_bin_switch/ad:666", "out_bin_switch").ExpectString("not_found"),
 						},
 					},
 					{
@@ -66,7 +66,7 @@ func TestRouteService(t *testing.T) { //nolint:paralleltest
 						Name:    "Switch binary on - wrong topic",
 						Command: suite.BoolMessage("pt:j1/mt:cmd/rt:dev/rn:test_adapter/ad:1/sv:out_bin_switch/ad:666", "cmd.binary.set", "out_bin_switch", true),
 						Expectations: []*suite.Expectation{
-							suite.ExpectError("pt:j1/mt:evt/rt:dev/rn:test_adapter/ad:1/sv:out_bin_switch/ad:666", "out_bin_switch"),
+							suite.ExpectError("pt:j1/mt:evt/rt:dev/rn:test_adapter/ad:1/sv:out_bin_switch/ad:666", "out_bin_switch").ExpectString("not_found"),
 						},
 					},
 					{
@@ -74,6 +74,13 @@ func TestRouteService(t *testing.T) { //nolint:paralleltest
 						Command: suite.BoolMessage("pt:j1/mt:cmd/rt:dev/rn:test_adapter/ad:1/sv:out_bin_switch/ad:2", "cmd.binary.set", "out_bin_switch", true),
 						Expectations: []*suite.Expectation{
 							suite.ExpectError("pt:j1/mt:evt/rt:dev/rn:test_adapter/ad:1/sv:out_bin_switch/ad:2", "out_bin_switch"),
+						},
+					},
+					{
+						Name:    "Switch binary on - not a boolean",
+						Command: suite.StringMessage("pt:j1/mt:cmd/rt:dev/rn:test_adapter/ad:1/sv:out_bin_switch/ad:2", "cmd.binary.set", "out_bin_switch", "on"),
+						Expectations: []*suite.Expectation{
+							suite.ExpectError("pt:j1/mt:evt/rt:dev/rn:test_adapter/ad:1/sv:out_bin_switch/ad:2", "out_bin_switch").ExpectString("bad_request"),
 						},
 					},
 					{

@@ -5,6 +5,7 @@ import (
 	"time"
 
 	"github.com/futurehomeno/fimpgo"
+	"github.com/futurehomeno/fimpgo/fimptype"
 	"github.com/pkg/errors"
 
 	"github.com/futurehomeno/cliffhanger/adapter"
@@ -63,7 +64,7 @@ func HandleCmdLvlStart(serviceRegistry adapter.ServiceRegistry) router.MessageHa
 		router.MessageProcessorFn(func(message *fimpgo.Message) (*fimpgo.FimpMessage, error) {
 			s := serviceRegistry.ServiceByTopic(message.Topic)
 			if s == nil {
-				return nil, fmt.Errorf("service not found under the provided address: %s", message.Addr.ServiceAddress)
+				return nil, router.NewError(fimptype.ErrorCodeNotFound, "service not found under the provided address", nil)
 			}
 
 			service, ok := s.(Service)
@@ -73,17 +74,17 @@ func HandleCmdLvlStart(serviceRegistry adapter.ServiceRegistry) router.MessageHa
 
 			direction, err := message.Payload.GetStringValue()
 			if err != nil {
-				return nil, errors.Wrap(err, "adapter: error while getting level value from message")
+				return nil, router.NewError(fimptype.ErrorCodeBadRequest, "provided transition value has an incorrect format", err)
 			}
 
 			duration, err := getDurationInSeconds(message)
 			if err != nil {
-				return nil, errors.Wrap(err, "adapter: error while getting duration value from message")
+				return nil, router.NewError(fimptype.ErrorCodeBadRequest, "provided duration has an incorrect format", err)
 			}
 
 			startLvl, err := getStartLvl(message)
 			if err != nil {
-				return nil, errors.Wrap(err, "adapter: error while getting start_lvl value from message")
+				return nil, router.NewError(fimptype.ErrorCodeBadRequest, "provided start level has an incorrect format", err)
 			}
 
 			if err := service.StartLevelTransition(direction, LevelTransitionParams{StartLvl: startLvl, Duration: duration}); err != nil {
@@ -106,7 +107,7 @@ func HandleCmdLvlStop(serviceRegistry adapter.ServiceRegistry) router.MessageHan
 		router.MessageProcessorFn(func(message *fimpgo.Message) (*fimpgo.FimpMessage, error) {
 			s := serviceRegistry.ServiceByTopic(message.Topic)
 			if s == nil {
-				return nil, fmt.Errorf("service not found under the provided address: %s", message.Addr.ServiceAddress)
+				return nil, router.NewError(fimptype.ErrorCodeNotFound, "service not found under the provided address", nil)
 			}
 
 			service, ok := s.(Service)
@@ -133,7 +134,7 @@ func HandleCmdLvlSet(serviceRegistry adapter.ServiceRegistry) router.MessageHand
 		router.MessageProcessorFn(func(message *fimpgo.Message) (*fimpgo.FimpMessage, error) {
 			s := serviceRegistry.ServiceByTopic(message.Topic)
 			if s == nil {
-				return nil, fmt.Errorf("service not found under the provided address: %s", message.Addr.ServiceAddress)
+				return nil, router.NewError(fimptype.ErrorCodeNotFound, "service not found under the provided address", nil)
 			}
 
 			outLvlSwitch, ok := s.(Service)
@@ -143,12 +144,12 @@ func HandleCmdLvlSet(serviceRegistry adapter.ServiceRegistry) router.MessageHand
 
 			lvl, err := message.Payload.GetIntValue()
 			if err != nil {
-				return nil, fmt.Errorf("error while getting level value from message: %w", err)
+				return nil, router.NewError(fimptype.ErrorCodeBadRequest, "provided level has an incorrect format", err)
 			}
 
 			duration, err := getDurationInSeconds(message)
 			if err != nil {
-				return nil, fmt.Errorf("error while getting duration value from message: %w", err)
+				return nil, router.NewError(fimptype.ErrorCodeBadRequest, "provided duration has an incorrect format", err)
 			}
 
 			err = outLvlSwitch.SetLevel(lvl, duration)
@@ -179,7 +180,7 @@ func HandleCmdBinarySet(serviceRegistry adapter.ServiceRegistry) router.MessageH
 		router.MessageProcessorFn(func(message *fimpgo.Message) (*fimpgo.FimpMessage, error) {
 			s := serviceRegistry.ServiceByTopic(message.Topic)
 			if s == nil {
-				return nil, fmt.Errorf("service not found under the provided address: %s", message.Addr.ServiceAddress)
+				return nil, router.NewError(fimptype.ErrorCodeNotFound, "service not found under the provided address", nil)
 			}
 
 			outLvlSwitch, ok := s.(Service)
@@ -189,7 +190,7 @@ func HandleCmdBinarySet(serviceRegistry adapter.ServiceRegistry) router.MessageH
 
 			binary, err := message.Payload.GetBoolValue()
 			if err != nil {
-				return nil, fmt.Errorf("error while getting binary value from message: %w", err)
+				return nil, router.NewError(fimptype.ErrorCodeBadRequest, "provided binary value has an incorrect format", err)
 			}
 
 			err = outLvlSwitch.SetBinaryState(binary)
@@ -220,7 +221,7 @@ func HandleCmdLvlGetReport(serviceRegistry adapter.ServiceRegistry) router.Messa
 		router.MessageProcessorFn(func(message *fimpgo.Message) (*fimpgo.FimpMessage, error) {
 			s := serviceRegistry.ServiceByTopic(message.Topic)
 			if s == nil {
-				return nil, fmt.Errorf("service not found under the provided address: %s", message.Addr.ServiceAddress)
+				return nil, router.NewError(fimptype.ErrorCodeNotFound, "service not found under the provided address", nil)
 			}
 
 			outLvlSwitch, ok := s.(Service)

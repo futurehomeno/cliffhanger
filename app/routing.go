@@ -2,6 +2,7 @@ package app
 
 import (
 	"fmt"
+	"strings"
 
 	"github.com/futurehomeno/fimpgo"
 	"github.com/futurehomeno/fimpgo/fimptype"
@@ -176,7 +177,7 @@ func HandleCmdAppGetManifest[C any](
 
 				mode, err = message.Payload.GetStringValue()
 				if err != nil {
-					return nil, fmt.Errorf("provided value has an incorrect format: %w", err)
+					return nil, router.NewError(fimptype.ErrorCodeBadRequest, "provided value has an incorrect format", err)
 				}
 			}
 
@@ -225,16 +226,11 @@ func HandleCmdConfigExtendedSet[C any](
 			cfg := configFactory()
 
 			err := message.Payload.GetObjectValue(cfg)
-			if err != nil {
-				return makeConfigurationReply(serviceName, EvtAppConfigReport, message, appLifecycle, err), nil
+			if err == nil {
+				err = app.Configure(cfg)
 			}
 
-			err = app.Configure(cfg)
-			if err != nil {
-				return makeConfigurationReply(serviceName, EvtAppConfigReport, message, appLifecycle, err), nil
-			}
-
-			return makeConfigurationReply(serviceName, EvtAppConfigReport, message, appLifecycle, nil), nil
+			return makeConfigurationReply(serviceName, EvtAppConfigReport, message, appLifecycle, "Configure", err), nil
 		}),
 		router.WithExternalLock(locker),
 	)
@@ -271,11 +267,7 @@ func HandleCmdAppUninstall(
 				}
 			}
 
-			if err := app.Uninstall(); err != nil {
-				return makeConfigurationReply(serviceName, EvtAppUninstallReport, message, appLifecycle, err), nil
-			}
-
-			return makeConfigurationReply(serviceName, EvtAppUninstallReport, message, appLifecycle, nil), nil
+			return makeConfigurationReply(serviceName, EvtAppUninstallReport, message, appLifecycle, "Uninstall", app.Uninstall()), nil
 		}),
 		router.WithExternalLock(locker),
 	)
@@ -403,6 +395,7 @@ func makeConfigurationReply(
 	messageType string,
 	message *fimpgo.Message,
 	appLifecycle *lifecycle.Lifecycle,
+	op string,
 	err error,
 ) *fimpgo.FimpMessage {
 	configReport := &ConfigurationReport{
@@ -413,10 +406,10 @@ func makeConfigurationReply(
 		log.WithField("topic", message.Topic).
 			WithField("service", message.Payload.Service).
 			WithField("type", message.Payload.Interface).
-			Errorf("[app] Configure app err: %v", err)
+			Errorf("[app] %s app err: %v", op, err)
 
 		configReport.OpStatus = OperationStatusError
-		configReport.OpError = fmt.Sprintf("configure the app err: %s", err)
+		configReport.OpError = fmt.Sprintf("%s the app err: %s", strings.ToLower(op), err)
 	}
 
 	configReport.AppState = *appLifecycle.AllStates()
@@ -457,22 +450,21 @@ func HandleCmdAuthLogin(
 
 			err := message.Payload.GetObjectValue(credentials)
 			if err != nil {
-				return nil, fmt.Errorf("provided login credentials have an invalid format: %w", err)
+				return nil, router.NewError(fimptype.ErrorCodeBadRequest, "provided login credentials have an invalid format", err)
 			}
 
 			report := &AuthenticationReport{}
 
 			if err = app.Login(credentials); err != nil {
 				log.Errorf("[app] Login err: %v", err)
-
-				report.ErrorText = "failed to login"
 			}
 
-			// Compatibility hack for FHX which implemented login flow not in accordance with the
-			// specification. Restricted to outcomes that actually failed: an app whose login starts
-			// an asynchronous second step is not authenticated yet, and reporting that as an error
-			// would fail a flow that is still running.
+			// Only outcomes that actually failed: an app whose login starts an asynchronous second
+			// step is not authenticated yet, and reporting that as an error would fail a flow that
+			// is still running. Errors is a compatibility hack for FHX, which implemented the login
+			// flow not in accordance with the specification.
 			if err != nil || failedAuthStates[appLifecycle.AuthState()] {
+				report.ErrorText = "failed to login"
 				report.Errors = "failed to login"
 			}
 
@@ -533,14 +525,16 @@ func HandleCmdAuthSetTokens(
 
 			err := message.Payload.GetObjectValue(credentials)
 			if err != nil {
-				return nil, fmt.Errorf("provided authorization credentials have an invalid format: %w", err)
+				return nil, router.NewError(fimptype.ErrorCodeBadRequest, "provided authorization credentials have an invalid format", err)
 			}
 
 			report := &AuthenticationReport{}
 
 			if err = app.Authorize(credentials); err != nil {
 				log.Errorf("[app] Authorize err: %v", err)
+			}
 
+			if err != nil || failedAuthStates[appLifecycle.AuthState()] {
 				report.ErrorText = "failed to authorize"
 			}
 

@@ -4,6 +4,7 @@ import (
 	"fmt"
 
 	"github.com/futurehomeno/fimpgo"
+	"github.com/futurehomeno/fimpgo/fimptype"
 
 	"github.com/futurehomeno/cliffhanger/adapter"
 	"github.com/futurehomeno/cliffhanger/router"
@@ -45,7 +46,7 @@ func HandleCmdModeSet(adapter adapter.ServiceRegistry) router.MessageHandler {
 		router.MessageProcessorFn(func(message *fimpgo.Message) (*fimpgo.FimpMessage, error) {
 			s := adapter.ServiceByTopic(message.Topic)
 			if s == nil {
-				return nil, fmt.Errorf("service not found under the provided address: %s", message.Addr.ServiceAddress)
+				return nil, router.NewError(fimptype.ErrorCodeNotFound, "service not found under the provided address", nil)
 			}
 
 			waterHeater, ok := s.(Service)
@@ -55,7 +56,7 @@ func HandleCmdModeSet(adapter adapter.ServiceRegistry) router.MessageHandler {
 
 			mode, err := message.Payload.GetStringValue()
 			if err != nil {
-				return nil, fmt.Errorf("provided mode has an incorrect format: %w", err)
+				return nil, router.NewError(fimptype.ErrorCodeBadRequest, "provided mode has an incorrect format", err)
 			}
 
 			err = waterHeater.SetMode(mode)
@@ -93,7 +94,7 @@ func HandleCmdSetpointSet(adapter adapter.ServiceRegistry) router.MessageHandler
 		router.MessageProcessorFn(func(message *fimpgo.Message) (*fimpgo.FimpMessage, error) {
 			s := adapter.ServiceByTopic(message.Topic)
 			if s == nil {
-				return nil, fmt.Errorf("service not found under the provided address: %s", message.Addr.ServiceAddress)
+				return nil, router.NewError(fimptype.ErrorCodeNotFound, "service not found under the provided address", nil)
 			}
 
 			waterHeater, ok := s.(Service)
@@ -105,7 +106,7 @@ func HandleCmdSetpointSet(adapter adapter.ServiceRegistry) router.MessageHandler
 
 			err := message.Payload.GetObjectValue(setpoint)
 			if err != nil {
-				return nil, fmt.Errorf("provided setpoint object has an incorrect format: %w", err)
+				return nil, router.NewError(fimptype.ErrorCodeBadRequest, "provided setpoint object has an incorrect format", err)
 			}
 
 			err = waterHeater.SetSetpoint(setpoint.Type, setpoint.Temperature, setpoint.Unit)
@@ -136,7 +137,7 @@ func HandleCmdModeGetReport(adapter adapter.ServiceRegistry) router.MessageHandl
 		router.MessageProcessorFn(func(message *fimpgo.Message) (*fimpgo.FimpMessage, error) {
 			s := adapter.ServiceByTopic(message.Topic)
 			if s == nil {
-				return nil, fmt.Errorf("service not found under the provided address: %s", message.Addr.ServiceAddress)
+				return nil, router.NewError(fimptype.ErrorCodeNotFound, "service not found under the provided address", nil)
 			}
 
 			waterHeater, ok := s.(Service)
@@ -167,7 +168,7 @@ func HandleCmdSetpointGetReport(adapter adapter.ServiceRegistry) router.MessageH
 		router.MessageProcessorFn(func(message *fimpgo.Message) (*fimpgo.FimpMessage, error) {
 			s := adapter.ServiceByTopic(message.Topic)
 			if s == nil {
-				return nil, fmt.Errorf("service not found under the provided address: %s", message.Addr.ServiceAddress)
+				return nil, router.NewError(fimptype.ErrorCodeNotFound, "service not found under the provided address", nil)
 			}
 
 			waterHeater, ok := s.(Service)
@@ -177,7 +178,7 @@ func HandleCmdSetpointGetReport(adapter adapter.ServiceRegistry) router.MessageH
 
 			mode, err := message.Payload.GetStringValue()
 			if err != nil {
-				return nil, fmt.Errorf("provided mode has an incorrect format: %w", err)
+				return nil, router.NewError(fimptype.ErrorCodeBadRequest, "provided mode has an incorrect format", err)
 			}
 
 			_, err = waterHeater.SendSetpointReport(mode, true)
@@ -203,7 +204,7 @@ func HandleCmdStateGetReport(adapter adapter.ServiceRegistry) router.MessageHand
 		router.MessageProcessorFn(func(message *fimpgo.Message) (*fimpgo.FimpMessage, error) {
 			s := adapter.ServiceByTopic(message.Topic)
 			if s == nil {
-				return nil, fmt.Errorf("service not found under the provided address: %s", message.Addr.ServiceAddress)
+				return nil, router.NewError(fimptype.ErrorCodeNotFound, "service not found under the provided address", nil)
 			}
 
 			waterHeater, ok := s.(Service)

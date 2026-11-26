@@ -2,6 +2,7 @@ package suite
 
 import (
 	"encoding/json"
+	"strings"
 
 	"github.com/futurehomeno/fimpgo"
 	"github.com/futurehomeno/fimpgo/fimptype"
@@ -158,6 +159,15 @@ func ExpectError(topic string, service fimptype.ServiceNameT) *Expectation {
 		ExpectTopic(topic).
 		ExpectType(router.EvtErrorReport).
 		ExpectService(service)
+}
+
+// ExpectCodedError expects an error report with the code as its value, a correlation ID and a msg without a URL.
+func ExpectCodedError(topic string, service fimptype.ServiceNameT, code fimptype.ErrorCodeT) *Expectation {
+	return ExpectError(topic, service).ExpectString(code.Str()).Expect(router.MessageVoterFn(func(message *fimpgo.Message) bool {
+		msg, ok := message.Payload.Properties[router.PropertyMsg]
+
+		return message.Payload.CorrelationID != "" && ok && !strings.Contains(msg, "://")
+	}))
 }
 
 func ExpectSuccess(topic string, service fimptype.ServiceNameT) *Expectation {

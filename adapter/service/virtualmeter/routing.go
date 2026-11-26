@@ -3,6 +3,8 @@ package virtualmeter
 import (
 	"fmt"
 
+	"github.com/futurehomeno/fimpgo/fimptype"
+
 	"github.com/futurehomeno/fimpgo"
 
 	"github.com/futurehomeno/cliffhanger/adapter"
@@ -63,12 +65,12 @@ func handleCmdMeterAdd(sr adapter.ServiceRegistry) router.MessageHandler {
 
 			modes, err := message.Payload.GetFloatMapValue()
 			if err != nil {
-				return nil, fmt.Errorf("routing: value has incorrect type, expected float map: %w", err)
+				return nil, router.NewError(fimptype.ErrorCodeBadRequest, "value has an incorrect type, expected a float map", err)
 			}
 
 			unit, ok := message.Payload.Properties.GetStringValue(PropertyNameUnit)
 			if !ok {
-				return nil, fmt.Errorf("routing: unit property is required in the message")
+				return nil, router.NewError(fimptype.ErrorCodeBadRequest, "unit property is required", nil)
 			}
 
 			if err := srv.AddMeter(modes, unit); err != nil {
@@ -123,7 +125,7 @@ func handleCmdMeterGetReport(sr adapter.ServiceRegistry) router.MessageHandler {
 func getService(serviceRegistry adapter.ServiceRegistry, message *fimpgo.Message) (Service, error) {
 	s := serviceRegistry.ServiceByTopic(message.Topic)
 	if s == nil {
-		return nil, fmt.Errorf("routing: service not found under the provided address: %s", message.Addr.ServiceAddress)
+		return nil, router.NewError(fimptype.ErrorCodeNotFound, "service not found under the provided address", nil)
 	}
 
 	virtualMeter, ok := s.(Service)

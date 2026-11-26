@@ -2,6 +2,7 @@ package thermostat
 
 import (
 	"fmt"
+	"math"
 	"strconv"
 	"sync"
 
@@ -10,6 +11,7 @@ import (
 
 	"github.com/futurehomeno/cliffhanger/adapter"
 	"github.com/futurehomeno/cliffhanger/adapter/cache"
+	"github.com/futurehomeno/cliffhanger/router"
 	"github.com/futurehomeno/cliffhanger/utils"
 )
 
@@ -122,7 +124,7 @@ func (s *service) SetMode(mode string) error {
 
 	normalizedMode, ok := s.normalizeMode(mode)
 	if !ok {
-		return fmt.Errorf("%s: mode is unsupported: %s", s.Name(), mode)
+		return router.NewError(fimptype.ErrorCodeNotSupported, fmt.Sprintf("mode %s is not supported", mode), nil)
 	}
 
 	err := s.controller.SetThermostatMode(normalizedMode)
@@ -140,7 +142,7 @@ func (s *service) SetSetpoint(mode string, value float64, unit string) error {
 
 	normalizedMode, ok := s.normalizeSetpoint(mode)
 	if !ok {
-		return fmt.Errorf("%s: setpoint mode is unsupported: %s", s.Name(), mode)
+		return router.NewError(fimptype.ErrorCodeNotSupported, fmt.Sprintf("setpoint %s is not supported", mode), nil)
 	}
 
 	err := s.controller.SetThermostatSetpoint(normalizedMode, value, unit)
@@ -195,7 +197,7 @@ func (s *service) SendSetpointReport(mode string, force bool) (bool, error) {
 
 	normalizedMode, ok := s.normalizeSetpoint(mode)
 	if !ok {
-		return false, fmt.Errorf("%s: setpoint mode is unsupported: %s", s.Name(), mode)
+		return false, router.NewError(fimptype.ErrorCodeNotSupported, fmt.Sprintf("setpoint %s is not supported", mode), nil)
 	}
 
 	value, unit, err := s.controller.ThermostatSetpointReport(normalizedMode)
@@ -203,14 +205,16 @@ func (s *service) SendSetpointReport(mode string, force bool) (bool, error) {
 		return false, fmt.Errorf("%s: failed to retrieve setpoint report for mode %s: %w", s.Name(), normalizedMode, err)
 	}
 
-	if !force && !s.reportingCache.ReportRequired(s.reportingStrategy, EvtSetpointReport, mode, value) {
+	setpoint := NewSetpoint(normalizedMode, value, unit)
+
+	if !force && !s.reportingCache.ReportRequired(s.reportingStrategy, EvtSetpointReport, normalizedMode, *setpoint) {
 		return false, nil
 	}
 
 	message := fimpgo.NewStrMapMessage(
 		EvtSetpointReport,
 		s.Name(),
-		NewSetpoint(normalizedMode, value, unit).StringMap(),
+		setpoint.StringMap(),
 		nil,
 		nil,
 		nil,
@@ -221,7 +225,7 @@ func (s *service) SendSetpointReport(mode string, force bool) (bool, error) {
 		return false, fmt.Errorf("%s: failed to send state report: %w", s.Name(), err)
 	}
 
-	s.reportingCache.Reported(EvtSetpointReport, mode, value)
+	s.reportingCache.Reported(EvtSetpointReport, normalizedMode, *setpoint)
 
 	return true, nil
 }
@@ -295,9 +299,9 @@ func (s *service) normalizeSetpoint(mode string) (string, bool) {
 
 // Setpoint is an object representing a Thermostat setpoint.
 type Setpoint struct {
-	Type        string
-	Temperature float64
-	Unit        string
+	Type        string  `json:"type"`
+	Temperature float64 `json:"temp"`
+	Unit        string  `json:"unit"`
 }
 
 // NewSetpoint create a new setpoint object.
@@ -338,6 +342,10 @@ func SetpointFromStringMap(input map[string]string) (*Setpoint, error) {
 	temp, err := strconv.ParseFloat(tempStr, 64)
 	if err != nil {
 		return nil, fmt.Errorf("setpoint: cannot parse `temp` field %s: %w", tempStr, err)
+	}
+
+	if math.IsNaN(temp) || math.IsInf(temp, 0) {
+		return nil, fmt.Errorf("setpoint: invalid `temp` field %s", tempStr)
 	}
 
 	return &Setpoint{

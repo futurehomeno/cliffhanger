@@ -1,7 +1,6 @@
 package adapter
 
 import (
-	"errors"
 	"fmt"
 
 	"github.com/futurehomeno/fimpgo"
@@ -114,12 +113,12 @@ func handleCmdThingDelete(adapter Adapter, cfg *routingConfig) router.MessageHan
 		router.MessageProcessorFn(func(message *fimpgo.Message) (reply *fimpgo.FimpMessage, err error) {
 			value, err := message.Payload.GetStrMapValue()
 			if err != nil {
-				return nil, fmt.Errorf("provided address has an incorrect format: %w", err)
+				return nil, router.NewError(fimptype.ErrorCodeBadRequest, "provided address has an incorrect format", err)
 			}
 
 			address := value["address"]
 			if address == "" {
-				return nil, errors.New("provided address is empty")
+				return nil, router.NewError(fimptype.ErrorCodeBadRequest, "provided address is empty", nil)
 			}
 
 			// Resolve before the destroy: it drops the record mapping address to ID.
@@ -255,12 +254,12 @@ func handleCmdPingSend(adapter Adapter) router.MessageHandler {
 func getThingByMessage(adapter Adapter, message *fimpgo.Message) (Thing, error) {
 	address, err := message.Payload.GetStringValue()
 	if err != nil {
-		return nil, fmt.Errorf("provided address has an incorrect format: %w", err)
+		return nil, router.NewError(fimptype.ErrorCodeBadRequest, "provided address has an incorrect format", err)
 	}
 
 	t := adapter.ThingByAddress(address)
 	if t == nil {
-		return nil, fmt.Errorf("thing not found under the provided address: %s", address)
+		return nil, router.NewError(fimptype.ErrorCodeNotFound, "thing not found under the provided address", fmt.Errorf("address %s", address))
 	}
 
 	return t, nil
