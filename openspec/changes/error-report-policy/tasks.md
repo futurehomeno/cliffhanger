@@ -37,7 +37,7 @@ sees it fail for the expected reason, then writes the code.
 ## 6. Adapters (one change each, per the adapter plan in `design.md`)
 
 - [x] 6.1 Shared conformance test: a failed command gets one `evt.error.report` with a code, the command's `corid` and no URL in `msg`
-  - `suite.ExpectCodedError(topic, service, code)` in `test/suite`: the code, a correlation ID present, no URL in `msg`; each adapter uses it for its failing commands.
+  - `suite.ExpectCodedError(topic, service, code)` in `test/suite`: the code, a correlation ID present, a `msg` without a URL; each adapter uses it for its failing commands.
 - [ ] 6.2 All ten adapters: codes and plain sentences for their main failures; no URL, serial or body in error text; failures logged once
 - [ ] 6.3 zaptec, mill, hoiax, tibber, adax, sensibo: manifest declares `evt.error.report`
 - [ ] 6.4 mill, hoiax, netatmo, tibber, sonos, sensibo: `error_text` filled when the check after authorizing fails

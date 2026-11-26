@@ -161,10 +161,12 @@ func ExpectError(topic string, service fimptype.ServiceNameT) *Expectation {
 		ExpectService(service)
 }
 
-// ExpectCodedError expects an error report with the code as its value, a correlation ID and no URL in msg.
+// ExpectCodedError expects an error report with the code as its value, a correlation ID and a msg without a URL.
 func ExpectCodedError(topic string, service fimptype.ServiceNameT, code fimptype.ErrorCodeT) *Expectation {
 	return ExpectError(topic, service).ExpectString(code.Str()).Expect(router.MessageVoterFn(func(message *fimpgo.Message) bool {
-		return message.Payload.CorrelationID != "" && !strings.Contains(message.Payload.Properties[router.PropertyMsg], "://")
+		msg, ok := message.Payload.Properties[router.PropertyMsg]
+
+		return message.Payload.CorrelationID != "" && ok && !strings.Contains(msg, "://")
 	}))
 }
 
