@@ -3,7 +3,7 @@
 ### Requirement: Coded Error Expectation
 `ExpectCodedError(topic, service, code)` SHALL return an expectation that matches an
 `evt.error.report` on that topic and service only when its value is the given code, its correlation
-ID is not empty and its `msg` property holds no URL (no `://`). It is the one check every adapter
+ID is not empty and it has a `msg` property that holds no URL (no `://`). It is the one check every adapter
 shares for a failed command; that the correlation ID is the command's UID is checked by the router's
 own tests, the expectation only requires one to be present.
 
@@ -13,6 +13,10 @@ own tests, the expectation only requires one to be present.
 
 #### Scenario: report without a correlation ID
 - **WHEN** the same report arrives with an empty correlation ID
+- **THEN** the expectation does not match it
+
+#### Scenario: report without msg
+- **WHEN** the same report arrives without a `msg` property
 - **THEN** the expectation does not match it
 
 #### Scenario: URL in msg

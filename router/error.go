@@ -38,9 +38,19 @@ func (e *Error) Unwrap() error {
 }
 
 // NewErrorReport logs a failure found after the request was accepted and returns its evt.error.report, addressed and correlated to the request, for the caller to publish.
+// It returns nil when the request's resp_to cannot be parsed, as the router then sends no reply either.
 func NewErrorReport(request *fimpgo.Message, err error) *fimpgo.Message {
 	addr := evtAddress(request.Addr)
-	if respTo, parseErr := fimpgo.NewAddressFromString(request.Payload.ResponseToTopic); request.Payload.ResponseToTopic != "" && parseErr == nil {
+	if request.Payload.ResponseToTopic != "" {
+		respTo, parseErr := fimpgo.NewAddressFromString(request.Payload.ResponseToTopic)
+		if parseErr != nil {
+			log.WithField("topic", request.Topic).
+				WithField("resp_to", request.Payload.ResponseToTopic).
+				Errorf("[router] Parse response topic of late failure. err: %v, failure: %v", parseErr, err)
+
+			return nil
+		}
+
 		addr = respTo
 	}
 
