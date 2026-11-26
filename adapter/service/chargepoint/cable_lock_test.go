@@ -9,9 +9,9 @@ import (
 	"github.com/stretchr/testify/require"
 
 	"github.com/futurehomeno/cliffhanger/adapter/service/chargepoint"
-	"github.com/futurehomeno/cliffhanger/utils"
 	mockedadapter "github.com/futurehomeno/cliffhanger/test/mocks/adapter"
 	mockedchargepoint "github.com/futurehomeno/cliffhanger/test/mocks/adapter/service/chargepoint"
+	"github.com/futurehomeno/cliffhanger/utils"
 )
 
 type cableLockAwareCharger struct {

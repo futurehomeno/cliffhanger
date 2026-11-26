@@ -4,6 +4,7 @@ import (
 	"fmt"
 
 	"github.com/futurehomeno/fimpgo"
+	"github.com/futurehomeno/fimpgo/fimptype"
 
 	"github.com/futurehomeno/cliffhanger/adapter"
 	"github.com/futurehomeno/cliffhanger/router"
@@ -45,7 +46,7 @@ func HandleCmdBinarySet(serviceRegistry adapter.ServiceRegistry) router.MessageH
 		router.MessageProcessorFn(func(message *fimpgo.Message) (*fimpgo.FimpMessage, error) {
 			s := serviceRegistry.ServiceByTopic(message.Topic)
 			if s == nil {
-				return nil, fmt.Errorf("service not found under the provided address: %s", message.Addr.ServiceAddress)
+				return nil, router.NewError(fimptype.ErrorCodeNotFound, "service not found under the provided address", nil)
 			}
 
 			outBinSwitch, ok := s.(Service)
@@ -55,7 +56,7 @@ func HandleCmdBinarySet(serviceRegistry adapter.ServiceRegistry) router.MessageH
 
 			value, err := message.Payload.GetBoolValue()
 			if err != nil {
-				return nil, fmt.Errorf("failed to get value from the message: %w", err)
+				return nil, router.NewError(fimptype.ErrorCodeBadRequest, "provided binary value has an incorrect format", err)
 			}
 
 			err = outBinSwitch.SetBinaryState(value)
@@ -78,7 +79,7 @@ func HandleCmdBinaryGetReport(serviceRegistry adapter.ServiceRegistry) router.Me
 		router.MessageProcessorFn(func(message *fimpgo.Message) (*fimpgo.FimpMessage, error) {
 			s := serviceRegistry.ServiceByTopic(message.Topic)
 			if s == nil {
-				return nil, fmt.Errorf("service not found under the provided address: %s", message.Addr.ServiceAddress)
+				return nil, router.NewError(fimptype.ErrorCodeNotFound, "service not found under the provided address", nil)
 			}
 
 			outBinSwitch, ok := s.(Service)

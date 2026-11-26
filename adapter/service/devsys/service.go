@@ -7,6 +7,7 @@ import (
 	"github.com/futurehomeno/fimpgo/fimptype"
 
 	"github.com/futurehomeno/cliffhanger/adapter"
+	"github.com/futurehomeno/cliffhanger/router"
 )
 
 // Controller for dev_sys service specifies no methods, as the service has no mandatory interfaces.
@@ -92,7 +93,7 @@ func (s *service) SupportsReboot() bool {
 func (s *service) rebootController() (RebootController, error) {
 	controller, ok := s.controller.(RebootController)
 	if !ok {
-		return nil, fmt.Errorf("%s: reboot functionality is not supported", s.Name())
+		return nil, router.NewError(fimptype.ErrorCodeNotSupported, "reboot is not supported", nil)
 	}
 
 	return controller, nil

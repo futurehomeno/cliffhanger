@@ -196,7 +196,7 @@ func TestRouteService(t *testing.T) { //nolint:paralleltest
 							cliffSuite.ExpectError(
 								"pt:j1/mt:evt/rt:dev/rn:test_adapter/ad:1/sv:thermostat/ad:404",
 								thermostat.Thermostat,
-							),
+							).ExpectString("not_found"),
 						},
 					},
 				},

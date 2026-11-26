@@ -7,6 +7,7 @@ import (
 
 	"github.com/futurehomeno/cliffhanger/adapter"
 	"github.com/futurehomeno/cliffhanger/adapter/service/numericmeter"
+	"github.com/futurehomeno/cliffhanger/router"
 )
 
 func Specification(
@@ -61,6 +62,12 @@ func requiredInterfaces() []fimptype.Interface {
 			Type:      fimptype.TypeOut,
 			MsgType:   EvtMeterReport,
 			ValueType: fimptype.VTypeFloatMap,
+			Version:   "1",
+		},
+		{
+			Type:      fimptype.TypeOut,
+			MsgType:   router.EvtErrorReport,
+			ValueType: fimptype.VTypeString,
 			Version:   "1",
 		},
 	}

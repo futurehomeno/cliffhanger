@@ -66,7 +66,19 @@ func TestRouteService(t *testing.T) { //nolint:paralleltest
 					{
 						Command: suite.IntMessage("pt:j1/mt:cmd/rt:dev/rn:test_adapter/ad:1/sv:ota/ad:1", "cmd.ota_update.start", "ota", 1),
 						Expectations: []*suite.Expectation{
-							suite.ExpectError("pt:j1/mt:evt/rt:dev/rn:test_adapter/ad:1/sv:ota/ad:1", "ota"),
+							suite.ExpectError("pt:j1/mt:evt/rt:dev/rn:test_adapter/ad:1/sv:ota/ad:1", "ota").ExpectString("bad_request"),
+						},
+					},
+					{
+						Command: suite.StringMessage("pt:j1/mt:cmd/rt:dev/rn:test_adapter/ad:1/sv:ota/ad:1", "cmd.ota_update.start", "ota", ""),
+						Expectations: []*suite.Expectation{
+							suite.ExpectError("pt:j1/mt:evt/rt:dev/rn:test_adapter/ad:1/sv:ota/ad:1", "ota").ExpectString("bad_request"),
+						},
+					},
+					{
+						Command: suite.StringMessage("pt:j1/mt:cmd/rt:dev/rn:test_adapter/ad:1/sv:ota/ad:404", "cmd.ota_update.start", "ota", testFirmwarePath),
+						Expectations: []*suite.Expectation{
+							suite.ExpectError("pt:j1/mt:evt/rt:dev/rn:test_adapter/ad:1/sv:ota/ad:404", "ota").ExpectString("not_found"),
 						},
 					},
 				},

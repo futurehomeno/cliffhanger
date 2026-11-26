@@ -156,7 +156,7 @@ func TestRouteService(t *testing.T) { //nolint:paralleltest
 							AddProperty(virtualmeter.PropertyNameUnit, "invalid").
 							Build(),
 						Expectations: []*suite.Expectation{
-							suite.ExpectError("pt:j1/mt:evt/rt:dev/rn:test_adapter/ad:1/sv:virtual_meter_elec/ad:2", "virtual_meter_elec"),
+							suite.ExpectError("pt:j1/mt:evt/rt:dev/rn:test_adapter/ad:1/sv:virtual_meter_elec/ad:2", "virtual_meter_elec").ExpectString("not_supported"),
 						},
 					},
 					{
@@ -170,7 +170,7 @@ func TestRouteService(t *testing.T) { //nolint:paralleltest
 							).
 							Build(),
 						Expectations: []*suite.Expectation{
-							suite.ExpectError("pt:j1/mt:evt/rt:dev/rn:test_adapter/ad:1/sv:virtual_meter_elec/ad:2", "virtual_meter_elec"),
+							suite.ExpectError("pt:j1/mt:evt/rt:dev/rn:test_adapter/ad:1/sv:virtual_meter_elec/ad:2", "virtual_meter_elec").ExpectString("bad_request"),
 						},
 					},
 					{
@@ -185,7 +185,16 @@ func TestRouteService(t *testing.T) { //nolint:paralleltest
 							AddProperty(virtualmeter.PropertyNameUnit, "W").
 							Build(),
 						Expectations: []*suite.Expectation{
-							suite.ExpectError("pt:j1/mt:evt/rt:dev/rn:test_adapter/ad:1/sv:virtual_meter_elec/ad:2", "virtual_meter_elec"),
+							suite.ExpectError("pt:j1/mt:evt/rt:dev/rn:test_adapter/ad:1/sv:virtual_meter_elec/ad:2", "virtual_meter_elec").ExpectString("bad_request"),
+						},
+					},
+					{
+						Name: "Error when service not found",
+						Command: suite.NewMessageBuilder().
+							NullMessage("pt:j1/mt:cmd/rt:dev/rn:test_adapter/ad:1/sv:virtual_meter_elec/ad:404", "cmd.meter.get_report", "virtual_meter_elec").
+							Build(),
+						Expectations: []*suite.Expectation{
+							suite.ExpectError("pt:j1/mt:evt/rt:dev/rn:test_adapter/ad:1/sv:virtual_meter_elec/ad:404", "virtual_meter_elec").ExpectString("not_found"),
 						},
 					},
 				},

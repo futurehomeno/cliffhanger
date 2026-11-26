@@ -1,18 +1,15 @@
 package router
 
 import (
-	"errors"
-	"fmt"
 	"sync"
 
 	"github.com/futurehomeno/fimpgo"
 	"github.com/futurehomeno/fimpgo/fimptype"
-	log "github.com/sirupsen/logrus"
 )
 
 // ErrNotReported marks a state the device has not reported yet, so there is nothing to send.
 // It lives here because adapter imports router; adapter.ErrNotReported is the same value.
-var ErrNotReported = errors.New("state not reported yet")
+var ErrNotReported error = NewError(fimptype.ErrorCodeUnavailable, "state not reported yet", nil)
 
 type MessageHandler interface {
 	// Handle handles the incoming message and optionally returns a response. If no response is expected a nil message should be returned.
@@ -112,7 +109,7 @@ type messageHandler struct {
 func (m *messageHandler) Handle(message *fimpgo.Message) *fimpgo.Message {
 	if m.locker != nil {
 		if !m.locker.Lock() {
-			return m.handleError(message, fmt.Errorf("another operation is already running, skipping message"))
+			return m.handleError(message, NewError(fimptype.ErrorCodeBusy, "another operation is already running, skipping message", nil))
 		}
 		defer m.locker.Unlock()
 	}
@@ -158,41 +155,9 @@ func (m *messageHandler) handleReply(requestMessage *fimpgo.Message, reply *fimp
 
 // handleError handles message processing error.
 func (m *messageHandler) handleError(requestMessage *fimpgo.Message, err error) *fimpgo.Message {
-	level := log.ErrorLevel
-	if errors.Is(err, ErrNotReported) {
-		level = log.WarnLevel
-	}
-
-	log.WithField("topic", requestMessage.Topic).
-		WithField("service", requestMessage.Payload.Service).
-		WithField("type", requestMessage.Payload.Interface).
-		Logf(level, "[router] Process message. err: %v", err)
-
+	reply := errorReport(requestMessage, m.getResponseAddress(requestMessage.Addr), err)
 	if m.silentErrors {
 		return nil
-	}
-
-	reply := &fimpgo.Message{
-		Addr: m.getResponseAddress(requestMessage.Addr),
-		Payload: fimpgo.NewMessage(
-			EvtErrorReport,
-			requestMessage.Payload.Service,
-			fimptype.VTypeString,
-			"failed to process incoming message",
-			map[string]string{
-				PropertyMsg:        err.Error(),
-				PropertyCmdTopic:   requestMessage.Topic,
-				PropertyCmdService: requestMessage.Payload.Service.Str(),
-				PropertyCmdType:    requestMessage.Payload.Interface,
-			},
-			nil,
-			requestMessage.Payload,
-		),
-	}
-
-	// Do not store device errors in the storage.
-	if reply.Addr.ResourceType == fimptype.ResourceTypeDevice && reply.Payload.Storage == nil {
-		reply.Payload.WithStorageStrategy(fimpgo.StorageStrategySkip, "")
 	}
 
 	return reply
@@ -200,9 +165,16 @@ func (m *messageHandler) handleError(requestMessage *fimpgo.Message, err error) 
 
 // getResponseAddress returns response address.
 func (m *messageHandler) getResponseAddress(requestAddress *fimpgo.Address) *fimpgo.Address {
-	a := requestAddress
 	if m.defaultAddress != nil {
-		a = m.defaultAddress
+		return evtAddress(m.defaultAddress)
+	}
+
+	return evtAddress(requestAddress)
+}
+
+func evtAddress(a *fimpgo.Address) *fimpgo.Address {
+	if a == nil {
+		a = &fimpgo.Address{}
 	}
 
 	return &fimpgo.Address{

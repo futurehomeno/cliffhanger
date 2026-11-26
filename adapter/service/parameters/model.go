@@ -4,6 +4,10 @@ import (
 	"encoding/json"
 	"fmt"
 	"slices"
+
+	"github.com/futurehomeno/fimpgo/fimptype"
+
+	"github.com/futurehomeno/cliffhanger/router"
 )
 
 // ValueType represents a value type.
@@ -120,7 +124,7 @@ func (s *ParameterSpecification) WithMax(m int) *ParameterSpecification {
 // ValidateParameter validates a parameter against the specification.
 func (s *ParameterSpecification) ValidateParameter(p *Parameter) error {
 	if s.ValueType != p.ValueType {
-		return fmt.Errorf("parameter value type '%s' does not match specification value type '%s'", p.ValueType, s.ValueType)
+		return router.NewError(fimptype.ErrorCodeBadRequest, fmt.Sprintf("parameter value type must be %s", s.ValueType), nil)
 	}
 
 	switch s.WidgetType {
@@ -146,11 +150,11 @@ func (s *ParameterSpecification) validateInput(p *Parameter) error {
 	}
 
 	if s.Min != nil && v < *s.Min {
-		return fmt.Errorf("parameter value '%d' lower than allowed minimum '%d'", v, *s.Min)
+		return router.NewError(fimptype.ErrorCodeOutOfRange, fmt.Sprintf("parameter value must be at least %d", *s.Min), fmt.Errorf("received %d", v))
 	}
 
 	if s.Max != nil && v > *s.Max {
-		return fmt.Errorf("parameter value '%d' higher than allowed maximum '%d'", v, *s.Max)
+		return router.NewError(fimptype.ErrorCodeOutOfRange, fmt.Sprintf("parameter value must not exceed %d", *s.Max), fmt.Errorf("received %d", v))
 	}
 
 	return nil
@@ -165,7 +169,7 @@ func (s *ParameterSpecification) validateSelect(p *Parameter) error {
 		}
 
 		if !slices.Contains(s.Options.IntValues(), v) {
-			return fmt.Errorf("parameter value '%d' is not allowed", v)
+			return router.NewError(fimptype.ErrorCodeNotSupported, fmt.Sprintf("parameter value %d is not allowed", v), nil)
 		}
 	case ValueTypeString:
 		v, err := p.StringValue()
@@ -174,7 +178,7 @@ func (s *ParameterSpecification) validateSelect(p *Parameter) error {
 		}
 
 		if !slices.Contains(s.Options.StringValues(), v) {
-			return fmt.Errorf("parameter value '%s' is not allowed", v)
+			return router.NewError(fimptype.ErrorCodeNotSupported, fmt.Sprintf("parameter value %s is not allowed", v), nil)
 		}
 	}
 
@@ -190,7 +194,7 @@ func (s *ParameterSpecification) validateMultiSelect(p *Parameter) error {
 		}
 
 		if !includes(s.Options.IntValues(), v) {
-			return fmt.Errorf("parameter value '%d' is not allowed", v)
+			return router.NewError(fimptype.ErrorCodeNotSupported, fmt.Sprintf("parameter value %d is not allowed", v), nil)
 		}
 	case ValueTypeStringArray:
 		v, err := p.StringArrayValue()
@@ -199,7 +203,7 @@ func (s *ParameterSpecification) validateMultiSelect(p *Parameter) error {
 		}
 
 		if !includes(s.Options.StringValues(), v) {
-			return fmt.Errorf("parameter value '%s' is not allowed", v)
+			return router.NewError(fimptype.ErrorCodeNotSupported, fmt.Sprintf("parameter value %s is not allowed", v), nil)
 		}
 	}
 
@@ -412,15 +416,15 @@ func (p *Parameter) StringArrayValue() ([]string, error) {
 // Validate validates a parameter.
 func (p *Parameter) Validate() error {
 	if p.ID == "" {
-		return fmt.Errorf("parameter id cannot be empty")
+		return router.NewError(fimptype.ErrorCodeBadRequest, "parameter id cannot be empty", nil)
 	}
 
 	if !IsValueTypeAllowed(p.ValueType) {
-		return fmt.Errorf("value type '%s' is not allowed", p.ValueType)
+		return router.NewError(fimptype.ErrorCodeBadRequest, fmt.Sprintf("value type %s is not allowed", p.ValueType), nil)
 	}
 
 	if !p.valueMatchesValueType() {
-		return fmt.Errorf("value of type %T is not allowed for type %s", p.Value, p.ValueType)
+		return router.NewError(fimptype.ErrorCodeBadRequest, fmt.Sprintf("value does not match value type %s", p.ValueType), nil)
 	}
 
 	return nil

@@ -7,6 +7,8 @@ import (
 	"sync"
 	"time"
 
+	"github.com/futurehomeno/cliffhanger/router"
+
 	"github.com/futurehomeno/fimpgo"
 	"github.com/futurehomeno/fimpgo/fimptype"
 	log "github.com/sirupsen/logrus"
@@ -121,7 +123,7 @@ func (m *manager) add(topic string, modes map[string]float64, unit string) error
 	}
 
 	if thing == nil {
-		return fmt.Errorf("manager: no thing found by topic: %s. can't add meter", topic)
+		return router.NewError(fimptype.ErrorCodeNotFound, "no thing found to add the meter to", fmt.Errorf("topic %s", topic))
 	}
 
 	device, err := m.device(topic)
@@ -311,7 +313,7 @@ func (m *manager) reportPerUnit(device *Device, unit numericmeter.Unit) (float64
 	case numericmeter.UnitKWh:
 		result = device.AccumulatedEnergy
 	default:
-		return result, fmt.Errorf("manager: report for unknown unit requested: %s", unit)
+		return result, router.NewError(fimptype.ErrorCodeNotSupported, fmt.Sprintf("unit %s is not supported", unit), nil)
 	}
 
 	return result, nil

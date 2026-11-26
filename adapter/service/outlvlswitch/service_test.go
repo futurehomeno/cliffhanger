@@ -5,8 +5,11 @@ import (
 
 	"github.com/futurehomeno/fimpgo/fimptype"
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 
 	"github.com/futurehomeno/cliffhanger/adapter/service/outlvlswitch"
+	"github.com/futurehomeno/cliffhanger/router"
+	mockedoutlvlswitch "github.com/futurehomeno/cliffhanger/test/mocks/adapter/service/outlvlswitch"
 )
 
 // TestService_SetLevelRejectsAnInvertedRange pins that a spec whose min_lvl is above its max_lvl
@@ -28,4 +31,20 @@ func TestService_SetLevelRejectsAnInvertedRange(t *testing.T) {
 	})
 
 	assert.ErrorContains(t, s.SetLevel(50, nil), "min_lvl 254 is above max_lvl 1")
+}
+
+func TestService_LevelTransitionWithoutControllerIsNotSupported(t *testing.T) {
+	t.Parallel()
+
+	s := outlvlswitch.NewService(nil, &outlvlswitch.Config{
+		Specification: outlvlswitch.Specification("test_adapter", "1", "2", "", 99, 0, nil),
+		Controller:    mockedoutlvlswitch.NewController(t),
+	})
+
+	for _, err := range []error{s.StartLevelTransition(outlvlswitch.TransitionUp, outlvlswitch.LevelTransitionParams{}), s.StopLevelTransition()} {
+		var coded *router.Error
+
+		require.ErrorAs(t, err, &coded)
+		assert.Equal(t, fimptype.ErrorCodeNotSupported, coded.Code)
+	}
 }

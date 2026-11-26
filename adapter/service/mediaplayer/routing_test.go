@@ -69,21 +69,21 @@ func TestRouteService(t *testing.T) { //nolint:paralleltest
 						Name:    "Set playback wrong action",
 						Command: suite.StringMessage("pt:j1/mt:cmd/rt:dev/rn:test_adapter/ad:1/sv:media_player/ad:3", "cmd.playback.set", "media_player", "not_supported_action"),
 						Expectations: []*suite.Expectation{
-							suite.ExpectError("pt:j1/mt:evt/rt:dev/rn:test_adapter/ad:1/sv:media_player/ad:3", "media_player"),
+							suite.ExpectError("pt:j1/mt:evt/rt:dev/rn:test_adapter/ad:1/sv:media_player/ad:3", "media_player").ExpectString("not_supported"),
 						},
 					},
 					{
 						Name:    "Set playback - wrong topic",
 						Command: suite.StringMessage("pt:j1/mt:cmd/rt:dev/rn:test_adapter/ad:1/sv:media_player/ad:666", "cmd.playback.set", "media_player", "play"),
 						Expectations: []*suite.Expectation{
-							suite.ExpectError("pt:j1/mt:evt/rt:dev/rn:test_adapter/ad:1/sv:media_player/ad:666", "media_player"),
+							suite.ExpectError("pt:j1/mt:evt/rt:dev/rn:test_adapter/ad:1/sv:media_player/ad:666", "media_player").ExpectString("not_found"),
 						},
 					},
 					{
 						Name:    "Set playback - wrong message type",
 						Command: suite.BoolMessage("pt:j1/mt:cmd/rt:dev/rn:test_adapter/ad:1/sv:media_player/ad:3", "cmd.playback.set", "media_player", true),
 						Expectations: []*suite.Expectation{
-							suite.ExpectError("pt:j1/mt:evt/rt:dev/rn:test_adapter/ad:1/sv:media_player/ad:3", "media_player"),
+							suite.ExpectError("pt:j1/mt:evt/rt:dev/rn:test_adapter/ad:1/sv:media_player/ad:3", "media_player").ExpectString("bad_request"),
 						},
 					},
 					{
@@ -111,7 +111,7 @@ func TestRouteService(t *testing.T) { //nolint:paralleltest
 						Name:    "get playback report - wrong topic",
 						Command: suite.NullMessage("pt:j1/mt:cmd/rt:dev/rn:test_adapter/ad:1/sv:media_player/ad:666", "cmd.playback.get_report", "media_player"),
 						Expectations: []*suite.Expectation{
-							suite.ExpectError("pt:j1/mt:evt/rt:dev/rn:test_adapter/ad:1/sv:media_player/ad:666", "media_player"),
+							suite.ExpectError("pt:j1/mt:evt/rt:dev/rn:test_adapter/ad:1/sv:media_player/ad:666", "media_player").ExpectString("not_found"),
 						},
 					},
 					{
@@ -132,14 +132,21 @@ func TestRouteService(t *testing.T) { //nolint:paralleltest
 						Name:    "set playback mode - wrong topic",
 						Command: suite.BoolMapMessage("pt:j1/mt:cmd/rt:dev/rn:test_adapter/ad:1/sv:media_player/ad:666", "cmd.playbackmode.set", "media_player", samplePlaybackMode()),
 						Expectations: []*suite.Expectation{
-							suite.ExpectError("pt:j1/mt:evt/rt:dev/rn:test_adapter/ad:1/sv:media_player/ad:666", "media_player"),
+							suite.ExpectError("pt:j1/mt:evt/rt:dev/rn:test_adapter/ad:1/sv:media_player/ad:666", "media_player").ExpectString("not_found"),
 						},
 					},
 					{
 						Name:    "set playback mode - wrong message type",
 						Command: suite.BoolMessage("pt:j1/mt:cmd/rt:dev/rn:test_adapter/ad:1/sv:media_player/ad:3", "cmd.playbackmode.set", "media_player", true),
 						Expectations: []*suite.Expectation{
-							suite.ExpectError("pt:j1/mt:evt/rt:dev/rn:test_adapter/ad:1/sv:media_player/ad:3", "media_player"),
+							suite.ExpectError("pt:j1/mt:evt/rt:dev/rn:test_adapter/ad:1/sv:media_player/ad:3", "media_player").ExpectString("bad_request"),
+						},
+					},
+					{
+						Name:    "set playback mode - unsupported mode",
+						Command: suite.BoolMapMessage("pt:j1/mt:cmd/rt:dev/rn:test_adapter/ad:1/sv:media_player/ad:3", "cmd.playbackmode.set", "media_player", map[string]bool{"not_supported_mode": true}),
+						Expectations: []*suite.Expectation{
+							suite.ExpectError("pt:j1/mt:evt/rt:dev/rn:test_adapter/ad:1/sv:media_player/ad:3", "media_player").ExpectString("not_supported"),
 						},
 					},
 					{
@@ -167,7 +174,7 @@ func TestRouteService(t *testing.T) { //nolint:paralleltest
 						Name:    "get playback mode report - wrong topic",
 						Command: suite.NullMessage("pt:j1/mt:cmd/rt:dev/rn:test_adapter/ad:1/sv:media_player/ad:666", "cmd.playbackmode.get_report", "media_player"),
 						Expectations: []*suite.Expectation{
-							suite.ExpectError("pt:j1/mt:evt/rt:dev/rn:test_adapter/ad:1/sv:media_player/ad:666", "media_player"),
+							suite.ExpectError("pt:j1/mt:evt/rt:dev/rn:test_adapter/ad:1/sv:media_player/ad:666", "media_player").ExpectString("not_found"),
 						},
 					},
 					{
@@ -188,14 +195,28 @@ func TestRouteService(t *testing.T) { //nolint:paralleltest
 						Name:    "set volume - wrong topic",
 						Command: suite.IntMessage("pt:j1/mt:cmd/rt:dev/rn:test_adapter/ad:1/sv:media_player/ad:666", "cmd.volume.set", "media_player", 10),
 						Expectations: []*suite.Expectation{
-							suite.ExpectError("pt:j1/mt:evt/rt:dev/rn:test_adapter/ad:1/sv:media_player/ad:666", "media_player"),
+							suite.ExpectError("pt:j1/mt:evt/rt:dev/rn:test_adapter/ad:1/sv:media_player/ad:666", "media_player").ExpectString("not_found"),
 						},
 					},
 					{
 						Name:    "set volume - wrong message type",
 						Command: suite.BoolMessage("pt:j1/mt:cmd/rt:dev/rn:test_adapter/ad:1/sv:media_player/ad:3", "cmd.volume.set", "media_player", true),
 						Expectations: []*suite.Expectation{
-							suite.ExpectError("pt:j1/mt:evt/rt:dev/rn:test_adapter/ad:1/sv:media_player/ad:3", "media_player"),
+							suite.ExpectError("pt:j1/mt:evt/rt:dev/rn:test_adapter/ad:1/sv:media_player/ad:3", "media_player").ExpectString("bad_request"),
+						},
+					},
+					{
+						Name:    "set volume - above 100",
+						Command: suite.IntMessage("pt:j1/mt:cmd/rt:dev/rn:test_adapter/ad:1/sv:media_player/ad:3", "cmd.volume.set", "media_player", 101),
+						Expectations: []*suite.Expectation{
+							suite.ExpectError("pt:j1/mt:evt/rt:dev/rn:test_adapter/ad:1/sv:media_player/ad:3", "media_player").ExpectString("out_of_range"),
+						},
+					},
+					{
+						Name:    "set volume - below 0",
+						Command: suite.IntMessage("pt:j1/mt:cmd/rt:dev/rn:test_adapter/ad:1/sv:media_player/ad:3", "cmd.volume.set", "media_player", -1),
+						Expectations: []*suite.Expectation{
+							suite.ExpectError("pt:j1/mt:evt/rt:dev/rn:test_adapter/ad:1/sv:media_player/ad:3", "media_player").ExpectString("out_of_range"),
 						},
 					},
 					{
@@ -223,7 +244,7 @@ func TestRouteService(t *testing.T) { //nolint:paralleltest
 						Name:    "get volume report - wrong topic",
 						Command: suite.NullMessage("pt:j1/mt:cmd/rt:dev/rn:test_adapter/ad:1/sv:media_player/ad:666", "cmd.volume.get_report", "media_player"),
 						Expectations: []*suite.Expectation{
-							suite.ExpectError("pt:j1/mt:evt/rt:dev/rn:test_adapter/ad:1/sv:media_player/ad:666", "media_player"),
+							suite.ExpectError("pt:j1/mt:evt/rt:dev/rn:test_adapter/ad:1/sv:media_player/ad:666", "media_player").ExpectString("not_found"),
 						},
 					},
 					{
@@ -244,14 +265,14 @@ func TestRouteService(t *testing.T) { //nolint:paralleltest
 						Name:    "set mute - wrong topic",
 						Command: suite.BoolMessage("pt:j1/mt:cmd/rt:dev/rn:test_adapter/ad:1/sv:media_player/ad:666", "cmd.mute.set", "media_player", true),
 						Expectations: []*suite.Expectation{
-							suite.ExpectError("pt:j1/mt:evt/rt:dev/rn:test_adapter/ad:1/sv:media_player/ad:666", "media_player"),
+							suite.ExpectError("pt:j1/mt:evt/rt:dev/rn:test_adapter/ad:1/sv:media_player/ad:666", "media_player").ExpectString("not_found"),
 						},
 					},
 					{
 						Name:    "set mute - wrong message type",
 						Command: suite.IntMessage("pt:j1/mt:cmd/rt:dev/rn:test_adapter/ad:1/sv:media_player/ad:3", "cmd.mute.set", "media_player", 10),
 						Expectations: []*suite.Expectation{
-							suite.ExpectError("pt:j1/mt:evt/rt:dev/rn:test_adapter/ad:1/sv:media_player/ad:3", "media_player"),
+							suite.ExpectError("pt:j1/mt:evt/rt:dev/rn:test_adapter/ad:1/sv:media_player/ad:3", "media_player").ExpectString("bad_request"),
 						},
 					},
 					{
@@ -279,7 +300,7 @@ func TestRouteService(t *testing.T) { //nolint:paralleltest
 						Name:    "get mute report - wrong topic",
 						Command: suite.NullMessage("pt:j1/mt:cmd/rt:dev/rn:test_adapter/ad:1/sv:media_player/ad:666", "cmd.mute.get_report", "media_player"),
 						Expectations: []*suite.Expectation{
-							suite.ExpectError("pt:j1/mt:evt/rt:dev/rn:test_adapter/ad:1/sv:media_player/ad:666", "media_player"),
+							suite.ExpectError("pt:j1/mt:evt/rt:dev/rn:test_adapter/ad:1/sv:media_player/ad:666", "media_player").ExpectString("not_found"),
 						},
 					},
 					{
@@ -300,7 +321,7 @@ func TestRouteService(t *testing.T) { //nolint:paralleltest
 						Name:    "get metadata report - wrong topic",
 						Command: suite.NullMessage("pt:j1/mt:cmd/rt:dev/rn:test_adapter/ad:1/sv:media_player/ad:666", "cmd.metadata.get_report", "media_player"),
 						Expectations: []*suite.Expectation{
-							suite.ExpectError("pt:j1/mt:evt/rt:dev/rn:test_adapter/ad:1/sv:media_player/ad:666", "media_player"),
+							suite.ExpectError("pt:j1/mt:evt/rt:dev/rn:test_adapter/ad:1/sv:media_player/ad:666", "media_player").ExpectString("not_found"),
 						},
 					},
 					{

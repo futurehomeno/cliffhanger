@@ -148,14 +148,14 @@ func TestRouteService(t *testing.T) { //nolint:paralleltest
 						Name:    "Start level transition. Not string value",
 						Command: suite.BoolMessage("pt:j1/mt:cmd/rt:dev/rn:test_adapter/ad:1/sv:out_lvl_switch/ad:2", "cmd.lvl.start", "out_lvl_switch", true),
 						Expectations: []*suite.Expectation{
-							suite.ExpectError("pt:j1/mt:evt/rt:dev/rn:test_adapter/ad:1/sv:out_lvl_switch/ad:2", "out_lvl_switch"),
+							suite.ExpectError("pt:j1/mt:evt/rt:dev/rn:test_adapter/ad:1/sv:out_lvl_switch/ad:2", "out_lvl_switch").ExpectString("bad_request"),
 						},
 					},
 					{
 						Name:    "Start level transition. Incorrect value",
 						Command: suite.StringMessage("pt:j1/mt:cmd/rt:dev/rn:test_adapter/ad:1/sv:out_lvl_switch/ad:2", "cmd.lvl.start", "out_lvl_switch", "invalid"),
 						Expectations: []*suite.Expectation{
-							suite.ExpectError("pt:j1/mt:evt/rt:dev/rn:test_adapter/ad:1/sv:out_lvl_switch/ad:2", "out_lvl_switch"),
+							suite.ExpectError("pt:j1/mt:evt/rt:dev/rn:test_adapter/ad:1/sv:out_lvl_switch/ad:2", "out_lvl_switch").ExpectString("not_supported"),
 						},
 					},
 					{
@@ -165,7 +165,7 @@ func TestRouteService(t *testing.T) { //nolint:paralleltest
 							AddProperty("duration", "invalid").
 							Build(),
 						Expectations: []*suite.Expectation{
-							suite.ExpectError("pt:j1/mt:evt/rt:dev/rn:test_adapter/ad:1/sv:out_lvl_switch/ad:2", "out_lvl_switch"),
+							suite.ExpectError("pt:j1/mt:evt/rt:dev/rn:test_adapter/ad:1/sv:out_lvl_switch/ad:2", "out_lvl_switch").ExpectString("bad_request"),
 						},
 					},
 					{
@@ -176,7 +176,7 @@ func TestRouteService(t *testing.T) { //nolint:paralleltest
 							AddProperty("start_lvl", "invalid int").
 							Build(),
 						Expectations: []*suite.Expectation{
-							suite.ExpectError("pt:j1/mt:evt/rt:dev/rn:test_adapter/ad:1/sv:out_lvl_switch/ad:2", "out_lvl_switch"),
+							suite.ExpectError("pt:j1/mt:evt/rt:dev/rn:test_adapter/ad:1/sv:out_lvl_switch/ad:2", "out_lvl_switch").ExpectString("bad_request"),
 						},
 					},
 					{
@@ -187,7 +187,7 @@ func TestRouteService(t *testing.T) { //nolint:paralleltest
 							AddProperty("start_lvl", "109").
 							Build(),
 						Expectations: []*suite.Expectation{
-							suite.ExpectError("pt:j1/mt:evt/rt:dev/rn:test_adapter/ad:1/sv:out_lvl_switch/ad:2", "out_lvl_switch"),
+							suite.ExpectError("pt:j1/mt:evt/rt:dev/rn:test_adapter/ad:1/sv:out_lvl_switch/ad:2", "out_lvl_switch").ExpectString("out_of_range"),
 						},
 					},
 					{
@@ -208,7 +208,7 @@ func TestRouteService(t *testing.T) { //nolint:paralleltest
 						Name:    "Set binary cmd. Not boolean value",
 						Command: suite.StringMessage("pt:j1/mt:cmd/rt:dev/rn:test_adapter/ad:1/sv:out_lvl_switch/ad:2", "cmd.binary.set", "out_lvl_switch", "invalid"),
 						Expectations: []*suite.Expectation{
-							suite.ExpectError("pt:j1/mt:evt/rt:dev/rn:test_adapter/ad:1/sv:out_lvl_switch/ad:2", "out_lvl_switch"),
+							suite.ExpectError("pt:j1/mt:evt/rt:dev/rn:test_adapter/ad:1/sv:out_lvl_switch/ad:2", "out_lvl_switch").ExpectString("bad_request"),
 						},
 					},
 					{
@@ -222,7 +222,7 @@ func TestRouteService(t *testing.T) { //nolint:paralleltest
 						Name:    "Set level. Invalid value.",
 						Command: suite.StringMessage("pt:j1/mt:cmd/rt:dev/rn:test_adapter/ad:1/sv:out_lvl_switch/ad:2", "cmd.lvl.set", "out_lvl_switch", "invalid"),
 						Expectations: []*suite.Expectation{
-							suite.ExpectError("pt:j1/mt:evt/rt:dev/rn:test_adapter/ad:1/sv:out_lvl_switch/ad:2", "out_lvl_switch"),
+							suite.ExpectError("pt:j1/mt:evt/rt:dev/rn:test_adapter/ad:1/sv:out_lvl_switch/ad:2", "out_lvl_switch").ExpectString("bad_request"),
 						},
 					},
 					{
@@ -232,7 +232,7 @@ func TestRouteService(t *testing.T) { //nolint:paralleltest
 							AddProperty("duration", "invalid").
 							Build(),
 						Expectations: []*suite.Expectation{
-							suite.ExpectError("pt:j1/mt:evt/rt:dev/rn:test_adapter/ad:1/sv:out_lvl_switch/ad:2", "out_lvl_switch"),
+							suite.ExpectError("pt:j1/mt:evt/rt:dev/rn:test_adapter/ad:1/sv:out_lvl_switch/ad:2", "out_lvl_switch").ExpectString("bad_request"),
 						},
 					},
 					{
@@ -249,6 +249,13 @@ func TestRouteService(t *testing.T) { //nolint:paralleltest
 						Command: suite.IntMessage("pt:j1/mt:cmd/rt:dev/rn:test_adapter/ad:1/sv:out_lvl_switch/ad:2", "cmd.lvl.set", "out_lvl_switch", -1),
 						Expectations: []*suite.Expectation{
 							suite.ExpectError("pt:j1/mt:evt/rt:dev/rn:test_adapter/ad:1/sv:out_lvl_switch/ad:2", "out_lvl_switch"),
+						},
+					},
+					{
+						Name:    "Set level. Wrong topic",
+						Command: suite.IntMessage("pt:j1/mt:cmd/rt:dev/rn:test_adapter/ad:1/sv:out_lvl_switch/ad:666", "cmd.lvl.set", "out_lvl_switch", 1),
+						Expectations: []*suite.Expectation{
+							suite.ExpectError("pt:j1/mt:evt/rt:dev/rn:test_adapter/ad:1/sv:out_lvl_switch/ad:666", "out_lvl_switch").ExpectString("not_found"),
 						},
 					},
 				},

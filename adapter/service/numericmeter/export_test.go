@@ -64,7 +64,7 @@ func TestService_SendMeterExportReport(t *testing.T) {
 	assert.False(t, sent, "an unchanged export value must not be republished")
 
 	_, err = svc.SendMeterExportReport(numericmeter.UnitW, true)
-	assert.ErrorContains(t, err, "unit is unsupported")
+	assert.ErrorContains(t, err, "is not supported")
 }
 
 func TestService_ExportReportNeedsBothReporterAndUnits(t *testing.T) {

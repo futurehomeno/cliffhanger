@@ -68,7 +68,7 @@ func TestRouteService(t *testing.T) { //nolint:paralleltest
 							StringMessage("pt:j1/mt:cmd/rt:dev/rn:test_adapter/ad:1/sv:fan_ctrl/ad:404", "cmd.mode.set", "fan_ctrl", "night").
 							Build(),
 						Expectations: []*cliffSuite.Expectation{
-							cliffSuite.ExpectMessage("pt:j1/mt:evt/rt:dev/rn:test_adapter/ad:1/sv:fan_ctrl/ad:404", "evt.error.report", "fan_ctrl"),
+							cliffSuite.ExpectMessage("pt:j1/mt:evt/rt:dev/rn:test_adapter/ad:1/sv:fan_ctrl/ad:404", "evt.error.report", "fan_ctrl").ExpectString("not_found"),
 						},
 					},
 					{
@@ -77,7 +77,16 @@ func TestRouteService(t *testing.T) { //nolint:paralleltest
 							FloatMessage("pt:j1/mt:cmd/rt:dev/rn:test_adapter/ad:1/sv:fan_ctrl/ad:2", "cmd.mode.set", "fan_ctrl", 1).
 							Build(),
 						Expectations: []*cliffSuite.Expectation{
-							cliffSuite.ExpectError("pt:j1/mt:evt/rt:dev/rn:test_adapter/ad:1/sv:fan_ctrl/ad:2", "fan_ctrl"),
+							cliffSuite.ExpectError("pt:j1/mt:evt/rt:dev/rn:test_adapter/ad:1/sv:fan_ctrl/ad:2", "fan_ctrl").ExpectString("bad_request"),
+						},
+					},
+					{
+						Name: "Unsupported mode",
+						Command: cliffSuite.NewMessageBuilder().
+							StringMessage("pt:j1/mt:cmd/rt:dev/rn:test_adapter/ad:1/sv:fan_ctrl/ad:2", "cmd.mode.set", "fan_ctrl", "turbo").
+							Build(),
+						Expectations: []*cliffSuite.Expectation{
+							cliffSuite.ExpectError("pt:j1/mt:evt/rt:dev/rn:test_adapter/ad:1/sv:fan_ctrl/ad:2", "fan_ctrl").ExpectString("not_supported"),
 						},
 					},
 				},

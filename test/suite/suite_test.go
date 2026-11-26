@@ -5,6 +5,7 @@ import (
 	"time"
 
 	"github.com/futurehomeno/fimpgo"
+	"github.com/futurehomeno/fimpgo/fimptype"
 	"github.com/stretchr/testify/assert"
 
 	"github.com/futurehomeno/cliffhanger/router"
@@ -83,4 +84,32 @@ func TestSuite_ExpectationMatching(t *testing.T) { //nolint:paralleltest
 	cliffSuite.NewSuite().WithCases(cliffSuite.NewCase("matching").WithNodes(node)).Run(t)
 
 	assert.GreaterOrEqual(t, time.Since(start), 300*time.Millisecond, "a Never expectation waits out the whole timeout")
+}
+
+func TestExpectCodedError(t *testing.T) {
+	t.Parallel()
+
+	topic := "pt:j1/mt:evt/rt:dev/rn:suite_test/ad:1/sv:out_bin_switch/ad:2"
+
+	matches := func(code, corid string, msg ...string) bool {
+		report := cliffSuite.StringMessage(topic, router.EvtErrorReport, "out_bin_switch", code)
+		report.Payload.CorrelationID = corid
+		if len(msg) > 0 {
+			report.Payload.Properties = map[string]string{router.PropertyMsg: msg[0]}
+		}
+
+		for _, v := range cliffSuite.ExpectCodedError(topic, "out_bin_switch", fimptype.ErrorCodeNotFound).Voters {
+			if !v.Vote(report) {
+				return false
+			}
+		}
+
+		return true
+	}
+
+	assert.True(t, matches("not_found", "uid-1", "service not found under the provided address"))
+	assert.False(t, matches("internal", "uid-1", "boom"), "another code")
+	assert.False(t, matches("not_found", "", "service not found under the provided address"), "no correlation id")
+	assert.False(t, matches("not_found", "uid-1", "Get \"https://api.example.com/v1\": timeout"), "a URL in msg")
+	assert.False(t, matches("not_found", "uid-1"), "no msg")
 }

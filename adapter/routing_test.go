@@ -71,7 +71,7 @@ func TestRouteAdapter_NetworkGetNode(t *testing.T) { //nolint:paralleltest
 							"999",
 						),
 						Expectations: []*suite.Expectation{
-							suite.ExpectError(testAdapterEvtTopic, testAdapterName).ExactlyOnce(),
+							suite.ExpectError(testAdapterEvtTopic, testAdapterName).ExpectString("not_found").ExactlyOnce(),
 							suite.NewExpectation().
 								ExpectTopic(testAdapterEvtTopic).
 								ExpectType(adapter.EvtNetworkNodeReport).
@@ -88,7 +88,7 @@ func TestRouteAdapter_NetworkGetNode(t *testing.T) { //nolint:paralleltest
 							42,
 						),
 						Expectations: []*suite.Expectation{
-							suite.ExpectError(testAdapterEvtTopic, testAdapterName).ExactlyOnce(),
+							suite.ExpectError(testAdapterEvtTopic, testAdapterName).ExpectString("bad_request").ExactlyOnce(),
 							suite.NewExpectation().
 								ExpectTopic(testAdapterEvtTopic).
 								ExpectType(adapter.EvtNetworkNodeReport).

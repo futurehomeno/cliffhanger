@@ -7,6 +7,8 @@ import (
 
 	"github.com/futurehomeno/fimpgo"
 	"github.com/futurehomeno/fimpgo/fimptype"
+	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 
 	"github.com/futurehomeno/cliffhanger/adapter"
 	"github.com/futurehomeno/cliffhanger/adapter/service/alarm"
@@ -108,7 +110,7 @@ func TestRouteService(t *testing.T) { //nolint:paralleltest
 							alarm.AlarmSystem,
 						),
 						Expectations: []*suite.Expectation{
-							suite.ExpectError(nonExistentEvtTopic, alarm.AlarmSystem),
+							suite.ExpectError(nonExistentEvtTopic, alarm.AlarmSystem).ExpectString("not_found"),
 						},
 					},
 				},
@@ -184,4 +186,20 @@ func setupService(
 	ad := adapterhelper.PrepareSeededAdapter(t, "../../testdata/adapter/test_adapter", mqtt, factory, adapter.ThingSeeds{seed})
 
 	return alarm.RouteService(ad), task.Combine(alarm.TaskReporting(ad, duration)), mocks
+}
+
+func TestService_UnlistedEventIsNotSupported(t *testing.T) {
+	t.Parallel()
+
+	svc := alarm.NewService(mockedadapter.NewServicePublisher(t), &alarm.Config{
+		Specification: alarm.Specification("test_adapter", "1", "2", nil, []string{alarm.EventGroundingFault}),
+		Reporter:      mockedalarm.NewReporter(t),
+	})
+
+	_, err := svc.SendAlarmReport(alarm.EventOverTemp, true)
+
+	var coded *router.Error
+
+	require.ErrorAs(t, err, &coded)
+	assert.Equal(t, fimptype.ErrorCodeNotSupported, coded.Code)
 }

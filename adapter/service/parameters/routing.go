@@ -4,6 +4,7 @@ import (
 	"fmt"
 
 	"github.com/futurehomeno/fimpgo"
+	"github.com/futurehomeno/fimpgo/fimptype"
 
 	"github.com/futurehomeno/cliffhanger/adapter"
 	"github.com/futurehomeno/cliffhanger/router"
@@ -72,7 +73,7 @@ func handleCmdParamSet(serviceRegistry adapter.ServiceRegistry) router.MessageHa
 			var param Parameter
 
 			if err := message.Payload.GetObjectValue(&param); err != nil {
-				return nil, fmt.Errorf("provided parameter has an incorrect format: %w", err)
+				return nil, router.NewError(fimptype.ErrorCodeBadRequest, "provided parameter has an incorrect format", err)
 			}
 
 			if err := parameters.SetParameter(&param); err != nil {
@@ -106,7 +107,7 @@ func handleCmdParamGetReport(serviceRegistry adapter.ServiceRegistry) router.Mes
 
 			value, err := message.Payload.GetStringValue()
 			if err != nil {
-				return nil, fmt.Errorf("provided parameter id has an incorrect format: %w", err)
+				return nil, router.NewError(fimptype.ErrorCodeBadRequest, "provided parameter id has an incorrect format", err)
 			}
 
 			if _, err = parameters.SendParameterReport(value, true); err != nil {
@@ -122,7 +123,7 @@ func handleCmdParamGetReport(serviceRegistry adapter.ServiceRegistry) router.Mes
 func getService(serviceRegistry adapter.ServiceRegistry, message *fimpgo.Message) (Service, error) {
 	s := serviceRegistry.ServiceByTopic(message.Topic)
 	if s == nil {
-		return nil, fmt.Errorf("service not found under the provided address: %s", message.Addr.ServiceAddress)
+		return nil, router.NewError(fimptype.ErrorCodeNotFound, "service not found under the provided address", nil)
 	}
 
 	parameters, ok := s.(Service)
